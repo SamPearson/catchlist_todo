@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for
-from db_models import db, Todo
 import os
 import requests
 from dotenv import load_dotenv
