@@ -2,15 +2,11 @@
 import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from environments import environment_data
+from environments.environment_data import Environment
 import os
 
 
 def pytest_addoption(parser):
-    parser.addoption("--baseurl",
-                     action="store",
-                     default="the-internet.herokuapp.com",
-                     help="base URL for the application under test")
     parser.addoption("--env",
                      action="store",
                      default="no_env",
@@ -38,19 +34,20 @@ def driver(request):
     driver_.maximize_window()
 
     test_environment = request.config.getoption("--env")
-    test_env_filename = os.path.join("environments", f"{test_environment}.json")
+    test_env_filename = os.path.join("environments", f"{test_environment}")
     assert os.path.exists(test_env_filename), f"Could not find json env file for {test_env_filename}"
 
-    environment_data.parse_environment_file(test_env_filename)
+    Environment.parse_environment_file(test_env_filename)
 
-    # This should be set by the env file or by the test type
-    url_option = request.config.getoption("--baseurl")
-    if url_option.startswith('http'):
-        driver_.base_url = url_option
-    else:
-        driver_.base_url = "https://" + url_option
+    # Construct the base URL dynamically from the environment file.
+    protocol = Environment.get_value("protocol")
+    host = Environment.get_value("host")
+    port = Environment.get_value("port")
 
-    driver_.base_domain = request.config.getoption("--baseurl")
+    driver_.base_url = f"{protocol}://{host}{port}"
+    # sometimes we still need the raw hostname.
+    # better to just store it now instead of trying to regex it out later.
+    driver_.base_domain = host
 
     def quit_browser():
         driver_.quit()

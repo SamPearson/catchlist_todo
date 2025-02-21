@@ -1,53 +1,42 @@
 import json
-
-values = {}
-
-
-def get_value(key):
-    if key in values:
-        return values[key]
-    else:
-        return False
+from pprint import pprint
 
 
-def parse_environment_file(file_path):
-    with open(file_path, 'r') as file:
-        data = json.load(file)
+class Environment:
+    values = {}
 
-    # We're going off of the postman environment file format, which looks like this:
-    # {
-    #     "values": [
-    #         {
-    #             "key": "var_name",
-    #             "value": "val"
-    #         }
-    #     ]
-    # }
-    # It's a weird data structure, but postman environments are used in a lot of places,
-    # So it makes sense to just adopt that format.
+    @classmethod
+    def get_value(cls, key):
+        return cls.values.get(key, False)
 
-    # Extract key-value pairs from the 'values' list and update globals
-    for item in data['values']:
-        key = item['key']
-        value = item['value']
-        globals()['values'][key] = value
+    @classmethod
+    def parse_environment_file(cls, file_path):
+        # We're going off of the postman environment file format, which looks like this:
+        # {
+        #     "values": [
+        #         {
+        #             "key": "var_name",
+        #             "value": "val"
+        #         }
+        #     ]
+        # }
+        # It's a weird data structure, but postman environments are used often,
+        # including in our API testing, so it makes sense to just adopt that format.
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        for item in data['values']:
+            cls.values[item['key']] = item['value']
 
+    @classmethod
+    def print_environment_info(cls):
+        pprint(cls.values)
 
-def print_environment_info():
-    from pprint import pprint
-    pprint(values)
-
-
-def fetch_env_vars(key_list):
-    # This method fetches a subset of the data in the available environment file.
-    # It also throws an exception if that data is not present.
-    # use it at the beginning of each test to confirm you have the data you need,
-    # and if you don't, fail the test immediately with a clear message.
-    env_dict = {}
-    for key in key_list:
-        assert get_value(key), f"Cannot continue, the env var {key} is not set."
-        env_dict[key] = get_value(key)
-
-    return env_dict
-
-
+    @classmethod
+    def fetch_env_vars(cls, key_list):
+        env_dict = {}
+        for key in key_list:
+            value = cls.get_value(key)
+            if not value:
+                raise ValueError(f"Environment variable '{key}' is missing from the environment file.")
+            env_dict[key] = value
+        return env_dict
