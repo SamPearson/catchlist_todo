@@ -13,7 +13,7 @@
 <body>
     <div class="ui container">
         <div class="ui secondary menu">
-            <a href="/" class="item">
+            <a href="/" class="item auth-link" id="home-link">
                 <i class="home icon"></i> Home
             </a>
             <div class="right menu">
@@ -79,16 +79,65 @@
     }
 
     // Check authentication status and update UI
-    const token = localStorage.getItem('token');
-    if (token) {
-        document.getElementById('login-link').style.display = 'none';
-        document.getElementById('register-link').style.display = 'none';
-        document.getElementById('logout-link').style.display = 'block';
-    } else {
-        document.getElementById('login-link').style.display = 'block';
-        document.getElementById('register-link').style.display = 'block';
-        document.getElementById('logout-link').style.display = 'none';
+    function updateAuthUI() {
+        const token = localStorage.getItem('token');
+        const isLoggedIn = !!token;
+        
+        document.getElementById('login-link').style.display = isLoggedIn ? 'none' : 'block';
+        document.getElementById('register-link').style.display = isLoggedIn ? 'none' : 'block';
+        document.getElementById('logout-link').style.display = isLoggedIn ? 'block' : 'none';
     }
+
+    // Update UI on page load
+    updateAuthUI();
+
+    // Modify navigation links to include the token
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('token');
+        if (token) {
+            // Update the home link to include the token directly
+            const homeLink = document.getElementById('home-link');
+            const homeUrl = new URL(homeLink.href, window.location.origin);
+            homeUrl.searchParams.set('token', token);
+            homeLink.href = homeUrl.toString();
+            
+            // Add token as a custom header for AJAX requests
+            document.querySelectorAll('.auth-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Send the request with the token in the headers
+                    fetch(this.href, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => {
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                        } else {
+                            return response.text();
+                        }
+                    })
+                    .then(html => {
+                        if (html) {
+                            document.open();
+                            document.write(html);
+                            document.close();
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                });
+            });
+        }
+    });
+
+    // Handle logout
+    document.getElementById('logout-link').addEventListener('click', function(e) {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        window.location.href = '/';
+    });
     </script>
 </body>
 </html>

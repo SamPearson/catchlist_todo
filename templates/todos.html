@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui container">
+    <div class="ui error message" id="error-message" style="display: none;">
+        <div class="header">Error</div>
+        <p id="error-text"></p>
+    </div>
+
+    <div class="ui segment">
+        <h2 class="ui header">My Todo List</h2>
+        <form class="ui form" method="POST" action="/add">
+            <div class="field">
+                <div class="ui action input">
+                    <input type="text" name="title" placeholder="Add a new todo..." required>
+                    <button class="ui teal button" type="submit">Add</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="ui divided items">
+            {% for todo in todo_list %}
+            <div class="item">
+                <div class="content">
+                    <div class="header">
+                        <a href="/update/{{ todo.id }}" class="ui {% if todo.complete %}green{% endif %} checkbox">
+                            <input type="checkbox" {% if todo.complete %}checked{% endif %}>
+                            <label>{{ todo.title }}</label>
+                        </a>
+                    </div>
+                    <div class="meta">
+                        <span>Created: {{ todo.created_at }}</span>
+                    </div>
+                    <div class="description">
+                        <button class="ui red tiny button delete-todo" data-id="{{ todo.id }}">Delete</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function showError(message) {
+    const errorDiv = document.getElementById('error-message');
+    const errorText = document.getElementById('error-text');
+    errorText.textContent = message;
+    errorDiv.style.display = 'block';
+    errorDiv.classList.add('visible');
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        errorDiv.style.display = 'none';
+        errorDiv.classList.remove('visible');
+    }, 5000);
+}
+
+// Add auth header to all navigation links
+document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        // Add token to all links on the page
+        document.querySelectorAll('a').forEach(link => {
+            if (!link.href.includes('token=') && link.id !== 'logout-link') {
+                // Prepare the URL
+                const url = new URL(link.href);
+                
+                // Only add token to relative URLs (same domain)
+                if (url.origin === window.location.origin) {
+                    url.searchParams.set('token', token);
+                    link.href = url.toString();
+                }
+            }
+        });
+    }
+});
+
+// Handle form submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const token = localStorage.getItem('token');
+    
+    fetch('/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: formData.get('title') })
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Try to parse as JSON first, fall back to text if that fails
+            return response.text().then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    throw new Error(data.message || 'Failed to add todo');
+                } catch (e) {
+                    throw new Error(text || 'Failed to add todo');
+                }
+            });
+        }
+        window.location.reload();
+    })
+    .catch(error => {
+        showError(error.message);
+    });
+});
+
+// Handle todo deletion
+document.querySelectorAll('.delete-todo').forEach(button => {
+    button.addEventListener('click', function() {
+        const todoId = this.dataset.id;
+        const token = localStorage.getItem('token');
+        
+        fetch(`/delete/${todoId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                // Try to parse as JSON first, fall back to text if that fails
+                return response.text().then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        throw new Error(data.message || 'Failed to delete todo');
+                    } catch (e) {
+                        throw new Error(text || 'Failed to delete todo');
+                    }
+                });
+            }
+            window.location.reload();
+        })
+        .catch(error => {
+            showError(error.message);
+        });
+    });
+});
+</script>
+
+<style>
+.ui.error.message {
+    transition: all 0.3s ease-in-out;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.ui.error.message.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.ui.checkbox input:checked + label {
+    text-decoration: line-through;
+    color: #999;
+}
+</style>
+{% endblock %} 

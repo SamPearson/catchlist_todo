@@ -22,6 +22,8 @@ def login():
     # Handle POST request from login form
     data = request.get_json()
     response = requests.post(f"{API_URL}/auth/login", json=data)
+    if response.status_code == 200:
+        return jsonify(response.json()), response.status_code
     return jsonify(response.json()), response.status_code
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -55,50 +57,126 @@ def logout():
     # Clear the token from localStorage (handled by frontend)
     return redirect(url_for('login'))
 
-@app.route('/')
-def home():
-    # Get token from Authorization header
+def get_auth_token():
+    """Get the auth token from headers, form data, or query parameters"""
+    # Check headers first
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    headers = {'Authorization': f'Bearer {token}'} if token else {}
+    if token:
+        return token
     
+    # Then check form data
+    token = request.form.get('Authorization', '').replace('Bearer ', '')
+    if token:
+        return token
+    
+    # Finally check query parameters
+    token = request.args.get('token')
+    if token:
+        return token
+    
+    return None
+
+@app.route('/todos')
+def todos():
+    token = get_auth_token()
+    print(f"Token received: {'Yes' if token else 'No'}")  # Debug log
+    print(f"Headers: {dict(request.headers)}")  # Debug log
+    print(f"Form: {request.form}")  # Debug log
+    print(f"Args: {request.args}")  # Debug log
+    
+    # If no token, redirect to login
+    if not token:
+        print("No token found, redirecting to login")  # Debug log
+        return redirect(url_for('login'))
+    
+    # If token exists, show todo list
+    headers = {'Authorization': f'Bearer {token}'}
+    print(f"Sending request to API with token")  # Debug log
     response = requests.get(f"{API_URL}/todos", headers=headers)
+    print(f"API response status: {response.status_code}")  # Debug log
+    
     if response.status_code == 200:
         todo_list = response.json()
+        print(f"Retrieved {len(todo_list)} todos")  # Debug log
     else:
+        print(f"API error: {response.text}")  # Debug log
         todo_list = []  # TODO make this return some kind of error
-    return render_template("base.html", todo_list=todo_list)
+    
+    return render_template("todos.html", todo_list=todo_list)
+
+@app.route('/')
+def home():
+    token = get_auth_token()
+    
+    # If no token, show landing page
+    if not token:
+        return render_template('landing.html')
+    
+    # If token exists, redirect to todos page with the token
+    return redirect(url_for('todos', token=token))
 
 @app.route("/add", methods=["POST"])
 def add():
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    headers = {'Authorization': f'Bearer {token}'} if token else {}
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
     
-    title = request.form.get("title")
-    response = requests.post(f"{API_URL}/todos", json={"title": title}, headers=headers)
-    if response.status_code == 201:
-        return redirect(url_for("home"))
-    else:
-        return "Failed to add todo", 500
+    headers = {'Authorization': f'Bearer {token}'}
+    data = request.get_json()
+    print(f"Received data: {data}")  # Debug log
+    
+    if not data or 'title' not in data:
+        return jsonify({"message": "Title is required"}), 400
+    
+    # Prepare the request data
+    request_data = {"title": data['title']}
+    print(f"Preparing to send to API: {request_data}")  # Debug log
+    print(f"Headers being sent: {headers}")  # Debug log
+    
+    # Send the title directly to the API
+    try:
+        response = requests.post(f"{API_URL}/todos", json=request_data, headers=headers)
+        print(f"API response status: {response.status_code}")  # Debug log
+        print(f"API response text: {response.text}")  # Debug log
+        print(f"API response headers: {dict(response.headers)}")  # Debug log
+        
+        if response.status_code == 201:
+            return redirect(url_for("todos"))
+        else:
+            try:
+                error_data = response.json()
+                print(f"Parsed error data: {error_data}")  # Debug log
+                return jsonify({"message": error_data.get("message", "Failed to add todo")}), response.status_code
+            except Exception as e:
+                print(f"Error parsing JSON response: {str(e)}")  # Debug log
+                return jsonify({"message": "Failed to add todo"}), response.status_code
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {str(e)}")  # Debug log
+        return jsonify({"message": "Failed to connect to API"}), 500
 
 @app.route("/update/<int:todo_id>")
 def update(todo_id):
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    headers = {'Authorization': f'Bearer {token}'} if token else {}
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
     
+    headers = {'Authorization': f'Bearer {token}'}
     response = requests.get(f"{API_URL}/todos/{todo_id}", headers=headers)
     if response.status_code == 200:
         todo = response.json()
         todo["complete"] = not todo["complete"]
         response = requests.put(f"{API_URL}/todos/{todo_id}", json=todo, headers=headers)
         if response.status_code == 200:
-            return redirect(url_for("home"))
+            return redirect(url_for("todos"))
     return "Failed to update todo", 500
 
 @app.route("/delete/<int:todo_id>", methods=["DELETE"])
 def delete(todo_id):
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    headers = {'Authorization': f'Bearer {token}'} if token else {}
+    token = get_auth_token()
+    if not token:
+        return "Unauthorized", 401
     
+    headers = {'Authorization': f'Bearer {token}'}
     response = requests.delete(f"{API_URL}/todos/{todo_id}", headers=headers)
     if response.status_code == 200:
         return "", 204  # No Content response (DELETE success), reloading happens in javascript

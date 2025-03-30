@@ -74,7 +74,8 @@ document.querySelector('.ui.form').addEventListener('submit', function(e) {
     .then(data => {
         if (data.access_token) {
             localStorage.setItem('token', data.access_token);
-            window.location.href = '/';
+            // Redirect to home with the token
+            window.location.href = `/?token=${data.access_token}`;
         } else {
             showError(data.message || 'Invalid username or password');
         }
