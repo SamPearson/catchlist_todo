@@ -11,7 +11,25 @@
 </head>
 
 <body>
-    <div style="margin-top: 50px;" class="ui container">
+    <div class="ui container">
+        <div class="ui secondary menu">
+            <a href="/" class="item">
+                <i class="home icon"></i> Home
+            </a>
+            <div class="right menu">
+                <a href="/login" class="item" id="login-link">
+                    <i class="sign in icon"></i> Login
+                </a>
+                <a href="/register" class="item" id="register-link">
+                    <i class="user plus icon"></i> Register
+                </a>
+                <a href="/logout" class="item" id="logout-link" style="display: none;">
+                    <i class="sign out icon"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        {% block content %}
         <h1 class="ui center aligned header">To Do App</h1>
 
         <form class="ui form" action="/add" method="post" id="todo-entry-form">
@@ -37,26 +55,40 @@
 
                 <a class="ui blue button" href="/update/{{ todo.id }}" data-testid="todo-display-update-button">Update</a>
                 <button class="ui red button" onclick="deleteTodo({{ todo.id }})" data-testid="todo-display-delete-button">Delete</button>
-
-
-
         </div>
         {% endfor %}
+        {% endblock %}
     </div>
 
     <script>
     function deleteTodo(todoId) {
-        fetch(`/delete/${todoId}`, { method: 'DELETE' })
-            .then(response => {
-                if (response.ok) {
-                    window.location.reload();  // Manually refresh the page
-                } else {
-                    alert("Failed to delete todo.");
-                }
-            })
-            .catch(error => console.error("Error deleting todo:", error));
+        fetch(`/delete/${todoId}`, { 
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert("Failed to delete todo.");
+            }
+        })
+        .catch(error => console.error("Error deleting todo:", error));
+    }
+
+    // Check authentication status and update UI
+    const token = localStorage.getItem('token');
+    if (token) {
+        document.getElementById('login-link').style.display = 'none';
+        document.getElementById('register-link').style.display = 'none';
+        document.getElementById('logout-link').style.display = 'block';
+    } else {
+        document.getElementById('login-link').style.display = 'block';
+        document.getElementById('register-link').style.display = 'block';
+        document.getElementById('logout-link').style.display = 'none';
     }
     </script>
-
 </body>
 </html>

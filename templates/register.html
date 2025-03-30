@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui middle aligned center aligned grid" style="margin-top: 50px;">
+    <div class="column" style="max-width: 450px;">
+        <h2 class="ui teal image header">
+            <div class="content">
+                Create a new account
+            </div>
+        </h2>
+        <form class="ui large form" method="POST" action="/register">
+            <div class="ui stacked segment">
+                <div class="field">
+                    <div class="ui left icon input">
+                        <i class="user icon"></i>
+                        <input type="text" name="username" placeholder="Username" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui left icon input">
+                        <i class="lock icon"></i>
+                        <input type="password" name="password" placeholder="Password" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui left icon input">
+                        <i class="lock icon"></i>
+                        <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                    </div>
+                </div>
+                <button class="ui fluid large teal submit button" type="submit">Sign Up</button>
+            </div>
+            <div class="ui error message" style="display: none;">
+                <div class="header">Error</div>
+                <p class="error-text"></p>
+            </div>
+        </form>
+
+        <div class="ui message">
+            Already have an account? <a href="/login">Log In</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function showError(message) {
+    const errorDiv = document.querySelector('.ui.error.message');
+    const errorText = errorDiv.querySelector('.error-text');
+    errorText.textContent = message;
+    errorDiv.style.display = 'block';
+    errorDiv.classList.add('visible');
+}
+
+function clearError() {
+    const errorDiv = document.querySelector('.ui.error.message');
+    errorDiv.style.display = 'none';
+    errorDiv.classList.remove('visible');
+}
+
+document.querySelector('.ui.form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearError(); // Clear any previous errors
+    
+    const formData = new FormData(e.target);
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirm_password');
+    
+    if (password !== confirmPassword) {
+        showError('Passwords do not match');
+        return;
+    }
+    
+    const data = {
+        username: formData.get('username'),
+        password: password
+    };
+    
+    console.log('Registration attempt:', { username: data.username }); // Log without password
+    
+    fetch('/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message === 'User created successfully') {
+            window.location.href = '/login';
+        } else {
+            showError(data.message || 'Registration failed. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('An error occurred during registration. Please try again.');
+    });
+});
+</script>
+
+<style>
+.ui.error.message {
+    transition: all 0.3s ease-in-out;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.ui.error.message.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+</style>
+{% endblock %} 
