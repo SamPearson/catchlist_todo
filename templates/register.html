@@ -30,7 +30,7 @@
                 </div>
                 <button class="ui fluid large teal submit button" type="submit">Sign Up</button>
             </div>
-            <div class="ui error message" style="display: none;">
+            <div class="ui error message" id="error-message" style="display: none;">
                 <div class="header">Error</div>
                 <p class="error-text"></p>
             </div>
@@ -43,58 +43,71 @@
 </div>
 
 <script>
-function showError(message) {
-    const errorDiv = document.querySelector('.ui.error.message');
+function showError(message, elementId) {
+    const errorDiv = document.querySelector(`#${elementId}`);
     const errorText = errorDiv.querySelector('.error-text');
     errorText.textContent = message;
     errorDiv.style.display = 'block';
     errorDiv.classList.add('visible');
 }
 
-function clearError() {
-    const errorDiv = document.querySelector('.ui.error.message');
+function clearError(elementId) {
+    const errorDiv = document.querySelector(`#${elementId}`);
     errorDiv.style.display = 'none';
     errorDiv.classList.remove('visible');
 }
 
-document.querySelector('.ui.form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    clearError(); // Clear any previous errors
-    
-    const formData = new FormData(e.target);
-    const password = formData.get('password');
-    const confirmPassword = formData.get('confirm_password');
-    
-    if (password !== confirmPassword) {
-        showError('Passwords do not match');
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.ui.form');
+    if (!form) {
+        console.error('Register form not found');
         return;
     }
     
-    const data = {
-        username: formData.get('username'),
-        password: password
-    };
-    
-    console.log('Registration attempt:', { username: data.username }); // Log without password
-    
-    fetch('/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message === 'User created successfully') {
-            window.location.href = '/login';
-        } else {
-            showError(data.message || 'Registration failed. Please try again.');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        console.log('Register form submitted');
+        clearError('error-message'); // Clear any previous errors
+        
+        const formData = new FormData(e.target);
+        const password = formData.get('password');
+        const confirmPassword = formData.get('confirm_password');
+        
+        if (password !== confirmPassword) {
+            showError('Passwords do not match', 'error-message');
+            return;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('An error occurred during registration. Please try again.');
+        
+        const data = {
+            username: formData.get('username'),
+            password: password
+        };
+        console.log('Sending register request with data:', { ...data, password: '[REDACTED]' });
+        
+        fetch('/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            console.log('Register response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Register response data:', data);
+            if (response.status === 201) {
+                // Registration successful, redirect to login
+                window.location.href = '/login';
+            } else {
+                showError(data.message || 'Registration failed', 'error-message');
+            }
+        })
+        .catch(error => {
+            console.error('Register error:', error);
+            showError('An error occurred during registration. Please try again.', 'error-message');
+        });
     });
 });
 </script>

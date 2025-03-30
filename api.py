@@ -12,12 +12,10 @@ jwt = JWTManager(app)
 # Add JWT error handlers
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
-    print(f"Invalid token error: {error}")  # Debug log
     return jsonify({"msg": "Invalid token"}), 422
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error):
-    print(f"Unauthorized error: {error}")  # Debug log
     return jsonify({"msg": "Missing Authorization Header"}), 422
 
 db.init_app(app)

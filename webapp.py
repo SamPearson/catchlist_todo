@@ -1,7 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
 import os
 import requests
 from dotenv import load_dotenv
+import logging
+
+# Configure logging for production - only show warnings and errors
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -12,7 +17,7 @@ if __name__ == "__main__":
 
 API_URL = os.getenv('API_URL')
 if not API_URL:
-    print("API_URL is not set. Please check your environment files.")
+    logger.error("API_URL is not set. Please check your environment files.")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -22,8 +27,14 @@ def login():
     # Handle POST request from login form
     data = request.get_json()
     response = requests.post(f"{API_URL}/auth/login", json=data)
+    
     if response.status_code == 200:
-        return jsonify(response.json()), response.status_code
+        api_response = response.json()
+        # Create a response with the token cookie
+        resp = make_response(jsonify(api_response))
+        resp.set_cookie('auth_token', api_response.get('access_token', ''), httponly=False, path='/')
+        return resp, response.status_code
+    
     return jsonify(response.json()), response.status_code
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -31,78 +42,51 @@ def register():
     if request.method == 'GET':
         return render_template('register.html')
     
-    # Handle POST request from registration form
     data = request.get_json()
-    print(f"Registration attempt with data: {data}")  # Debug log
-    
     try:
         response = requests.post(f"{API_URL}/auth/register", json=data)
-        print(f"API Response status: {response.status_code}")  # Debug log
-        print(f"API Response text: {response.text}")  # Debug log
-        
         if response.status_code == 201:
             return jsonify(response.json()), response.status_code
-        else:
-            # If the response isn't JSON, return a generic error
-            return jsonify({"message": "Registration failed"}), response.status_code
+        return jsonify({"message": "Registration failed"}), response.status_code
     except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")  # Debug log
+        logger.error(f"Request error during registration: {str(e)}")
         return jsonify({"message": "Failed to connect to API"}), 500
-    except ValueError as e:
-        print(f"JSON decode error: {str(e)}")  # Debug log
-        return jsonify({"message": "Invalid response from API"}), 500
 
 @app.route('/logout')
 def logout():
-    # Clear the token from localStorage (handled by frontend)
-    return redirect(url_for('login'))
+    resp = make_response(redirect(url_for('login')))
+    resp.delete_cookie('auth_token')
+    return resp
 
 def get_auth_token():
-    """Get the auth token from headers, form data, or query parameters"""
-    # Check headers first
+    """Get the auth token from headers or cookies"""
+    # First try to get from headers
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
     if token:
         return token
     
-    # Then check form data
-    token = request.form.get('Authorization', '').replace('Bearer ', '')
+    # Then try to get from cookies
+    token = request.cookies.get('auth_token', '')
     if token:
         return token
     
-    # Finally check query parameters
-    token = request.args.get('token')
-    if token:
-        return token
-    
-    return None
+    return ''
 
 @app.route('/api/todos')
 def todos():
     token = get_auth_token()
-    print(f"Token received: {'Yes' if token else 'No'}")  # Debug log
-    print(f"Headers: {dict(request.headers)}")  # Debug log
-    print(f"Form: {request.form}")  # Debug log
-    print(f"Args: {request.args}")  # Debug log
-    
-    # If no token, redirect to login
     if not token:
-        print("No token found, redirecting to login")  # Debug log
         return redirect(url_for('login'))
     
-    # If token exists, show todo list
     headers = {'Authorization': f'Bearer {token}'}
-    print(f"Sending request to API with token")  # Debug log
     response = requests.get(f"{API_URL}/todos", headers=headers)
-    print(f"API response status: {response.status_code}")  # Debug log
     
     if response.status_code == 200:
         todo_list = response.json()
-        print(f"Retrieved {len(todo_list)} todos")  # Debug log
+        return render_template("todos.html", todo_list=todo_list, token=token)
     else:
-        print(f"API error: {response.text}")  # Debug log
-        todo_list = []  # TODO make this return some kind of error
-    
-    return render_template("todos.html", todo_list=todo_list)
+        logger.error(f"Failed to fetch todos: {response.status_code}")
+        return redirect(url_for('login'))
 
 @app.route('/api/todos/<int:todo_id>')
 def get_todo(todo_id):
@@ -124,9 +108,18 @@ def update_todo(todo_id):
     
     headers = {'Authorization': f'Bearer {token}'}
     data = request.get_json()
-    response = requests.put(f"{API_URL}/todos/{todo_id}", json=data, headers=headers)
+    
+    # Ensure we're sending the right field names to the API
+    update_data = {}
+    if 'title' in data:
+        update_data['title'] = data['title']
+    if 'complete' in data:
+        update_data['complete'] = data['complete']
+    
+    response = requests.put(f"{API_URL}/todos/{todo_id}", json=update_data, headers=headers)
+    
     if response.status_code == 200:
-        return response.json()
+        return jsonify(response.json())
     return jsonify({"message": "Failed to update todo"}), response.status_code
 
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
@@ -149,35 +142,34 @@ def add():
     
     headers = {'Authorization': f'Bearer {token}'}
     data = request.get_json()
-    print(f"Received data: {data}")  # Debug log
     
     if not data or 'title' not in data:
         return jsonify({"message": "Title is required"}), 400
     
-    # Send the title directly to the API
-    response = requests.post(f"{API_URL}/todos", json={"title": data['title']}, headers=headers)
-    print(f"API response status: {response.status_code}")  # Debug log
-    print(f"API response text: {response.text}")  # Debug log
+    # Ensure the data is in the format expected by the API
+    todo_data = {
+        "title": data['title'],
+        "complete": data.get('complete', False)
+    }
+    
+    response = requests.post(f"{API_URL}/todos", json=todo_data, headers=headers)
     
     if response.status_code == 201:
-        return redirect(url_for("todos"))
-    else:
-        try:
-            error_data = response.json()
-            return jsonify({"message": error_data.get("message", "Failed to add todo")}), response.status_code
-        except:
-            return jsonify({"message": "Failed to add todo"}), response.status_code
+        return jsonify(response.json()), 201
+    
+    try:
+        error_data = response.json()
+        return jsonify({"message": error_data.get("message", "Failed to add todo")}), response.status_code
+    except:
+        return jsonify({"message": "Failed to add todo"}), response.status_code
 
 @app.route('/')
 def home():
     token = get_auth_token()
-    
-    # If no token, show landing page
     if not token:
-        return render_template('landing.html')
+        return render_template("landing.html")
     
-    # If token exists, redirect to todos page with the token
-    return redirect(url_for('todos', token=token))
+    return redirect(url_for('todos'))
 
 # We have to have a second ( __name__ == main ) check here
 # because app.run() needs to happen after all routes are defined,
