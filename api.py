@@ -1,64 +1,112 @@
 from flask import Flask, request, jsonify
-from db_models import db, Todo
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+from db_models import db, Todo, User
 from db_config import Config, initialize_database
 
 app = Flask(__name__)
-app.config.from_object(Config)  # Use the shared config
+app.config.from_object(Config)
+# Add JWT configuration
+app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY  # We'll need to add this to Config
+jwt = JWTManager(app)
 db.init_app(app)
 
+# Authentication endpoints
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    print("Received registration request")  # Debug log
+    data = request.get_json()
+    print(f"Registration data: {data}")  # Debug log
+    
+    if not data or not data.get('username') or not data.get('password'):
+        print("Missing username or password")  # Debug log
+        return jsonify({"message": "Missing username or password"}), 400
 
-# Example endpoint: fetch all
+    if User.query.filter_by(username=data['username']).first():
+        print(f"Username {data['username']} already exists")  # Debug log
+        return jsonify({"message": "Username already exists"}), 400
+
+    try:
+        user = User(username=data['username'])
+        user.set_password(data['password'])
+        db.session.add(user)
+        db.session.commit()
+        print(f"Successfully created user: {data['username']}")  # Debug log
+        return jsonify({"message": "User created successfully"}), 201
+    except Exception as e:
+        print(f"Database error: {str(e)}")  # Debug log
+        db.session.rollback()
+        return jsonify({"message": "Database error occurred"}), 500
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data or not data.get('username') or not data.get('password'):
+        return jsonify({"message": "Missing username or password"}), 400
+
+    user = User.query.filter_by(username=data['username']).first()
+    if user and user.check_password(data['password']):
+        access_token = create_access_token(identity=user.id)
+        return jsonify({
+            "message": "Login successful",
+            "access_token": access_token
+        }), 200
+    
+    return jsonify({"message": "Invalid username or password"}), 401
+
+# Modified todo endpoints to include authentication and user-specific data
 @app.route('/api/todos', methods=['GET'])
+@jwt_required()
 def get_todos():
-    todos = Todo.query.all()
-    return jsonify([todo.as_dict() for todo in todos])  # Convert each To-do to dict for JSON response
+    current_user_id = get_jwt_identity()
+    todos = Todo.query.filter_by(user_id=current_user_id).all()
+    return jsonify([todo.as_dict() for todo in todos])
 
-
-# Example endpoint: fetch one by ID
 @app.route('/api/todos/<int:todo_id>', methods=['GET'])
+@jwt_required()
 def get_todo(todo_id):
-    todo = db.session.get(Todo, todo_id)
+    current_user_id = get_jwt_identity()
+    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
     if todo:
         return jsonify(todo.as_dict())
-    else:
-        return jsonify({"message": "Todo not found"}), 404
+    return jsonify({"message": "Todo not found"}), 404
 
-
-# Example endpoint: create
 @app.route('/api/todos', methods=['POST'])
+@jwt_required()
 def create_todo():
-    data = request.get_json()  # Expect JSON input
-    new_todo = Todo(title=data.get('title'), complete=False)
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+    new_todo = Todo(
+        title=data.get('title'),
+        complete=False,
+        user_id=current_user_id
+    )
     db.session.add(new_todo)
     db.session.commit()
     return jsonify(new_todo.as_dict()), 201
 
-
-# Example endpoint: update one by ID
 @app.route('/api/todos/<int:todo_id>', methods=['PUT'])
+@jwt_required()
 def update_todo(todo_id):
+    current_user_id = get_jwt_identity()
     data = request.get_json()
-    todo = db.session.get(Todo, todo_id)
+    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
     if todo:
         todo.title = data.get('title', todo.title)
         todo.complete = data.get('complete', todo.complete)
         db.session.commit()
         return jsonify(todo.as_dict())
-    else:
-        return jsonify({"message": "Todo not found"}), 404
+    return jsonify({"message": "Todo not found"}), 404
 
-
-# Example endpoint: delete one by ID
 @app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
+@jwt_required()
 def delete_todo(todo_id):
-    todo = db.session.get(Todo, todo_id)
+    current_user_id = get_jwt_identity()
+    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
     if todo:
         db.session.delete(todo)
         db.session.commit()
         return jsonify({"message": "Todo deleted"})
-    else:
-        return jsonify({"message": "Todo not found"}), 404
-
+    return jsonify({"message": "Todo not found"}), 404
 
 # Allows starting the server by running this script with the python3 command instead of flask or gunicorn commands
 # only do this on local/dev. see README.md for more on server/prod vs local/dev
