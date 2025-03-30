@@ -22,7 +22,6 @@ def unauthorized_callback(error):
 
 db.init_app(app)
 
-# Authentication endpoints
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -59,7 +58,6 @@ def login():
     
     return jsonify({"message": "Invalid username or password"}), 401
 
-# Modified todo endpoints to include authentication and user-specific data
 @app.route('/api/todos', methods=['GET'])
 @jwt_required()
 def get_todos():
