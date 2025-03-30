@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui middle aligned center aligned grid" style="margin-top: 50px;">
+    <div class="column" style="max-width: 450px;">
+        <h2 class="ui teal image header">
+            <div class="content">
+                Create a new account
+            </div>
+        </h2>
+        <form class="ui large form" method="POST" action="/register">
+            <div class="ui stacked segment">
+                <div class="field">
+                    <div class="ui left icon input">
+                        <i class="user icon"></i>
+                        <input type="text" name="username" placeholder="Username" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui left icon input">
+                        <i class="lock icon"></i>
+                        <input type="password" name="password" placeholder="Password" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui left icon input">
+                        <i class="lock icon"></i>
+                        <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                    </div>
+                </div>
+                <button class="ui fluid large teal submit button" type="submit">Sign Up</button>
+            </div>
+            <div class="ui error message" id="error-message" style="display: none;">
+                <div class="header">Error</div>
+                <p class="error-text"></p>
+            </div>
+        </form>
+
+        <div class="ui message">
+            Already have an account? <a href="/login">Log In</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function showError(message, elementId) {
+    const errorDiv = document.querySelector(`#${elementId}`);
+    const errorText = errorDiv.querySelector('.error-text');
+    errorText.textContent = message;
+    errorDiv.style.display = 'block';
+    errorDiv.classList.add('visible');
+}
+
+function clearError(elementId) {
+    const errorDiv = document.querySelector(`#${elementId}`);
+    errorDiv.style.display = 'none';
+    errorDiv.classList.remove('visible');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.ui.form');
+    if (!form) {
+        console.error('Register form not found');
+        return;
+    }
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        console.log('Register form submitted');
+        clearError('error-message'); // Clear any previous errors
+        
+        const formData = new FormData(e.target);
+        const password = formData.get('password');
+        const confirmPassword = formData.get('confirm_password');
+        
+        if (password !== confirmPassword) {
+            showError('Passwords do not match', 'error-message');
+            return;
+        }
+        
+        const data = {
+            username: formData.get('username'),
+            password: password
+        };
+        console.log('Sending register request with data:', { ...data, password: '[REDACTED]' });
+        
+        fetch('/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            console.log('Register response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Register response data:', data);
+            if (response.status === 201) {
+                // Registration successful, redirect to login
+                window.location.href = '/login';
+            } else {
+                showError(data.message || 'Registration failed', 'error-message');
+            }
+        })
+        .catch(error => {
+            console.error('Register error:', error);
+            showError('An error occurred during registration. Please try again.', 'error-message');
+        });
+    });
+});
+</script>
+
+<style>
+.ui.error.message {
+    transition: all 0.3s ease-in-out;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.ui.error.message.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+</style>
+{% endblock %} 
