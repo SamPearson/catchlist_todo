@@ -2,14 +2,10 @@
 
 {% block content %}
 <div class="ui container">
-    <div class="ui error message" id="error-message" style="display: none;">
-        <div class="header">Error</div>
-        <p id="error-text"></p>
-    </div>
-
+    <h1 class="ui header">My Todo List</h1>
+    
     <div class="ui segment">
-        <h2 class="ui header">My Todo List</h2>
-        <form class="ui form" method="POST" action="/add">
+        <form class="ui form" id="add-todo-form">
             <div class="field">
                 <div class="ui action input">
                     <input type="text" name="title" placeholder="Add a new todo..." required>
@@ -17,34 +13,34 @@
                 </div>
             </div>
         </form>
+    </div>
 
-        <div class="ui divided items">
-            {% for todo in todo_list %}
-            <div class="item">
-                <div class="content">
-                    <div class="header">
-                        <div class="ui {% if todo.complete %}green{% endif %} checkbox" data-id="{{ todo.id }}">
-                            <input type="checkbox" {% if todo.complete %}checked{% endif %}>
-                            <label>{{ todo.title }}</label>
-                        </div>
-                    </div>
-                    <div class="meta">
-                        <span>Created: {{ todo.created_at }}</span>
-                    </div>
-                    <div class="description">
-                        <button class="ui red tiny button delete-todo" data-id="{{ todo.id }}">Delete</button>
+    <div class="ui divided items" id="todo-list">
+        {% for todo in todo_list %}
+        <div class="item" data-id="{{ todo.id }}">
+            <div class="content">
+                <div class="header">
+                    <div class="ui {% if todo.complete %}green{% endif %} checkbox">
+                        <input type="checkbox" {% if todo.complete %}checked{% endif %}>
+                        <label>{{ todo.title }}</label>
                     </div>
                 </div>
+                <div class="description">
+                    <button class="ui red tiny button delete-todo">Delete</button>
+                </div>
             </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
 </div>
 
 <script>
 function showError(message) {
     const errorDiv = document.getElementById('error-message');
-    const errorText = document.getElementById('error-text');
+    if (!errorDiv) {
+        return;
+    }
+    const errorText = errorDiv.querySelector('.error-text');
     errorText.textContent = message;
     errorDiv.style.display = 'block';
     errorDiv.classList.add('visible');
@@ -56,142 +52,87 @@ function showError(message) {
     }, 5000);
 }
 
-// Add auth header to all navigation links
-document.addEventListener('DOMContentLoaded', function() {
-    const token = localStorage.getItem('token');
-    if (token) {
-        // Add token to all links on the page
-        document.querySelectorAll('a').forEach(link => {
-            if (!link.href.includes('token=') && link.id !== 'logout-link') {
-                // Prepare the URL
-                const url = new URL(link.href);
-                
-                // Only add token to relative URLs (same domain)
-                if (url.origin === window.location.origin) {
-                    url.searchParams.set('token', token);
-                    link.href = url.toString();
-                }
+// Add todo form submission
+const addForm = document.getElementById('add-todo-form');
+if (addForm) {
+    addForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = {
+            title: formData.get('title')
+        };
+        
+        fetch('/api/todos', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            window.location.reload();
+        })
+        .catch(error => {
+            showError('Failed to add todo');
+        });
+    });
+}
+
+// Handle todo completion toggle
+document.querySelectorAll('.ui.checkbox input').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const todoItem = this.closest('.item');
+        const todoId = todoItem.dataset.id;
+        const complete = this.checked;
+        const title = this.parentNode.querySelector('label').textContent;
+        
+        // Update the checkbox UI immediately
+        if (complete) {
+            this.closest('.ui.checkbox').classList.add('green');
+        } else {
+            this.closest('.ui.checkbox').classList.remove('green');
+        }
+        
+        fetch(`/api/todos/${todoId}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ 
+                title: title,
+                complete: complete 
+            })
+        })
+        .then(response => response.json())
+        .catch(error => {
+            showError('Failed to update todo');
+            // Revert the UI if there was an error
+            this.checked = !complete;
+            if (!complete) {
+                this.closest('.ui.checkbox').classList.add('green');
+            } else {
+                this.closest('.ui.checkbox').classList.remove('green');
             }
         });
-    }
-});
-
-// Handle form submission
-document.querySelector('form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const token = localStorage.getItem('token');
-    
-    fetch('/api/todos', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ title: formData.get('title') })
-    })
-    .then(response => {
-        if (!response.ok) {
-            // Try to parse as JSON first, fall back to text if that fails
-            return response.text().then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    throw new Error(data.message || 'Failed to add todo');
-                } catch (e) {
-                    throw new Error(text || 'Failed to add todo');
-                }
-            });
-        }
-        window.location.reload();
-    })
-    .catch(error => {
-        showError(error.message);
     });
 });
 
 // Handle todo deletion
 document.querySelectorAll('.delete-todo').forEach(button => {
     button.addEventListener('click', function() {
-        const todoId = this.dataset.id;
-        const token = localStorage.getItem('token');
+        const todoItem = this.closest('.item');
+        const todoId = todoItem.dataset.id;
         
         fetch(`/api/todos/${todoId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: getAuthHeaders()
         })
         .then(response => {
-            if (!response.ok) {
-                // Try to parse as JSON first, fall back to text if that fails
-                return response.text().then(text => {
-                    try {
-                        const data = JSON.parse(text);
-                        throw new Error(data.message || 'Failed to delete todo');
-                    } catch (e) {
-                        throw new Error(text || 'Failed to delete todo');
-                    }
-                });
-            }
-            window.location.reload();
-        })
-        .catch(error => {
-            showError(error.message);
-        });
-    });
-});
-
-// Handle todo completion toggle
-document.querySelectorAll('.ui.checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        const todoId = this.dataset.id;
-        const token = localStorage.getItem('token');
-        const isChecked = this.querySelector('input').checked;
-        
-        // First get the current todo state
-        fetch(`/api/todos/${todoId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        .then(response => response.json())
-        .then(todo => {
-            // Then update it with the new state
-            return fetch(`/api/todos/${todoId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    title: todo.title,
-                    complete: isChecked
-                })
-            });
-        })
-        .then(response => {
-            if (!response.ok) {
-                // Try to parse as JSON first, fall back to text if that fails
-                return response.text().then(text => {
-                    try {
-                        const data = JSON.parse(text);
-                        throw new Error(data.message || 'Failed to update todo');
-                    } catch (e) {
-                        throw new Error(text || 'Failed to update todo');
-                    }
-                });
-            }
-            // Update the UI
-            if (isChecked) {
-                this.classList.add('green');
+            if (response.ok) {
+                todoItem.remove();
             } else {
-                this.classList.remove('green');
+                throw new Error('Failed to delete todo');
             }
         })
         .catch(error => {
-            showError(error.message);
-            // Revert the checkbox state
-            this.querySelector('input').checked = !isChecked;
+            showError('Failed to delete todo');
         });
     });
 });
@@ -209,9 +150,8 @@ document.querySelectorAll('.ui.checkbox').forEach(checkbox => {
     transform: translateY(0);
 }
 
-.ui.checkbox input:checked + label {
-    text-decoration: line-through;
-    color: #999;
+.ui.checkbox.green label {
+    color: #21ba45;
 }
 </style>
 {% endblock %} 

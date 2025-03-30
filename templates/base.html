@@ -8,12 +8,13 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
     <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </head>
 
 <body>
     <div class="ui container">
         <div class="ui secondary menu">
-            <a href="/" class="item auth-link" id="home-link">
+            <a href="/" class="item" id="home-link">
                 <i class="home icon"></i> Home
             </a>
             <div class="right menu">
@@ -27,6 +28,11 @@
                     <i class="sign out icon"></i> Logout
                 </a>
             </div>
+        </div>
+
+        <div class="ui error message" id="error-message" style="display: none;">
+            <div class="header">Error</div>
+            <p class="error-text"></p>
         </div>
 
         {% block content %}
@@ -54,89 +60,26 @@
                 {% endif %}
 
                 <a class="ui blue button" href="/update/{{ todo.id }}" data-testid="todo-display-update-button">Update</a>
-                <button class="ui red button" onclick="deleteTodo({{ todo.id }})" data-testid="todo-display-delete-button">Delete</button>
+                <button class="ui red button delete-todo" data-id="{{ todo.id }}" data-testid="todo-display-delete-button">Delete</button>
         </div>
         {% endfor %}
         {% endblock %}
     </div>
 
     <script>
-    function deleteTodo(todoId) {
-        fetch(`/delete/${todoId}`, { 
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else {
-                alert("Failed to delete todo.");
-            }
-        })
-        .catch(error => console.error("Error deleting todo:", error));
-    }
-
-    // Check authentication status and update UI
-    function updateAuthUI() {
-        const token = localStorage.getItem('token');
-        const isLoggedIn = !!token;
-        
-        document.getElementById('login-link').style.display = isLoggedIn ? 'none' : 'block';
-        document.getElementById('register-link').style.display = isLoggedIn ? 'none' : 'block';
-        document.getElementById('logout-link').style.display = isLoggedIn ? 'block' : 'none';
-    }
-
-    // Update UI on page load
-    updateAuthUI();
-
-    // Modify navigation links to include the token
     document.addEventListener('DOMContentLoaded', function() {
-        const token = localStorage.getItem('token');
-        if (token) {
-            // Update the home link to include the token directly
-            const homeLink = document.getElementById('home-link');
-            const homeUrl = new URL(homeLink.href, window.location.origin);
-            homeUrl.searchParams.set('token', token);
-            homeLink.href = homeUrl.toString();
-            
-            // Add token as a custom header for AJAX requests
-            document.querySelectorAll('.auth-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    // Send the request with the token in the headers
-                    fetch(this.href, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    })
-                    .then(response => {
-                        if (response.redirected) {
-                            window.location.href = response.url;
-                        } else {
-                            return response.text();
-                        }
-                    })
-                    .then(html => {
-                        if (html) {
-                            document.open();
-                            document.write(html);
-                            document.close();
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-                });
+        // Update auth UI based on login status
+        updateAuthUI();
+        
+        // Set up logout handler
+        const logoutLink = document.getElementById('logout-link');
+        if (logoutLink) {
+            logoutLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                removeToken();
+                window.location.href = '/logout';
             });
         }
-    });
-
-    // Handle logout
-    document.getElementById('logout-link').addEventListener('click', function(e) {
-        e.preventDefault();
-        localStorage.removeItem('token');
-        window.location.href = '/';
     });
     </script>
 </body>

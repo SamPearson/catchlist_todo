@@ -24,7 +24,7 @@
                 </div>
                 <button class="ui fluid large teal submit button" type="submit">Login</button>
             </div>
-            <div class="ui error message" style="display: none;">
+            <div class="ui error message" id="error-message" style="display: none;">
                 <div class="header">Error</div>
                 <p class="error-text"></p>
             </div>
@@ -37,52 +37,59 @@
 </div>
 
 <script>
-function showError(message) {
-    const errorDiv = document.querySelector('.ui.error.message');
+function showError(message, elementId) {
+    const errorDiv = document.querySelector(`#${elementId}`);
     const errorText = errorDiv.querySelector('.error-text');
     errorText.textContent = message;
     errorDiv.style.display = 'block';
     errorDiv.classList.add('visible');
 }
 
-function clearError() {
-    const errorDiv = document.querySelector('.ui.error.message');
+function clearError(elementId) {
+    const errorDiv = document.querySelector(`#${elementId}`);
     errorDiv.style.display = 'none';
     errorDiv.classList.remove('visible');
 }
 
-document.querySelector('.ui.form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    clearError(); // Clear any previous errors
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.ui.form');
+    if (!form) {
+        return;
+    }
     
-    const formData = new FormData(e.target);
-    const data = {
-        username: formData.get('username'),
-        password: formData.get('password')
-    };
-    
-    console.log('Login attempt:', { username: data.username }); // Log without password
-    
-    fetch('/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.access_token) {
-            localStorage.setItem('token', data.access_token);
-            // Redirect to home with the token
-            window.location.href = `/?token=${data.access_token}`;
-        } else {
-            showError(data.message || 'Invalid username or password');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('An error occurred during login. Please try again.');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        clearError('error-message'); // Clear any previous errors
+        
+        const formData = new FormData(e.target);
+        const data = {
+            username: formData.get('username'),
+            password: formData.get('password')
+        };
+        
+        fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.access_token) {
+                // Store in localStorage as well for JavaScript access
+                setToken(data.access_token);
+                updateAuthUI(); // Update the UI to show logged-in state
+                
+                // Simple redirect to todos - the cookie will handle auth
+                window.location.href = '/api/todos';
+            } else {
+                showError(data.message || 'Invalid username or password', 'error-message');
+            }
+        })
+        .catch(error => {
+            showError('An error occurred during login. Please try again.', 'error-message');
+        });
     });
 });
 </script>
