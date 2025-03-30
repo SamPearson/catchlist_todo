@@ -23,10 +23,10 @@
             <div class="item">
                 <div class="content">
                     <div class="header">
-                        <a href="/update/{{ todo.id }}" class="ui {% if todo.complete %}green{% endif %} checkbox">
+                        <div class="ui {% if todo.complete %}green{% endif %} checkbox" data-id="{{ todo.id }}">
                             <input type="checkbox" {% if todo.complete %}checked{% endif %}>
                             <label>{{ todo.title }}</label>
-                        </a>
+                        </div>
                     </div>
                     <div class="meta">
                         <span>Created: {{ todo.created_at }}</span>
@@ -82,7 +82,7 @@ document.querySelector('form').addEventListener('submit', function(e) {
     const formData = new FormData(e.target);
     const token = localStorage.getItem('token');
     
-    fetch('/add', {
+    fetch('/api/todos', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ document.querySelectorAll('.delete-todo').forEach(button => {
         const todoId = this.dataset.id;
         const token = localStorage.getItem('token');
         
-        fetch(`/delete/${todoId}`, {
+        fetch(`/api/todos/${todoId}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -137,6 +137,61 @@ document.querySelectorAll('.delete-todo').forEach(button => {
         })
         .catch(error => {
             showError(error.message);
+        });
+    });
+});
+
+// Handle todo completion toggle
+document.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const todoId = this.dataset.id;
+        const token = localStorage.getItem('token');
+        const isChecked = this.querySelector('input').checked;
+        
+        // First get the current todo state
+        fetch(`/api/todos/${todoId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(todo => {
+            // Then update it with the new state
+            return fetch(`/api/todos/${todoId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title: todo.title,
+                    complete: isChecked
+                })
+            });
+        })
+        .then(response => {
+            if (!response.ok) {
+                // Try to parse as JSON first, fall back to text if that fails
+                return response.text().then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        throw new Error(data.message || 'Failed to update todo');
+                    } catch (e) {
+                        throw new Error(text || 'Failed to update todo');
+                    }
+                });
+            }
+            // Update the UI
+            if (isChecked) {
+                this.classList.add('green');
+            } else {
+                this.classList.remove('green');
+            }
+        })
+        .catch(error => {
+            showError(error.message);
+            // Revert the checkbox state
+            this.querySelector('input').checked = !isChecked;
         });
     });
 });

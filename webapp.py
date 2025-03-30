@@ -76,7 +76,7 @@ def get_auth_token():
     
     return None
 
-@app.route('/todos')
+@app.route('/api/todos')
 def todos():
     token = get_auth_token()
     print(f"Token received: {'Yes' if token else 'No'}")  # Debug log
@@ -104,18 +104,44 @@ def todos():
     
     return render_template("todos.html", todo_list=todo_list)
 
-@app.route('/')
-def home():
+@app.route('/api/todos/<int:todo_id>')
+def get_todo(todo_id):
     token = get_auth_token()
-    
-    # If no token, show landing page
     if not token:
-        return render_template('landing.html')
+        return jsonify({"message": "Unauthorized"}), 401
     
-    # If token exists, redirect to todos page with the token
-    return redirect(url_for('todos', token=token))
+    headers = {'Authorization': f'Bearer {token}'}
+    response = requests.get(f"{API_URL}/todos/{todo_id}", headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    return jsonify({"message": "Todo not found"}), response.status_code
 
-@app.route("/add", methods=["POST"])
+@app.route('/api/todos/<int:todo_id>', methods=['PUT'])
+def update_todo(todo_id):
+    token = get_auth_token()
+    if not token:
+        return jsonify({"message": "Unauthorized"}), 401
+    
+    headers = {'Authorization': f'Bearer {token}'}
+    data = request.get_json()
+    response = requests.put(f"{API_URL}/todos/{todo_id}", json=data, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    return jsonify({"message": "Failed to update todo"}), response.status_code
+
+@app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
+def delete_todo(todo_id):
+    token = get_auth_token()
+    if not token:
+        return jsonify({"message": "Unauthorized"}), 401
+    
+    headers = {'Authorization': f'Bearer {token}'}
+    response = requests.delete(f"{API_URL}/todos/{todo_id}", headers=headers)
+    if response.status_code == 200:
+        return "", 204  # No Content response (DELETE success), reloading happens in javascript
+    return jsonify({"message": "Failed to delete todo"}), response.status_code
+
+@app.route("/api/todos", methods=["POST"])
 def add():
     token = get_auth_token()
     if not token:
@@ -128,59 +154,30 @@ def add():
     if not data or 'title' not in data:
         return jsonify({"message": "Title is required"}), 400
     
-    # Prepare the request data
-    request_data = {"title": data['title']}
-    print(f"Preparing to send to API: {request_data}")  # Debug log
-    print(f"Headers being sent: {headers}")  # Debug log
-    
     # Send the title directly to the API
-    try:
-        response = requests.post(f"{API_URL}/todos", json=request_data, headers=headers)
-        print(f"API response status: {response.status_code}")  # Debug log
-        print(f"API response text: {response.text}")  # Debug log
-        print(f"API response headers: {dict(response.headers)}")  # Debug log
-        
-        if response.status_code == 201:
-            return redirect(url_for("todos"))
-        else:
-            try:
-                error_data = response.json()
-                print(f"Parsed error data: {error_data}")  # Debug log
-                return jsonify({"message": error_data.get("message", "Failed to add todo")}), response.status_code
-            except Exception as e:
-                print(f"Error parsing JSON response: {str(e)}")  # Debug log
-                return jsonify({"message": "Failed to add todo"}), response.status_code
-    except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")  # Debug log
-        return jsonify({"message": "Failed to connect to API"}), 500
-
-@app.route("/update/<int:todo_id>")
-def update(todo_id):
-    token = get_auth_token()
-    if not token:
-        return redirect(url_for('login'))
+    response = requests.post(f"{API_URL}/todos", json={"title": data['title']}, headers=headers)
+    print(f"API response status: {response.status_code}")  # Debug log
+    print(f"API response text: {response.text}")  # Debug log
     
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.get(f"{API_URL}/todos/{todo_id}", headers=headers)
-    if response.status_code == 200:
-        todo = response.json()
-        todo["complete"] = not todo["complete"]
-        response = requests.put(f"{API_URL}/todos/{todo_id}", json=todo, headers=headers)
-        if response.status_code == 200:
-            return redirect(url_for("todos"))
-    return "Failed to update todo", 500
+    if response.status_code == 201:
+        return redirect(url_for("todos"))
+    else:
+        try:
+            error_data = response.json()
+            return jsonify({"message": error_data.get("message", "Failed to add todo")}), response.status_code
+        except:
+            return jsonify({"message": "Failed to add todo"}), response.status_code
 
-@app.route("/delete/<int:todo_id>", methods=["DELETE"])
-def delete(todo_id):
+@app.route('/')
+def home():
     token = get_auth_token()
-    if not token:
-        return "Unauthorized", 401
     
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.delete(f"{API_URL}/todos/{todo_id}", headers=headers)
-    if response.status_code == 200:
-        return "", 204  # No Content response (DELETE success), reloading happens in javascript
-    return "Failed to delete todo", 500
+    # If no token, show landing page
+    if not token:
+        return render_template('landing.html')
+    
+    # If token exists, redirect to todos page with the token
+    return redirect(url_for('todos', token=token))
 
 # We have to have a second ( __name__ == main ) check here
 # because app.run() needs to happen after all routes are defined,
