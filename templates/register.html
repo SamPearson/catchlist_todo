@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         console.log('Sending register request with data:', { ...data, password: '[REDACTED]' });
         
+        let responseStatus; //Declaring this outside the fetch/then block to make it avaialble in all sections
         fetch('/register', {
             method: 'POST',
             headers: {
@@ -92,12 +93,13 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify(data)
         })
         .then(response => {
+            responseStatus = response.status;
             console.log('Register response status:', response.status);
             return response.json();
         })
         .then(data => {
             console.log('Register response data:', data);
-            if (response.status === 201) {
+            if (responseStatus === 201) {
                 // Registration successful, redirect to login
                 window.location.href = '/login';
             } else {
