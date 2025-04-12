@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import inspect
-from db_models import db
+from .db_models import db
 
 
 class Config:
