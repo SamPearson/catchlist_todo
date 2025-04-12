@@ -12,8 +12,10 @@ app = Flask(__name__)
 
 # env files are specified in systemd service files on staging&prod
 # we launch the app with gunicon on staging/prod, thus ( __name__ == main ) only on dev/local.
+# env file must be set here to get the API url, but the routes must be defined before running the app, so
+# there's another if __name__ at the end of the script.
 if __name__ == "__main__":
-    load_dotenv('environments/.env.local')
+    load_dotenv('src/config/environments/.env.local')
 
 API_URL = os.getenv('API_URL')
 if not API_URL:
@@ -171,9 +173,10 @@ def home():
     
     return redirect(url_for('todos'))
 
+
 # We have to have a second ( __name__ == main ) check here
 # because app.run() needs to happen after all routes are defined,
 # meanwhile API_URL must be set before routes are defined.
+# so no need to load the env file here, just run the app.
 if __name__ == "__main__":
-    load_dotenv('environments/.env.local')
     app.run(debug=True, port=5000)

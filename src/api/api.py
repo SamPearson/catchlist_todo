@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
-from db_models import db, Todo, User
-from db_config import Config, initialize_database
+from config.db_models import db, Todo, User
+from config.db_config import Config, initialize_database
 
 app = Flask(__name__)
 app.config.from_object(Config)
