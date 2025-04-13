@@ -43,3 +43,24 @@ To run the API:
 
 `gunicorn --config gunicorn_config_api.py --workers 3 --bind 127.0.0.1:5001 api:app`
 
+## Implementation
+### Authentication
+This application uses JWT (JSON Web Token) for authentication. Before deploying to production:
+
+1. Set a secure JWT secret key:
+   - Create a strong, random key (at least 32 characters)
+   - Set it in your environment: `export JWT_SECRET_KEY='your-secure-key'`
+   - Never use the default development key in production
+   - Never commit your production key to version control
+
+Example of generating a secure key:
+```bash
+python -c 'import secrets; print(secrets.token_hex(32))'
+```
+
+### Security Considerations
+- The application requires authentication for all todo operations
+- Each user can only access their own todos
+- API endpoints are protected with JWT authentication
+- Passwords are hashed using Werkzeug's security functions
+
