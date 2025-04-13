@@ -1,4 +1,4 @@
-from api import app
+from src.api.api import app
 from src.config.db_config import initialize_database
 
 
