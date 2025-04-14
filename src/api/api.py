@@ -1,24 +1,11 @@
-from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
-from src.config.db_models import db, Todo, User
-from src.config.db_config import Config, initialize_database
+from flask import request, jsonify
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from ..config.db_models import db, Todo, User
+from ..config.db_config import initialize_database
+from .app_factory import create_app
 
-app = Flask(__name__)
-app.config.from_object(Config)
-# Add JWT configuration
-app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
-jwt = JWTManager(app)
+app = create_app()
 
-# Add JWT error handlers
-@jwt.invalid_token_loader
-def invalid_token_callback(error):
-    return jsonify({"msg": "Invalid token"}), 422
-
-@jwt.unauthorized_loader
-def unauthorized_callback(error):
-    return jsonify({"msg": "Missing Authorization Header"}), 422
-
-db.init_app(app)
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():

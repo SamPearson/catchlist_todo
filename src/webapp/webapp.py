@@ -3,6 +3,7 @@ import os
 import requests
 from dotenv import load_dotenv
 import logging
+from pathlib import Path
 
 # Configure logging for production - only show warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -15,7 +16,8 @@ app = Flask(__name__)
 # env file must be set here to get the API url, but the routes must be defined before running the app, so
 # there's another if __name__ at the end of the script.
 if __name__ == "__main__":
-    load_dotenv('src/config/environments/.env.local')
+    env_path = Path(__file__).parent.parent / 'config' / 'environments' / '.env.local'
+    load_dotenv(env_path)
 
 API_URL = os.getenv('API_URL')
 if not API_URL:
