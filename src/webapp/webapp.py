@@ -9,7 +9,14 @@ from pathlib import Path
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Get the absolute path to the webapp directory
+webapp_dir = Path(__file__).parent
+
+# Initialize Flask with template and static folders
+app = Flask(__name__,
+            template_folder=str(webapp_dir / 'templates'),
+            static_folder=str(webapp_dir / 'static'))
+
 
 # env files are specified in systemd service files on staging&prod
 # we launch the app with gunicon on staging/prod, thus ( __name__ == main ) only on dev/local.
