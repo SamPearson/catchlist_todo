@@ -83,6 +83,21 @@ def get_auth_token():
     
     return ''
 
+@app.route('/todos')
+def todos_page():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+
+    headers = {'Authorization': f'Bearer {token}'}
+    response = requests.get(f"{API_URL}/todos", headers=headers)
+
+    if response.status_code == 200:
+        todo_list = response.json()
+        return render_template("todos.html", todo_list=todo_list, token=token)
+    else:
+        return redirect(url_for('login'))
+
 @app.route('/api/todos')
 def todos():
     token = get_auth_token()
