@@ -60,6 +60,7 @@ def logout():
     resp.delete_cookie('auth_token')
     return resp
 
+
 def get_auth_token():
     """Get the auth token from headers or cookies"""
     # First try to get from headers
@@ -74,7 +75,7 @@ def get_auth_token():
     
     return ''
 
-@app.route('/api/todos')
+@app.route('/todos')
 def todos():
     token = get_auth_token()
     if not token:
@@ -90,19 +91,21 @@ def todos():
         logger.error(f"Failed to fetch todos: {response.status_code}")
         return redirect(url_for('login'))
 
-@app.route('/api/todos/<int:todo_id>')
+
+@app.route('/todos/<int:todo_id>')
 def get_todo(todo_id):
     token = get_auth_token()
     if not token:
         return jsonify({"message": "Unauthorized"}), 401
-    
+
     headers = {'Authorization': f'Bearer {token}'}
     response = requests.get(f"{API_URL}/todos/{todo_id}", headers=headers)
     if response.status_code == 200:
         return response.json()
     return jsonify({"message": "Todo not found"}), response.status_code
 
-@app.route('/api/todos/<int:todo_id>', methods=['PUT'])
+
+@app.route('/todos/<int:todo_id>', methods=['PUT'])
 def update_todo(todo_id):
     token = get_auth_token()
     if not token:
@@ -124,7 +127,8 @@ def update_todo(todo_id):
         return jsonify(response.json())
     return jsonify({"message": "Failed to update todo"}), response.status_code
 
-@app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
+
+@app.route('/todos/<int:todo_id>', methods=['DELETE'])
 def delete_todo(todo_id):
     token = get_auth_token()
     if not token:
@@ -136,7 +140,7 @@ def delete_todo(todo_id):
         return "", 204  # No Content response (DELETE success), reloading happens in javascript
     return jsonify({"message": "Failed to delete todo"}), response.status_code
 
-@app.route("/api/todos", methods=["POST"])
+@app.route("/todos", methods=["POST"])
 def add():
     token = get_auth_token()
     if not token:
