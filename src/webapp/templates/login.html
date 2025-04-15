@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateAuthUI(); // Update the UI to show logged-in state
                 
                 // Simple redirect to todos - the cookie will handle auth
-                window.location.href = '/api/todos';
+                window.location.href = '/todos';
             } else {
                 showError(data.message || 'Invalid username or password', 'error-message');
             }

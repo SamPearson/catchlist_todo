@@ -61,8 +61,8 @@ if (addForm) {
         const data = {
             title: formData.get('title')
         };
-        
-        fetch('/api/todos', {
+
+        fetch('/todos', {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify(data)
@@ -92,7 +92,7 @@ document.querySelectorAll('.ui.checkbox input').forEach(checkbox => {
             this.closest('.ui.checkbox').classList.remove('green');
         }
         
-        fetch(`/api/todos/${todoId}`, {
+        fetch(`/todos/${todoId}`, {
             method: 'PUT',
             headers: getAuthHeaders(),
             body: JSON.stringify({ 
@@ -120,7 +120,7 @@ document.querySelectorAll('.delete-todo').forEach(button => {
         const todoItem = this.closest('.item');
         const todoId = todoItem.dataset.id;
         
-        fetch(`/api/todos/${todoId}`, {
+        fetch(`/todos/${todoId}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         })
