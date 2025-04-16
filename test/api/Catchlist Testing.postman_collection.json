@@ -7,7 +7,225 @@
 	},
 	"item": [
 		{
-			"name": "get all todos",
+			"name": "Register New User",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"     // Generate a random number",
+							"     var randomNumber = Math.floor(Math.random() * 10000);",
+							"",
+							"     // Set the username with the random number",
+							"     var username = \"testuser\" + randomNumber;",
+							"",
+							"     // reuse the random number for a password",
+							"     var password = \"testpass\" + randomNumber;",
+							"",
+							"     // Save the user&pw to environment variables",
+							"     pm.environment.set(\"session_username\", username);",
+							"     pm.environment.set(\"session_password\", password)",
+							"",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"     pm.test(\"User registered successfully\", function () {",
+							"         pm.response.to.have.status(201);",
+							"     });"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"{{session_username}}\",\n    \"password\": \"{{session_password}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/auth/register",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"     pm.test(\"Login successful\", function () {",
+							"         pm.response.to.have.status(200);",
+							"         var jsonData = pm.response.json();",
+							"         pm.environment.set(\"auth_token\", jsonData.access_token);",
+							"     });"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"{{session_username}}\",\n    \"password\": \"{{session_password}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/auth/login",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Todo",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test: Status code is 201",
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"// Test: Response time is less than 500ms",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});",
+							"",
+							"// Test: Response is JSON",
+							"pm.test(\"Response is JSON\", function () {",
+							"    pm.response.to.be.json;",
+							"});",
+							"",
+							"// Test: JSON keys validation",
+							"pm.test(\"Response has expected keys\", function () {",
+							"    let jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an(\"object\");",
+							"    pm.expect(jsonData).to.have.property(\"id\");",
+							"    pm.expect(jsonData).to.have.property(\"title\");",
+							"    pm.expect(jsonData).to.have.property(\"complete\");",
+							"});",
+							"",
+							"// Test: Verify todo data",
+							"pm.test(\"Todo data is correct\", function () {",
+							"    let expectedTitle = pm.environment.get(\"todo_title\");",
+							"",
+							"    let jsonData = pm.response.json();",
+							"    pm.expect(jsonData.title).to.equal(expectedTitle);",
+							"    pm.expect(jsonData.complete).to.be.false;",
+							"});",
+							"",
+							"// Save the todo ID for later use",
+							"let jsonData = pm.response.json();",
+							"pm.environment.set(\"todo_id\", jsonData.id);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Saving a title to validate after creation",
+							"pm.environment.set(\"todo_title\", \"test todo title\");",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "     {\n       \"title\": \"{{todo_title}}\"\n     }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/todos",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"todos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get One Todo",
 			"event": [
 				{
 					"listen": "test",
@@ -30,11 +248,14 @@
 							"",
 							"// Test: JSON keys validation",
 							"pm.test(\"Response has expected keys\", function () {",
+							"    // Retrieve the environment variables",
+							"    let expectedId = pm.environment.get(\"todo_id\");",
+							"    let expectedTitle = pm.environment.get(\"todo_title\");",
+							"",
 							"    let jsonData = pm.response.json();",
-							"    pm.expect(jsonData).to.be.an(\"array\");",
-							"    pm.expect(jsonData[0]).to.have.property(\"id\");",
-							"    pm.expect(jsonData[0]).to.have.property(\"title\");",
-							"    pm.expect(jsonData[0]).to.have.property(\"complete\");",
+							"    pm.expect(jsonData.id).to.equal(expectedId);",
+							"    pm.expect(jsonData.title).to.equal(expectedTitle);",
+							"    pm.expect(jsonData.complete).to.be.false;",
 							"});",
 							""
 						],
@@ -44,6 +265,78 @@
 				}
 			],
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/todos/{{todo_id}}",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"todos",
+						"{{todo_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Todos",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test: Status code is 200",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// Test: Response time is less than 500ms",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});",
+							"",
+							"// Test: Response is JSON",
+							"pm.test(\"Response is JSON\", function () {",
+							"    pm.response.to.be.json;",
+							"});",
+							"",
+							"// Test: Response is an array",
+							"pm.test(\"Response is an array\", function () {",
+							"    let jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an(\"array\");",
+							"});",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
 				"method": "GET",
 				"header": [],
 				"url": {
@@ -55,6 +348,215 @@
 					"path": [
 						"api",
 						"todos"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Updated Todo",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"     // Test: Status code is 200",
+							"     pm.test(\"Status code is 200\", function () {",
+							"         pm.response.to.have.status(200);",
+							"     });",
+							"",
+							"     // Test: Response time is less than 500ms",
+							"     pm.test(\"Response time is less than 500ms\", function () {",
+							"         pm.expect(pm.response.responseTime).to.be.below(500);",
+							"     });",
+							"",
+							"     // Test: Response is JSON",
+							"     pm.test(\"Response is JSON\", function () {",
+							"         pm.response.to.be.json;",
+							"     });",
+							"",
+							"     // Test: JSON keys validation",
+							"     pm.test(\"Response has expected keys\", function () {",
+							"         let jsonData = pm.response.json();",
+							"         pm.expect(jsonData).to.be.an(\"object\");",
+							"         pm.expect(jsonData).to.have.property(\"id\");",
+							"         pm.expect(jsonData).to.have.property(\"title\");",
+							"         pm.expect(jsonData).to.have.property(\"complete\");",
+							"     });",
+							"",
+							"     // Test: Verify updated todo data",
+							"     pm.test(\"Todo data is updated correctly\", function () {",
+							"         let jsonData = pm.response.json();",
+							"         let expectedTitle = pm.environment.get(\"updated_todo_title\");",
+							"         pm.expect(jsonData.title).to.equal(expectedTitle);",
+							"         pm.expect(jsonData.complete).to.be.true;",
+							"     });"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"pm.environment.set(\"updated_todo_title\", \"new title\");",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "     {\n       \"title\": \"{{updated_todo_title}}\",\n       \"complete\": true\n     }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/todos/{{todo_id}}",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"todos",
+						"{{todo_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Todo",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"    // Test: Status code is 204",
+							"    pm.test(\"Status code is 204\", function () {",
+							"         pm.response.to.have.status(200);",
+							"    });",
+							"",
+							"    // Test: Response time is less than 500ms",
+							"    pm.test(\"Response time is less than 500ms\", function () {",
+							"        pm.expect(pm.response.responseTime).to.be.below(500);",
+							"    });",
+							"",
+							"    // Test: Verify confirmation message",
+							"    pm.test(\"Todo deleted confirmation\", function () {",
+							"        let jsonData = pm.response.json();",
+							"        pm.expect(jsonData.message).to.equal(\"Todo deleted\");",
+							"    });"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/todos/{{todo_id}}",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"todos",
+						"{{todo_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm Todo Deletion",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"     // Test: Status code is 404",
+							"     pm.test(\"Status code is 404\", function () {",
+							"         pm.response.to.have.status(404);",
+							"     });",
+							"",
+							"     // Test: Response time is less than 500ms",
+							"     pm.test(\"Response time is less than 500ms\", function () {",
+							"         pm.expect(pm.response.responseTime).to.be.below(500);",
+							"     });",
+							"",
+							"     // Test: Response is JSON",
+							"     pm.test(\"Response is JSON\", function () {",
+							"         pm.response.to.be.json;",
+							"     });",
+							"",
+							"     // Test: Verify error message",
+							"     pm.test(\"Todo not found message\", function () {",
+							"         let jsonData = pm.response.json();",
+							"         pm.expect(jsonData.message).to.equal(\"Todo not found\");",
+							"     });"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/todos/{{todo_id}}",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"todos",
+						"{{todo_id}}"
 					]
 				}
 			},
