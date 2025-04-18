@@ -1,44 +1,38 @@
 from selenium.webdriver.common.by import By
-from pages.base_page import BasePage, testid_locator
+from pages.base_page import testid_locator
+from pages.base_app_page import BaseAppPage
 
-class TodoListPage(BasePage):
-    _new_todo_entry_field = (By.ID, "todo-entry-title")
-    _new_todo_entry_button = (By.ID, "todo-entry-add-button")
 
-    _todo_display_box = testid_locator("todo-display")
-    _todo_title = testid_locator("todo-display-header")
-    _todo_completed = testid_locator("todo-display-completion")
-    _todo_update_button = testid_locator("todo-display-update-button")
-    _todo_delete_button = testid_locator("todo-display-delete-button")
+class TodoListPage(BaseAppPage):
+    # input form locators
+    todo_form_locator = testid_locator("add-todo-form")
+    todo_input_locator = testid_locator("add-todo-input")
+    todo_add_button_locator = testid_locator("add-todo-button")
+
+    # to do list
+    todo_list_locator = testid_locator("todo-list")
+    # individual to dos
+    todo_item_locator = testid_locator("todo-item")
+    todo_checkbox_locator = testid_locator("todo-checkbox")
+    todo_title_locator = testid_locator("todo-title")
+    todo_delete_button_locator = testid_locator("delete-todo-button")
 
     def __init__(self, driver):
         super().__init__(driver)
-        self._visit(driver.base_url)
-
-        # I don't have a great way to confirm "the page is loaded".
-        # I'm not even sure that's a valid goal compared to more granular "is this element loaded" checks,
-        # but I need to somehow confirm we did send a request to a url and get something back besides an error.
-        # or do I? shouldn't that error just show up in a screenshot when we fail to find a needed element later?
-        import time
-        time.sleep(10)
-
-        # assert something that should be present
 
     def create_todo(self, title):
         # self.click(self._new_todo_entry_field)
-        self._type(self._new_todo_entry_field)
-        self._click(self._new_todo_entry_button)
+        self._type(self.todo_input_locator, "party time")
+        self._click(self.todo_add_button_locator)
 
     def todo_list(self):
-        todo_dicts = []
-        todo_webelements = self._find_all(self._todo_display_box)
+        todo_list = []
+        todo_webelements = self._find_all(self.todo_item_locator)
         for todo in todo_webelements:
-            todo_title = self._find_child(todo, self._todo_title).text
-            todo_status = self._find_child(todo, self._todo_completed).text
-            todo_dicts.append({
-                'title': todo_title,
-                'status': todo_status
+            todo_title = self._find_child(todo, self.todo_title_locator).text
+            todo_list.append({
+                'title': todo_title
             })
 
-        return todo_dicts
+        return todo_list
 
