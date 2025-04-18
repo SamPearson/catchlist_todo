@@ -5,6 +5,8 @@ from selenium.webdriver.chrome.service import Service
 from environments.environment_data import Environment
 import os
 
+from pages.login_page import LoginPage
+
 
 def pytest_addoption(parser):
     parser.addoption("--env",
@@ -44,7 +46,7 @@ def driver(request):
     host = Environment.get_value("host")
     port = Environment.get_value("port")
 
-    driver_.base_url = f"{protocol}://{host}{port}"
+    driver_.base_url = f"{protocol}://{host}:{port}"
     # sometimes we still need the raw hostname.
     # better to just store it now instead of trying to regex it out later.
     driver_.base_domain = host
@@ -54,6 +56,20 @@ def driver(request):
 
     request.addfinalizer(quit_browser)
     return driver_
+
+
+@pytest.fixture
+def login(driver):
+    """
+    Fixture to log in before a test begins
+    """
+    login_page = LoginPage(driver)
+    login_page._visit(driver.base_url)
+
+    username = "lelda"
+    password = "lelda"
+    login_page.login(username, password)
+    return driver
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
