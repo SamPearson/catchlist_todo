@@ -5,28 +5,28 @@
     <h1 class="ui header">My Todo List</h1>
     
     <div class="ui segment">
-        <form class="ui form" id="add-todo-form">
+        <form class="ui form" id="add-todo-form" data-testid="add-todo-form">
             <div class="field">
                 <div class="ui action input">
                     <input type="text" name="title" placeholder="Add a new todo..." required>
-                    <button class="ui teal button" type="submit">Add</button>
+                    <button class="ui teal button" type="submit" data-testid="add-todo-button">Add</button>
                 </div>
             </div>
         </form>
     </div>
 
-    <div class="ui divided items" id="todo-list">
+    <div class="ui divided items" id="todo-list" data-testid="todo-list">
         {% for todo in todo_list %}
-        <div class="item" data-id="{{ todo.id }}">
+        <div class="item" data-id="{{ todo.id }}" data-testid="todo-item">
             <div class="content">
                 <div class="header">
                     <div class="ui {% if todo.complete %}green{% endif %} checkbox">
-                        <input type="checkbox" {% if todo.complete %}checked{% endif %}>
-                        <label>{{ todo.title }}</label>
+                        <input type="checkbox" {% if todo.complete %}checked{% endif %} data-testid="todo-checkbox">
+                        <label data-testid="todo-title">{{ todo.title }}</label>
                     </div>
                 </div>
                 <div class="description">
-                    <button class="ui red tiny button delete-todo">Delete</button>
+                    <button class="ui red tiny button delete-todo" data-testid="delete-todo-button">Delete</button>
                 </div>
             </div>
         </div>
