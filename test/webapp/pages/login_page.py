@@ -16,4 +16,3 @@ class LoginPage(BaseAppPage):
         self._type(self.username_field_locator, username)
         self._type(self.password_field_locator, password)
         self._click(self.login_button_locator)
-        sleep(10)
