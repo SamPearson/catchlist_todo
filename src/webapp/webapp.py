@@ -63,8 +63,16 @@ def register():
         logger.error(f"Request error during registration: {str(e)}")
         return jsonify({"message": "Failed to connect to API"}), 500
 
+
 @app.route('/logout')
 def logout():
+    token = get_auth_token()
+    if token:
+        headers = {'Authorization': f'Bearer {token}'}
+        # Try to blacklist the token in the API
+        requests.post(f"{API_URL}/auth/logout", headers=headers)
+
+    # Clear the cookie whether the token blacklisting works or not
     resp = make_response(redirect(url_for('login')))
     resp.delete_cookie('auth_token')
     return resp

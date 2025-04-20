@@ -1,9 +1,9 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
-
-db = SQLAlchemy()
+from datetime import datetime
+from .db_config import Config
+from .db_setup import db
 
 
 class User(UserMixin, db.Model):
@@ -31,7 +31,7 @@ class BlacklistedToken(db.Model):
     def clean_expired(cls):
         """Remove tokens that are past their JWT expiration time"""
         # Your JWT expiration time + a small buffer
-        expiration = datetime.utcnow() - timedelta(days=1, hours=1)  # assuming 1 day token life
+        expiration = datetime.utcnow() - Config.get_token_expires_delta()
         cls.query.filter(cls.created_at < expiration).delete()
         db.session.commit()
 
