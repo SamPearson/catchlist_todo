@@ -4,13 +4,13 @@
 	"values": [
 		{
 			"key": "port",
-			"value": "5000",
+			"value": "443",
 			"type": "default",
 			"enabled": true
 		},
 		{
 			"key": "protocol",
-			"value": "http",
+			"value": "https",
 			"type": "default",
 			"enabled": true
 		},
@@ -22,6 +22,6 @@
 		}
 	],
 	"_postman_variable_scope": "environment",
-	"_postman_exported_at": "2025-04-20T13:37:20.935Z",
+	"_postman_exported_at": "2025-04-20T13:57:40.299Z",
 	"_postman_exported_using": "Postman/11.28.2"
 }
