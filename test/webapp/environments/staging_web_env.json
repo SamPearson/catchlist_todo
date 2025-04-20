@@ -1,0 +1,27 @@
+{
+	"id": "ebd5a1e2-7d45-4c5a-8dd9-e299136d37a6",
+	"name": "Web - Staging",
+	"values": [
+		{
+			"key": "port",
+			"value": "443",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "protocol",
+			"value": "https",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "host",
+			"value": "staging.todo.mourningdovecall.com",
+			"type": "default",
+			"enabled": true
+		}
+	],
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2025-04-20T13:38:16.536Z",
+	"_postman_exported_using": "Postman/11.28.2"
+}
