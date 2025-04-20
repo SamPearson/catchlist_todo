@@ -561,6 +561,104 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Delete Account",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Test: Status code is 201",
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"// Test: Response time is less than 500ms",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"    pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});",
+							"",
+							"// Test: Response is JSON",
+							"pm.test(\"Response is JSON\", function () {",
+							"    pm.response.to.be.json;",
+							"});",
+							"",
+							"// Test: JSON keys validation",
+							"pm.test(\"Response has expected keys\", function () {",
+							"    let jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.be.an(\"object\");",
+							"    pm.expect(jsonData).to.have.property(\"id\");",
+							"    pm.expect(jsonData).to.have.property(\"title\");",
+							"    pm.expect(jsonData).to.have.property(\"complete\");",
+							"});",
+							"",
+							"// Test: Verify todo data",
+							"pm.test(\"Todo data is correct\", function () {",
+							"    let expectedTitle = pm.environment.get(\"todo_title\");",
+							"",
+							"    let jsonData = pm.response.json();",
+							"    pm.expect(jsonData.title).to.equal(expectedTitle);",
+							"    pm.expect(jsonData.complete).to.be.false;",
+							"});",
+							"",
+							"// Save the todo ID for later use",
+							"let jsonData = pm.response.json();",
+							"pm.environment.set(\"todo_id\", jsonData.id);"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Saving a title to validate after creation",
+							"pm.environment.set(\"todo_title\", \"test todo title\");",
+							""
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{auth_token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "     {\n       \"password\": \"{{session_password}}\"\n     }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{protocol}}://{{host}}{{port}}/api/auth/delete-account",
+					"protocol": "{{protocol}}",
+					"host": [
+						"{{host}}{{port}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"delete-account"
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }
