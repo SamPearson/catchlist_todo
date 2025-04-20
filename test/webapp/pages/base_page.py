@@ -1,4 +1,4 @@
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 # we do this instead of just using an xpath locator to avoid needing to spell f"[data-testid='{locator[1]}']")
 # correctly for every locator.
 def testid_locator(locator_string):
-    return By.XPATH, f"//*[@data-testid='{locator_string}']"
+    return By.CSS_SELECTOR, f"[data-testid='{locator_string}']"
 
 
 class ElementStillPresentException(Exception):
@@ -47,6 +47,27 @@ class BasePage:
         except TimeoutException:
             raise ElementStillPresentException(f'waited for url {condition} {value} = {negate} , '
                                                f'but timed out after {timeout} seconds')
+
+    def _wait_until(self, condition_function, timeout=10, error_message=None, suppress_timeout=False):
+        """Wait until the provided condition function returns true"""
+        try:
+            # Create a wrapper function that catches StaleElementReferenceException
+            def safe_condition(driver):
+                try:
+                    return condition_function(driver)
+                except StaleElementReferenceException:
+                    # Just return False when element is stale to continue waiting
+                    return False
+
+            wait = WebDriverWait(self.driver, timeout)
+            wait.until(condition_function)
+        except TimeoutException:
+            if suppress_timeout:
+                pass
+            if error_message:
+                raise AssertionError(error_message)
+            else:
+                raise TimeoutException(f'Condition not satisfied after {timeout} seconds')
 
     def _find(self, locator, timeout=2):
         assert self._is_active(locator, timeout), f"Attempted to find element with the locator {locator}, but could not"
