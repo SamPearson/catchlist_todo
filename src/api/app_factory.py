@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
-from ..config.db_models import db
+from ..config.db_models import db, BlacklistedToken
 from ..config.db_config import Config, initialize_database
 
 
@@ -14,6 +14,12 @@ def create_app():
     # Add JWT configuration
     app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
     jwt = JWTManager(app)
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload['jti']
+        token = BlacklistedToken.query.filter_by(jti=jti).first()
+        return token is not None
 
     # Add JWT error handlers
     @jwt.invalid_token_loader

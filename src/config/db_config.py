@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import inspect
-from .db_models import db
+from .db_setup import db
+from datetime import timedelta
 
 
 class Config:
@@ -8,6 +9,12 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Add a secure secret key for JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev-key-please-change-in-production')
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=1)  # Set tokens to expire after 1 day
+
+    @classmethod
+    def get_token_expires_delta(cls):
+        """Single source of truth for token expiration"""
+        return cls.JWT_ACCESS_TOKEN_EXPIRES
 
 
 def initialize_database(app):
