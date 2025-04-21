@@ -64,6 +64,29 @@ def register():
         return jsonify({"message": "Failed to connect to API"}), 500
 
 
+@app.route('/account')
+def account():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+
+    try:
+        headers = {'Authorization': f'Bearer {token}'}
+        # Get user info from API
+        response = requests.get(f"{API_URL}/auth/user-info", headers=headers)
+        if response.status_code == 200:
+            user_info = response.json()
+            return render_template(
+                "account.html",
+                username=user_info['username'],
+                API_URL=API_URL
+            )
+    except Exception as e:
+        logger.error(f"Error accessing account page: {str(e)}")
+
+    return redirect(url_for('login'))
+
+
 @app.route('/logout')
 def logout():
     token = get_auth_token()
