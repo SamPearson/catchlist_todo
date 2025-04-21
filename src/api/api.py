@@ -68,6 +68,19 @@ def check_if_token_revoked(jwt_header, jwt_payload):
     return token is not None
 
 
+@app.route('/api/auth/user-info', methods=['GET'])
+@jwt_required()
+def get_user_info():
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get(current_user_id)
+    if user:
+        return jsonify({
+            "id": user.id,
+            "username": user.username
+        })
+    return jsonify({"message": "User not found"}), 404
+
+
 @app.route('/api/auth/delete-account', methods=['POST'])
 @jwt_required()
 def delete_account():
