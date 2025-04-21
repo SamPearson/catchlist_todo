@@ -59,10 +59,12 @@ function updateAuthUI() {
     const loginLink = document.getElementById('login-link');
     const registerLink = document.getElementById('register-link');
     const logoutLink = document.getElementById('logout-link');
-    
+    const accountLink = document.getElementById('account-link');
+
     if (loginLink) loginLink.style.display = isLoggedIn ? 'none' : 'block';
     if (registerLink) registerLink.style.display = isLoggedIn ? 'none' : 'block';
     if (logoutLink) logoutLink.style.display = isLoggedIn ? 'block' : 'none';
+    if (accountLink) accountLink.style.display = isLoggedIn ? 'block' : 'none';
 }
 
 // Handle navigation with authentication
