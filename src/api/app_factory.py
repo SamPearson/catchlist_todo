@@ -1,5 +1,6 @@
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 from ..config.db_models import db, BlacklistedToken
 from ..config.db_config import Config, initialize_database
 
@@ -7,6 +8,10 @@ from ..config.db_config import Config, initialize_database
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    # Without CORS, the webapp and api can't connect when run locally,
+    # as they run on different ports, and that makes them two different places.
+    CORS(app)
 
     # initialize extensions
     db.init_app(app)
