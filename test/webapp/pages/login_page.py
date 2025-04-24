@@ -10,9 +10,14 @@ class LoginPage(BaseAppPage):
 
     def __init__(self, driver):
         super().__init__(driver)
+        self._visit("/login")
 
     def login(self, username, password):
         self._click(self.login_link_locator)
         self._type(self.username_field_locator, username)
         self._type(self.password_field_locator, password)
         self._click(self.login_button_locator)
+
+        # wait to be at the post-login page
+        self.wait_for_url('contains', '/todos')
+
