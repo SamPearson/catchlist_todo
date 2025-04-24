@@ -4,8 +4,11 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from environments.environment_data import Environment
 import os
+import random
 
 from pages.login_page import LoginPage
+from pages.user_registration_page import RegistrationPage
+from pages.user_account_page import AccountPage
 
 
 def pytest_addoption(parser):
@@ -19,21 +22,25 @@ def pytest_addoption(parser):
                      help="Run tests with browser in headless mode")
 
 
-@pytest.fixture
-def driver(request):
+def setup_webdriver(request):
+    """
+    Helper function to set up a WebDriver with proper configuration
+    """
+    headless = request.config.getoption("--headless") != "False"
     service = Service()
     options = webdriver.ChromeOptions()
-    if request.config.getoption("--headless") != "False":
+    if headless:
         options.add_argument('--headless')
 
         # Magical Config args:
         # SOME(not all) selectors break if you don't set window size. on headless mode.
         options.add_argument('window-size=1920x1080')
         # Browser will not be initialized in bitbucket pipelines without this config argument
+        # may be able to get away without it in other platforms.
         options.add_argument('--no-sandbox')
 
-    driver_ = webdriver.Chrome(service=service, options=options)
-    driver_.maximize_window()
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.maximize_window()
 
     test_environment = request.config.getoption("--env")
     test_env_filename = os.path.join("environments", f"{test_environment}")
@@ -41,15 +48,19 @@ def driver(request):
 
     Environment.parse_environment_file(test_env_filename)
 
-    # Construct the base URL dynamically from the environment file.
     protocol = Environment.get_value("protocol")
     host = Environment.get_value("host")
     port = Environment.get_value("port")
 
-    driver_.base_url = f"{protocol}://{host}:{port}"
-    # sometimes we still need the raw hostname.
-    # better to just store it now instead of trying to regex it out later.
-    driver_.base_domain = host
+    driver.base_url = f"{protocol}://{host}:{port}"
+    driver.base_domain = host
+
+    return driver
+
+
+@pytest.fixture
+def driver(request):
+    driver_ = setup_webdriver(request)
 
     def quit_browser():
         driver_.quit()
@@ -58,16 +69,46 @@ def driver(request):
     return driver_
 
 
+@pytest.fixture(scope="session")
+def test_user_credentials():
+    # tack a random int onto the user and pass to avoid collisions
+    # just in case we fail to delete a user somehow.
+    session_rand_int = random.randint(0,9999)
+    session_username = f"test_user{session_rand_int}"
+    session_password = f"test_user{session_rand_int}"
+
+    return {"username": session_username, "password": session_password}
+
+
+@pytest.fixture(scope="session")
+def registered_user(test_user_credentials, request):
+    """
+    Create a user once before any tests run, to be used for all tests and deleted after
+    """
+    driver = setup_webdriver(request)
+
+    try:
+        registration_page = RegistrationPage(driver)
+        registration_page.register_new_user(
+            test_user_credentials["username"],
+            test_user_credentials["password"]
+        )
+    finally:
+        driver.quit()
+
+    return test_user_credentials
+
+
 @pytest.fixture
-def login(driver):
+def login(driver, registered_user):
     """
     Fixture to log in before a test begins
     """
     login_page = LoginPage(driver)
-    login_page._visit(driver.base_url)
 
-    username = "lelda"
-    password = "lelda"
+    username = registered_user["username"],
+    password = registered_user["password"]
+
     login_page.login(username, password)
     return driver
 
@@ -77,3 +118,29 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     result = outcome.get_result()
     setattr(item, "result_" + result.when, result)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_registered_user(test_user_credentials, request):
+    """
+    Cleanup fixture - runs after all tests, deletes the test user
+    """
+    # yield here so we can run a teardown procedure after all tests
+    yield
+
+    # now all tests should be done; log in and delete the user
+    driver = setup_webdriver(request)
+    username = test_user_credentials["username"],
+    password = test_user_credentials["password"]
+
+    try:
+        login_page = LoginPage(driver)
+        login_page.login(username, password)
+
+        account_page = AccountPage(driver)
+        account_page.delete_account(password)
+    except Exception as e:
+        print(f"Failed to delete test user {username}: {e}")
+    finally:
+        driver.quit()
+
