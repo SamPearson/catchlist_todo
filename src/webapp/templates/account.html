@@ -35,7 +35,7 @@
                 </div>
             </h3>
 
-            <button class="ui negative button" id="delete-account-btn">
+            <button class="ui negative button" id="delete-account-btn" data-testid="delete-account-btn">
                 <i class="user delete icon"></i>
                 Delete Account
             </button>
@@ -63,14 +63,14 @@
             <div class="required field">
                 <label>Please enter your password to confirm:</label>
                 <div class="ui input">
-                    <input type="password" name="password" required>
+                    <input type="password" name="password" data-testid="delete-account-password-input" required>
                 </div>
             </div>
         </form>
     </div>
     <div class="actions">
         <div class="ui cancel button">Cancel</div>
-        <button type="submit" form="delete-account-form" class="ui negative button">
+        <button type="submit" form="delete-account-form" class="ui negative button" data-testid="delete-account-confirm-btn">
             Delete My Account
         </button>
     </div>

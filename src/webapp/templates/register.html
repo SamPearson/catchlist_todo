@@ -13,22 +13,22 @@
                 <div class="field">
                     <div class="ui left icon input">
                         <i class="user icon"></i>
-                        <input type="text" name="username" placeholder="Username" required>
+                        <input type="text" name="username" placeholder="Username" data-testid="register-username" required>
                     </div>
                 </div>
                 <div class="field">
                     <div class="ui left icon input">
                         <i class="lock icon"></i>
-                        <input type="password" name="password" placeholder="Password" required>
+                        <input type="password" name="password" placeholder="Password" data-testid="register-password" required>
                     </div>
                 </div>
                 <div class="field">
                     <div class="ui left icon input">
                         <i class="lock icon"></i>
-                        <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+                        <input type="password" name="confirm_password" placeholder="Confirm Password" data-testid="register-confirm-password" required>
                     </div>
                 </div>
-                <button class="ui fluid large teal submit button" type="submit">Sign Up</button>
+                <button class="ui fluid large teal submit button" type="submit" data-testid="register-submit">Sign Up</button>
             </div>
             <div class="ui error message" id="error-message" style="display: none;">
                 <div class="header">Error</div>
