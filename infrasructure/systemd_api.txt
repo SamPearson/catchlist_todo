@@ -1,0 +1,14 @@
+[Unit]
+Description=CatchList Todo API Service
+After=network.target
+
+[Service]
+User=catchlist
+WorkingDirectory=/var/www/deployment.domain
+Environment="PYTHONPATH=/var/www/deployment.domain/src"
+EnvironmentFile=/var/www/deployment.domain/src/config/environments/.env.production
+ExecStart=/bin/bash -c 'source /var/www/deployment.domain/venv/bin/activate && gunicorn --config src/api/gunicorn_config_api.py --workers 3 --bind 127.0.0.1:5000 src.api.api:app'
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
