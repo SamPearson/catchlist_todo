@@ -1,31 +1,38 @@
-# Testing the Internet
+# Testing Catchlist
 
-Test case demonstrations for common webpage features
+This directory contains a webapp testing suite.
 
-test target: https://the-internet.herokuapp.com/
+It was built with python, pytest, and selenium.
 
-## Running tests
+# Setting up webapp testing from scratch
+- on the deploy server, add the necessary key and repo to install google chrome
+- create a python virtualenv in this directory using the provided requirements file
+- edit the environment files in test/webapp/environments
+  - URLs for all three environments will need to change
+  - ports will likely need to change for local/dev
+  - ideally, bring these environment files into postman to edit them more easily
 
-Tests can be run by executing the pytest command in the project root directory. 
+That should be it
 
-## Command Line Options
+# Running the tests 
+Running the tests looks like this:
 
-Command line options (defined in conftest.py) can be used to specify a test environment
-    (e.g. run tests remotely or locally, in which browser, on what operating system, etc.)
+`pytest -m smoke --env=local_web_env.json`
 
-The command line option "host" determines whether tests will be run locally or on saucelabs.
-    host is set to saucelabs by default. To test locally, you can run specify that like so:
-    `$pytest --host=localhost`
+The value provided to the env flag is assumed to match a filename in test/webapp/environments.
 
-To run tests on saucelabs, you need to set the environment variables SAUCE_USERNAME and SAUCE_ACCESS_KEY
-To configure these environment variables in jenkins, see: https://docs.saucelabs.com/ci/jenkins/
+Tests are grouped with 'markers', and you can use the -m flag to specify which tests to run.
 
-## Markers
-Pytest markers (defined in pytest.ini) are used to categorize tests by feature and by test depth.
-Use these markers to select a suite of tests to run
+You can do fun things like use "and" and "not" when specifying markers. 
+For more info see https://docs.pytest.org/en/stable/example/markers.html
 
-`$pytest -m "dynamicLoading" --host=localhost`
+Pytest will complain about markers which have not been registered;
 
-"and/or/not" may be used to create more specific groupings of tests
+register new markers in test/webapp/pytest.ini
 
-`$pytest -m "login and smoke" --host=localhost`
+Note the devtest marker; it's recommended that you create new tests under this marker to run them alone.
+
+You can copy the good parts to other tests after whittling the chaos and exploration down to something that works.
+
+
+
