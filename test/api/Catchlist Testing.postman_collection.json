@@ -436,11 +436,12 @@
 					}
 				},
 				"url": {
-					"raw": "{{protocol}}://{{host}}{{port}}/api/todos/{{todo_id}}",
+					"raw": "{{protocol}}://{{host}}:{{port}}/api/todos/{{todo_id}}",
 					"protocol": "{{protocol}}",
 					"host": [
-						"{{host}}{{port}}"
+						"{{host}}"
 					],
+					"port": "{{port}}",
 					"path": [
 						"api",
 						"todos",
