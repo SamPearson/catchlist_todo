@@ -1,0 +1,13 @@
+[Unit]
+Description=CatchList Todo WebApp Service
+After=network.target
+
+[Service]
+User=catchlist
+WorkingDirectory=/var/www/deployment.domain
+EnvironmentFile=/var/www/deployment.domain/src/config/environments/.env.production
+ExecStart=/bin/bash -c 'source venv/bin/activate && exec gunicorn --workers 3 --bind 127.0.0.1:8000 src.webapp.webapp:app'
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
