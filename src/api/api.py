@@ -5,6 +5,9 @@ from flask_jwt_extended import (
     jwt_required,
     get_jwt
 )
+
+from ..config.caldav_client import CalDAVClient
+
 from ..config.db_models import db, Todo, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
@@ -110,6 +113,46 @@ def delete_account():
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": "Error deleting account"}), 500
+
+
+@app.route('/api/caldav/test-connection', methods=['POST'])
+@jwt_required()
+def test_caldav_connection():
+    data = request.get_json()
+
+    if not data or not data.get('url'):
+        return jsonify({"message": "CalDAV URL is required"}), 400
+
+    url = data.get('url')
+    username = data.get('username')
+    password = data.get('password')
+
+    caldav_client = CalDAVClient(url, username, password)
+
+    if not caldav_client.connect():
+        return jsonify({"success": False, "message": "Failed to connect to CalDAV server"}), 400
+
+    calendars = caldav_client.get_calendars()
+    calendar_count = len(calendars)
+
+    if calendar_count > 0:
+        # Try to get events from the first calendar
+        first_calendar = calendars[0]
+        events = caldav_client.get_events_as_dict(first_calendar)
+        event_count = len(events)
+
+        return jsonify({
+            "success": True,
+            "message": f"Successfully connected to CalDAV server. Found {calendar_count} calendars and {event_count} events in the first calendar.",
+            "calendars": [cal.name for cal in calendars],
+            "sample_events": events[:5] if events else []  # Return up to 5 sample events
+        })
+
+    return jsonify({
+        "success": True,
+        "message": f"Successfully connected to CalDAV server. Found {calendar_count} calendars.",
+        "calendars": []
+    })
 
 
 @app.route('/api/todos', methods=['GET'])
