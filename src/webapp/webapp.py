@@ -30,6 +30,7 @@ API_URL = os.getenv('API_URL')
 if not API_URL:
     logger.error("API_URL is not set. Please check your environment files.")
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
@@ -47,6 +48,7 @@ def login():
         return resp, response.status_code
     
     return jsonify(response.json()), response.status_code
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -114,6 +116,16 @@ def get_auth_token():
         return token
     
     return ''
+
+
+@app.route('/calendar')
+def calendar():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+
+    return render_template("calendar.html", API_URL=API_URL)
+
 
 @app.route('/todos')
 def todos():
