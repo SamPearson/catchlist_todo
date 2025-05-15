@@ -89,6 +89,7 @@ class CalendarEvent(db.Model):
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     rrule = db.Column(db.String(200))  # For recurring events
+    active = db.Column(db.Boolean, default=True)  # Whether the event is active
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     executions = db.relationship('EventExecution', backref='event', lazy=True)
 

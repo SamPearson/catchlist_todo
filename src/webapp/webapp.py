@@ -276,35 +276,20 @@ def calendar_events():
     if not token:
         return redirect(url_for('login'))
     
-    # Mock data for now
-    events = [
-        {
-            'id': 1, 
-            'summary': 'Morning Workout', 
-            'start_time': '07:00', 
-            'end_time': '08:00',
-            'description': '30 minutes cardio, 30 minutes strength',
-            'rrule': 'FREQ=WEEKLY;BYDAY=MO,WE,FR'
-        },
-        {
-            'id': 2, 
-            'summary': 'Team Meeting', 
-            'start_time': '10:00', 
-            'end_time': '11:00',
-            'description': 'Weekly team status update',
-            'rrule': 'FREQ=WEEKLY;BYDAY=MO'
-        },
-        {
-            'id': 3, 
-            'summary': 'Study Session', 
-            'start_time': '19:00', 
-            'end_time': '20:30',
-            'description': 'Review course materials',
-            'rrule': 'FREQ=WEEKLY;BYDAY=TU,TH'
-        }
-    ]
-    
-    return render_template("calendar_events.html", events=events)
+    try:
+        headers = {'Authorization': f'Bearer {token}'}
+        response = requests.get(f"{API_URL}/calendar-events", headers=headers)
+        
+        if response.status_code == 200:
+            events = response.json()
+        else:
+            events = []
+            
+        return render_template("calendar_events.html", events=events, API_URL=API_URL)
+    except Exception as e:
+        logger.error(f"Error fetching calendar events: {str(e)}")
+        events = []
+        return render_template("calendar_events.html", events=events, API_URL=API_URL)
 
 
 @app.route('/today')
