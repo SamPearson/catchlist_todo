@@ -254,36 +254,20 @@ def projects():
     if not token:
         return redirect(url_for('login'))
     
-    # Mock data for now
-    projects = [
-        {
-            'id': 1, 
-            'title': 'Learn Python', 
-            'win_condition': 'Build a functioning web app',
-            'reason': 'Improve programming skills',
-            'next_step': 'Complete Flask tutorial',
-            'subtasks': [
-                {'id': 1, 'title': 'Learn Flask basics', 'complete': True, 'on_daily_todo': False},
-                {'id': 2, 'title': 'Set up database', 'complete': True, 'on_daily_todo': False},
-                {'id': 3, 'title': 'Create user authentication', 'complete': False, 'on_daily_todo': True},
-                {'id': 4, 'title': 'Deploy to production', 'complete': False, 'on_daily_todo': False}
-            ]
-        },
-        {
-            'id': 2, 
-            'title': 'Home Renovation', 
-            'win_condition': 'Living room fully updated',
-            'reason': 'Create a more comfortable space',
-            'next_step': 'Choose paint colors',
-            'subtasks': [
-                {'id': 5, 'title': 'Measure the space', 'complete': True, 'on_daily_todo': False},
-                {'id': 6, 'title': 'Purchase paint samples', 'complete': False, 'on_daily_todo': True},
-                {'id': 7, 'title': 'Schedule contractors', 'complete': False, 'on_daily_todo': False}
-            ]
-        }
-    ]
-    
-    return render_template("projects.html", projects=projects)
+    try:
+        headers = {'Authorization': f'Bearer {token}'}
+        response = requests.get(f"{API_URL}/projects", headers=headers)
+        
+        if response.status_code == 200:
+            projects = response.json()
+        else:
+            projects = []
+            
+        return render_template("projects.html", projects=projects, API_URL=API_URL)
+    except Exception as e:
+        logger.error(f"Error fetching projects: {str(e)}")
+        projects = []
+        return render_template("projects.html", projects=projects, API_URL=API_URL)
 
 
 @app.route('/calendar-events')
