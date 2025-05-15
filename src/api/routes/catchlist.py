@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, CatchListEntry
+from ...config.db_models import db, CatchListEntry, CatchlistExecution
 from ..utils.helpers import get_current_user_id
-from datetime import datetime
+from datetime import datetime, date
 
 catchlist_bp = Blueprint('catchlist', __name__)
 
@@ -74,20 +74,38 @@ def update_catchlist_item(item_id):
     if not item:
         return jsonify({"message": "Item not found"}), 404
     
-    try:
-        if 'content' in data:
-            item.content = data.get('content')
-        if 'status' in data:
-            item.status = data.get('status')
-        if 'on_daily_todo' in data:
-            item.on_daily_todo = data.get('on_daily_todo')
-        if 'completed' in data:
-            item.completed = data.get('completed')
-            if data.get('completed'):
-                item.completed_at = datetime.utcnow()
-            else:
-                item.completed_at = None
+    # Track if on_daily_todo was changed
+    was_on_daily = item.on_daily_todo
+    
+    if 'content' in data:
+        item.content = data['content']
+    
+    if 'status' in data:
+        item.status = data['status']
+    
+    if 'on_daily_todo' in data:
+        item.on_daily_todo = data['on_daily_todo']
         
+        # Create CatchlistExecution record when adding to today's list
+        if item.on_daily_todo and not was_on_daily:
+            today_date = date.today()
+            # Check if there's already an execution for today
+            existing_execution = CatchlistExecution.query.filter_by(
+                catchlist_id=item.id,
+                execution_date=today_date
+            ).first()
+            
+            if not existing_execution:
+                execution = CatchlistExecution(
+                    catchlist_id=item.id,
+                    user_id=current_user_id,
+                    execution_date=today_date,
+                    attempted=True,
+                    completed=False
+                )
+                db.session.add(execution)
+    
+    try:
         db.session.commit()
         return jsonify({
             'id': item.id,
@@ -95,8 +113,7 @@ def update_catchlist_item(item_id):
             'created_at': item.created_at.strftime('%Y-%m-%d %H:%M'),
             'status': item.status,
             'on_daily_todo': item.on_daily_todo,
-            'completed': item.completed,
-            'completed_at': item.completed_at.strftime('%Y-%m-%d %H:%M') if item.completed_at else None
+            'completed': item.completed
         })
     except Exception as e:
         db.session.rollback()
@@ -128,23 +145,45 @@ def toggle_on_daily_todo(item_id):
 @jwt_required()
 def mark_item_done(item_id):
     current_user_id = get_current_user_id()
-    item = CatchListEntry.query.filter_by(id=item_id, user_id=current_user_id).first()
     
+    item = CatchListEntry.query.filter_by(id=item_id, user_id=current_user_id).first()
     if not item:
         return jsonify({"message": "Item not found"}), 404
     
+    # Set completion status
+    item.completed = True
+    item.completed_at = datetime.utcnow()
+    item.on_daily_todo = False  # Remove from daily todo when completed
+    
+    # Update the CatchlistExecution record
+    today_date = date.today()
+    execution = CatchlistExecution.query.filter_by(
+        catchlist_id=item.id,
+        execution_date=today_date
+    ).first()
+    
+    # If no execution record exists yet, create one
+    if not execution:
+        execution = CatchlistExecution(
+            catchlist_id=item.id,
+            user_id=current_user_id,
+            execution_date=today_date,
+            attempted=True
+        )
+        db.session.add(execution)
+    
+    # Mark as completed
+    execution.completed = True
+    
     try:
-        # Mark the item as done
-        item.completed = True
-        item.completed_at = datetime.utcnow()
-        
         db.session.commit()
         return jsonify({
             'id': item.id,
             'content': item.content,
+            'created_at': item.created_at.strftime('%Y-%m-%d %H:%M'),
+            'status': item.status,
             'completed': item.completed,
-            'completed_at': item.completed_at.strftime('%Y-%m-%d %H:%M'),
-            'points': 10  # Checking off a catchlist item is worth 10 points
+            'completed_at': item.completed_at.strftime('%Y-%m-%d %H:%M') if item.completed_at else None
         })
     except Exception as e:
         db.session.rollback()
@@ -163,6 +202,36 @@ def delete_catchlist_item(item_id):
         db.session.delete(item)
         db.session.commit()
         return jsonify({"message": "Item deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@catchlist_bp.route('/api/catchlist/fix-dates', methods=['POST'])
+@jwt_required()
+def fix_catchlist_dates():
+    current_user_id = get_current_user_id()
+    
+    try:
+        # Find all completed catchlist items with future dates
+        today = datetime.utcnow()
+        
+        items = CatchListEntry.query.filter(
+            CatchListEntry.user_id == current_user_id,
+            CatchListEntry.completed == True,
+            CatchListEntry.completed_at > today
+        ).all()
+        
+        updated_count = 0
+        for item in items:
+            item.completed_at = today
+            updated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Successfully updated {updated_count} catchlist items",
+            "updated_count": updated_count
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500 

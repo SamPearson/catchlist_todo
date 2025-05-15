@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, CatchListEntry
+from ...config.db_models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, CatchListEntry, TaskExecution
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 
@@ -48,6 +48,7 @@ def get_today_events():
             'description': event.description,
             'completed': execution.completed,
             'rpe': execution.rpe,
+            'notes': execution.notes,
             'check_in_count': execution.check_in_count or 0,
             'is_current': False,  # Will be set below
             'is_all_day': ((event.start_time.strftime('%H:%M') if event.start_time else None) == '00:00' and
@@ -117,6 +118,7 @@ def get_today_tasks():
 @jwt_required()
 def check_in_event(execution_id):
     current_user_id = get_current_user_id()
+    data = request.get_json() or {}
     
     # Find the execution
     execution = EventExecution.query.get(execution_id)
@@ -132,6 +134,13 @@ def check_in_event(execution_id):
     if not execution.completed:
         execution.completed = "yes"
     
+    # Update RPE and notes if provided
+    if 'rpe' in data:
+        execution.rpe = data.get('rpe')
+    
+    if 'notes' in data:
+        execution.notes = data.get('notes')
+    
     # Increment check-in count
     if execution.check_in_count is None:
         execution.check_in_count = 1
@@ -143,6 +152,8 @@ def check_in_event(execution_id):
         return jsonify({
             "message": "Check-in successful",
             "check_in_count": execution.check_in_count,
+            "rpe": execution.rpe,
+            "notes": execution.notes,
             "points": execution.check_in_count * 10  # 10 points per check-in
         })
     except Exception as e:
@@ -166,6 +177,28 @@ def toggle_task_completion(task_id):
     
     # Toggle completion status
     task.complete = not task.complete
+    
+    # Update the TaskExecution record for today
+    today_date = date.today()
+    execution = TaskExecution.query.filter_by(
+        task_id=task.id,
+        execution_date=today_date
+    ).first()
+    
+    # If no execution record exists yet, create one
+    if not execution:
+        execution = TaskExecution(
+            task_id=task.id,
+            project_id=task.project_id,
+            user_id=current_user_id,
+            execution_date=today_date,
+            attempted=True,
+            completed=False
+        )
+        db.session.add(execution)
+    
+    # Update the execution completion status
+    execution.completed = task.complete
     
     try:
         db.session.commit()

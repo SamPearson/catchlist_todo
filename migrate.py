@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-from src.config.db_migrate import run_migrations
+import os
+from flask_migrate import Migrate
+from src.config.db_models import db
+from src.api.app_factory import create_app
 
-if __name__ == "__main__":
-    print("Running database migrations...")
-    run_migrations()
-    print("Migrations completed successfully.") 
+app = create_app()
+migrate = Migrate(app, db)
+
+if __name__ == '__main__':
+    with app.app_context():
+        # Create tables that don't exist yet
+        db.create_all()
+        print("Database schema updated successfully!") 

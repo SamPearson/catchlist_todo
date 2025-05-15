@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, Project, ProjectSubtask
+from ...config.db_models import db, Project, ProjectSubtask, TaskExecution
 from ..utils.helpers import get_current_user_id
+from datetime import datetime, date
 
 projects_bp = Blueprint('projects', __name__)
 
@@ -108,7 +109,7 @@ def delete_project(project_id):
     try:
         db.session.delete(project)
         db.session.commit()
-        return jsonify({"message": "Project deleted"})
+        return jsonify({"message": "Project deleted successfully"})
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
@@ -154,29 +155,60 @@ def update_subtask(subtask_id):
     current_user_id = get_current_user_id()
     data = request.get_json()
     
-    subtask = ProjectSubtask.query.join(Project).filter(
-        ProjectSubtask.id == subtask_id,
-        Project.user_id == current_user_id
-    ).first()
-    
+    subtask = ProjectSubtask.query.get(subtask_id)
     if not subtask:
         return jsonify({"message": "Subtask not found"}), 404
     
+    # Check if user owns the project that contains this subtask
+    project = Project.query.filter_by(id=subtask.project_id, user_id=current_user_id).first()
+    if not project:
+        return jsonify({"message": "Not authorized"}), 403
+    
+    changed_fields = []
+    
+    if 'title' in data:
+        subtask.title = data['title']
+        changed_fields.append('title')
+    
+    if 'complete' in data:
+        subtask.complete = data['complete']
+        changed_fields.append('complete')
+    
+    if 'on_daily_todo' in data:
+        # Check if we're adding to today's list
+        was_on_daily = subtask.on_daily_todo
+        subtask.on_daily_todo = data['on_daily_todo']
+        changed_fields.append('on_daily_todo')
+        
+        # Create TaskExecution record when adding to today's list
+        if subtask.on_daily_todo and not was_on_daily:
+            today_date = date.today()
+            # Check if there's already an execution for today
+            existing_execution = TaskExecution.query.filter_by(
+                task_id=subtask.id,
+                execution_date=today_date
+            ).first()
+            
+            if not existing_execution:
+                execution = TaskExecution(
+                    task_id=subtask.id,
+                    project_id=subtask.project_id,
+                    user_id=current_user_id,
+                    execution_date=today_date,
+                    attempted=True,
+                    completed=False
+                )
+                db.session.add(execution)
+    
     try:
-        subtask.title = data.get('title', subtask.title)
-        subtask.complete = data.get('complete', subtask.complete)
-        subtask.on_daily_todo = data.get('on_daily_todo', subtask.on_daily_todo)
-        
         db.session.commit()
-        
-        result = {
+        return jsonify({
             'id': subtask.id,
             'title': subtask.title,
             'complete': subtask.complete,
-            'on_daily_todo': subtask.on_daily_todo
-        }
-        
-        return jsonify(result)
+            'on_daily_todo': subtask.on_daily_todo,
+            'changed': changed_fields
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
@@ -198,6 +230,40 @@ def delete_subtask(subtask_id):
         db.session.delete(subtask)
         db.session.commit()
         return jsonify({"message": "Subtask deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@projects_bp.route('/api/projects/subtasks/fix-dates', methods=['POST'])
+@jwt_required()
+def fix_subtask_dates():
+    current_user_id = get_current_user_id()
+    
+    try:
+        # Find all completed project subtasks with future dates
+        today = datetime.utcnow()
+        
+        # First get all projects for this user
+        projects = Project.query.filter_by(user_id=current_user_id).all()
+        project_ids = [p.id for p in projects]
+        
+        subtasks = ProjectSubtask.query.filter(
+            ProjectSubtask.project_id.in_(project_ids),
+            ProjectSubtask.complete == True,
+            ProjectSubtask.updated_at > today
+        ).all()
+        
+        updated_count = 0
+        for subtask in subtasks:
+            subtask.updated_at = today
+            updated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Successfully updated {updated_count} project subtasks",
+            "updated_count": updated_count
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500 

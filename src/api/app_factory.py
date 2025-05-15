@@ -13,12 +13,11 @@ def create_app():
     # Without CORS, the webapp and api can't connect when run locally,
     # as they run on different ports, and that makes them two different places.
 
-    # Allow any localhost origin regardless of port
-    CORS(app, resources={r"/*": {
-        "origins": [
-            re.compile(r"^https?://localhost(:\d+)?$"),
-            re.compile(r"^https?://127\.0\.0\.1(:\d+)?$")
-        ]
+    # More permissive CORS configuration for development
+    CORS(app, supports_credentials=True, resources={r"/*": {
+        "origins": "*",  # Allow all origins for development
+        "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
+        "allow_headers": "*"
     }})
 
     # initialize extensions
