@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui container">
+    <h1 class="ui header">Today's Schedule</h1>
+    
+    <div class="ui statistics">
+        <div class="statistic">
+            <div class="value">{{ score }}</div>
+            <div class="label">Points</div>
+        </div>
+        <div class="statistic">
+            <div class="value">{{ streak }}</div>
+            <div class="label">Day Streak</div>
+        </div>
+        <div class="statistic">
+            <div class="value">{{ completion_rate }}%</div>
+            <div class="label">Completion Rate</div>
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Current Activity</h3>
+        {% if current_activity %}
+        <div class="ui card fluid">
+            <div class="content">
+                <div class="header">{{ current_activity.summary }}</div>
+                <div class="meta">
+                    <span class="time">{{ current_activity.start_time }} - {{ current_activity.end_time }}</span>
+                </div>
+                <div class="description">{{ current_activity.description }}</div>
+            </div>
+            <div class="extra content">
+                <button class="ui blue button fluid check-in-button" {% if current_activity.checked_in %}disabled{% endif %}>
+                    {% if current_activity.checked_in %}Checked In!{% else %}Check In{% endif %}
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="ui message">
+            <div class="header">No Current Activity</div>
+            <p>There are no scheduled activities at this time.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Today's Schedule</h3>
+        <div class="ui divided items" id="today-items">
+            {% for item in schedule %}
+            <div class="item {% if item.is_current %}active{% endif %}" data-id="{{ item.id }}">
+                <div class="content">
+                    <div class="header">{{ item.summary }}</div>
+                    <div class="meta">
+                        <span class="time">{{ item.start_time }} - {{ item.end_time }}</span>
+                    </div>
+                    <div class="description">{{ item.description }}</div>
+                    <div class="extra">
+                        {% if item.completed == 'yes' %}
+                        <div class="ui green label">Completed</div>
+                        {% elif item.completed == 'no' %}
+                        <div class="ui red label">Missed</div>
+                        {% elif item.completed == 'missed' %}
+                        <div class="ui orange label">Didn't Check In</div>
+                        {% endif %}
+                        
+                        {% if item.rpe %}
+                        <div class="ui label">RPE: {{ item.rpe }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Today's Tasks</h3>
+        <div class="ui divided items" id="today-tasks">
+            {% for task in tasks %}
+            <div class="item" data-id="{{ task.id }}">
+                <div class="content">
+                    <div class="header">
+                        <div class="ui checkbox">
+                            <input type="checkbox" {% if task.complete %}checked{% endif %}>
+                            <label>{{ task.title }}</label>
+                        </div>
+                    </div>
+                    <div class="meta">
+                        {% if task.project_title %}
+                        <span>Project: {{ task.project_title }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Mock data handling
+document.querySelector('.check-in-button')?.addEventListener('click', function() {
+    this.textContent = 'Checked In!';
+    this.disabled = true;
+    alert('You checked in! +10 points (Mock functionality)');
+});
+
+document.querySelectorAll('#today-tasks .checkbox input').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const isComplete = this.checked;
+        alert(`Task ${isComplete ? 'completed' : 'uncompleted'}! (Mock functionality)`);
+    });
+});
+</script>
+{% endblock %} 

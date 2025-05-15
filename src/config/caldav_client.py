@@ -81,4 +81,3 @@ class CalDAVClient:
                 print(f"Error parsing event: {str(e)}")
                 
         return result
-    
