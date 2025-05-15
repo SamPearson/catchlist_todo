@@ -78,6 +78,9 @@ class CatchListEntry(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     status = db.Column(db.String(20), default='active')  # active, archived, someday
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    on_daily_todo = db.Column(db.Boolean, default=False)
+    completed = db.Column(db.Boolean, default=False)
+    completed_at = db.Column(db.DateTime, nullable=True)
 
 
 class CalendarEvent(db.Model):
@@ -102,3 +105,4 @@ class EventExecution(db.Model):
     completed = db.Column(db.String(20))  # yes, no, or missed
     rpe = db.Column(db.Integer)  # 1-10 rating
     notes = db.Column(db.Text)
+    check_in_count = db.Column(db.Integer, default=0)  # Count of check-ins
