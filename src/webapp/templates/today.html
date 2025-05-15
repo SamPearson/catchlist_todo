@@ -6,111 +6,623 @@
     
     <div class="ui statistics">
         <div class="statistic">
-            <div class="value">{{ score }}</div>
+            <div class="value" id="points">0</div>
             <div class="label">Points</div>
         </div>
         <div class="statistic">
-            <div class="value">{{ streak }}</div>
+            <div class="value" id="streak">0</div>
             <div class="label">Day Streak</div>
         </div>
         <div class="statistic">
-            <div class="value">{{ completion_rate }}%</div>
+            <div class="value" id="completion-rate">0%</div>
             <div class="label">Completion Rate</div>
         </div>
     </div>
     
     <div class="ui segment">
         <h3 class="ui header">Current Activity</h3>
-        {% if current_activity %}
-        <div class="ui card fluid">
-            <div class="content">
-                <div class="header">{{ current_activity.summary }}</div>
-                <div class="meta">
-                    <span class="time">{{ current_activity.start_time }} - {{ current_activity.end_time }}</span>
+        <div id="current-activity-container">
+            <!-- Current activity will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
                 </div>
-                <div class="description">{{ current_activity.description }}</div>
-            </div>
-            <div class="extra content">
-                <button class="ui blue button fluid check-in-button" {% if current_activity.checked_in %}disabled{% endif %}>
-                    {% if current_activity.checked_in %}Checked In!{% else %}Check In{% endif %}
-                </button>
+                <div class="paragraph">
+                    <div class="line"></div>
+                    <div class="line"></div>
+                </div>
             </div>
         </div>
-        {% else %}
-        <div class="ui message">
-            <div class="header">No Current Activity</div>
-            <p>There are no scheduled activities at this time.</p>
-        </div>
-        {% endif %}
     </div>
     
     <div class="ui segment">
         <h3 class="ui header">Today's Schedule</h3>
         <div class="ui divided items" id="today-items">
-            {% for item in schedule %}
-            <div class="item {% if item.is_current %}active{% endif %}" data-id="{{ item.id }}">
-                <div class="content">
-                    <div class="header">{{ item.summary }}</div>
-                    <div class="meta">
-                        <span class="time">{{ item.start_time }} - {{ item.end_time }}</span>
-                    </div>
-                    <div class="description">{{ item.description }}</div>
-                    <div class="extra">
-                        {% if item.completed == 'yes' %}
-                        <div class="ui green label">Completed</div>
-                        {% elif item.completed == 'no' %}
-                        <div class="ui red label">Missed</div>
-                        {% elif item.completed == 'missed' %}
-                        <div class="ui orange label">Didn't Check In</div>
-                        {% endif %}
-                        
-                        {% if item.rpe %}
-                        <div class="ui label">RPE: {{ item.rpe }}</div>
-                        {% endif %}
-                    </div>
+            <!-- Schedule will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
+                    <div class="line"></div>
                 </div>
             </div>
-            {% endfor %}
         </div>
     </div>
     
     <div class="ui segment">
         <h3 class="ui header">Today's Tasks</h3>
         <div class="ui divided items" id="today-tasks">
-            {% for task in tasks %}
-            <div class="item" data-id="{{ task.id }}">
-                <div class="content">
-                    <div class="header">
-                        <div class="ui checkbox">
-                            <input type="checkbox" {% if task.complete %}checked{% endif %}>
-                            <label>{{ task.title }}</label>
-                        </div>
-                    </div>
-                    <div class="meta">
-                        {% if task.project_title %}
-                        <span>Project: {{ task.project_title }}</span>
-                        {% endif %}
-                    </div>
+            <!-- Tasks will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
                 </div>
             </div>
-            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Catchlist Items</h3>
+        <div class="ui divided items" id="today-catchlist">
+            <!-- Catchlist items will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-// Mock data handling
-document.querySelector('.check-in-button')?.addEventListener('click', function() {
-    this.textContent = 'Checked In!';
-    this.disabled = true;
-    alert('You checked in! +10 points (Mock functionality)');
+// Function to get auth token from cookies
+function getAuthToken() {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith('auth_token=')) {
+            return cookie.substring('auth_token='.length, cookie.length);
+        }
+    }
+    return '';
+}
+
+// Load today's events when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadTodayEvents();
+    loadTodayTasks();
+    loadTodayCatchlist();
 });
 
-document.querySelectorAll('#today-tasks .checkbox input').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        const isComplete = this.checked;
-        alert(`Task ${isComplete ? 'completed' : 'uncompleted'}! (Mock functionality)`);
+// Load today's events from API
+function loadTodayEvents() {
+    fetch('{{ API_URL }}/today/events', {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(events => {
+        displayEvents(events);
+        calculateStats(events);
+    })
+    .catch(error => {
+        console.error('Error loading events:', error);
+        document.getElementById('today-items').innerHTML = `
+            <div class="ui negative message">
+                <div class="header">Error Loading Events</div>
+                <p>Could not load today's events. Please try again later.</p>
+            </div>
+        `;
     });
-});
+}
+
+// Load today's tasks from API
+function loadTodayTasks() {
+    fetch('{{ API_URL }}/today/tasks', {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(tasks => {
+        displayTasks(tasks);
+    })
+    .catch(error => {
+        console.error('Error loading tasks:', error);
+        document.getElementById('today-tasks').innerHTML = `
+            <div class="ui negative message">
+                <div class="header">Error Loading Tasks</div>
+                <p>Could not load today's tasks. Please try again later.</p>
+            </div>
+        `;
+    });
+}
+
+// Load today's catchlist from API
+function loadTodayCatchlist() {
+    fetch('{{ API_URL }}/today/catchlist', {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(catchlist => {
+        displayCatchlist(catchlist);
+    })
+    .catch(error => {
+        console.error('Error loading catchlist:', error);
+        document.getElementById('today-catchlist').innerHTML = `
+            <div class="ui negative message">
+                <div class="header">Error Loading Catchlist</div>
+                <p>Could not load today's catchlist. Please try again later.</p>
+            </div>
+        `;
+    });
+}
+
+// Display events in the UI
+function displayEvents(events) {
+    const todayItems = document.getElementById('today-items');
+    todayItems.innerHTML = '';
+    
+    if (events.length === 0) {
+        todayItems.innerHTML = `
+            <div class="ui message">
+                <div class="header">No Events Scheduled</div>
+                <p>You don't have any events scheduled for today.</p>
+            </div>
+        `;
+        
+        // Update current activity section
+        document.getElementById('current-activity-container').innerHTML = `
+            <div class="ui message">
+                <div class="header">No Current Activity</div>
+                <p>There are no scheduled activities at this time.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Find all-day events and current events
+    const allDayEvents = events.filter(event => event.is_all_day);
+    const currentTimeEvents = events.filter(event => event.is_current && !event.is_all_day);
+    
+    // Display the most relevant current activity
+    // Priority: current time-based event, or first all-day event if no current time-based event
+    const currentActivity = currentTimeEvents.length > 0 ? currentTimeEvents[0] : 
+                            (allDayEvents.length > 0 ? allDayEvents[0] : null);
+    
+    if (currentActivity) {
+        const isAllDay = currentActivity.is_all_day;
+        const checkInCount = currentActivity.check_in_count || 0;
+        document.getElementById('current-activity-container').innerHTML = `
+            <div class="ui card fluid" data-id="${currentActivity.id}">
+                <div class="content">
+                    <div class="header">${currentActivity.summary}</div>
+                    <div class="meta">
+                        <span class="time">${isAllDay ? 'All day' : `${currentActivity.start_time || ''} - ${currentActivity.end_time || ''}`}</span>
+                    </div>
+                    <div class="description">${currentActivity.description || ''}</div>
+                    ${checkInCount > 0 ? `<div class="extra"><div class="ui teal label">Check-ins: ${checkInCount} (${checkInCount * 10} points)</div></div>` : ''}
+                </div>
+                <div class="extra content">
+                    <button class="ui blue button fluid check-in-button">
+                        ${checkInCount > 0 ? `Check In Again (+10 points)` : 'Check In (+10 points)'}
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Add check-in button handler
+        document.querySelector('.check-in-button').addEventListener('click', function() {
+            const executionId = this.closest('.card').dataset.id;
+            checkInEvent(executionId);
+        });
+    } else {
+        document.getElementById('current-activity-container').innerHTML = `
+            <div class="ui message">
+                <div class="header">No Current Activity</div>
+                <p>There are no scheduled activities at this time.</p>
+            </div>
+        `;
+    }
+    
+    // Group events into all-day and time-specific
+    let allDaySection = '';
+    if (allDayEvents.length > 0) {
+        allDaySection = `
+            <div class="ui segment">
+                <h4 class="ui header">All-Day Events</h4>
+                <div class="ui divided items">
+                    ${allDayEvents.map(event => `
+                        <div class="item" data-id="${event.id}">
+                            <div class="content">
+                                <div class="header">${event.summary}</div>
+                                <div class="description">${event.description || ''}</div>
+                                <div class="extra">
+                                    ${event.completed === 'yes' ? '<div class="ui green label">Completed</div>' : ''}
+                                    ${event.completed === 'no' ? '<div class="ui red label">Missed</div>' : ''}
+                                    ${event.completed === 'missed' ? '<div class="ui orange label">Didn\'t Check In</div>' : ''}
+                                    
+                                    ${event.rpe ? `<div class="ui label">RPE: ${event.rpe}</div>` : ''}
+                                    ${event.check_in_count > 0 ? `<div class="ui teal label">Check-ins: ${event.check_in_count}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        todayItems.innerHTML = allDaySection;
+    }
+    
+    // Add time-specific events
+    const timeSpecificEvents = events.filter(event => !event.is_all_day);
+    if (timeSpecificEvents.length > 0) {
+        const timeEventsHTML = `
+            <div class="ui segment">
+                <h4 class="ui header">Scheduled Events</h4>
+                <div class="ui divided items">
+                    ${timeSpecificEvents.map(event => `
+                        <div class="item ${event.is_current ? 'active' : ''}" data-id="${event.id}">
+                            <div class="content">
+                                <div class="header">${event.summary}</div>
+                                <div class="meta">
+                                    <span class="time">${event.start_time || ''} - ${event.end_time || ''}</span>
+                                </div>
+                                <div class="description">${event.description || ''}</div>
+                                <div class="extra">
+                                    ${event.completed === 'yes' ? '<div class="ui green label">Completed</div>' : ''}
+                                    ${event.completed === 'no' ? '<div class="ui red label">Missed</div>' : ''}
+                                    ${event.completed === 'missed' ? '<div class="ui orange label">Didn\'t Check In</div>' : ''}
+                                    
+                                    ${event.rpe ? `<div class="ui label">RPE: ${event.rpe}</div>` : ''}
+                                    ${event.check_in_count > 0 ? `<div class="ui teal label">Check-ins: ${event.check_in_count}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        todayItems.innerHTML += timeEventsHTML;
+    }
+}
+
+// Display tasks in the UI
+function displayTasks(tasks) {
+    const todayTasks = document.getElementById('today-tasks');
+    todayTasks.innerHTML = '';
+    
+    if (tasks.length === 0) {
+        todayTasks.innerHTML = `
+            <div class="ui message">
+                <div class="header">No Tasks</div>
+                <p>You don't have any tasks marked for today.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    tasks.forEach(task => {
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.dataset.id = task.id;
+        
+        item.innerHTML = `
+            <div class="content">
+                <div class="header">
+                    <div class="ui checkbox">
+                        <input type="checkbox" ${task.complete ? 'checked' : ''}>
+                        <label>${task.title}</label>
+                    </div>
+                </div>
+                <div class="meta">
+                    ${task.project_title ? `<span>Project: ${task.project_title}</span>` : ''}
+                </div>
+            </div>
+        `;
+        
+        todayTasks.appendChild(item);
+        
+        // Initialize Semantic UI checkbox
+        $(item).find('.ui.checkbox').checkbox();
+        
+        // Add event listener for checkbox changes
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', function() {
+            const taskId = item.dataset.id;
+            toggleTaskCompletion(taskId, this.checked);
+        });
+    });
+}
+
+// Calculate and display statistics
+function calculateStats(events) {
+    // Calculate total points from all check-ins
+    const totalPoints = events.reduce((sum, event) => sum + (event.check_in_count || 0) * 10, 0);
+    
+    // Count completed events
+    const completedCount = events.filter(event => event.completed === 'yes').length;
+    const totalCount = events.length;
+    
+    // Calculate completion rate
+    const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    
+    // Update UI
+    document.getElementById('points').textContent = totalPoints;
+    document.getElementById('completion-rate').textContent = completionRate + '%';
+    
+    // For now, streak is just a placeholder
+    document.getElementById('streak').textContent = '1';
+}
+
+// Check in for an event
+function checkInEvent(executionId) {
+    fetch(`{{ API_URL }}/today/event-check-in/${executionId}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Get the updated check-in count
+        const checkInCount = data.check_in_count || 1;
+        const points = data.points || 10;
+        
+        // Update UI to show check-in count
+        const checkInButton = document.querySelector('.check-in-button');
+        checkInButton.textContent = `Check In Again (+10 points)`;
+        
+        // Update the check-in count display
+        const currentActivityCard = document.querySelector('.card[data-id="' + executionId + '"]');
+        const extraDiv = currentActivityCard.querySelector('.content .extra') || 
+                        document.createElement('div');
+        
+        if (!currentActivityCard.querySelector('.content .extra')) {
+            extraDiv.className = 'extra';
+            currentActivityCard.querySelector('.content').appendChild(extraDiv);
+        }
+        
+        extraDiv.innerHTML = `<div class="ui teal label">Check-ins: ${checkInCount} (${points} points)</div>`;
+        
+        // Add a visual cue for the user
+        const successMessage = document.createElement('div');
+        successMessage.className = 'ui success message';
+        successMessage.innerHTML = `
+            <div class="header">Check-in Successful!</div>
+            <p>+10 points (Total: ${points} points for this event)</p>
+        `;
+        
+        const container = document.querySelector('.ui.container');
+        container.insertBefore(successMessage, container.firstChild);
+        
+        // Remove the message after 3 seconds
+        setTimeout(() => {
+            successMessage.remove();
+        }, 3000);
+        
+        // Reload events to update statistics
+        loadTodayEvents();
+    })
+    .catch(error => {
+        console.error('Error checking in:', error);
+        alert('Error checking in. Please try again.');
+    });
+}
+
+// Toggle task completion
+function toggleTaskCompletion(taskId, isComplete) {
+    fetch(`{{ API_URL }}/today/tasks/${taskId}/toggle`, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .catch(error => {
+        console.error('Error toggling task:', error);
+        alert('Error updating task. Please try again.');
+        
+        // Revert checkbox state on error
+        const checkbox = document.querySelector(`.item[data-id="${taskId}"] input[type="checkbox"]`);
+        if (checkbox) {
+            checkbox.checked = !isComplete;
+        }
+    });
+}
+
+// Display catchlist items in the UI
+function displayCatchlist(items) {
+    const todayCatchlist = document.getElementById('today-catchlist');
+    todayCatchlist.innerHTML = '';
+    
+    if (items.length === 0) {
+        todayCatchlist.innerHTML = `
+            <div class="ui message">
+                <div class="header">No Catchlist Items</div>
+                <p>You don't have any catchlist items marked for today.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    items.forEach(item => {
+        const itemElement = document.createElement('div');
+        itemElement.className = 'item';
+        itemElement.dataset.id = item.id;
+        
+        const isCompleted = item.completed;
+        const completedClass = isCompleted ? 'completed-item' : '';
+        const completedText = isCompleted ? 
+            `<div class="ui green label">Completed: ${item.completed_at}</div>` : '';
+        
+        itemElement.innerHTML = `
+            <div class="content ${completedClass}">
+                <div class="header">${item.content}</div>
+                <div class="meta">
+                    <span>Added: ${item.created_at}</span>
+                    ${completedText}
+                </div>
+                <div class="extra">
+                    ${!isCompleted ? 
+                        `<button class="ui teal tiny button mark-done">Mark as Done (+10 points)</button>` : 
+                        ''}
+                    <button class="ui tiny button remove-from-today">Remove from Today</button>
+                </div>
+            </div>
+        `;
+        
+        todayCatchlist.appendChild(itemElement);
+        
+        // Add event listeners
+        if (!isCompleted) {
+            const markDoneButton = itemElement.querySelector('.mark-done');
+            markDoneButton.addEventListener('click', function() {
+                markCatchlistItemDone(item.id);
+            });
+        }
+        
+        const removeButton = itemElement.querySelector('.remove-from-today');
+        removeButton.addEventListener('click', function() {
+            removeFromToday(item.id);
+        });
+    });
+}
+
+// Mark catchlist item as done
+function markCatchlistItemDone(itemId) {
+    fetch(`{{ API_URL }}/catchlist/${itemId}/mark-done`, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'ui success message';
+        successMessage.innerHTML = `
+            <div class="header">Item Completed!</div>
+            <p>+${data.points} points</p>
+        `;
+        
+        const container = document.querySelector('.ui.container');
+        container.insertBefore(successMessage, container.firstChild);
+        
+        // Remove the message after 3 seconds
+        setTimeout(() => {
+            successMessage.remove();
+        }, 3000);
+        
+        // Reload to update UI
+        loadTodayCatchlist();
+    })
+    .catch(error => {
+        console.error('Error marking item as done:', error);
+        alert('Error marking item as done. Please try again.');
+    });
+}
+
+// Remove catchlist item from today's list
+function removeFromToday(itemId) {
+    fetch(`{{ API_URL }}/catchlist/${itemId}/toggle-today`, {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload the catchlist
+        loadTodayCatchlist();
+        
+        // Show success message
+        const successMessage = document.createElement('div');
+        successMessage.className = 'ui success message';
+        successMessage.innerHTML = `
+            <div class="header">Item Removed</div>
+            <p>Item removed from today's list.</p>
+        `;
+        
+        const container = document.querySelector('.ui.container');
+        container.insertBefore(successMessage, container.firstChild);
+        
+        // Remove the message after 3 seconds
+        setTimeout(() => {
+            successMessage.remove();
+        }, 3000);
+    })
+    .catch(error => {
+        console.error('Error removing item:', error);
+        alert('Error removing item. Please try again.');
+    });
+}
 </script>
+
+<style>
+.item.active {
+    background-color: rgba(33, 186, 69, 0.1);
+}
+
+.completed-item .header {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.completed-item {
+    background-color: rgba(33, 186, 69, 0.05);
+}
+</style>
 {% endblock %} 

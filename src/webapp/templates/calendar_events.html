@@ -32,12 +32,10 @@
                 <div class="content">
                     <div class="header">
                         {{ event.summary }}
-                        {% if event.rrule %}
                         <div class="ui toggle checkbox" style="float: right;">
                             <input type="checkbox" class="event-toggle" {% if event.active %}checked{% endif %}>
                             <label>Active</label>
                         </div>
-                        {% endif %}
                     </div>
                     <div class="meta">
                         {% if event.rrule %}
@@ -78,60 +76,236 @@
 </div>
 
 <script>
-// Mock data handling
+// Function to get auth token from cookies
+function getAuthToken() {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith('auth_token=')) {
+            return cookie.substring('auth_token='.length, cookie.length);
+        }
+    }
+    return '';
+}
+
+// CalDAV test connection
 document.getElementById('caldav-import-form').addEventListener('submit', function(e) {
     e.preventDefault();
-    alert('Testing connection! (Mock functionality)');
-    // In a real implementation, this would test the connection and enable the import button
-    document.getElementById('import-button').disabled = false;
+    
+    const formData = {
+        url: this.url.value,
+        username: this.username.value,
+        password: this.password.value
+    };
+    
+    fetch('{{ API_URL }}/caldav/test-connection', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getAuthToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(`Connection successful! Found ${data.calendars.length} calendars and ${data.sample_events ? data.sample_events.length : 0} sample events.`);
+            document.getElementById('import-button').disabled = false;
+        } else {
+            alert('Connection failed: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error testing connection:', error);
+        alert('Error testing connection. Please try again.');
+    });
 });
 
+// Import events
 document.getElementById('import-button').addEventListener('click', function(e) {
     e.preventDefault();
-    alert('Importing events! (Mock functionality)');
+    
+    const formData = {
+        url: document.querySelector('[name="url"]').value,
+        username: document.querySelector('[name="username"]').value,
+        password: document.querySelector('[name="password"]').value
+    };
+    
+    fetch('{{ API_URL }}/calendar-events/import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getAuthToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully imported ${data.imported_count} events!`);
+            // Refresh the page to show newly imported events
+            window.location.reload();
+        } else {
+            alert('Import failed: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error importing events:', error);
+        alert('Error importing events. Please try again.');
+    });
 });
 
+// View executions
 document.querySelectorAll('.view-executions').forEach(btn => {
     btn.addEventListener('click', function() {
         const eventId = this.closest('.item').dataset.id;
         
-        // Mock data for executions
-        const mockExecutions = [
-            { date: '2023-06-01', completed: 'yes', rpe: 7, notes: 'Went well!' },
-            { date: '2023-06-08', completed: 'no', rpe: 3, notes: 'Was sick' },
-            { date: '2023-06-15', completed: 'yes', rpe: 8, notes: 'Better than last time' }
-        ];
-        
-        const tbody = document.getElementById('executions-table-body');
-        tbody.innerHTML = '';
-        
-        mockExecutions.forEach(exec => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${exec.date}</td>
-                <td>${exec.completed}</td>
-                <td>${exec.rpe}</td>
-                <td>${exec.notes}</td>
-                <td>
-                    <button class="ui tiny blue button edit-execution">Edit</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+        fetch(`{{ API_URL }}/calendar-events/${eventId}/executions`, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + getAuthToken()
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(executions => {
+            const tbody = document.getElementById('executions-table-body');
+            tbody.innerHTML = '';
+            
+            if (executions.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="5" class="center aligned">No execution history found</td>';
+                tbody.appendChild(tr);
+            } else {
+                executions.forEach(exec => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.id = exec.id;
+                    tr.innerHTML = `
+                        <td>${exec.date}</td>
+                        <td>${exec.completed || 'N/A'}</td>
+                        <td>${exec.rpe || 'N/A'}</td>
+                        <td>${exec.notes || ''}</td>
+                        <td>
+                            <button class="ui tiny blue button edit-execution">Edit</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            
+            // Show the modal with Semantic UI
+            $('.ui.modal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error fetching executions:', error);
+            alert('Error fetching execution history. Please try again.');
         });
-        
-        // Show the modal with Semantic UI
-        $('.ui.modal').modal('show');
     });
 });
 
-// Event delegation for dynamically added elements
+// Event delegation for edit execution
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('edit-execution')) {
-        alert('Would edit execution! (Mock functionality)');
+        const executionRow = e.target.closest('tr');
+        const executionId = executionRow.dataset.id;
+        
+        // Get the current values
+        const cells = executionRow.querySelectorAll('td');
+        const date = cells[0].textContent;
+        const completed = cells[1].textContent;
+        const rpe = cells[2].textContent;
+        const notes = cells[3].textContent;
+        
+        // Replace the row with an edit form
+        const originalHTML = executionRow.innerHTML;
+        executionRow.innerHTML = `
+            <td>${date}</td>
+            <td>
+                <select class="ui dropdown execution-completed">
+                    <option value="yes" ${completed === 'yes' ? 'selected' : ''}>Yes</option>
+                    <option value="no" ${completed === 'no' ? 'selected' : ''}>No</option>
+                    <option value="missed" ${completed === 'missed' ? 'selected' : ''}>Missed</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" min="1" max="10" class="execution-rpe" value="${rpe !== 'N/A' ? rpe : ''}">
+            </td>
+            <td>
+                <input type="text" class="execution-notes" value="${notes}">
+            </td>
+            <td>
+                <button class="ui tiny green button save-execution">Save</button>
+                <button class="ui tiny button cancel-edit">Cancel</button>
+            </td>
+        `;
+        
+        // Initialize Semantic UI dropdown
+        $(executionRow).find('.ui.dropdown').dropdown();
+        
+        // Handle save button
+        executionRow.querySelector('.save-execution').addEventListener('click', function() {
+            const updatedData = {
+                completed: executionRow.querySelector('.execution-completed').value,
+                rpe: executionRow.querySelector('.execution-rpe').value || null,
+                notes: executionRow.querySelector('.execution-notes').value
+            };
+            
+            fetch(`{{ API_URL }}/event-executions/${executionId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getAuthToken()
+                },
+                body: JSON.stringify(updatedData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update the row with new data
+                executionRow.innerHTML = `
+                    <td>${data.date}</td>
+                    <td>${data.completed || 'N/A'}</td>
+                    <td>${data.rpe || 'N/A'}</td>
+                    <td>${data.notes || ''}</td>
+                    <td>
+                        <button class="ui tiny blue button edit-execution">Edit</button>
+                    </td>
+                `;
+            })
+            .catch(error => {
+                console.error('Error updating execution:', error);
+                alert('Error updating execution. Please try again.');
+                // Restore original row on error
+                executionRow.innerHTML = originalHTML;
+            });
+        });
+        
+        // Handle cancel button
+        executionRow.querySelector('.cancel-edit').addEventListener('click', function() {
+            executionRow.innerHTML = originalHTML;
+        });
     }
 });
 
-// Handle event toggle
+// Handle event toggle (active/inactive)
 document.querySelectorAll('.event-toggle').forEach(toggle => {
     toggle.addEventListener('change', function() {
         const eventItem = this.closest('.item');
@@ -145,7 +319,34 @@ document.querySelectorAll('.event-toggle').forEach(toggle => {
             eventItem.classList.add('disabled');
         }
         
-        alert(`Event ${isActive ? 'activated' : 'deactivated'}! (Mock functionality)`);
+        // Update active state in the database
+        fetch(`{{ API_URL }}/calendar-events/${eventId}/toggle-active`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getAuthToken()
+            },
+            body: JSON.stringify({
+                active: isActive
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .catch(error => {
+            console.error('Error updating event active state:', error);
+            // Revert toggle state on error
+            this.checked = !isActive;
+            if (!isActive) {
+                eventItem.classList.remove('disabled');
+            } else {
+                eventItem.classList.add('disabled');
+            }
+            alert('Error updating event. Please try again.');
+        });
     });
 });
 </script>

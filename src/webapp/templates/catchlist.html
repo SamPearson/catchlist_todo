@@ -16,70 +16,479 @@
     </div>
 
     <div class="ui segment">
-        <div class="ui toggle checkbox">
+        <div class="ui toggle checkbox" style="margin-right: 20px;">
             <input type="checkbox" id="show-someday">
             <label>Show Someday/Maybe Items</label>
         </div>
+        <div class="ui toggle checkbox">
+            <input type="checkbox" id="show-completed">
+            <label>Show Completed Items</label>
+        </div>
+    </div>
+
+    <div class="ui message negative" id="error-message" style="display: none;">
+        <div class="error-text"></div>
     </div>
 
     <div class="ui divided items" id="catchlist-items">
-        {% for item in catchlist_items %}
-        <div class="item {% if item.status == 'someday' %}someday-item{% endif %}" data-id="{{ item.id }}" {% if item.status == 'someday' %}style="display: none;"{% endif %}>
-            <div class="content">
-                <div class="header">{{ item.content }}</div>
-                <div class="meta">{{ item.created_at }}</div>
-                <div class="description">
-                    <div class="ui buttons">
-                        <button class="ui tiny button upgrade-to-project">Convert to Project</button>
-                        <button class="ui tiny button someday-item">Someday/Maybe</button>
-                        <button class="ui red tiny button delete-item">Delete</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+        <!-- Items will be loaded here dynamically -->
     </div>
 </div>
 
 <script>
-// Mock data handling for now
-document.getElementById('add-catchlist-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    alert('Added to catchlist! (Mock functionality)');
+// Load catchlist items when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadCatchlistItems();
+    initializeEventListeners();
 });
 
-document.querySelectorAll('.upgrade-to-project').forEach(btn => {
-    btn.addEventListener('click', function() {
-        alert('Would convert to project! (Mock functionality)');
-    });
-});
+function loadCatchlistItems() {
+    // Check if we have a token first
+    const token = getToken();
+    if (!token) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
 
-document.querySelectorAll('.someday-item').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const item = this.closest('.item');
-        if (item.classList.contains('someday-item')) {
-            item.classList.remove('someday-item');
-            this.textContent = 'Someday/Maybe';
-        } else {
-            item.classList.add('someday-item');
-            this.textContent = 'Active';
+    // Get the show completed flag
+    const showCompleted = document.getElementById('show-completed').checked;
+
+    fetch(`{{ API_URL }}/catchlist?show_completed=${showCompleted}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
         }
-        alert('Would toggle someday/maybe status! (Mock functionality)');
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Return both the response object and response.json() promise
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Unknown error',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(items => {
+        displayItems(items);
+    })
+    .catch(error => {
+        console.error('Full error:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to load catchlist items';
+        showError(errorMessage);
     });
-});
+}
 
-document.querySelectorAll('.delete-item').forEach(btn => {
-    btn.addEventListener('click', function() {
-        alert('Would delete item! (Mock functionality)');
+function displayItems(items) {
+    const container = document.getElementById('catchlist-items');
+    container.innerHTML = '';
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="ui message">No items in your catchlist yet. Add some thoughts above!</div>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const itemElement = document.createElement('div');
+        itemElement.className = `item ${item.status === 'someday' ? 'someday-item' : ''} ${item.completed ? 'completed-item' : ''}`;
+        itemElement.dataset.id = item.id;
+        
+        // Handle visibility based on filters
+        if (item.status === 'someday' && !document.getElementById('show-someday').checked) {
+            itemElement.style.display = 'none';
+        }
+        if (item.completed && !document.getElementById('show-completed').checked) {
+            itemElement.style.display = 'none';
+        }
+        
+        const completedText = item.completed ? 
+            `<div class="ui green label">Completed: ${item.completed_at}</div>` : '';
+        
+        itemElement.innerHTML = `
+            <div class="content">
+                <div class="header">${item.content}</div>
+                <div class="meta">
+                    ${item.created_at}
+                    ${completedText}
+                </div>
+                <div class="description">
+                    <div class="ui buttons">
+                        ${!item.completed ? `<button class="ui tiny teal button mark-done">Mark as Done</button>` : ''}
+                        <button class="ui tiny button upgrade-to-project" ${item.completed ? 'disabled' : ''}>Convert to Project</button>
+                        <button class="ui tiny button someday-item" ${item.completed ? 'disabled' : ''}>
+                            ${item.status === 'someday' ? 'Active' : 'Someday/Maybe'}
+                        </button>
+                        <button class="ui tiny button ${item.on_daily_todo ? 'green' : ''} add-to-today" ${item.completed ? 'disabled' : ''}>
+                            ${item.on_daily_todo ? 'On Today\'s List' : 'Add to Today'}
+                        </button>
+                        <button class="ui red tiny button delete-item">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(itemElement);
     });
-});
+    
+    // Reattach event listeners
+    attachItemEventListeners();
+}
 
-// Toggle visibility of someday/maybe items
-document.getElementById('show-someday').addEventListener('change', function() {
-    const somedayItems = document.querySelectorAll('.someday-item');
-    somedayItems.forEach(item => {
-        item.style.display = this.checked ? 'block' : 'none';
+function initializeEventListeners() {
+    // Add new catchlist item
+    document.getElementById('add-catchlist-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const contentInput = this.querySelector('input[name="content"]');
+        const content = contentInput.value.trim();
+        
+        if (!content) return;
+        
+        const token = getToken();
+        if (!token) {
+            showError('Authentication required. Please log in first.');
+            return;
+        }
+        
+        fetch('{{ API_URL }}/catchlist', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: content })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw {
+                        status: response.status,
+                        statusText: response.statusText,
+                        message: errorData.message || 'Unknown error',
+                        data: errorData
+                    };
+                });
+            }
+            return response.json();
+        })
+        .then(item => {
+            // Clear the input
+            contentInput.value = '';
+            
+            // Reload all items to ensure proper order
+            loadCatchlistItems();
+            
+            showCustomMessage('Item added successfully!', 'positive');
+        })
+        .catch(error => {
+            console.error('Full error:', error);
+            const errorMessage = error.message ? 
+                `Error (${error.status}): ${error.message}` : 
+                'Failed to add item';
+            showError(errorMessage);
+        });
     });
-});
+    
+    // Toggle visibility of someday/maybe items
+    document.getElementById('show-someday').addEventListener('change', function() {
+        const somedayItems = document.querySelectorAll('.someday-item');
+        somedayItems.forEach(item => {
+            // Only toggle visibility if not also a completed item that's hidden
+            if (!item.classList.contains('completed-item') || document.getElementById('show-completed').checked) {
+                item.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+    });
+    
+    // Toggle visibility of completed items
+    document.getElementById('show-completed').addEventListener('change', function() {
+        const completedItems = document.querySelectorAll('.completed-item');
+        completedItems.forEach(item => {
+            // Only toggle visibility if not also a someday item that's hidden
+            if (!item.classList.contains('someday-item') || document.getElementById('show-someday').checked) {
+                item.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+        
+        // Reload items with the new setting
+        loadCatchlistItems();
+    });
+}
+
+function attachItemEventListeners() {
+    // Mark as Done button
+    document.querySelectorAll('.mark-done').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            
+            const token = getToken();
+            if (!token) {
+                showError('Authentication required. Please log in first.');
+                return;
+            }
+            
+            fetch(`{{ API_URL }}/catchlist/${itemId}/mark-done`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw {
+                            status: response.status,
+                            statusText: response.statusText,
+                            message: errorData.message || 'Unknown error',
+                            data: errorData
+                        };
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show success message with points
+                showCustomMessage(`Item marked as done! +${data.points} points`, 'positive');
+                
+                // Reload to update UI
+                loadCatchlistItems();
+            })
+            .catch(error => {
+                console.error('Full error:', error);
+                const errorMessage = error.message ? 
+                    `Error (${error.status}): ${error.message}` : 
+                    'Failed to mark item as done';
+                showError(errorMessage);
+            });
+        });
+    });
+    
+    // Convert to project button
+    document.querySelectorAll('.upgrade-to-project').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            const content = item.querySelector('.header').textContent;
+            
+            // Here you would implement the logic to convert this to a project
+            // This could involve creating a project and then deleting this item
+            alert('Convert to project functionality not yet implemented. Content: ' + content);
+        });
+    });
+    
+    // Add to Today button
+    document.querySelectorAll('.add-to-today').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            const isOnToday = this.classList.contains('green');
+            
+            const token = getToken();
+            if (!token) {
+                showError('Authentication required. Please log in first.');
+                return;
+            }
+            
+            fetch(`{{ API_URL }}/catchlist/${itemId}/toggle-today`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw {
+                            status: response.status,
+                            statusText: response.statusText,
+                            message: errorData.message || 'Unknown error',
+                            data: errorData
+                        };
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update the button appearance
+                if (data.on_daily_todo) {
+                    this.classList.add('green');
+                    this.textContent = 'On Today\'s List';
+                } else {
+                    this.classList.remove('green');
+                    this.textContent = 'Add to Today';
+                }
+                
+                showCustomMessage(`Item ${data.on_daily_todo ? 'added to' : 'removed from'} today's list!`, 'positive');
+            })
+            .catch(error => {
+                console.error('Full error:', error);
+                const errorMessage = error.message ? 
+                    `Error (${error.status}): ${error.message}` : 
+                    'Failed to update item';
+                showError(errorMessage);
+            });
+        });
+    });
+    
+    // Someday/Maybe toggle
+    document.querySelectorAll('.someday-item').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            const isSomeday = item.classList.contains('someday-item');
+            const newStatus = isSomeday ? 'active' : 'someday';
+            
+            const token = getToken();
+            if (!token) {
+                showError('Authentication required. Please log in first.');
+                return;
+            }
+            
+            fetch(`{{ API_URL }}/catchlist/${itemId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw {
+                            status: response.status,
+                            statusText: response.statusText,
+                            message: errorData.message || 'Unknown error',
+                            data: errorData
+                        };
+                    });
+                }
+                return response.json();
+            })
+            .then(updatedItem => {
+                if (newStatus === 'someday') {
+                    item.classList.add('someday-item');
+                    this.textContent = 'Active';
+                    if (!document.getElementById('show-someday').checked) {
+                        item.style.display = 'none';
+                    }
+                } else {
+                    item.classList.remove('someday-item');
+                    this.textContent = 'Someday/Maybe';
+                    item.style.display = 'block';
+                }
+                
+                showCustomMessage('Item status updated!', 'positive');
+            })
+            .catch(error => {
+                console.error('Full error:', error);
+                const errorMessage = error.message ? 
+                    `Error (${error.status}): ${error.message}` : 
+                    'Failed to update item';
+                showError(errorMessage);
+            });
+        });
+    });
+    
+    // Delete button
+    document.querySelectorAll('.delete-item').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            
+            if (confirm('Are you sure you want to delete this item?')) {
+                const token = getToken();
+                if (!token) {
+                    showError('Authentication required. Please log in first.');
+                    return;
+                }
+                
+                fetch(`{{ API_URL }}/catchlist/${itemId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(errorData => {
+                            throw {
+                                status: response.status,
+                                statusText: response.statusText,
+                                message: errorData.message || 'Unknown error',
+                                data: errorData
+                            };
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    item.remove();
+                    showCustomMessage('Item deleted successfully!', 'positive');
+                    
+                    // If no items are left, update the display
+                    if (document.querySelectorAll('#catchlist-items .item').length === 0) {
+                        document.getElementById('catchlist-items').innerHTML = 
+                            '<div class="ui message">No items in your catchlist yet. Add some thoughts above!</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Full error:', error);
+                    const errorMessage = error.message ? 
+                        `Error (${error.status}): ${error.message}` : 
+                        'Failed to delete item';
+                    showError(errorMessage);
+                });
+            }
+        });
+    });
+}
+
+function showCustomMessage(message, type) {
+    // Create a message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ui ${type} message`;
+    messageDiv.innerHTML = message;
+    
+    // Add to page
+    document.querySelector('.ui.container').prepend(messageDiv);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
+
+// Function to get auth token from cookies
+function getToken() {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith('auth_token=')) {
+            return cookie.substring('auth_token='.length, cookie.length);
+        }
+    }
+    return '';
+}
 </script>
+
+<style>
+.completed-item .header {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.completed-item {
+    background-color: rgba(33, 186, 69, 0.05);
+}
+</style>
 {% endblock %} 
