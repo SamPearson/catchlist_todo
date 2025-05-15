@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui container">
+    <h1 class="ui header">Calendar & Events</h1>
+    
+    <div class="ui segment">
+        <h3 class="ui header">CalDAV Import</h3>
+        <form class="ui form" id="caldav-import-form">
+            <div class="field">
+                <label>CalDAV URL</label>
+                <input type="text" name="url" placeholder="https://caldav.example.com/calendars/username/calendar" required>
+            </div>
+            <div class="field">
+                <label>Username</label>
+                <input type="text" name="username" placeholder="CalDAV username">
+            </div>
+            <div class="field">
+                <label>Password</label>
+                <input type="password" name="password" placeholder="CalDAV password">
+            </div>
+            <button class="ui teal button" type="submit">Test Connection</button>
+            <button class="ui blue button" id="import-button" disabled>Import Events</button>
+        </form>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Recurring Events</h3>
+        <div class="ui divided items" id="events-list">
+            {% for event in events %}
+            <div class="item" data-id="{{ event.id }}">
+                <div class="content">
+                    <div class="header">
+                        {{ event.summary }}
+                        {% if event.rrule %}
+                        <div class="ui toggle checkbox" style="float: right;">
+                            <input type="checkbox" class="event-toggle" {% if event.active %}checked{% endif %}>
+                            <label>Active</label>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="meta">
+                        {% if event.rrule %}
+                        <span class="recurring"><i class="sync icon"></i> Recurring</span>
+                        {% endif %}
+                        <span class="time">{{ event.start_time }} - {{ event.end_time }}</span>
+                    </div>
+                    <div class="description">{{ event.description }}</div>
+                    <div class="extra">
+                        <button class="ui blue tiny button view-executions">View History</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="ui modal" id="event-executions-modal">
+        <i class="close icon"></i>
+        <div class="header">Event History</div>
+        <div class="content">
+            <table class="ui celled table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Completed</th>
+                        <th>RPE (1-10)</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="executions-table-body">
+                    <!-- Will be populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mock data handling
+document.getElementById('caldav-import-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    alert('Testing connection! (Mock functionality)');
+    // In a real implementation, this would test the connection and enable the import button
+    document.getElementById('import-button').disabled = false;
+});
+
+document.getElementById('import-button').addEventListener('click', function(e) {
+    e.preventDefault();
+    alert('Importing events! (Mock functionality)');
+});
+
+document.querySelectorAll('.view-executions').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const eventId = this.closest('.item').dataset.id;
+        
+        // Mock data for executions
+        const mockExecutions = [
+            { date: '2023-06-01', completed: 'yes', rpe: 7, notes: 'Went well!' },
+            { date: '2023-06-08', completed: 'no', rpe: 3, notes: 'Was sick' },
+            { date: '2023-06-15', completed: 'yes', rpe: 8, notes: 'Better than last time' }
+        ];
+        
+        const tbody = document.getElementById('executions-table-body');
+        tbody.innerHTML = '';
+        
+        mockExecutions.forEach(exec => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${exec.date}</td>
+                <td>${exec.completed}</td>
+                <td>${exec.rpe}</td>
+                <td>${exec.notes}</td>
+                <td>
+                    <button class="ui tiny blue button edit-execution">Edit</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+        // Show the modal with Semantic UI
+        $('.ui.modal').modal('show');
+    });
+});
+
+// Event delegation for dynamically added elements
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('edit-execution')) {
+        alert('Would edit execution! (Mock functionality)');
+    }
+});
+
+// Handle event toggle
+document.querySelectorAll('.event-toggle').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const eventItem = this.closest('.item');
+        const eventId = eventItem.dataset.id;
+        const isActive = this.checked;
+        
+        // Visual feedback
+        if (isActive) {
+            eventItem.classList.remove('disabled');
+        } else {
+            eventItem.classList.add('disabled');
+        }
+        
+        alert(`Event ${isActive ? 'activated' : 'deactivated'}! (Mock functionality)`);
+    });
+});
+</script>
+
+<style>
+.item.disabled {
+    opacity: 0.6;
+}
+
+.item.disabled .description,
+.item.disabled .extra {
+    display: none;
+}
+</style>
+{% endblock %} 

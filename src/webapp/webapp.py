@@ -230,6 +230,189 @@ def home():
     return redirect(url_for('todos'))
 
 
+@app.route('/catchlist')
+def catchlist():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+    
+    # Mock data for now
+    catchlist_items = [
+        {'id': 1, 'content': 'Learn about machine learning', 'created_at': '2023-06-01 10:30', 'status': 'active'},
+        {'id': 2, 'content': 'Try that new recipe for banana bread', 'created_at': '2023-06-02 14:15', 'status': 'active'},
+        {'id': 3, 'content': 'Research electric bikes', 'created_at': '2023-06-03 09:45', 'status': 'someday'},
+        {'id': 4, 'content': 'Plan summer vacation', 'created_at': '2023-06-04 16:20', 'status': 'active'},
+        {'id': 5, 'content': 'Look into home automation', 'created_at': '2023-06-05 11:10', 'status': 'someday'}
+    ]
+    
+    return render_template("catchlist.html", catchlist_items=catchlist_items)
+
+
+@app.route('/projects')
+def projects():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+    
+    # Mock data for now
+    projects = [
+        {
+            'id': 1, 
+            'title': 'Learn Python', 
+            'win_condition': 'Build a functioning web app',
+            'reason': 'Improve programming skills',
+            'next_step': 'Complete Flask tutorial',
+            'subtasks': [
+                {'id': 1, 'title': 'Learn Flask basics', 'complete': True, 'on_daily_todo': False},
+                {'id': 2, 'title': 'Set up database', 'complete': True, 'on_daily_todo': False},
+                {'id': 3, 'title': 'Create user authentication', 'complete': False, 'on_daily_todo': True},
+                {'id': 4, 'title': 'Deploy to production', 'complete': False, 'on_daily_todo': False}
+            ]
+        },
+        {
+            'id': 2, 
+            'title': 'Home Renovation', 
+            'win_condition': 'Living room fully updated',
+            'reason': 'Create a more comfortable space',
+            'next_step': 'Choose paint colors',
+            'subtasks': [
+                {'id': 5, 'title': 'Measure the space', 'complete': True, 'on_daily_todo': False},
+                {'id': 6, 'title': 'Purchase paint samples', 'complete': False, 'on_daily_todo': True},
+                {'id': 7, 'title': 'Schedule contractors', 'complete': False, 'on_daily_todo': False}
+            ]
+        }
+    ]
+    
+    return render_template("projects.html", projects=projects)
+
+
+@app.route('/calendar-events')
+def calendar_events():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+    
+    # Mock data for now
+    events = [
+        {
+            'id': 1, 
+            'summary': 'Morning Workout', 
+            'start_time': '07:00', 
+            'end_time': '08:00',
+            'description': '30 minutes cardio, 30 minutes strength',
+            'rrule': 'FREQ=WEEKLY;BYDAY=MO,WE,FR'
+        },
+        {
+            'id': 2, 
+            'summary': 'Team Meeting', 
+            'start_time': '10:00', 
+            'end_time': '11:00',
+            'description': 'Weekly team status update',
+            'rrule': 'FREQ=WEEKLY;BYDAY=MO'
+        },
+        {
+            'id': 3, 
+            'summary': 'Study Session', 
+            'start_time': '19:00', 
+            'end_time': '20:30',
+            'description': 'Review course materials',
+            'rrule': 'FREQ=WEEKLY;BYDAY=TU,TH'
+        }
+    ]
+    
+    return render_template("calendar_events.html", events=events)
+
+
+@app.route('/today')
+def today():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+    
+    # Mock data for now
+    current_time = "14:30"  # This would be dynamically set in real implementation
+    
+    # Create a schedule with mock data
+    schedule = [
+        {
+            'id': 1,
+            'summary': 'Morning Workout',
+            'start_time': '07:00',
+            'end_time': '08:00',
+            'description': '30 minutes cardio, 30 minutes strength',
+            'completed': 'yes',
+            'rpe': 8,
+            'is_current': False
+        },
+        {
+            'id': 2,
+            'summary': 'Team Meeting',
+            'start_time': '10:00',
+            'end_time': '11:00',
+            'description': 'Weekly team status update',
+            'completed': 'yes',
+            'rpe': 5,
+            'is_current': False
+        },
+        {
+            'id': 3,
+            'summary': 'Lunch Break',
+            'start_time': '12:00',
+            'end_time': '13:00',
+            'description': 'Eat and short walk',
+            'completed': 'no',
+            'rpe': None,
+            'is_current': False
+        },
+        {
+            'id': 4,
+            'summary': 'Project Work',
+            'start_time': '14:00',
+            'end_time': '16:00',
+            'description': 'Focus on completing the frontend',
+            'completed': None,
+            'rpe': None,
+            'is_current': True
+        },
+        {
+            'id': 5,
+            'summary': 'Study Session',
+            'start_time': '19:00',
+            'end_time': '20:30',
+            'description': 'Review course materials',
+            'completed': None,
+            'rpe': None,
+            'is_current': False
+        }
+    ]
+    
+    # Current activity
+    current_activity = next((item for item in schedule if item['is_current']), None)
+    
+    # Mock tasks
+    tasks = [
+        {'id': 1, 'title': 'Create user authentication', 'complete': False, 'project_title': 'Learn Python'},
+        {'id': 2, 'title': 'Purchase paint samples', 'complete': False, 'project_title': 'Home Renovation'},
+        {'id': 3, 'title': 'Call dentist', 'complete': True, 'project_title': None},
+        {'id': 4, 'title': 'Pick up groceries', 'complete': False, 'project_title': None}
+    ]
+    
+    # Mock user stats
+    score = 120
+    streak = 5
+    completion_rate = 75
+    
+    return render_template(
+        "today.html", 
+        schedule=schedule, 
+        current_activity=current_activity,
+        tasks=tasks,
+        score=score,
+        streak=streak,
+        completion_rate=completion_rate
+    )
+
+
 # We have to have a second ( __name__ == main ) check here
 # because app.run() needs to happen after all routes are defined,
 # meanwhile API_URL must be set before routes are defined.

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui container">
+    <h1 class="ui header">My Catchlist</h1>
+    
+    <div class="ui segment">
+        <form class="ui form" id="add-catchlist-form">
+            <div class="field">
+                <div class="ui action input">
+                    <input type="text" name="content" placeholder="Add a new idea or thought..." required>
+                    <button class="ui teal button" type="submit">Add</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="ui segment">
+        <div class="ui toggle checkbox">
+            <input type="checkbox" id="show-someday">
+            <label>Show Someday/Maybe Items</label>
+        </div>
+    </div>
+
+    <div class="ui divided items" id="catchlist-items">
+        {% for item in catchlist_items %}
+        <div class="item {% if item.status == 'someday' %}someday-item{% endif %}" data-id="{{ item.id }}" {% if item.status == 'someday' %}style="display: none;"{% endif %}>
+            <div class="content">
+                <div class="header">{{ item.content }}</div>
+                <div class="meta">{{ item.created_at }}</div>
+                <div class="description">
+                    <div class="ui buttons">
+                        <button class="ui tiny button upgrade-to-project">Convert to Project</button>
+                        <button class="ui tiny button someday-item">Someday/Maybe</button>
+                        <button class="ui red tiny button delete-item">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+// Mock data handling for now
+document.getElementById('add-catchlist-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    alert('Added to catchlist! (Mock functionality)');
+});
+
+document.querySelectorAll('.upgrade-to-project').forEach(btn => {
+    btn.addEventListener('click', function() {
+        alert('Would convert to project! (Mock functionality)');
+    });
+});
+
+document.querySelectorAll('.someday-item').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const item = this.closest('.item');
+        if (item.classList.contains('someday-item')) {
+            item.classList.remove('someday-item');
+            this.textContent = 'Someday/Maybe';
+        } else {
+            item.classList.add('someday-item');
+            this.textContent = 'Active';
+        }
+        alert('Would toggle someday/maybe status! (Mock functionality)');
+    });
+});
+
+document.querySelectorAll('.delete-item').forEach(btn => {
+    btn.addEventListener('click', function() {
+        alert('Would delete item! (Mock functionality)');
+    });
+});
+
+// Toggle visibility of someday/maybe items
+document.getElementById('show-someday').addEventListener('change', function() {
+    const somedayItems = document.querySelectorAll('.someday-item');
+    somedayItems.forEach(item => {
+        item.style.display = this.checked ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %} 
