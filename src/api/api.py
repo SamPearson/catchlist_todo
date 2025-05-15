@@ -11,8 +11,22 @@ from ..config.caldav_client import CalDAVClient
 from ..config.db_models import db, Todo, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
+from .routes.auth import auth_bp
+from .routes.todos import todos_bp
+from .routes.catchlist import catchlist_bp
+from .routes.projects import projects_bp
+from .routes.calendar_events import calendar_events_bp
+from .routes.today import today_bp
 
 app = create_app()
+
+# Register all blueprints
+app.register_blueprint(auth_bp)
+app.register_blueprint(todos_bp)
+app.register_blueprint(catchlist_bp)
+app.register_blueprint(projects_bp)
+app.register_blueprint(calendar_events_bp)
+app.register_blueprint(today_bp)
 
 
 @app.route('/api/auth/register', methods=['POST'])
