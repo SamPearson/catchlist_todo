@@ -293,6 +293,11 @@ def today():
     return render_template("today.html", API_URL=API_URL)
 
 
+@app.route('/reports')
+def reports():
+    return render_template('reports.html', API_URL=API_URL)
+
+
 # We have to have a second ( __name__ == main ) check here
 # because app.run() needs to happen after all routes are defined,
 # meanwhile API_URL must be set before routes are defined.
