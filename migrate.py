@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 from flask_migrate import Migrate
-from src.config.db_models import db
+from src.config.models import db
 from src.api.app_factory import create_app
 
 app = create_app()

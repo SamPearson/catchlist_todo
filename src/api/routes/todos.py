@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, Todo
+from ...config.models import db, Todo
 from ..utils.helpers import get_current_user_id
 
 todos_bp = Blueprint('todos', __name__)

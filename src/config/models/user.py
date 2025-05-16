@@ -1,0 +1,34 @@
+from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
+from ..db_setup import db
+from ..db_config import Config
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'user'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
+    
+    # Relationships will be defined as backref from their respective models
+    # to avoid circular imports
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+class BlacklistedToken(db.Model):
+    __tablename__ = 'blacklisted_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    jti = db.Column(db.String(36), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @classmethod
+    def clean_expired(cls):
+        """Remove tokens that are past their JWT expiration time"""
+        expiration = datetime.utcnow() - Config.get_token_expires_delta()
+        cls.query.filter(cls.created_at < expiration).delete()
+        db.session.commit() 

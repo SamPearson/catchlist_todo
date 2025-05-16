@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, Comment, ProjectSubtask, CatchListEntry, EventExecution, Project, CalendarEvent
+from ...config.models import db, Comment, ProjectSubtask, CatchListEntry, EventExecution, Project, CalendarEvent
 from ..utils.helpers import get_current_user_id
 
 comments_bp = Blueprint('comments', __name__)

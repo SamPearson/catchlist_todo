@@ -2,7 +2,7 @@ from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import re
-from ..config.db_models import db, BlacklistedToken
+from ..config.models import db, BlacklistedToken
 from ..config.db_config import Config, initialize_database
 
 

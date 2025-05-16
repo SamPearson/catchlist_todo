@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, CalendarEvent, EventExecution
+from ...config.models import db, CalendarEvent, EventExecution
 from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient
 from datetime import datetime

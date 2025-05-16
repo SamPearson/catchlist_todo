@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.db_models import db, Project, ProjectSubtask, CalendarEvent, EventExecution, CatchListEntry, Comment, TaskExecution, CatchlistExecution
+from ...config.models import db, Project, ProjectSubtask, CalendarEvent, EventExecution, CatchListEntry, Comment, TaskExecution, CatchlistExecution
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, timedelta, date
 from sqlalchemy import func, and_, cast, Date

@@ -1,8 +1,8 @@
 from flask import Flask
 from .db_config import Config
-from .db_models import db
+from .models import db
 import logging
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 
 def run_migrations():
     """Run database migrations for schema changes"""
