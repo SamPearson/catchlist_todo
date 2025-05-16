@@ -1,0 +1,796 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ui container">
+    <h1 class="ui header">Your Desk</h1>
+    
+    <div class="ui statistics">
+        <div class="statistic">
+            <div class="value" id="points">0</div>
+            <div class="label">Points</div>
+        </div>
+        <div class="statistic">
+            <div class="value" id="streak">0</div>
+            <div class="label">Day Streak</div>
+        </div>
+        <div class="statistic">
+            <div class="value" id="completion-rate">0%</div>
+            <div class="label">Completion Rate</div>
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Current Activity</h3>
+        <div id="current-activity-container">
+            <!-- Current activity will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
+                    <div class="line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Today's Schedule</h3>
+        <div class="ui divided items" id="today-items">
+            <!-- Schedule will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
+                    <div class="line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Today's Tasks</h3>
+        <div class="ui divided items" id="today-tasks">
+            <!-- Tasks will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui segment">
+        <h3 class="ui header">Catchlist Items</h3>
+        <div class="ui divided items" id="today-catchlist">
+            <!-- Catchlist items will be loaded here -->
+            <div class="ui placeholder">
+                <div class="header">
+                    <div class="line"></div>
+                </div>
+                <div class="paragraph">
+                    <div class="line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reports Section -->
+    <div class="ui segment">
+        <h3 class="ui header">Weekly Report</h3>
+        <div class="ui basic button" id="view-weekly-report">
+            <i class="chart bar icon"></i> View Weekly Report
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Report Modal -->
+<div class="ui modal" id="weekly-report-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        Weekly Report
+        <div class="ui tiny buttons right floated">
+            <button class="ui left labeled icon button" id="prev-week-btn">
+                <i class="left arrow icon"></i>
+                Previous Week
+            </button>
+            <button class="ui right labeled icon button" id="next-week-btn">
+                Next Week
+                <i class="right arrow icon"></i>
+            </button>
+        </div>
+    </div>
+    <div class="content" id="weekly-report-content">
+        <div class="ui placeholder">
+            <div class="header">
+                <div class="line"></div>
+            </div>
+            <div class="paragraph">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comments Modal -->
+<div class="ui modal" id="comments-modal">
+    <i class="close icon"></i>
+    <div class="header" id="comments-modal-title">Comments</div>
+    <div class="content" id="comments-modal-content">
+        <!-- Comments will be loaded here -->
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+<script>
+// Set the API URL for comments.js
+setApiUrl('{{ API_URL }}');
+
+// Function to get auth token from cookies
+function getAuthToken() {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith('auth_token=')) {
+            return cookie.substring('auth_token='.length, cookie.length);
+        }
+    }
+    return '';
+}
+
+// Current report end date
+let currentReportEndDate = null;
+
+// Load today's events when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadTodayEvents();
+    loadTodayTasks();
+    loadTodayCatchlist();
+    
+    // Set up weekly report button
+    document.getElementById('view-weekly-report').addEventListener('click', function() {
+        loadWeeklyReport();
+    });
+    
+    // Set up weekly report navigation buttons
+    document.getElementById('prev-week-btn').addEventListener('click', function() {
+        navigateWeek(-1);
+    });
+    
+    document.getElementById('next-week-btn').addEventListener('click', function() {
+        navigateWeek(1);
+    });
+});
+
+// Navigate to previous or next week
+function navigateWeek(direction) {
+    if (!currentReportEndDate) {
+        // If no current date, use today
+        currentReportEndDate = new Date();
+    } else {
+        // Convert string date to Date object if needed
+        currentReportEndDate = typeof currentReportEndDate === 'string' 
+            ? new Date(currentReportEndDate) 
+            : currentReportEndDate;
+    }
+    
+    // Move forward or backward by 7 days
+    const newDate = new Date(currentReportEndDate);
+    newDate.setDate(newDate.getDate() + (direction * 7));
+    
+    // Ensure the end date is always a Saturday (day before Sunday)
+    const dayOfWeek = newDate.getDay();
+    if (dayOfWeek !== 6) { // 6 is Saturday
+        // Adjust to the nearest Saturday
+        const daysToSaturday = dayOfWeek === 0 ? -1 : 6 - dayOfWeek;
+        newDate.setDate(newDate.getDate() + daysToSaturday);
+    }
+    
+    // Format date for API
+    const formattedDate = formatDateForAPI(newDate);
+    
+    // Load the report for the new week
+    loadWeeklyReport(formattedDate);
+}
+
+// Format date for API (YYYY-MM-DD)
+function formatDateForAPI(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Load today's events
+function loadTodayEvents() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    fetch(`${API_URL}/calendar-events/today`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load events');
+        }
+        return response.json();
+    })
+    .then(events => {
+        displayTodayEvents(events);
+        displayCurrentActivity(events);
+    })
+    .catch(error => {
+        console.error('Error loading today\'s events:', error);
+        document.getElementById('today-items').innerHTML = 
+            '<div class="ui negative message"><div class="header">Error</div>Failed to load events</div>';
+    });
+}
+
+// Load today's tasks
+function loadTodayTasks() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    fetch(`${API_URL}/projects/tasks/today`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load tasks');
+        }
+        return response.json();
+    })
+    .then(tasks => {
+        displayTodayTasks(tasks);
+    })
+    .catch(error => {
+        console.error('Error loading today\'s tasks:', error);
+        document.getElementById('today-tasks').innerHTML = 
+            '<div class="ui negative message"><div class="header">Error</div>Failed to load tasks</div>';
+    });
+}
+
+// Load today's catchlist items
+function loadTodayCatchlist() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    fetch(`${API_URL}/catchlist/today`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load catchlist items');
+        }
+        return response.json();
+    })
+    .then(items => {
+        displayTodayCatchlist(items);
+    })
+    .catch(error => {
+        console.error('Error loading today\'s catchlist items:', error);
+        document.getElementById('today-catchlist').innerHTML = 
+            '<div class="ui negative message"><div class="header">Error</div>Failed to load catchlist items</div>';
+    });
+}
+
+// Display today's events
+function displayTodayEvents(events) {
+    const container = document.getElementById('today-items');
+    
+    if (!events || events.length === 0) {
+        container.innerHTML = '<div class="ui info message">No events scheduled for today.</div>';
+        return;
+    }
+    
+    // Sort events by start time
+    events.sort((a, b) => {
+        return new Date(a.start_time) - new Date(b.start_time);
+    });
+    
+    // Create HTML for each event
+    let html = '';
+    events.forEach(event => {
+        const startTime = new Date(event.start_time);
+        const endTime = new Date(event.end_time);
+        
+        const formattedStartTime = startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const formattedEndTime = endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        const timeRange = `${formattedStartTime} - ${formattedEndTime}`;
+        
+        // Determine if the event is current
+        const now = new Date();
+        const isCurrent = now >= startTime && now <= endTime;
+        
+        html += `
+        <div class="item ${isCurrent ? 'current-event' : ''}" data-id="${event.id}">
+            <div class="content">
+                <div class="header">
+                    ${event.title}
+                    ${isCurrent ? '<span class="ui green label">Current</span>' : ''}
+                </div>
+                <div class="meta">${timeRange}</div>
+                <div class="description">${event.description || ''}</div>
+                <div class="extra">
+                    <button class="ui tiny button view-comments" data-id="${event.id}" data-type="calendar_event">
+                        <i class="comment icon"></i> Comments
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    
+    // Add click handlers for comments
+    document.querySelectorAll('.view-comments').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const type = this.getAttribute('data-type');
+            viewComments(id, type);
+        });
+    });
+}
+
+// Display today's tasks
+function displayTodayTasks(tasks) {
+    const container = document.getElementById('today-tasks');
+    
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<div class="ui info message">No tasks scheduled for today.</div>';
+        return;
+    }
+    
+    // Create HTML for each task
+    let html = '';
+    tasks.forEach(task => {
+        html += `
+        <div class="item" data-id="${task.id}">
+            <div class="content">
+                <div class="header">
+                    ${task.title}
+                    ${task.completed ? '<span class="ui green label">Completed</span>' : ''}
+                </div>
+                <div class="meta">From ${task.project_name || 'No Project'}</div>
+                <div class="description">${task.description || ''}</div>
+                <div class="extra">
+                    <div class="ui checkbox">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} data-id="${task.id}">
+                        <label>Complete</label>
+                    </div>
+                    <button class="ui tiny button view-comments" data-id="${task.id}" data-type="task">
+                        <i class="comment icon"></i> Comments
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    
+    // Initialize checkboxes
+    document.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+        $(checkbox).checkbox({
+            onChange: function() {
+                const taskId = this.querySelector('input').getAttribute('data-id');
+                const completed = this.querySelector('input').checked;
+                updateTaskCompletion(taskId, completed);
+            }
+        });
+    });
+    
+    // Add click handlers for comments
+    document.querySelectorAll('.view-comments').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const type = this.getAttribute('data-type');
+            viewComments(id, type);
+        });
+    });
+}
+
+// Display today's catchlist items
+function displayTodayCatchlist(items) {
+    const container = document.getElementById('today-catchlist');
+    
+    if (!items || items.length === 0) {
+        container.innerHTML = '<div class="ui info message">No catchlist items for today.</div>';
+        return;
+    }
+    
+    // Create HTML for each catchlist item
+    let html = '';
+    items.forEach(item => {
+        html += `
+        <div class="item" data-id="${item.id}">
+            <div class="content">
+                <div class="header">
+                    ${item.title}
+                    ${item.completed ? '<span class="ui green label">Completed</span>' : ''}
+                </div>
+                <div class="description">${item.description || ''}</div>
+                <div class="extra">
+                    <div class="ui checkbox">
+                        <input type="checkbox" ${item.completed ? 'checked' : ''} data-id="${item.id}">
+                        <label>Complete</label>
+                    </div>
+                    <button class="ui tiny button view-comments" data-id="${item.id}" data-type="catchlist_item">
+                        <i class="comment icon"></i> Comments
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    
+    // Initialize checkboxes
+    document.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+        $(checkbox).checkbox({
+            onChange: function() {
+                const itemId = this.querySelector('input').getAttribute('data-id');
+                const completed = this.querySelector('input').checked;
+                updateCatchlistCompletion(itemId, completed);
+            }
+        });
+    });
+    
+    // Add click handlers for comments
+    document.querySelectorAll('.view-comments').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const type = this.getAttribute('data-type');
+            viewComments(id, type);
+        });
+    });
+}
+
+// Display current activity
+function displayCurrentActivity(events) {
+    const container = document.getElementById('current-activity-container');
+    const now = new Date();
+    
+    // Filter events to find the current one
+    const currentEvent = events.find(event => {
+        const startTime = new Date(event.start_time);
+        const endTime = new Date(event.end_time);
+        return now >= startTime && now <= endTime;
+    });
+    
+    if (currentEvent) {
+        const startTime = new Date(currentEvent.start_time);
+        const endTime = new Date(currentEvent.end_time);
+        
+        const formattedStartTime = startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const formattedEndTime = endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        container.innerHTML = `
+        <div class="ui items">
+            <div class="item">
+                <div class="content">
+                    <div class="header">${currentEvent.title}</div>
+                    <div class="meta">${formattedStartTime} - ${formattedEndTime}</div>
+                    <div class="description">${currentEvent.description || ''}</div>
+                    <div class="extra">
+                        <button class="ui button view-comments" data-id="${currentEvent.id}" data-type="calendar_event">
+                            <i class="comment icon"></i> Comments
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        
+        // Add click handler for comments
+        const commentsButton = container.querySelector('.view-comments');
+        if (commentsButton) {
+            commentsButton.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const type = this.getAttribute('data-type');
+                viewComments(id, type);
+            });
+        }
+    } else {
+        container.innerHTML = '<div class="ui info message">No activities currently in progress.</div>';
+    }
+}
+
+// Update task completion status
+function updateTaskCompletion(taskId, completed) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch(`${API_URL}/projects/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ completed: completed })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update task');
+        }
+        
+        // Update UI
+        const taskItem = document.querySelector(`.item[data-id="${taskId}"]`);
+        if (taskItem) {
+            const header = taskItem.querySelector('.header');
+            
+            if (completed) {
+                if (!header.querySelector('.ui.green.label')) {
+                    header.innerHTML += ' <span class="ui green label">Completed</span>';
+                }
+            } else {
+                const label = header.querySelector('.ui.green.label');
+                if (label) {
+                    label.remove();
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error updating task:', error);
+        alert('Failed to update task. Please try again.');
+        
+        // Revert checkbox
+        const checkbox = document.querySelector(`input[data-id="${taskId}"]`);
+        if (checkbox) {
+            checkbox.checked = !completed;
+        }
+    });
+}
+
+// Update catchlist item completion status
+function updateCatchlistCompletion(itemId, completed) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch(`${API_URL}/catchlist/${itemId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ completed: completed })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update catchlist item');
+        }
+        
+        // Update UI
+        const itemElement = document.querySelector(`.item[data-id="${itemId}"]`);
+        if (itemElement) {
+            const header = itemElement.querySelector('.header');
+            
+            if (completed) {
+                if (!header.querySelector('.ui.green.label')) {
+                    header.innerHTML += ' <span class="ui green label">Completed</span>';
+                }
+            } else {
+                const label = header.querySelector('.ui.green.label');
+                if (label) {
+                    label.remove();
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error updating catchlist item:', error);
+        alert('Failed to update catchlist item. Please try again.');
+        
+        // Revert checkbox
+        const checkbox = document.querySelector(`input[data-id="${itemId}"]`);
+        if (checkbox) {
+            checkbox.checked = !completed;
+        }
+    });
+}
+
+// Load weekly report
+function loadWeeklyReport(endDate = null) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Set up modal and show loading state
+    $('#weekly-report-modal').modal('show');
+    
+    const reportContent = document.getElementById('weekly-report-content');
+    reportContent.innerHTML = `
+    <div class="ui active inverted dimmer">
+        <div class="ui text loader">Loading report...</div>
+    </div>`;
+    
+    // Build the URL with optional end date parameter
+    let url = `${API_URL}/reports/weekly`;
+    if (endDate) {
+        url += `?end_date=${endDate}`;
+    }
+    
+    // Store the current report date
+    currentReportEndDate = endDate || new Date();
+    
+    fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load report');
+        }
+        return response.json();
+    })
+    .then(report => {
+        displayWeeklyReport(report);
+    })
+    .catch(error => {
+        console.error('Error loading report:', error);
+        reportContent.innerHTML = 
+            '<div class="ui negative message"><div class="header">Error</div>Failed to load weekly report</div>';
+    });
+}
+
+// Display weekly report
+function displayWeeklyReport(report) {
+    const content = document.getElementById('weekly-report-content');
+    
+    if (!report) {
+        content.innerHTML = '<div class="ui info message">No report data available.</div>';
+        return;
+    }
+    
+    // Format dates for display
+    const startDate = new Date(report.start_date);
+    const endDate = new Date(report.end_date);
+    
+    const formattedStartDate = startDate.toLocaleDateString();
+    const formattedEndDate = endDate.toLocaleDateString();
+    
+    let html = `
+    <div class="ui segments">
+        <div class="ui segment">
+            <h3>Week of ${formattedStartDate} to ${formattedEndDate}</h3>
+            
+            <div class="ui statistics">
+                <div class="statistic">
+                    <div class="value">${report.completed_tasks}</div>
+                    <div class="label">Tasks Completed</div>
+                </div>
+                <div class="statistic">
+                    <div class="value">${report.points_earned}</div>
+                    <div class="label">Points Earned</div>
+                </div>
+                <div class="statistic">
+                    <div class="value">${report.completion_rate}%</div>
+                    <div class="label">Completion Rate</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add completed tasks section
+    html += `
+        <div class="ui segment">
+            <h4>Completed Tasks</h4>
+            ${report.completed_task_list && report.completed_task_list.length > 0 ? 
+                '<div class="ui list">' + 
+                report.completed_task_list.map(task => 
+                    `<div class="item">
+                        <i class="check circle icon"></i>
+                        <div class="content">
+                            <div class="header">${task.title}</div>
+                            <div class="description">${task.completed_date ? new Date(task.completed_date).toLocaleDateString() : ''}</div>
+                        </div>
+                    </div>`
+                ).join('') + 
+                '</div>' : 
+                '<div class="ui info message">No tasks completed this week.</div>'
+            }
+        </div>
+    `;
+    
+    // Add pending tasks section
+    html += `
+        <div class="ui segment">
+            <h4>Pending Tasks</h4>
+            ${report.pending_task_list && report.pending_task_list.length > 0 ? 
+                '<div class="ui list">' + 
+                report.pending_task_list.map(task => 
+                    `<div class="item">
+                        <i class="circle outline icon"></i>
+                        <div class="content">
+                            <div class="header">${task.title}</div>
+                            <div class="description">Due: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</div>
+                        </div>
+                    </div>`
+                ).join('') + 
+                '</div>' : 
+                '<div class="ui info message">No pending tasks for this week.</div>'
+            }
+        </div>
+    `;
+    
+    // Add time spent section
+    html += `
+        <div class="ui segment">
+            <h4>Time Allocation</h4>
+            ${report.time_allocation && Object.keys(report.time_allocation).length > 0 ? 
+                '<div class="ui list">' + 
+                Object.entries(report.time_allocation).map(([category, hours]) => 
+                    `<div class="item">
+                        <i class="clock icon"></i>
+                        <div class="content">
+                            <div class="header">${category}</div>
+                            <div class="description">${hours} hours</div>
+                        </div>
+                    </div>`
+                ).join('') + 
+                '</div>' : 
+                '<div class="ui info message">No time allocation data available.</div>'
+            }
+        </div>
+    </div>`;
+    
+    content.innerHTML = html;
+}
+</script>
+
+<style>
+.item.current-event {
+    background-color: rgba(33, 186, 69, 0.1);
+}
+
+.ui.statistics {
+    margin-bottom: 1em;
+    display: flex;
+    justify-content: center;
+}
+
+#weekly-report-content .ui.statistics {
+    justify-content: space-around;
+}
+
+.ui.modal .header .ui.buttons {
+    margin-top: -5px;
+}
+
+.ui.segment h4 {
+    margin-bottom: 1em;
+}
+</style>
+{% endblock %} 

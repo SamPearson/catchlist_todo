@@ -17,6 +17,8 @@ app = Flask(__name__,
             template_folder=str(webapp_dir / 'templates'),
             static_folder=str(webapp_dir / 'static'))
 
+# Configure whether to show the demo page
+app.config['SHOW_DEMO'] = os.getenv('SHOW_DEMO', 'True').lower() in ('true', '1', 't')
 
 # env files are specified in systemd service files on staging&prod
 # we launch the app with gunicon on staging/prod, thus ( __name__ == main ) only on dev/local.
@@ -30,6 +32,13 @@ API_URL = os.getenv('API_URL')
 if not API_URL:
     logger.error("API_URL is not set. Please check your environment files.")
 
+# Setup context processor to pass config to templates
+@app.context_processor
+def inject_globals():
+    return {
+        'show_demo': app.config['SHOW_DEMO'],
+        'API_URL': API_URL
+    }
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -133,7 +142,17 @@ def home():
     if not token:
         return render_template("landing.html")
     
-    return redirect(url_for('catchlist'))
+    return redirect(url_for('desk'))
+
+
+@app.route('/desk')
+def desk():
+    token = get_auth_token()
+    if not token:
+        return redirect(url_for('login'))
+    
+    # We'll load all data via JavaScript on the client side
+    return render_template("desk.html", API_URL=API_URL)
 
 
 @app.route('/catchlist')
@@ -189,19 +208,23 @@ def calendar_events():
         return render_template("calendar_events.html", events=events, API_URL=API_URL)
 
 
-@app.route('/today')
-def today():
+@app.route('/reports')
+def reports():
     token = get_auth_token()
     if not token:
         return redirect(url_for('login'))
     
-    # We'll load all data via JavaScript on the client side
-    return render_template("today.html", API_URL=API_URL)
+    return render_template("reports.html", API_URL=API_URL)
 
 
-@app.route('/reports')
-def reports():
-    return render_template('reports.html', API_URL=API_URL)
+@app.route('/demo')
+def demo():
+    # Check if demo is enabled
+    if not app.config['SHOW_DEMO']:
+        return redirect(url_for('home'))
+    
+    # The demo page doesn't require authentication
+    return render_template("demo.html")
 
 
 # We have to have a second ( __name__ == main ) check here

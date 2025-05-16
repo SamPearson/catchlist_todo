@@ -1,0 +1,47 @@
+{% macro display_box(id='', title='', collapsible=false, tabs=[], class='') -%}
+<div class="ui segment {% if class %}{{ class }}{% endif %}" {% if id %}id="{{ id }}"{% endif %}>
+    {% if title %}
+    <div class="ui clearing segment">
+        <h3 class="ui {% if collapsible %}header-with-icon{% endif %} center aligned header">
+            {{ title }}
+            {% if collapsible %}
+            <i class="angle down icon toggle-collapse" data-target="{{ id }}-content"></i>
+            {% endif %}
+        </h3>
+    </div>
+    {% endif %}
+    
+    {% if tabs %}
+    <div class="ui top attached tabular menu">
+        {% for tab in tabs %}
+        <a class="item {% if loop.first %}active{% endif %}" data-tab="{{ id }}-tab-{{ loop.index }}">{{ tab }}</a>
+        {% endfor %}
+    </div>
+    <div id="{{ id }}-tabs-content">
+        {{ caller() }}
+    </div>
+    {% else %}
+    <div id="{{ id }}-content" class="{% if collapsible %}collapsible-content{% endif %}">
+        {{ caller() if caller else '' }}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tabs if present
+    {% if tabs %}
+    $('.tabular.menu .item').tab();
+    {% endif %}
+    
+    // Initialize collapse functionality
+    {% if collapsible %}
+    $('.toggle-collapse').on('click', function() {
+        const targetId = $(this).data('target');
+        $('#' + targetId).slideToggle();
+        $(this).toggleClass('down up');
+    });
+    {% endif %}
+});
+</script>
+{%- endmacro %} 

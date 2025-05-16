@@ -32,12 +32,17 @@
             <a href="/calendar-events" class="item" id="calendar-link" data-testid="calendar-link">
                 <i class="calendar icon"></i> Calendar
             </a>
-            <a href="/today" class="item" id="today-link" data-testid="today-link">
-                <i class="clock icon"></i> Today
+            <a href="/desk" class="item" id="desk-link" data-testid="desk-link">
+                <i class="clock icon"></i> Desk
             </a>
             <a href="/reports" class="item" id="reports-link" data-testid="reports-link">
                 <i class="chart bar icon"></i> Reports
             </a>
+            {% if show_demo %}
+            <a href="/demo" class="item" id="demo-link" data-testid="demo-link">
+                <i class="lab icon"></i> Component Demo
+            </a>
+            {% endif %}
             <div class="right menu">
                 <a href="/login" class="item" id="login-link" data-testid="login-link">
                     <i class="sign in icon"></i> Login
