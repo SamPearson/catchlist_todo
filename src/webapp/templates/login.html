@@ -81,8 +81,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 setToken(data.access_token);
                 updateAuthUI(); // Update the UI to show logged-in state
                 
-                // Simple redirect to todos - the cookie will handle auth
-                window.location.href = '/todos';
+                // Simple redirect to catchlist - the cookie will handle auth
+                window.location.href = '/catchlist';
             } else {
                 showError(data.message || 'Invalid username or password', 'error-message');
             }

@@ -127,107 +127,13 @@ def calendar():
     return render_template("calendar.html", API_URL=API_URL)
 
 
-@app.route('/todos')
-def todos():
-    token = get_auth_token()
-    if not token:
-        return redirect(url_for('login'))
-    
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.get(f"{API_URL}/todos", headers=headers)
-    
-    if response.status_code == 200:
-        todo_list = response.json()
-        return render_template("todos.html", todo_list=todo_list, token=token)
-    else:
-        logger.error(f"Failed to fetch todos: {response.status_code}")
-        return redirect(url_for('login'))
-
-
-@app.route('/todos/<int:todo_id>')
-def get_todo(todo_id):
-    token = get_auth_token()
-    if not token:
-        return jsonify({"message": "Unauthorized"}), 401
-
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.get(f"{API_URL}/todos/{todo_id}", headers=headers)
-    if response.status_code == 200:
-        return response.json()
-    return jsonify({"message": "Todo not found"}), response.status_code
-
-
-@app.route('/todos/<int:todo_id>', methods=['PUT'])
-def update_todo(todo_id):
-    token = get_auth_token()
-    if not token:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    headers = {'Authorization': f'Bearer {token}'}
-    data = request.get_json()
-    
-    # Ensure we're sending the right field names to the API
-    update_data = {}
-    if 'title' in data:
-        update_data['title'] = data['title']
-    if 'complete' in data:
-        update_data['complete'] = data['complete']
-    
-    response = requests.put(f"{API_URL}/todos/{todo_id}", json=update_data, headers=headers)
-    
-    if response.status_code == 200:
-        return jsonify(response.json())
-    return jsonify({"message": "Failed to update todo"}), response.status_code
-
-
-@app.route('/todos/<int:todo_id>', methods=['DELETE'])
-def delete_todo(todo_id):
-    token = get_auth_token()
-    if not token:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.delete(f"{API_URL}/todos/{todo_id}", headers=headers)
-    if response.status_code == 200:
-        return "", 204  # No Content response (DELETE success), reloading happens in javascript
-    return jsonify({"message": "Failed to delete todo"}), response.status_code
-
-@app.route("/todos", methods=["POST"])
-def add():
-    token = get_auth_token()
-    if not token:
-        return redirect(url_for('login'))
-    
-    headers = {'Authorization': f'Bearer {token}'}
-    data = request.get_json()
-    
-    if not data or 'title' not in data:
-        return jsonify({"message": "Title is required"}), 400
-    
-    # Ensure the data is in the format expected by the API
-    todo_data = {
-        "title": data['title'],
-        "complete": data.get('complete', False)
-    }
-    
-    response = requests.post(f"{API_URL}/todos", json=todo_data, headers=headers)
-    
-    if response.status_code == 201:
-        return jsonify(response.json()), 201
-    
-    try:
-        error_data = response.json()
-        return jsonify({"message": error_data.get("message", "Failed to add todo")}), response.status_code
-    except:
-        return jsonify({"message": "Failed to add todo"}), response.status_code
-
 @app.route('/')
 def home():
     token = get_auth_token()
     if not token:
         return render_template("landing.html")
     
-    return redirect(url_for('todos'))
+    return redirect(url_for('catchlist'))
 
 
 @app.route('/catchlist')
