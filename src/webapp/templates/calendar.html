@@ -1,57 +1,86 @@
 {% extends 'base.html' %}
+{% from "components/display_box.html" import display_box %}
+{% from "components/slideout.html" import slideout %}
+{% from "components/search_box.html" import search_box %}
+{% from "components/add_box.html" import add_box %}
+{% from "components/list_box.html" import list_box %}
 
 {% block content %}
-<div class="container">
-    <h1>Calendar Integration</h1>
+<div class="ui container">
+    <h1 class="ui header">Calendar Integration</h1>
 
-    <div class="card mb-4">
-        <div class="card-header">
-            Connect to CalDAV Server
-        </div>
-        <div class="card-body">
-            <form id="caldav-form">
-                <div class="mb-3">
-                    <label for="caldav-url" class="form-label">CalDAV URL</label>
-                    <input type="text" class="form-control" id="caldav-url" required
-                           placeholder="https://your-caldav-server.com/path/to/calendar">
-                </div>
-                <div class="mb-3">
-                    <label for="caldav-username" class="form-label">Username (optional)</label>
-                    <input type="text" class="form-control" id="caldav-username">
-                </div>
-                <div class="mb-3">
-                    <label for="caldav-password" class="form-label">Password (optional)</label>
-                    <input type="password" class="form-control" id="caldav-password">
-                </div>
-                <button type="submit" class="btn btn-primary">Test Connection</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="connection-result" class="d-none">
-        <div class="card mb-4">
-            <div class="card-header">
-                Connection Results
+    {% call display_box(id="caldav-connection-box", title="Connect to CalDAV Server", collapsible=true) %}
+        <form class="ui form" id="caldav-form">
+            <div class="field">
+                <label for="caldav-url">CalDAV URL</label>
+                <input type="text" id="caldav-url" required
+                       placeholder="https://your-caldav-server.com/path/to/calendar">
             </div>
-            <div class="card-body">
-                <div id="result-message"></div>
-
-                <div id="calendars-container" class="mt-3 d-none">
-                    <h5>Available Calendars:</h5>
-                    <ul id="calendars-list"></ul>
-                </div>
-
-                <div id="events-container" class="mt-3 d-none">
-                    <h5>Sample Events:</h5>
-                    <ul id="events-list"></ul>
+            <div class="field">
+                <label for="caldav-username">Username (optional)</label>
+                <input type="text" id="caldav-username">
+            </div>
+            <div class="field">
+                <label for="caldav-password">Password (optional)</label>
+                <input type="password" id="caldav-password">
+            </div>
+            <button type="submit" class="ui primary button">Test Connection</button>
+        </form>
+    {% endcall %}
+    
+    {% call display_box(id="calendar-search-box", title="Search Calendar Events", collapsible=true) %}
+        {% call search_box(id="calendar-search", placeholder="Search events...") %}
+            <div class="field">
+                <label>Date Range</label>
+                <div class="two fields">
+                    <div class="field">
+                        <label>From</label>
+                        <input type="date" id="date-from">
+                    </div>
+                    <div class="field">
+                        <label>To</label>
+                        <input type="date" id="date-to">
+                    </div>
                 </div>
             </div>
+            <div class="field">
+                <label>Calendars</label>
+                <div class="ui fluid multiple search selection dropdown" id="calendar-select">
+                    <input type="hidden" name="calendars">
+                    <i class="dropdown icon"></i>
+                    <div class="default text">Select Calendars</div>
+                    <div class="menu" id="calendar-options">
+                        <!-- Calendar options will be added dynamically -->
+                    </div>
+                </div>
+            </div>
+        {% endcall %}
+    {% endcall %}
+
+    {% call display_box(id="calendar-results-box", title="Connection Results") %}
+        <div id="connection-result" class="ui segment" style="display: none;">
+            <div id="result-message"></div>
+
+            <div id="calendars-container" class="ui segment" style="display: none; margin-top: 1em;">
+                <h4 class="ui header">Available Calendars:</h4>
+                <div class="ui list" id="calendars-list"></div>
+            </div>
+
+            <div id="events-container" class="ui segment" style="display: none; margin-top: 1em;">
+                <h4 class="ui header">Sample Events:</h4>
+                <div class="ui list" id="events-list"></div>
+            </div>
         </div>
-    </div>
+    {% endcall %}
 </div>
 
 <script>
 const API_URL = "{{ API_URL }}";
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Semantic UI components
+    $('.ui.dropdown').dropdown();
+});
 
 document.getElementById('caldav-form').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -64,12 +93,12 @@ document.getElementById('caldav-form').addEventListener('submit', function(e) {
     document.getElementById('result-message').innerHTML = '';
     document.getElementById('calendars-list').innerHTML = '';
     document.getElementById('events-list').innerHTML = '';
-    document.getElementById('calendars-container').classList.add('d-none');
-    document.getElementById('events-container').classList.add('d-none');
+    document.getElementById('calendars-container').style.display = 'none';
+    document.getElementById('events-container').style.display = 'none';
 
     // Show loading message
-    document.getElementById('connection-result').classList.remove('d-none');
-    document.getElementById('result-message').innerHTML = '<div class="alert alert-info">Testing connection...</div>';
+    document.getElementById('connection-result').style.display = 'block';
+    document.getElementById('result-message').innerHTML = '<div class="ui message info">Testing connection...</div>';
 
     // Send request to API
     fetch(`${API_URL}/caldav/test-connection`, {
@@ -88,41 +117,60 @@ document.getElementById('caldav-form').addEventListener('submit', function(e) {
     .then(data => {
         if (data.success) {
             document.getElementById('result-message').innerHTML =
-                `<div class="alert alert-success">${data.message}</div>`;
+                `<div class="ui message success">${data.message}</div>`;
 
             // Display calendars if any
             if (data.calendars && data.calendars.length > 0) {
-                document.getElementById('calendars-container').classList.remove('d-none');
+                document.getElementById('calendars-container').style.display = 'block';
                 const calendarsList = document.getElementById('calendars-list');
 
                 data.calendars.forEach(calendar => {
-                    const li = document.createElement('li');
-                    li.textContent = calendar;
-                    calendarsList.appendChild(li);
+                    const item = document.createElement('div');
+                    item.className = 'item';
+                    item.innerHTML = `<i class="calendar icon"></i><div class="content">${calendar}</div>`;
+                    calendarsList.appendChild(item);
+                    
+                    // Also add to search dropdown
+                    const option = document.createElement('div');
+                    option.className = 'item';
+                    option.setAttribute('data-value', calendar);
+                    option.textContent = calendar;
+                    document.getElementById('calendar-options').appendChild(option);
                 });
+                
+                // Refresh dropdown
+                $('#calendar-select').dropdown('refresh');
             }
 
             // Display sample events if any
             if (data.sample_events && data.sample_events.length > 0) {
-                document.getElementById('events-container').classList.remove('d-none');
+                document.getElementById('events-container').style.display = 'block';
                 const eventsList = document.getElementById('events-list');
 
                 data.sample_events.forEach(event => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<strong>${event.summary}</strong>:
-                                    ${new Date(event.start).toLocaleString()} -
-                                    ${new Date(event.end).toLocaleString()}`;
-                    eventsList.appendChild(li);
+                    const item = document.createElement('div');
+                    item.className = 'item';
+                    item.innerHTML = `
+                        <i class="calendar check icon"></i>
+                        <div class="content">
+                            <div class="header">${event.summary}</div>
+                            <div class="description">
+                                ${new Date(event.start).toLocaleString()} - 
+                                ${new Date(event.end).toLocaleString()}
+                            </div>
+                        </div>
+                    `;
+                    eventsList.appendChild(item);
                 });
             }
         } else {
             document.getElementById('result-message').innerHTML =
-                `<div class="alert alert-danger">${data.message}</div>`;
+                `<div class="ui message negative">${data.message}</div>`;
         }
     })
     .catch(error => {
         document.getElementById('result-message').innerHTML =
-            `<div class="alert alert-danger">Error: ${error.message}</div>`;
+            `<div class="ui message negative">Error: ${error.message}</div>`;
     });
 });
 

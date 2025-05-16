@@ -22,6 +22,69 @@
     color: #666;
 }
 </style>
+<script>
+// Fix for multiple click events issue
+document.addEventListener('DOMContentLoaded', function() {
+    // This will run first and ensure sections are collapsed
+    setTimeout(function() {
+        var sectionIds = [
+            'section-display-box', 
+            'section-slideout', 
+            'section-search-add', 
+            'section-list-box', 
+            'section-checkin',
+            'section-catchlist',
+            'section-projects',
+            'section-scheduled'
+        ];
+        
+        // Initially hide content and set correct icon state
+        sectionIds.forEach(function(id) {
+            $('#' + id + '-content').hide();
+            $('[data-target="' + id + '-content"]').removeClass('down').addClass('right');
+        });
+        
+        // Remove any existing click handlers and add just one
+        $('.toggle-collapse').off('click').on('click', function(e) {
+            e.stopPropagation(); // Prevent event bubbling
+            var targetId = $(this).data('target');
+            $('#' + targetId).slideToggle();
+            $(this).toggleClass('down right');
+        });
+    }, 100); // Small delay to ensure DOM is ready
+});
+
+// Fix for multiple click events issue
+document.addEventListener('DOMContentLoaded', function() {
+    // This will run first and ensure sections are collapsed
+    setTimeout(function() {
+        var sectionIds = [
+            'section-display-box', 
+            'section-slideout', 
+            'section-search-add', 
+            'section-list-box', 
+            'section-checkin',
+            'section-catchlist',
+            'section-projects',
+            'section-scheduled'
+        ];
+        
+        // Initially hide content and set correct icon state
+        sectionIds.forEach(function(id) {
+            $('#' + id + '-content').hide();
+            $('[data-target="' + id + '-content"]').removeClass('down').addClass('right');
+        });
+        
+        // Remove any existing click handlers and add just one
+        $('.toggle-collapse').off('click').on('click', function(e) {
+            e.stopPropagation(); // Prevent event bubbling
+            var targetId = $(this).data('target');
+            $('#' + targetId).slideToggle();
+            $(this).toggleClass('down right');
+        });
+    }, 100); // Small delay to ensure DOM is ready
+});
+</script>
 {% endblock %}
 
 {% block content %}
@@ -29,8 +92,8 @@
     <h1 class="ui header">Component Library</h1>
     <p>This page showcases the reusable UI components available in this application.</p>
 
+    {% call display_box(id="section-display-box", title="Display Box", collapsible=true) %}
     <div class="demo-section">
-        <h2 class="ui header component-title">Display Box</h2>
         <p class="component-description">
             A standard box component for displaying content with various options including titles, tabs, and collapsible content.
         </p>
@@ -65,9 +128,10 @@
             </div>
         </div>
     </div>
+    {% endcall %}
     
+    {% call display_box(id="section-slideout", title="Slideout Component", collapsible=true) %}
     <div class="demo-section">
-        <h2 class="ui header component-title">Slideout Component</h2>
         <p class="component-description">
             A component that shows a trigger text with a togglable content area that slides in/out.
         </p>
@@ -100,9 +164,10 @@
             </div>
         </div>
     </div>
+    {% endcall %}
     
+    {% call display_box(id="section-search-add", title="Search & Add Components", collapsible=true) %}
     <div class="demo-section">
-        <h2 class="ui header component-title">Search & Add Components</h2>
         <p class="component-description">
             Components for searching items and adding new entries to a list.
         </p>
@@ -145,18 +210,20 @@
             </div>
         </div>
     </div>
+    {% endcall %}
     
+    {% call display_box(id="section-list-box", title="List Box", collapsible=true) %}
     <div class="demo-section">
-        <h2 class="ui header component-title">List Box</h2>
         <p class="component-description">
             A component for displaying lists of items with loading states, empty states, and pagination.
         </p>
         
         {{ list_box(id="demo-list-box", empty_message="No items found. Add some items using the form above!") }}
     </div>
+    {% endcall %}
     
+    {% call display_box(id="section-checkin", title="Check-in Component", collapsible=true) %}
     <div class="demo-section">
-        <h2 class="ui header component-title">Check-in Component</h2>
         <p class="component-description">
             A component for logging check-ins on tasks, including comments and RPE ratings, with a fun fireworks animation.
         </p>
@@ -187,6 +254,380 @@
             </div>
         {% endcall %}
     </div>
+    {% endcall %}
+    
+    {% call display_box(id="section-catchlist", title="Catchlist Items", collapsible=true) %}
+    <div class="demo-section">
+        <p class="component-description">
+            Catchlist items are the basic unit of the application. They represent actions or tasks that need to be completed.
+        </p>
+        
+        {% call display_box(id="catchlist-demo-box", title="Catchlist Item Examples") %}
+            <div class="ui divided items">
+                <!-- Basic catchlist item -->
+                <div class="item">
+                    <div class="content">
+                        <div class="header">Call dentist to schedule appointment</div>
+                        <div class="meta">
+                            2 days ago
+                        </div>
+                        <div class="description">
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Mark as Done</button>
+                                <button class="ui tiny button">Convert to Project</button>
+                                <button class="ui tiny button">Add to Today</button>
+                                <button class="ui red tiny button">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Someday/Maybe catchlist item -->
+                <div class="item someday-item">
+                    <div class="content">
+                        <div class="header">Research electric vehicles for next car</div>
+                        <div class="meta">
+                            1 week ago
+                        </div>
+                        <div class="description">
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Mark as Done</button>
+                                <button class="ui tiny button">Convert to Project</button>
+                                <button class="ui tiny button">Active</button>
+                                <button class="ui tiny button">Add to Today</button>
+                                <button class="ui red tiny button">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- On Today's List catchlist item -->
+                <div class="item">
+                    <div class="content">
+                        <div class="header">Finish quarterly report</div>
+                        <div class="meta">
+                            Yesterday
+                        </div>
+                        <div class="description">
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Mark as Done</button>
+                                <button class="ui tiny button">Convert to Project</button>
+                                <button class="ui tiny green button">On Today's List</button>
+                                <button class="ui red tiny button">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Completed catchlist item -->
+                <div class="item completed-item">
+                    <div class="content">
+                        <div class="header">Order new office supplies</div>
+                        <div class="meta">
+                            3 days ago
+                            <div class="ui green label">Completed: Today</div>
+                        </div>
+                        <div class="description">
+                            <div class="ui buttons">
+                                <button class="ui tiny button" disabled>Convert to Project</button>
+                                <button class="ui tiny button" disabled>Add to Today</button>
+                                <button class="ui red tiny button">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endcall %}
+        
+        <style>
+        .completed-item .header {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        
+        .completed-item {
+            background-color: rgba(33, 186, 69, 0.05);
+        }
+        
+        .someday-item {
+            background-color: rgba(251, 189, 8, 0.05);
+        }
+        </style>
+    </div>
+    {% endcall %}
+    
+    {% call display_box(id="section-projects", title="Projects", collapsible=true) %}
+    <div class="demo-section">
+        <p class="component-description">
+            Projects are collections of related tasks with a defined goal and timeline.
+        </p>
+        
+        {% call display_box(id="projects-demo-box", title="Project Examples") %}
+            <div class="ui segments" id="project-list">
+                <div class="ui segment" data-id="demo-project-1">
+                    <div class="ui top attached segment">
+                        <h3 class="ui header">Website Redesign</h3>
+                        <div class="ui list">
+                            <div class="item">
+                                <i class="trophy icon"></i>
+                                <div class="content">
+                                    <div class="header">Win Condition</div>
+                                    <div class="description">Launch a beautiful, responsive website that increases user engagement by 20%</div>
+                                </div>
+                            </div>
+                            <div class="item">
+                                <i class="compass icon"></i>
+                                <div class="content">
+                                    <div class="header">Reason</div>
+                                    <div class="description">Current site is outdated and not mobile-friendly, leading to lost conversions</div>
+                                </div>
+                            </div>
+                            <div class="item">
+                                <i class="arrow right icon"></i>
+                                <div class="content">
+                                    <div class="header">Next Step</div>
+                                    <div class="description">Create wireframes for main landing pages</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ui buttons">
+                            <button class="ui blue tiny button">Edit</button>
+                            <button class="ui red tiny button">Delete</button>
+                        </div>
+                    </div>
+                    
+                    <div class="ui attached segment">
+                        <h4 class="ui header">Subtasks</h4>
+                        <div class="ui list subtasks-list">
+                            <div class="item" data-id="subtask-1">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" checked>
+                                    <label>Research competitor websites</label>
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button" disabled>Add to Today</button>
+                                    <button class="ui red tiny button">Delete</button>
+                                </div>
+                            </div>
+                            <div class="item" data-id="subtask-2">
+                                <div class="ui checkbox">
+                                    <input type="checkbox">
+                                    <label>Create wireframes for landing pages</label>
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button green">On Today's List</button>
+                                    <button class="ui red tiny button">Delete</button>
+                                </div>
+                            </div>
+                            <div class="item" data-id="subtask-3">
+                                <div class="ui checkbox">
+                                    <input type="checkbox">
+                                    <label>Design new logo and branding elements</label>
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button">Add to Today</button>
+                                    <button class="ui red tiny button">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="ui form add-subtask-form">
+                            <div class="fields">
+                                <div class="twelve wide field">
+                                    <input type="text" placeholder="Add new subtask...">
+                                </div>
+                                <div class="four wide field">
+                                    <button class="ui teal button">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Second project example -->
+                <div class="ui segment" data-id="demo-project-2">
+                    <div class="ui top attached segment">
+                        <h3 class="ui header">Product Launch: Mobile App</h3>
+                        <div class="ui list">
+                            <div class="item">
+                                <i class="trophy icon"></i>
+                                <div class="content">
+                                    <div class="header">Win Condition</div>
+                                    <div class="description">Successfully launch the mobile app with 5,000 downloads in first month</div>
+                                </div>
+                            </div>
+                            <div class="item">
+                                <i class="compass icon"></i>
+                                <div class="content">
+                                    <div class="header">Reason</div>
+                                    <div class="description">Mobile presence is critical for reaching new market segments</div>
+                                </div>
+                            </div>
+                            <div class="item">
+                                <i class="arrow right icon"></i>
+                                <div class="content">
+                                    <div class="header">Next Step</div>
+                                    <div class="description">Finalize feature list for MVP</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ui buttons">
+                            <button class="ui blue tiny button">Edit</button>
+                            <button class="ui red tiny button">Delete</button>
+                        </div>
+                    </div>
+                    
+                    <div class="ui attached segment">
+                        <h4 class="ui header">Subtasks</h4>
+                        <div class="ui list subtasks-list">
+                            <div class="item" data-id="subtask-4">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" checked>
+                                    <label>Complete market research</label>
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button" disabled>Add to Today</button>
+                                    <button class="ui red tiny button">Delete</button>
+                                </div>
+                            </div>
+                            <div class="item" data-id="subtask-5">
+                                <div class="ui checkbox">
+                                    <input type="checkbox">
+                                    <label>Create feature specification document</label>
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button">Add to Today</button>
+                                    <button class="ui red tiny button">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="ui form add-subtask-form">
+                            <div class="fields">
+                                <div class="twelve wide field">
+                                    <input type="text" placeholder="Add new subtask...">
+                                </div>
+                                <div class="four wide field">
+                                    <button class="ui teal button">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endcall %}
+    </div>
+    {% endcall %}
+    
+    {% call display_box(id="section-scheduled", title="Scheduled Items", collapsible=true) %}
+    <div class="demo-section">
+        <p class="component-description">
+            Scheduled items are tasks that have been assigned to specific times in your calendar.
+        </p>
+        
+        {% call display_box(id="scheduled-demo-box", title="Scheduled Items Examples") %}
+            <!-- Date header -->
+            <h4 class="ui header">Today <small class="ui sub header">Monday, June 10</small></h4>
+            
+            <!-- Today's scheduled items -->
+            <div class="ui divided items">
+                <div class="item">
+                    <div class="ui tiny teal label" style="margin-right: 10px;">
+                        9:00 AM
+                    </div>
+                    <div class="content">
+                        <div class="header">Team Stand-up Meeting</div>
+                        <div class="meta">
+                            30 min
+                        </div>
+                        <div class="description">
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Check-in</button>
+                                <button class="ui tiny button">Complete</button>
+                                <button class="ui red tiny button">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="item">
+                    <div class="ui tiny teal label" style="margin-right: 10px;">
+                        2:00 PM
+                    </div>
+                    <div class="content">
+                        <div class="header">Client Demo <span class="ui tiny red label">High Priority</span></div>
+                        <div class="meta">
+                            90 min
+                        </div>
+                        <div class="description">
+                            <p>Present new features to ABC Company</p>
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Check-in</button>
+                                <button class="ui tiny button">Complete</button>
+                                <button class="ui red tiny button">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Date header -->
+            <h4 class="ui header">Tomorrow <small class="ui sub header">Tuesday, June 11</small></h4>
+            
+            <!-- Tomorrow's scheduled items -->
+            <div class="ui divided items">
+                <div class="item">
+                    <div class="ui tiny teal label" style="margin-right: 10px;">
+                        10:00 AM
+                    </div>
+                    <div class="content">
+                        <div class="header">Project Planning Session</div>
+                        <div class="meta">
+                            2 hours
+                        </div>
+                        <div class="description">
+                            <p>Planning session for the new mobile app features</p>
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Check-in</button>
+                                <button class="ui tiny button">Complete</button>
+                                <button class="ui red tiny button">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="item">
+                    <div class="ui tiny teal label" style="margin-right: 10px;">
+                        3:00 PM
+                    </div>
+                    <div class="content">
+                        <div class="header">One-on-One with Manager</div>
+                        <div class="meta">
+                            30 min
+                        </div>
+                        <div class="description">
+                            <p>Weekly check-in meeting to discuss progress and goals</p>
+                            <div class="ui buttons">
+                                <button class="ui tiny teal button">Check-in</button>
+                                <button class="ui tiny button">Complete</button>
+                                <button class="ui red tiny button">Decline</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="ui teal button">
+                    <i class="calendar plus icon"></i> Schedule New Item
+                </button>
+                <button class="ui button">
+                    <i class="calendar icon"></i> View Full Calendar
+                </button>
+            </div>
+        {% endcall %}
+    </div>
+    {% endcall %}
 </div>
 
 <script>
@@ -249,6 +690,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Semantic UI elements
     $('.ui.checkbox').checkbox();
     $('.ui.dropdown').dropdown();
+    $('.ui.progress').progress();
     
     // Handle demo events
     document.addEventListener('searchChange', function(e) {

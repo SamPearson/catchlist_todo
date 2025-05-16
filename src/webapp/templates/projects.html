@@ -1,10 +1,15 @@
 {% extends "base.html" %}
+{% from "components/display_box.html" import display_box %}
+{% from "components/slideout.html" import slideout %}
+{% from "components/search_box.html" import search_box %}
+{% from "components/add_box.html" import add_box %}
+{% from "components/list_box.html" import list_box %}
 
 {% block content %}
 <div class="ui container">
     <h1 class="ui header">My Projects</h1>
     
-    <div class="ui segment">
+    {% call display_box(id="projects-create-box", title="Create New Project", collapsible=true) %}
         <form class="ui form" id="add-project-form">
             <div class="field">
                 <label>Project Title</label>
@@ -24,75 +29,90 @@
             </div>
             <button class="ui teal button" type="submit">Create Project</button>
         </form>
-    </div>
-
-    <div class="ui segments" id="project-list">
-        {% for project in projects %}
-        <div class="ui segment" data-id="{{ project.id }}">
-            <div class="ui top attached segment">
-                <h3 class="ui header">{{ project.title }}</h3>
-                <div class="ui list">
-                    <div class="item">
-                        <i class="trophy icon"></i>
-                        <div class="content">
-                            <div class="header">Win Condition</div>
-                            <div class="description">{{ project.win_condition }}</div>
-                        </div>
-                    </div>
-                    <div class="item">
-                        <i class="compass icon"></i>
-                        <div class="content">
-                            <div class="header">Reason</div>
-                            <div class="description">{{ project.reason }}</div>
-                        </div>
-                    </div>
-                    <div class="item">
-                        <i class="arrow right icon"></i>
-                        <div class="content">
-                            <div class="header">Next Step</div>
-                            <div class="description">{{ project.next_step }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="ui buttons">
-                    <button class="ui blue tiny button edit-project">Edit</button>
-                    <button class="ui red tiny button delete-project">Delete</button>
-                </div>
+    {% endcall %}
+    
+    {% call display_box(id="projects-search-box", title="Search Projects", collapsible=true) %}
+        {% call search_box(id="project-search", placeholder="Search projects...") %}
+            <div class="field">
+                <label>Status</label>
+                <select class="ui dropdown" id="project-status-filter">
+                    <option value="all">All Projects</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                </select>
             </div>
-            
-            <div class="ui attached segment">
-                <h4 class="ui header">Subtasks</h4>
-                <div class="ui list subtasks-list">
-                    {% for subtask in project.subtasks %}
-                    <div class="item" data-id="{{ subtask.id }}">
-                        <div class="ui checkbox">
-                            <input type="checkbox" {% if subtask.complete %}checked{% endif %}>
-                            <label>{{ subtask.title }}</label>
+        {% endcall %}
+    {% endcall %}
+    
+    {% call display_box(id="projects-list-box", title="My Projects") %}
+        <div class="ui segments" id="project-list">
+            {% for project in projects %}
+            <div class="ui segment" data-id="{{ project.id }}">
+                <div class="ui top attached segment">
+                    <h3 class="ui header">{{ project.title }}</h3>
+                    <div class="ui list">
+                        <div class="item">
+                            <i class="trophy icon"></i>
+                            <div class="content">
+                                <div class="header">Win Condition</div>
+                                <div class="description">{{ project.win_condition }}</div>
+                            </div>
                         </div>
-                        <div class="ui buttons" style="margin-left: 15px;">
-                            <button class="ui tiny button {% if subtask.on_daily_todo %}green{% endif %} add-to-today">
-                                {% if subtask.on_daily_todo %}On Today's List{% else %}Add to Today{% endif %}
-                            </button>
-                            <button class="ui red tiny button delete-subtask">Delete</button>
+                        <div class="item">
+                            <i class="compass icon"></i>
+                            <div class="content">
+                                <div class="header">Reason</div>
+                                <div class="description">{{ project.reason }}</div>
+                            </div>
+                        </div>
+                        <div class="item">
+                            <i class="arrow right icon"></i>
+                            <div class="content">
+                                <div class="header">Next Step</div>
+                                <div class="description">{{ project.next_step }}</div>
+                            </div>
                         </div>
                     </div>
-                    {% endfor %}
+                    <div class="ui buttons">
+                        <button class="ui blue tiny button edit-project">Edit</button>
+                        <button class="ui red tiny button delete-project">Delete</button>
+                    </div>
                 </div>
                 
-                <div class="ui form add-subtask-form">
-                    <div class="fields">
-                        <div class="twelve wide field">
-                            <input type="text" placeholder="Add new subtask...">
+                <div class="ui attached segment">
+                    <h4 class="ui header">Subtasks</h4>
+                    <div class="ui list subtasks-list">
+                        {% for subtask in project.subtasks %}
+                        <div class="item" data-id="{{ subtask.id }}">
+                            <div class="ui checkbox">
+                                <input type="checkbox" {% if subtask.complete %}checked{% endif %}>
+                                <label>{{ subtask.title }}</label>
+                            </div>
+                            <div class="ui buttons" style="margin-left: 15px;">
+                                <button class="ui tiny button {% if subtask.on_daily_todo %}green{% endif %} add-to-today">
+                                    {% if subtask.on_daily_todo %}On Today's List{% else %}Add to Today{% endif %}
+                                </button>
+                                <button class="ui red tiny button delete-subtask">Delete</button>
+                            </div>
                         </div>
-                        <div class="four wide field">
-                            <button class="ui teal button add-subtask-button">Add</button>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="ui form add-subtask-form">
+                        <div class="fields">
+                            <div class="twelve wide field">
+                                <input type="text" placeholder="Add new subtask...">
+                            </div>
+                            <div class="four wide field">
+                                <button class="ui teal button add-subtask-button">Add</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+    {% endcall %}
 </div>
 
 <script>

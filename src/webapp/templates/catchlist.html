@@ -1,38 +1,51 @@
 {% extends "base.html" %}
+{% from "components/display_box.html" import display_box %}
+{% from "components/slideout.html" import slideout %}
+{% from "components/search_box.html" import search_box %}
+{% from "components/add_box.html" import add_box %}
+{% from "components/list_box.html" import list_box %}
 
 {% block content %}
 <div class="ui container">
     <h1 class="ui header">My Catchlist</h1>
     
-    <div class="ui segment">
-        <form class="ui form" id="add-catchlist-form">
-            <div class="field">
-                <div class="ui action input">
-                    <input type="text" name="content" placeholder="Add a new idea or thought..." required>
-                    <button class="ui teal button" type="submit">Add</button>
-                </div>
+    <form class="ui form" id="add-catchlist-form">
+        <div class="field">
+            <div class="ui action input">
+                <input type="text" name="content" placeholder="Add a new idea or thought..." required>
+                <button class="ui teal button" type="submit">Add</button>
             </div>
-        </form>
-    </div>
-
-    <div class="ui segment">
-        <div class="ui toggle checkbox" style="margin-right: 20px;">
-            <input type="checkbox" id="show-someday">
-            <label>Show Someday/Maybe Items</label>
         </div>
-        <div class="ui toggle checkbox">
-            <input type="checkbox" id="show-completed">
-            <label>Show Completed Items</label>
+    </form>
+    
+    {% call display_box(id="catchlist-search-box", title="Search", collapsible=true, collapsed=true) %}
+        <div class="ui form">
+            {% call search_box(id="catchlist-search", placeholder="Search catchlist items...") %}
+                <div class="field">
+                    <div class="ui toggle checkbox" style="margin-right: 20px;">
+                        <input type="checkbox" id="show-someday">
+                        <label>Show Someday/Maybe Items</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui toggle checkbox">
+                        <input type="checkbox" id="show-completed">
+                        <label>Show Completed Items</label>
+                    </div>
+                </div>
+            {% endcall %}
         </div>
-    </div>
+    {% endcall %}
+    
+    {% call display_box(id="catchlist-list-box", title="My Items") %}
+        <div class="ui message negative" id="error-message" style="display: none;">
+            <div class="error-text"></div>
+        </div>
 
-    <div class="ui message negative" id="error-message" style="display: none;">
-        <div class="error-text"></div>
-    </div>
-
-    <div class="ui divided items" id="catchlist-items">
-        <!-- Items will be loaded here dynamically -->
-    </div>
+        <div class="ui divided items" id="catchlist-items">
+            <!-- Items will be loaded here dynamically -->
+        </div>
+    {% endcall %}
 </div>
 
 <script>
@@ -122,9 +135,6 @@ function displayItems(items) {
                     <div class="ui buttons">
                         ${!item.completed ? `<button class="ui tiny teal button mark-done">Mark as Done</button>` : ''}
                         <button class="ui tiny button upgrade-to-project" ${item.completed ? 'disabled' : ''}>Convert to Project</button>
-                        <button class="ui tiny button someday-item" ${item.completed ? 'disabled' : ''}>
-                            ${item.status === 'someday' ? 'Active' : 'Someday/Maybe'}
-                        </button>
                         <button class="ui tiny button ${item.on_daily_todo ? 'green' : ''} add-to-today" ${item.completed ? 'disabled' : ''}>
                             ${item.on_daily_todo ? 'On Today\'s List' : 'Add to Today'}
                         </button>
@@ -328,66 +338,6 @@ function attachItemEventListeners() {
                 }
                 
                 showCustomMessage(`Item ${data.on_daily_todo ? 'added to' : 'removed from'} today's list!`, 'positive');
-            })
-            .catch(error => {
-                console.error('Full error:', error);
-                const errorMessage = error.message ? 
-                    `Error (${error.status}): ${error.message}` : 
-                    'Failed to update item';
-                showError(errorMessage);
-            });
-        });
-    });
-    
-    // Someday/Maybe toggle
-    document.querySelectorAll('.someday-item').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const item = this.closest('.item');
-            const itemId = item.dataset.id;
-            const isSomeday = item.classList.contains('someday-item');
-            const newStatus = isSomeday ? 'active' : 'someday';
-            
-            const token = getToken();
-            if (!token) {
-                showError('Authentication required. Please log in first.');
-                return;
-            }
-            
-            fetch(`{{ API_URL }}/catchlist/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status: newStatus })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw {
-                            status: response.status,
-                            statusText: response.statusText,
-                            message: errorData.message || 'Unknown error',
-                            data: errorData
-                        };
-                    });
-                }
-                return response.json();
-            })
-            .then(updatedItem => {
-                if (newStatus === 'someday') {
-                    item.classList.add('someday-item');
-                    this.textContent = 'Active';
-                    if (!document.getElementById('show-someday').checked) {
-                        item.style.display = 'none';
-                    }
-                } else {
-                    item.classList.remove('someday-item');
-                    this.textContent = 'Someday/Maybe';
-                    item.style.display = 'block';
-                }
-                
-                showCustomMessage('Item status updated!', 'positive');
             })
             .catch(error => {
                 console.error('Full error:', error);
