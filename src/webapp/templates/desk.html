@@ -217,7 +217,7 @@ function loadTodayEvents() {
         return;
     }
 
-    fetch(`${API_URL}/calendar-events/today`, {
+    fetch(`${API_URL}/routines/today`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -276,7 +276,7 @@ function loadTodayCatchlist() {
         return;
     }
 
-    fetch(`${API_URL}/catchlist/today`, {
+    fetch(`${API_URL}/today/catchlist-items`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -425,14 +425,17 @@ function displayTodayCatchlist(items) {
     // Create HTML for each catchlist item
     let html = '';
     items.forEach(item => {
+        // Format date for display if available
+        const createdDate = new Date(item.created_at);
+        
         html += `
         <div class="item" data-id="${item.id}">
             <div class="content">
                 <div class="header">
-                    ${item.title}
+                    ${item.content}
                     ${item.completed ? '<span class="ui green label">Completed</span>' : ''}
                 </div>
-                <div class="description">${item.description || ''}</div>
+                <div class="meta">${createdDate.toLocaleDateString()}</div>
                 <div class="extra">
                     <div class="ui checkbox">
                         <input type="checkbox" ${item.completed ? 'checked' : ''} data-id="${item.id}">
@@ -576,13 +579,21 @@ function updateCatchlistCompletion(itemId, completed) {
         return;
     }
     
-    fetch(`${API_URL}/catchlist/${itemId}`, {
-        method: 'PUT',
+    // Use the mark-done endpoint if completing the item
+    const endpoint = completed ? 
+        `${API_URL}/catchlist-items/${itemId}/mark-done` : 
+        `${API_URL}/catchlist-items/${itemId}`;
+    
+    const method = completed ? 'POST' : 'PUT';
+    const body = completed ? {} : JSON.stringify({ completed: false });
+    
+    fetch(endpoint, {
+        method: method,
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ completed: completed })
+        body: method === 'PUT' ? body : undefined
     })
     .then(response => {
         if (!response.ok) {

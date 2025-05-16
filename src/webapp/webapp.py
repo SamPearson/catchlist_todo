@@ -127,13 +127,7 @@ def get_auth_token():
     return ''
 
 
-@app.route('/calendar')
-def calendar():
-    token = get_auth_token()
-    if not token:
-        return redirect(url_for('login'))
 
-    return render_template("calendar.html", API_URL=API_URL)
 
 
 @app.route('/')
@@ -186,26 +180,26 @@ def projects():
         return render_template("projects.html", projects=projects, API_URL=API_URL)
 
 
-@app.route('/calendar-events')
-def calendar_events():
+@app.route('/routines')
+def routines():
     token = get_auth_token()
     if not token:
         return redirect(url_for('login'))
     
     try:
         headers = {'Authorization': f'Bearer {token}'}
-        response = requests.get(f"{API_URL}/calendar-events", headers=headers)
+        response = requests.get(f"{API_URL}/routines", headers=headers)
         
         if response.status_code == 200:
             events = response.json()
         else:
             events = []
             
-        return render_template("calendar_events.html", events=events, API_URL=API_URL)
+        return render_template("routines.html", events=events, API_URL=API_URL)
     except Exception as e:
-        logger.error(f"Error fetching calendar events: {str(e)}")
+        logger.error(f"Error fetching routines: {str(e)}")
         events = []
-        return render_template("calendar_events.html", events=events, API_URL=API_URL)
+        return render_template("routines.html", events=events, API_URL=API_URL)
 
 
 @app.route('/reports')

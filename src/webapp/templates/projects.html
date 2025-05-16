@@ -17,15 +17,19 @@
             </div>
             <div class="field">
                 <label>Win Condition</label>
-                <textarea name="win_condition" placeholder="What does success look like?"></textarea>
+                <input type="text" name="win_condition" placeholder="What does success look like?">
             </div>
             <div class="field">
                 <label>Reason</label>
-                <textarea name="reason" placeholder="Why is this project important?"></textarea>
+                <input type="text" name="reason" placeholder="Why is this project important?">
             </div>
             <div class="field">
                 <label>Next Step</label>
-                <textarea name="next_step" placeholder="What's the next action to take?"></textarea>
+                <input type="text" name="next_step" placeholder="What's the next action to take?">
+            </div>
+            <div class="field">
+                <label>Description</label>
+                <textarea name="description" rows="3" placeholder="Describe this project in more detail..."></textarea>
             </div>
             <button class="ui teal button" type="submit">Create Project</button>
         </form>
@@ -70,6 +74,13 @@
                             <div class="content">
                                 <div class="header">Next Step</div>
                                 <div class="description">{{ project.next_step }}</div>
+                            </div>
+                        </div>
+                        <div class="item">
+                            <i class="file text icon"></i>
+                            <div class="content">
+                                <div class="header">Description</div>
+                                <div class="description">{{ project.description }}</div>
                             </div>
                         </div>
                     </div>
@@ -136,7 +147,8 @@ document.getElementById('add-project-form').addEventListener('submit', function(
         title: this.title.value,
         win_condition: this.win_condition.value,
         reason: this.reason.value,
-        next_step: this.next_step.value
+        next_step: this.next_step.value,
+        description: this.description.value
     };
     
     fetch('{{ API_URL }}/projects', {
@@ -175,6 +187,7 @@ document.querySelectorAll('.edit-project').forEach(btn => {
         const winConditionElement = projectElement.querySelector('.item:nth-child(1) .description');
         const reasonElement = projectElement.querySelector('.item:nth-child(2) .description');
         const nextStepElement = projectElement.querySelector('.item:nth-child(3) .description');
+        const descriptionElement = projectElement.querySelector('.item:nth-child(4) .description');
         
         // Create form for editing
         const originalContent = projectElement.querySelector('.ui.top.attached.segment').innerHTML;
@@ -187,15 +200,19 @@ document.querySelectorAll('.edit-project').forEach(btn => {
                 </div>
                 <div class="field">
                     <label>Win Condition</label>
-                    <textarea name="win_condition">${winConditionElement.textContent}</textarea>
+                    <input type="text" name="win_condition" value="${winConditionElement.textContent}">
                 </div>
                 <div class="field">
                     <label>Reason</label>
-                    <textarea name="reason">${reasonElement.textContent}</textarea>
+                    <input type="text" name="reason" value="${reasonElement.textContent}">
                 </div>
                 <div class="field">
                     <label>Next Step</label>
-                    <textarea name="next_step">${nextStepElement.textContent}</textarea>
+                    <input type="text" name="next_step" value="${nextStepElement.textContent}">
+                </div>
+                <div class="field">
+                    <label>Description</label>
+                    <textarea name="description" rows="3">${descriptionElement ? descriptionElement.textContent : ''}</textarea>
                 </div>
                 <div class="ui buttons">
                     <button class="ui green button" type="submit">Save</button>
@@ -218,7 +235,8 @@ document.querySelectorAll('.edit-project').forEach(btn => {
                 title: this.title.value,
                 win_condition: this.win_condition.value,
                 reason: this.reason.value,
-                next_step: this.next_step.value
+                next_step: this.next_step.value,
+                description: this.description.value
             };
             
             fetch(`{{ API_URL }}/projects/${projectId}`, {

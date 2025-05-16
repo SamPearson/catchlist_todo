@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Project, ProjectSubtask, TaskExecution
+from ...config.models import db, Project, ProjectTask, TaskExecution
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 
@@ -18,8 +18,8 @@ def get_projects():
             'id': subtask.id,
             'title': subtask.title,
             'complete': subtask.complete,
-            'on_daily_todo': subtask.on_daily_todo
-        } for subtask in project.subtasks]
+            'on_daily_todo': subtask.on_daily_todo if hasattr(subtask, 'on_daily_todo') else False
+        } for subtask in project.tasks]
         
         result.append({
             'id': project.id,
@@ -128,10 +128,9 @@ def create_subtask(project_id):
         return jsonify({"message": "Project not found"}), 404
     
     try:
-        new_subtask = ProjectSubtask(
+        new_subtask = ProjectTask(
             title=data.get('title'),
             complete=data.get('complete', False),
-            on_daily_todo=data.get('on_daily_todo', False),
             project_id=project_id
         )
         db.session.add(new_subtask)
@@ -141,7 +140,7 @@ def create_subtask(project_id):
             'id': new_subtask.id,
             'title': new_subtask.title,
             'complete': new_subtask.complete,
-            'on_daily_todo': new_subtask.on_daily_todo
+            'on_daily_todo': False
         }
         
         return jsonify(result), 201
@@ -155,7 +154,7 @@ def update_subtask(subtask_id):
     current_user_id = get_current_user_id()
     data = request.get_json()
     
-    subtask = ProjectSubtask.query.get(subtask_id)
+    subtask = ProjectTask.query.get(subtask_id)
     if not subtask:
         return jsonify({"message": "Subtask not found"}), 404
     
@@ -175,13 +174,10 @@ def update_subtask(subtask_id):
         changed_fields.append('complete')
     
     if 'on_daily_todo' in data:
-        # Check if we're adding to today's list
-        was_on_daily = subtask.on_daily_todo
-        subtask.on_daily_todo = data['on_daily_todo']
         changed_fields.append('on_daily_todo')
         
-        # Create TaskExecution record when adding to today's list
-        if subtask.on_daily_todo and not was_on_daily:
+        # Create TaskExecution when adding to today's list
+        if data['on_daily_todo']:
             today_date = date.today()
             # Check if there's already an execution for today
             existing_execution = TaskExecution.query.filter_by(
@@ -206,7 +202,7 @@ def update_subtask(subtask_id):
             'id': subtask.id,
             'title': subtask.title,
             'complete': subtask.complete,
-            'on_daily_todo': subtask.on_daily_todo,
+            'on_daily_todo': data.get('on_daily_todo', False),
             'changed': changed_fields
         })
     except Exception as e:
@@ -218,8 +214,8 @@ def update_subtask(subtask_id):
 def delete_subtask(subtask_id):
     current_user_id = get_current_user_id()
     
-    subtask = ProjectSubtask.query.join(Project).filter(
-        ProjectSubtask.id == subtask_id,
+    subtask = ProjectTask.query.join(Project).filter(
+        ProjectTask.id == subtask_id,
         Project.user_id == current_user_id
     ).first()
     
@@ -247,10 +243,10 @@ def fix_subtask_dates():
         projects = Project.query.filter_by(user_id=current_user_id).all()
         project_ids = [p.id for p in projects]
         
-        subtasks = ProjectSubtask.query.filter(
-            ProjectSubtask.project_id.in_(project_ids),
-            ProjectSubtask.complete == True,
-            ProjectSubtask.updated_at > today
+        subtasks = ProjectTask.query.filter(
+            ProjectTask.project_id.in_(project_ids),
+            ProjectTask.complete == True,
+            ProjectTask.updated_at > today
         ).all()
         
         updated_count = 0

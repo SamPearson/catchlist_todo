@@ -66,7 +66,7 @@ function loadCatchlistItems() {
     // Get the show completed flag
     const showCompleted = document.getElementById('show-completed').checked;
 
-    fetch(`{{ API_URL }}/catchlist?show_completed=${showCompleted}`, {
+    fetch(`{{ API_URL }}/catchlist-items?show_completed=${showCompleted}`, {
         method: 'GET',
         headers: {
             'Authorization': 'Bearer ' + token,
@@ -121,14 +121,16 @@ function displayItems(items) {
             itemElement.style.display = 'none';
         }
         
+        // Format dates for display
+        const createdDate = new Date(item.created_at);
         const completedText = item.completed ? 
-            `<div class="ui green label">Completed: ${item.completed_at}</div>` : '';
+            `<div class="ui green label">Completed: ${new Date(item.completed_at).toLocaleString()}</div>` : '';
         
         itemElement.innerHTML = `
             <div class="content">
                 <div class="header">${item.content}</div>
                 <div class="meta">
-                    ${item.created_at}
+                    ${createdDate.toLocaleString()}
                     ${completedText}
                 </div>
                 <div class="description">
@@ -166,7 +168,7 @@ function initializeEventListeners() {
             return;
         }
         
-        fetch('{{ API_URL }}/catchlist', {
+        fetch('{{ API_URL }}/catchlist-items', {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + token,
@@ -244,7 +246,7 @@ function attachItemEventListeners() {
                 return;
             }
             
-            fetch(`{{ API_URL }}/catchlist/${itemId}/mark-done`, {
+            fetch(`{{ API_URL }}/catchlist-items/${itemId}/mark-done`, {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token,
@@ -307,7 +309,7 @@ function attachItemEventListeners() {
                 return;
             }
             
-            fetch(`{{ API_URL }}/catchlist/${itemId}/toggle-today`, {
+            fetch(`{{ API_URL }}/catchlist-items/${itemId}/toggle-today`, {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token,
@@ -362,7 +364,7 @@ function attachItemEventListeners() {
                     return;
                 }
                 
-                fetch(`{{ API_URL }}/catchlist/${itemId}`, {
+                fetch(`{{ API_URL }}/catchlist-items/${itemId}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': 'Bearer ' + token
@@ -418,6 +420,20 @@ function showCustomMessage(message, type) {
     }, 3000);
 }
 
+function showError(message) {
+    const errorElement = document.getElementById('error-message');
+    errorElement.querySelector('.error-text').textContent = message;
+    errorElement.style.display = 'block';
+    
+    // Scroll to error
+    errorElement.scrollIntoView({ behavior: 'smooth' });
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        errorElement.style.display = 'none';
+    }, 5000);
+}
+
 // Function to get auth token from cookies
 function getToken() {
     const cookies = document.cookie.split(';');
@@ -439,6 +455,10 @@ function getToken() {
 
 .completed-item {
     background-color: rgba(33, 186, 69, 0.05);
+}
+
+.someday-item {
+    background-color: rgba(251, 189, 8, 0.05);
 }
 </style>
 {% endblock %} 

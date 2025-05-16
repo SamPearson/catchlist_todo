@@ -13,12 +13,14 @@ def create_app():
     # Without CORS, the webapp and api can't connect when run locally,
     # as they run on different ports, and that makes them two different places.
 
-    # More permissive CORS configuration for development
-    CORS(app, supports_credentials=True, resources={r"/*": {
-        "origins": "*",  # Allow all origins for development
-        "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
-        "allow_headers": "*"
-    }})
+    # CORS configuration that properly handles preflight requests
+    CORS(app, 
+         resources={r"/*": {
+             "origins": ["http://localhost:5000", "http://127.0.0.1:5000"],
+             "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
+             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+         }}, 
+         supports_credentials=True)
 
     # initialize extensions
     db.init_app(app)

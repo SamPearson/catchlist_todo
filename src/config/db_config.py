@@ -39,10 +39,3 @@ def initialize_database(app):
         # Drop all tables and recreate them
         db.drop_all()
         db.create_all()
-        
-        # Only run new model migrations if needed
-        try:
-            from .db_migrate_new_models import run_all_migrations
-            run_all_migrations()
-        except Exception as e:
-            print(f"Error running migrations: {str(e)}")

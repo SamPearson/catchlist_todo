@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, CatchListEntry, TaskExecution
+from ...config.models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, CatchListEntry, TaskExecution, Commitment, CatchlistItem
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 
@@ -230,5 +230,37 @@ def get_today_catchlist():
             'status': item.status,
             'on_daily_todo': item.on_daily_todo
         })
+    
+    return jsonify(result)
+
+@today_bp.route('/api/today/catchlist-items', methods=['GET'])
+@jwt_required()
+def get_today_catchlist_items():
+    current_user_id = get_current_user_id()
+    
+    # Get all catchlist items with active commitments for today
+    today = date.today()
+    
+    # Query commitments for today that are linked to catchlist items
+    commitments = Commitment.query.filter(
+        Commitment.user_id == current_user_id,
+        Commitment.due_date == today,
+        Commitment.completed == False,
+        Commitment.catchlist_item_id != None
+    ).all()
+    
+    result = []
+    for commitment in commitments:
+        # Get the associated catchlist item
+        item = CatchlistItem.query.get(commitment.catchlist_item_id)
+        if item and not item.completed:
+            result.append({
+                'id': item.id,
+                'content': item.content,
+                'created_at': item.created_at.isoformat(),
+                'status': item.status,
+                'commitment_id': commitment.id,
+                'due_date': commitment.due_date.isoformat()
+            })
     
     return jsonify(result)

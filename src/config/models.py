@@ -22,15 +22,4 @@ from .models.commitment_models import Commitment
 from .models.execution_models import Checkin, DailyNote, ExecutionRecord
 
 # Comment models
-from .models.comment_models import Comment
-
-# Legacy model mappings for migration purposes
-MODEL_MAPPINGS = {
-    'Todo': None,  # This model is being removed
-    'CalendarEvent': Routine,
-    'ProjectSubtask': ProjectTask,
-    'CatchListEntry': CatchlistItem,
-    'EventExecution': ExecutionRecord,
-    'TaskExecution': ExecutionRecord,
-    'CatchlistExecution': ExecutionRecord
-} 
+from .models.comment_models import Comment 
