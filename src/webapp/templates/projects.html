@@ -100,8 +100,11 @@
                                 <label>{{ subtask.title }}</label>
                             </div>
                             <div class="ui buttons" style="margin-left: 15px;">
-                                <button class="ui tiny button {% if subtask.on_daily_todo %}green{% endif %} add-to-today">
-                                    {% if subtask.on_daily_todo %}On Today's List{% else %}Add to Today{% endif %}
+                                <button class="ui tiny button {% if subtask.has_commitment %}green disabled{% endif %} commit-to-today">
+                                    {% if subtask.has_commitment %}Committed for Today{% else %}Commit to Today{% endif %}
+                                </button>
+                                <button class="ui tiny button view-commitments">
+                                    <i class="calendar icon"></i> Commits
                                 </button>
                                 <button class="ui red tiny button delete-subtask">Delete</button>
                             </div>
@@ -124,6 +127,22 @@
             {% endfor %}
         </div>
     {% endcall %}
+</div>
+
+<!-- Commitments Modal -->
+<div class="ui modal" id="commitments-modal">
+    <i class="close icon"></i>
+    <div class="header">
+        Commitments
+    </div>
+    <div class="content">
+        <div class="ui list" id="commitments-list">
+            <!-- Commitments will be loaded here -->
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button">Close</div>
+    </div>
 </div>
 
 <script>
@@ -337,7 +356,10 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
                     <label>${data.title}</label>
                 </div>
                 <div class="ui buttons" style="margin-left: 15px;">
-                    <button class="ui tiny button add-to-today">Add to Today</button>
+                    <button class="ui tiny button commit-to-today">Commit to Today</button>
+                    <button class="ui tiny button view-commitments">
+                        <i class="calendar icon"></i> Commits
+                    </button>
                     <button class="ui red tiny button delete-subtask">Delete</button>
                 </div>
             `;
@@ -381,20 +403,25 @@ function attachSubtaskEventListeners(subtaskElement) {
         });
     });
     
-    // Add to today button
-    const addToTodayBtn = subtaskElement.querySelector('.add-to-today');
-    addToTodayBtn.addEventListener('click', function() {
+    // Commit to today button
+    const commitToTodayBtn = subtaskElement.querySelector('.commit-to-today');
+    commitToTodayBtn.addEventListener('click', function() {
         const subtaskId = subtaskElement.getAttribute('data-id');
-        const isAlreadyOnToday = this.classList.contains('green');
+        const isAlreadyCommitted = this.classList.contains('green');
         
-        fetch(`{{ API_URL }}/subtasks/${subtaskId}`, {
-            method: 'PUT',
+        if (isAlreadyCommitted) {
+            return; // Button is disabled when already committed
+        }
+        
+        fetch(`{{ API_URL }}/commitments`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ' + getAuthToken()
             },
             body: JSON.stringify({
-                on_daily_todo: !isAlreadyOnToday
+                project_task_id: subtaskId,
+                due_date: new Date().toISOString().split('T')[0]
             })
         })
         .then(response => {
@@ -404,17 +431,89 @@ function attachSubtaskEventListeners(subtaskElement) {
             return response.json();
         })
         .then(data => {
-            if (data.on_daily_todo) {
-                this.classList.add('green');
-                this.textContent = 'On Today\'s List';
-            } else {
-                this.classList.remove('green');
-                this.textContent = 'Add to Today';
-            }
+            this.classList.add('green', 'disabled');
+            this.textContent = 'Committed for Today';
         })
         .catch(error => {
-            console.error('Error updating subtask:', error);
-            alert('Error updating subtask. Please try again.');
+            console.error('Error creating commitment:', error);
+            alert('Error creating commitment. Please try again.');
+        });
+    });
+    
+    // View commitments button
+    const viewCommitmentsBtn = subtaskElement.querySelector('.view-commitments');
+    viewCommitmentsBtn.addEventListener('click', function() {
+        const subtaskId = subtaskElement.getAttribute('data-id');
+        const modal = document.getElementById('commitments-modal');
+        const commitmentsList = document.getElementById('commitments-list');
+        
+        // Load commitments
+        fetch(`{{ API_URL }}/commitments?project_task_id=${subtaskId}`, {
+            headers: {
+                'Authorization': 'Bearer ' + getAuthToken()
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(commitments => {
+            if (commitments.length === 0) {
+                commitmentsList.innerHTML = '<div class="ui message">No commitments found</div>';
+            } else {
+                const now = new Date();
+                commitmentsList.innerHTML = commitments.map(commitment => {
+                    const dueDate = new Date(commitment.due_date);
+                    const startTime = commitment.start_time ? new Date(commitment.start_time) : null;
+                    const endTime = commitment.end_time ? new Date(commitment.end_time) : null;
+                    
+                    const isActive = startTime && endTime && now >= startTime && now <= endTime;
+                    const isPast = dueDate < now;
+                    
+                    return `
+                        <div class="item ${isActive ? 'active' : ''} ${isPast ? 'past' : ''}">
+                            <i class="calendar icon"></i>
+                            <div class="content">
+                                <div class="header">
+                                    Due: ${dueDate.toLocaleDateString()}
+                                    ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                                    ${isActive ? '<span class="ui blue label">Active</span>' : ''}
+                                </div>
+                                <div class="description">
+                                    ${startTime ? `Start: ${startTime.toLocaleTimeString()}` : ''}
+                                    ${endTime ? `End: ${endTime.toLocaleTimeString()}` : ''}
+                                    ${commitment.checkins && commitment.checkins.length > 0 ? `
+                                        <div class="ui list">
+                                            ${commitment.checkins.map(checkin => `
+                                                <div class="item">
+                                                    <i class="comment icon"></i>
+                                                    <div class="content">
+                                                        <div class="header">
+                                                            ${new Date(checkin.timestamp).toLocaleString()}
+                                                            ${checkin.rpe ? `RPE: ${checkin.rpe}` : ''}
+                                                        </div>
+                                                        <div class="description">${checkin.comment || ''}</div>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Show modal
+            $(modal).modal('show');
+        })
+        .catch(error => {
+            console.error('Error loading commitments:', error);
+            commitmentsList.innerHTML = '<div class="ui negative message">Error loading commitments</div>';
+            $(modal).modal('show');
         });
     });
     
@@ -471,4 +570,16 @@ function attachEventListeners() {
     });
 }
 </script>
+
+<style>
+.ui.modal .item.active {
+    background-color: #e3f2fd;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.ui.modal .item.past {
+    opacity: 0.7;
+}
+</style>
 {% endblock %} 

@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Project, ProjectTask, TaskExecution, Commitment
+from ...config.models import db, Project, ProjectTask, Commitment, Checkin
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 from sqlalchemy import and_
+from dateutil.parser import parse as parse_date
 
 projects_bp = Blueprint('projects', __name__)
 
@@ -59,12 +60,22 @@ def get_projects():
     
     result = []
     for project in projects:
-        subtasks = [{
-            'id': subtask.id,
-            'title': subtask.title,
-            'complete': subtask.complete,
-            'on_daily_todo': subtask.on_daily_todo if hasattr(subtask, 'on_daily_todo') else False
-        } for subtask in project.tasks]
+        subtasks = []
+        for subtask in project.tasks:
+            # Check if there's a commitment for today
+            today = date.today()
+            has_commitment = bool(Commitment.query.filter_by(
+                project_task_id=subtask.id,
+                due_date=today,
+                user_id=current_user_id
+            ).first())
+            
+            subtasks.append({
+                'id': subtask.id,
+                'title': subtask.title,
+                'complete': subtask.complete,
+                'has_commitment': has_commitment
+            })
         
         result.append({
             'id': project.id,
@@ -175,19 +186,24 @@ def create_subtask(project_id):
     try:
         new_subtask = ProjectTask(
             title=data.get('title'),
+            description=data.get('description'),
             complete=data.get('complete', False),
             project_id=project_id
         )
         db.session.add(new_subtask)
         db.session.commit()
         
-        result = {
-            'id': new_subtask.id,
-            'title': new_subtask.title,
-            'complete': new_subtask.complete,
-            'on_daily_todo': False
-        }
+        # If due_date is provided, create a commitment
+        if data.get('due_date'):
+            commitment = Commitment(
+                user_id=current_user_id,
+                project_task_id=new_subtask.id,
+                due_date=datetime.fromisoformat(data['due_date']).date()
+            )
+            db.session.add(commitment)
+            db.session.commit()
         
+        result = new_subtask.as_dict()
         return jsonify(result), 201
     except Exception as e:
         db.session.rollback()
@@ -222,47 +238,57 @@ def update_subtask(subtask_id):
         subtask.title = data['title']
         changed_fields.append('title')
     
+    if 'description' in data:
+        subtask.description = data['description']
+        changed_fields.append('description')
+    
     if 'complete' in data:
         subtask.complete = data['complete']
+        if data['complete']:
+            subtask.completed_at = datetime.utcnow()
         changed_fields.append('complete')
     
-    if 'on_daily_todo' in data:
-        today = date.today()
-        
-        # Check if there's already a commitment for today
-        existing_commitment = Commitment.query.filter_by(
-            project_task_id=subtask.id,
-            due_date=today,
-            user_id=current_user_id
-        ).first()
-        
-        if data['on_daily_todo'] and not existing_commitment:
-            # Create new commitment
-            commitment = Commitment(
-                user_id=current_user_id,
+    if 'due_date' in data:
+        try:
+            # Handle both ISO format and UTC timestamps
+            due_date = parse_date(data['due_date']).date()
+            
+            # Find or create commitment
+            commitment = Commitment.query.filter_by(
                 project_task_id=subtask.id,
-                due_date=today
-            )
-            db.session.add(commitment)
-        elif not data['on_daily_todo'] and existing_commitment:
-            # Remove from today's list
-            db.session.delete(existing_commitment)
+                due_date=due_date,
+                user_id=current_user_id
+            ).first()
+            
+            if not commitment:
+                commitment = Commitment(
+                    user_id=current_user_id,
+                    project_task_id=subtask.id,
+                    due_date=due_date
+                )
+                db.session.add(commitment)
+                changed_fields.append('due_date')
+        except ValueError as e:
+            return jsonify({"message": f"Invalid date format: {str(e)}"}), 400
     
     try:
         db.session.commit()
         
-        # Check if there's a commitment for today after our changes
-        on_daily_todo = bool(Commitment.query.filter_by(
+        # Check if there's a commitment for today
+        today = date.today()
+        has_commitment = bool(Commitment.query.filter_by(
             project_task_id=subtask.id,
-            due_date=date.today(),
+            due_date=today,
             user_id=current_user_id
         ).first())
         
         return jsonify({
             'id': subtask.id,
             'title': subtask.title,
+            'description': subtask.description,
             'complete': subtask.complete,
-            'on_daily_todo': on_daily_todo,
+            'completed_at': subtask.completed_at.isoformat() if subtask.completed_at else None,
+            'has_commitment': has_commitment,
             'changed': changed_fields
         })
     except Exception as e:
@@ -320,6 +346,96 @@ def fix_subtask_dates():
             "message": f"Successfully updated {updated_count} project subtasks",
             "updated_count": updated_count
         })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@projects_bp.route('/api/subtasks/<int:subtask_id>/checkins', methods=['GET'])
+@jwt_required()
+def get_subtask_checkins(subtask_id):
+    current_user_id = get_current_user_id()
+    
+    # Check if user owns the project that contains this subtask
+    subtask = ProjectTask.query.join(Project).filter(
+        ProjectTask.id == subtask_id,
+        Project.user_id == current_user_id
+    ).first()
+    
+    if not subtask:
+        return jsonify({"message": "Subtask not found"}), 404
+    
+    # Get all commitments for this subtask
+    commitments = Commitment.query.filter_by(
+        project_task_id=subtask_id,
+        user_id=current_user_id
+    ).all()
+    
+    commitment_ids = [c.id for c in commitments]
+    
+    # Get all checkins for these commitments
+    checkins = Checkin.query.filter(
+        Checkin.commitment_id.in_(commitment_ids)
+    ).order_by(Checkin.created_at.desc()).all()
+    
+    result = [{
+        'id': checkin.id,
+        'note': checkin.note,
+        'created_at': checkin.created_at.isoformat(),
+        'commitment_id': checkin.commitment_id
+    } for checkin in checkins]
+    
+    return jsonify(result)
+
+@projects_bp.route('/api/subtasks/<int:subtask_id>/checkins', methods=['POST'])
+@jwt_required()
+def add_subtask_checkin(subtask_id):
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    if not data or not data.get('note'):
+        return jsonify({"message": "Checkin note is required"}), 400
+    
+    # Check if user owns the project that contains this subtask
+    subtask = ProjectTask.query.join(Project).filter(
+        ProjectTask.id == subtask_id,
+        Project.user_id == current_user_id
+    ).first()
+    
+    if not subtask:
+        return jsonify({"message": "Subtask not found"}), 404
+    
+    # Find or create a commitment for today
+    today = date.today()
+    commitment = Commitment.query.filter_by(
+        project_task_id=subtask_id,
+        due_date=today,
+        user_id=current_user_id
+    ).first()
+    
+    if not commitment:
+        commitment = Commitment(
+            user_id=current_user_id,
+            project_task_id=subtask_id,
+            due_date=today
+        )
+        db.session.add(commitment)
+        db.session.flush()  # Get the commitment ID
+    
+    try:
+        # Create the checkin
+        checkin = Checkin(
+            commitment_id=commitment.id,
+            note=data['note']
+        )
+        db.session.add(checkin)
+        db.session.commit()
+        
+        return jsonify({
+            'id': checkin.id,
+            'note': checkin.note,
+            'created_at': checkin.created_at.isoformat(),
+            'commitment_id': checkin.commitment_id
+        }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500 

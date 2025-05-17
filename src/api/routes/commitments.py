@@ -7,13 +7,44 @@ from sqlalchemy import and_, or_
 bp = Blueprint('commitments', __name__)
 
 # Add OPTIONS method handler for CORS preflight requests
-@bp.route('/api/commitments/today', methods=['OPTIONS'])
-def options_commitments_today():
+@bp.route('/api/commitments', methods=['OPTIONS'])
+def options_commitments():
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
+
+@bp.route('/api/commitments', methods=['POST'])
+@jwt_required()
+def create_commitment():
+    """Create a new commitment"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    # Validate required fields
+    if not data.get('due_date'):
+        return jsonify({"message": "Due date is required"}), 400
+    
+    # Create commitment
+    commitment = Commitment(
+        user_id=user_id,
+        project_task_id=data.get('project_task_id'),
+        catchlist_item_id=data.get('catchlist_item_id'),
+        routine_id=data.get('routine_id'),
+        session_id=data.get('session_id'),
+        due_date=datetime.fromisoformat(data['due_date']).date(),
+        start_time=datetime.fromisoformat(data['start_time']) if data.get('start_time') else None,
+        end_time=datetime.fromisoformat(data['end_time']) if data.get('end_time') else None
+    )
+    
+    try:
+        db.session.add(commitment)
+        db.session.commit()
+        return jsonify(commitment.as_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
 
 @bp.route('/api/commitments/today', methods=['GET'])
 @jwt_required()
