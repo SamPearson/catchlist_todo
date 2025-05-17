@@ -3,19 +3,6 @@ from ..db_setup import db
 from sqlalchemy.orm import relationship, foreign
 
 
-class Checkin(db.Model):
-    """
-    A Checkin is a timestamp of the user indicating they are doing the work
-    in a specific session.
-    """
-    __tablename__ = 'checkin'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    notes = db.Column(db.Text)
-
-
 class DailyNote(db.Model):
     """
     A DailyNote contains notes associated with a specific day.

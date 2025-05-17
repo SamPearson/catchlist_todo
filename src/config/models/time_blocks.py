@@ -28,7 +28,7 @@ class TimeBlock(db.Model):
     comments = db.relationship(
         'Comment',
         primaryjoin="and_(Comment.entity_type=='time_block', foreign(Comment.entity_id)==TimeBlock.id)",
-        backref="time_block",
+        back_populates="time_block",
         lazy=True,
         cascade="all, delete-orphan"
     )

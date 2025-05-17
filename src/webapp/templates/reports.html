@@ -573,18 +573,9 @@ function displayCommentsReport(comments, days) {
                 entityType = 'Event';
             } else if (comment.entity_type === 'project_subtask') {
                 entityType = 'Task';
-            } else if (comment.entity_type === 'catchlist_entry') {
+            } else if (comment.entity_type === 'catchlist_item') {
                 entityType = 'Catchlist Item';
-            }
-            
-            if (comment.entity_details) {
-                if (comment.entity_type === 'event_execution') {
-                    entityInfo = `${comment.entity_details.summary} (${comment.entity_details.execution_date})`;
-                } else if (comment.entity_type === 'project_subtask') {
-                    entityInfo = `${comment.entity_details.title} (${comment.entity_details.project_title})`;
-                } else if (comment.entity_type === 'catchlist_entry') {
-                    entityInfo = comment.entity_details.content;
-                }
+                entityInfo = comment.entity_details.title;
             }
             
             content.innerHTML += `

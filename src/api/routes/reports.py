@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Project, ProjectSubtask, CalendarEvent, EventExecution, CatchListEntry, Comment, TaskExecution, CatchlistExecution
+from ...config.models import db, Project, ProjectSubtask, CalendarEvent, EventExecution, Comment, TaskExecution, Commitment, ProjectTask, CatchlistItem, Session
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, timedelta, date
 from sqlalchemy import func, and_, cast, Date
@@ -141,16 +141,17 @@ def get_weekly_report():
     
     report['completed_tasks']['total'] = total_completed_tasks
     
-    # Get completed catchlist items by day using CatchlistExecution records
+    # Get completed catchlist items by day using Commitment records
     completed_catchlist = db.session.query(
-        CatchlistExecution.execution_date.label('day'),
-        func.count().label('count')
+        Commitment.due_date.label('day'),
+        func.count(Commitment.id).label('count')
     ).filter(
-        CatchlistExecution.user_id == current_user_id,
-        CatchlistExecution.completed == True,
-        CatchlistExecution.execution_date.between(start_date, end_date)
+        Commitment.user_id == current_user_id,
+        Commitment.completed == True,
+        Commitment.due_date.between(start_date, end_date),
+        Commitment.catchlist_item_id.isnot(None)
     ).group_by(
-        CatchlistExecution.execution_date
+        Commitment.due_date
     ).all()
     
     total_completed_catchlist = 0
@@ -249,8 +250,8 @@ def get_comments_report():
                     'title': subtask.title,
                     'project_title': project.title if project else 'Unknown Project'
                 }
-        elif comment.entity_type == 'catchlist_entry':
-            catchlist = CatchListEntry.query.get(comment.entity_id)
+        elif comment.entity_type == 'catchlist_item':
+            catchlist = CatchlistItem.query.get(comment.entity_id)
             if catchlist:
                 entry['entity_details'] = {
                     'content': catchlist.content
@@ -263,6 +264,10 @@ def get_comments_report():
                     'summary': event.summary if event else 'Unknown Event',
                     'execution_date': execution.execution_date.strftime('%Y-%m-%d')
                 }
+        elif comment.entity_type == 'project_task':
+            entity = ProjectTask.query.get(comment.entity_id)
+        elif comment.entity_type == 'session':
+            entity = Session.query.get(comment.entity_id)
         
         result.append(entry)
     
@@ -381,22 +386,22 @@ def day_details():
             })
     
     elif category == 'catchlist':
-        # Get completed catchlist entries for this day using CatchlistExecution records
+        # Get completed catchlist entries for this day using Commitment records
         catchlist_items = db.session.query(
-            CatchlistExecution, CatchListEntry
+            CatchlistItem, Commitment
         ).join(
-            CatchListEntry, CatchListEntry.id == CatchlistExecution.catchlist_id
+            Commitment, Commitment.catchlist_item_id == CatchlistItem.id
         ).filter(
-            CatchlistExecution.user_id == current_user_id,
-            CatchlistExecution.execution_date == day_date,
-            CatchlistExecution.completed == True
+            Commitment.user_id == current_user_id,
+            Commitment.due_date == day_date,
+            Commitment.completed == True
         ).all()
         
-        for execution, item in catchlist_items:
+        for item in catchlist_items:
             # Get comments for this catchlist item
             comments = Comment.query.filter_by(
-                entity_type='catchlist_entry',
-                entity_id=item.id,
+                entity_type='catchlist_item',
+                entity_id=item.CatchlistItem.id,
                 user_id=current_user_id
             ).order_by(Comment.created_at).all()
             
@@ -409,13 +414,13 @@ def day_details():
                 })
             
             result['items'].append({
-                'id': item.id,
-                'type': 'catchlist_entry',
-                'title': item.content,
+                'id': item.CatchlistItem.id,
+                'type': 'catchlist_item',
+                'title': item.CatchlistItem.content,
                 'details': {
-                    'completed_at': execution.execution_date.strftime('%Y-%m-%d'),
-                    'status': item.status,
-                    'notes': execution.notes
+                    'completed_at': item.Commitment.completed_at.isoformat() if item.Commitment.completed_at else None,
+                    'status': item.CatchlistItem.status,
+                    'notes': item.Commitment.notes
                 },
                 'comments': comments_data
             })
@@ -433,10 +438,10 @@ def fix_all_dates():
         results = {'catchlist': 0, 'tasks': 0}
         
         # Fix catchlist items with future dates
-        catchlist_items = CatchListEntry.query.filter(
-            CatchListEntry.user_id == current_user_id,
-            CatchListEntry.completed == True,
-            CatchListEntry.completed_at > today
+        catchlist_items = CatchlistItem.query.filter(
+            CatchlistItem.user_id == current_user_id,
+            CatchlistItem.completed == True,
+            CatchlistItem.completed_at > today
         ).all()
         
         for item in catchlist_items:
@@ -480,8 +485,8 @@ def fix_dates_debug():
         print(f"Debug - Fixing dates with fixed date: {fixed_date}")
         
         # Fix ALL catchlist items with future dates, regardless of user
-        catchlist_items = CatchListEntry.query.filter(
-            CatchListEntry.completed == True
+        catchlist_items = CatchlistItem.query.filter(
+            CatchlistItem.completed == True
         ).all()
         
         print(f"Debug - Found {len(catchlist_items)} catchlist items to update")
@@ -543,11 +548,11 @@ def test_weekly_report():
         ).scalar() or 0
         
         completed_catchlist = db.session.query(
-            func.count(CatchListEntry.id)
+            func.count(CatchlistItem.id)
         ).filter(
-            CatchListEntry.completed == True,
-            CatchListEntry.completed_at.isnot(None),
-            cast(CatchListEntry.completed_at, Date).between(start_date, end_date)
+            CatchlistItem.completed == True,
+            CatchlistItem.completed_at.isnot(None),
+            cast(CatchlistItem.completed_at, Date).between(start_date, end_date)
         ).scalar() or 0
         
         result = {
@@ -580,8 +585,8 @@ def test_report():
         ).scalar() or 0
         
         # Get all completed catchlist items
-        completed_catchlist = db.session.query(func.count(CatchListEntry.id)).filter(
-            CatchListEntry.completed == True
+        completed_catchlist = db.session.query(func.count(CatchlistItem.id)).filter(
+            CatchlistItem.completed == True
         ).scalar() or 0
         
         return jsonify({
@@ -594,4 +599,146 @@ def test_report():
         })
     except Exception as e:
         print(f"Error in test_report: {str(e)}")
-        return jsonify({"message": str(e)}), 500 
+        return jsonify({"message": str(e)}), 500
+
+@reports_bp.route('/api/reports/completion-by-day', methods=['GET'])
+@jwt_required()
+def get_completion_by_day():
+    current_user_id = get_current_user_id()
+    
+    # Get date range from query params
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "start_date and end_date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get completed catchlist items by day using Commitment records
+    catchlist_completions = db.session.query(
+        Commitment.due_date.label('day'),
+        func.count(Commitment.id).label('count')
+    ).filter(
+        Commitment.user_id == current_user_id,
+        Commitment.completed == True,
+        Commitment.due_date.between(start_date, end_date),
+        Commitment.catchlist_item_id.isnot(None)
+    ).group_by(
+        Commitment.due_date
+    ).all()
+    
+    # Get completed project tasks by day
+    project_task_completions = db.session.query(
+        Commitment.due_date.label('day'),
+        func.count(Commitment.id).label('count')
+    ).filter(
+        Commitment.user_id == current_user_id,
+        Commitment.completed == True,
+        Commitment.due_date.between(start_date, end_date),
+        Commitment.project_task_id.isnot(None)
+    ).group_by(
+        Commitment.due_date
+    ).all()
+    
+    # Get completed sessions by day
+    session_completions = db.session.query(
+        Commitment.due_date.label('day'),
+        func.count(Commitment.id).label('count')
+    ).filter(
+        Commitment.user_id == current_user_id,
+        Commitment.completed == True,
+        Commitment.due_date.between(start_date, end_date),
+        Commitment.session_id.isnot(None)
+    ).group_by(
+        Commitment.due_date
+    ).all()
+    
+    # Combine all results
+    results = {}
+    for completion in catchlist_completions + project_task_completions + session_completions:
+        day = completion.day.isoformat()
+        if day not in results:
+            results[day] = {
+                'catchlist_items': 0,
+                'project_tasks': 0,
+                'sessions': 0,
+                'total': 0
+            }
+        results[day]['total'] += completion.count
+        
+        # Determine which type of completion this is
+        if completion in catchlist_completions:
+            results[day]['catchlist_items'] += completion.count
+        elif completion in project_task_completions:
+            results[day]['project_tasks'] += completion.count
+        elif completion in session_completions:
+            results[day]['sessions'] += completion.count
+    
+    return jsonify(results)
+
+@reports_bp.route('/api/reports/daily-summary/<date>', methods=['GET'])
+@jwt_required()
+def get_daily_summary(date_str):
+    current_user_id = get_current_user_id()
+    
+    try:
+        day_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get completed catchlist entries for this day using Commitment records
+    catchlist_completions = db.session.query(
+        CatchlistItem, Commitment
+    ).join(
+        Commitment, Commitment.catchlist_item_id == CatchlistItem.id
+    ).filter(
+        Commitment.user_id == current_user_id,
+        Commitment.due_date == day_date,
+        Commitment.completed == True
+    ).all()
+    
+    # Get completed project tasks for this day
+    project_task_completions = db.session.query(
+        ProjectTask, Commitment
+    ).join(
+        Commitment, Commitment.project_task_id == ProjectTask.id
+    ).filter(
+        Commitment.user_id == current_user_id,
+        Commitment.due_date == day_date,
+        Commitment.completed == True
+    ).all()
+    
+    # Get completed sessions for this day
+    session_completions = db.session.query(
+        Session, Commitment
+    ).join(
+        Commitment, Commitment.session_id == Session.id
+    ).filter(
+        Commitment.user_id == current_user_id,
+        Commitment.due_date == day_date,
+        Commitment.completed == True
+    ).all()
+    
+    return jsonify({
+        'date': day_date.isoformat(),
+        'catchlist_items': [{
+            'id': item.CatchlistItem.id,
+            'content': item.CatchlistItem.content,
+            'completed_at': item.Commitment.completed_at.isoformat() if item.Commitment.completed_at else None
+        } for item in catchlist_completions],
+        'project_tasks': [{
+            'id': item.ProjectTask.id,
+            'title': item.ProjectTask.title,
+            'completed_at': item.Commitment.completed_at.isoformat() if item.Commitment.completed_at else None
+        } for item in project_task_completions],
+        'sessions': [{
+            'id': item.Session.id,
+            'title': item.Session.title,
+            'completed_at': item.Commitment.completed_at.isoformat() if item.Commitment.completed_at else None
+        } for item in session_completions]
+    }) 

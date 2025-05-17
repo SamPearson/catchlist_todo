@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Comment, ProjectSubtask, CatchListEntry, EventExecution, Project, CalendarEvent
+from ...config.models import db, Comment, ProjectSubtask, EventExecution, Project, CalendarEvent, ProjectTask, CatchlistItem, Session, TimeBlock
 from ..utils.helpers import get_current_user_id
 
 comments_bp = Blueprint('comments', __name__)
@@ -18,16 +18,14 @@ def create_comment():
     entity_id = data.get('entity_id')
     
     # Validate that the entity exists and belongs to the current user
-    if entity_type == 'project_subtask':
-        entity = ProjectSubtask.query.join(Project).filter(
-            ProjectSubtask.id == entity_id,
-            Project.user_id == current_user_id
-        ).first()
-    elif entity_type == 'catchlist_entry':
-        entity = CatchListEntry.query.filter_by(
-            id=entity_id,
-            user_id=current_user_id
-        ).first()
+    if entity_type == 'project_task':
+        entity = ProjectTask.query.get(entity_id)
+    elif entity_type == 'catchlist_item':
+        entity = CatchlistItem.query.get(entity_id)
+    elif entity_type == 'session':
+        entity = Session.query.get(entity_id)
+    elif entity_type == 'time_block':
+        entity = TimeBlock.query.get(entity_id)
     elif entity_type == 'event_execution':
         entity = EventExecution.query.join(CalendarEvent).filter(
             EventExecution.id == entity_id,
@@ -100,16 +98,14 @@ def get_entity_comments(entity_type, entity_id):
     current_user_id = get_current_user_id()
     
     # Validate the entity exists and belongs to the current user
-    if entity_type == 'project_subtask':
-        entity = ProjectSubtask.query.join(Project).filter(
-            ProjectSubtask.id == entity_id,
-            Project.user_id == current_user_id
-        ).first()
-    elif entity_type == 'catchlist_entry':
-        entity = CatchListEntry.query.filter_by(
-            id=entity_id,
-            user_id=current_user_id
-        ).first()
+    if entity_type == 'project_task':
+        entity = ProjectTask.query.get(entity_id)
+    elif entity_type == 'catchlist_item':
+        entity = CatchlistItem.query.get(entity_id)
+    elif entity_type == 'session':
+        entity = Session.query.get(entity_id)
+    elif entity_type == 'time_block':
+        entity = TimeBlock.query.get(entity_id)
     elif entity_type == 'event_execution':
         entity = EventExecution.query.join(CalendarEvent).filter(
             EventExecution.id == entity_id,

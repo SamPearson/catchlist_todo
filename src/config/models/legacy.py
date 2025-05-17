@@ -4,21 +4,6 @@ from sqlalchemy.orm import foreign
 
 # Old models that we'll phase out but keep for now during migration
 
-class Todo(db.Model):
-    __tablename__ = 'todo'
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100))
-    complete = db.Column(db.Boolean)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    def as_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "complete": self.complete
-        }
-
-
 class ProjectSubtask(db.Model):
     __tablename__ = 'project_subtask'
     id = db.Column(db.Integer, primary_key=True)
@@ -36,28 +21,6 @@ class ProjectSubtask(db.Model):
         lazy=True,
         cascade="all, delete-orphan",
         overlaps="catchlist_entry,event_execution"
-    )
-
-
-class CatchListEntry(db.Model):
-    __tablename__ = 'catchlist_entry'
-    id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='active')  # active, archived, someday
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    on_daily_todo = db.Column(db.Boolean, default=False)
-    completed = db.Column(db.Boolean, default=False)
-    completed_at = db.Column(db.DateTime, nullable=True)
-    
-    # Define the relationship to comments
-    comments = db.relationship(
-        'Comment',
-        primaryjoin="and_(Comment.entity_type=='catchlist_entry', foreign(Comment.entity_id)==CatchListEntry.id)",
-        backref="catchlist_entry",
-        lazy=True,
-        cascade="all, delete-orphan",
-        overlaps="project_subtask,event_execution"
     )
 
 
@@ -106,10 +69,4 @@ class TaskExecution(BaseExecution):
     __tablename__ = 'task_execution'
     task_id = db.Column(db.Integer, db.ForeignKey('project_subtask.id'))
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
-    time_spent = db.Column(db.Integer)  # Minutes spent
-
-
-class CatchlistExecution(BaseExecution):
-    __tablename__ = 'catchlist_execution'
-    catchlist_id = db.Column(db.Integer, db.ForeignKey('catchlist_entry.id'))
-    difficulty = db.Column(db.Integer)  # Optional rating 
+    time_spent = db.Column(db.Integer)  # Minutes spent 

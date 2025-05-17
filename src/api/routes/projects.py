@@ -1,10 +1,55 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Project, ProjectTask, TaskExecution
+from ...config.models import db, Project, ProjectTask, TaskExecution, Commitment
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
+from sqlalchemy import and_
 
 projects_bp = Blueprint('projects', __name__)
+
+# Add OPTIONS method handler for CORS preflight requests
+@projects_bp.route('/api/projects/tasks/today', methods=['OPTIONS'])
+def options_today_tasks():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
+@projects_bp.route('/api/projects/tasks/today', methods=['GET'])
+@jwt_required()
+def get_today_tasks():
+    """Get all project tasks due today for the current user"""
+    current_user_id = get_current_user_id()
+    today = date.today()
+    
+    # Get all tasks with active commitments for today
+    tasks = db.session.query(
+        ProjectTask,
+        Project.title.label('project_title')
+    ).join(
+        Project, ProjectTask.project_id == Project.id
+    ).join(
+        Commitment,
+        and_(
+            Commitment.project_task_id == ProjectTask.id,
+            Commitment.due_date == today,
+            Commitment.user_id == current_user_id,
+            Commitment.completed == False
+        )
+    ).all()
+    
+    result = []
+    for task, project_title in tasks:
+        result.append({
+            'id': task.id,
+            'title': task.title,
+            'complete': task.complete,
+            'project_id': task.project_id,
+            'project_title': project_title
+        })
+    
+    return jsonify(result)
 
 @projects_bp.route('/api/projects', methods=['GET'])
 @jwt_required()
@@ -148,6 +193,14 @@ def create_subtask(project_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
+@projects_bp.route('/api/subtasks/<int:subtask_id>', methods=['OPTIONS'])
+def options_subtask(subtask_id):
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
 @projects_bp.route('/api/subtasks/<int:subtask_id>', methods=['PUT'])
 @jwt_required()
 def update_subtask(subtask_id):
@@ -174,35 +227,42 @@ def update_subtask(subtask_id):
         changed_fields.append('complete')
     
     if 'on_daily_todo' in data:
-        changed_fields.append('on_daily_todo')
+        today = date.today()
         
-        # Create TaskExecution when adding to today's list
-        if data['on_daily_todo']:
-            today_date = date.today()
-            # Check if there's already an execution for today
-            existing_execution = TaskExecution.query.filter_by(
-                task_id=subtask.id,
-                execution_date=today_date
-            ).first()
-            
-            if not existing_execution:
-                execution = TaskExecution(
-                    task_id=subtask.id,
-                    project_id=subtask.project_id,
-                    user_id=current_user_id,
-                    execution_date=today_date,
-                    attempted=True,
-                    completed=False
-                )
-                db.session.add(execution)
+        # Check if there's already a commitment for today
+        existing_commitment = Commitment.query.filter_by(
+            project_task_id=subtask.id,
+            due_date=today,
+            user_id=current_user_id
+        ).first()
+        
+        if data['on_daily_todo'] and not existing_commitment:
+            # Create new commitment
+            commitment = Commitment(
+                user_id=current_user_id,
+                project_task_id=subtask.id,
+                due_date=today
+            )
+            db.session.add(commitment)
+        elif not data['on_daily_todo'] and existing_commitment:
+            # Remove from today's list
+            db.session.delete(existing_commitment)
     
     try:
         db.session.commit()
+        
+        # Check if there's a commitment for today after our changes
+        on_daily_todo = bool(Commitment.query.filter_by(
+            project_task_id=subtask.id,
+            due_date=date.today(),
+            user_id=current_user_id
+        ).first())
+        
         return jsonify({
             'id': subtask.id,
             'title': subtask.title,
             'complete': subtask.complete,
-            'on_daily_todo': data.get('on_daily_todo', False),
+            'on_daily_todo': on_daily_todo,
             'changed': changed_fields
         })
     except Exception as e:

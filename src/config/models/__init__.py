@@ -8,12 +8,13 @@ from .user import User, BlacklistedToken
 from .project import Project, ProjectTask
 from .catchlist import CatchlistItem
 from .time_blocks import TimeBlock, DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
-from .routines import Routine, Session, Checkin
+from .routines import Routine, Session
+from .checkin import Checkin
 from .commitment import Commitment
 from .comment import Comment
 
 # Import legacy models that we'll keep for now
-from .legacy import Todo, ProjectSubtask, CatchListEntry, CalendarEvent, EventExecution, BaseExecution, TaskExecution, CatchlistExecution
+from .legacy import ProjectSubtask, CalendarEvent, EventExecution, BaseExecution, TaskExecution
 
 # Define __all__ to control what gets imported with "from models import *"
 __all__ = [
@@ -26,6 +27,6 @@ __all__ = [
     'Commitment',
     'Comment',
     # Legacy models
-    'Todo', 'ProjectSubtask', 'CatchListEntry', 'CalendarEvent', 'EventExecution',
-    'BaseExecution', 'TaskExecution', 'CatchlistExecution'
+    'ProjectSubtask', 'CalendarEvent', 'EventExecution',
+    'BaseExecution', 'TaskExecution'
 ] 

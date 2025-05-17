@@ -16,8 +16,6 @@ class CatchlistItem(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     status = db.Column(db.String(20), default='active')  # active, archived, someday
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    completed = db.Column(db.Boolean, default=False)
-    completed_at = db.Column(db.DateTime, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Comments relationship defined through the Comment model

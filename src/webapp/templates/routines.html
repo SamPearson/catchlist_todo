@@ -627,6 +627,72 @@ function filterRoutines() {
         }
     });
 }
+
+// Display events in the list
+function displayEvents(events) {
+    const container = document.getElementById('events-list');
+    
+    if (!events || events.length === 0) {
+        container.innerHTML = '<div class="ui info message">No routines found.</div>';
+        return;
+    }
+    
+    let html = '';
+    events.forEach(event => {
+        const timeRange = event.start_time && event.end_time ? 
+            `${event.start_time} - ${event.end_time}` : 
+            'All day';
+        
+        html += `
+        <div class="item" data-id="${event.id}" data-external-uid="${event.external_uid || ''}">
+            <div class="content">
+                <div class="header">
+                    ${event.title || 'Untitled Routine'}
+                    ${event.active ? '<span class="ui green label">Active</span>' : '<span class="ui red label">Inactive</span>'}
+                </div>
+                <div class="meta">${timeRange}</div>
+                <div class="description">${event.description || ''}</div>
+                <div class="extra">
+                    <div class="ui tiny buttons">
+                        <button class="ui button view-history" data-id="${event.id}">
+                            <i class="history icon"></i> History
+                        </button>
+                        <button class="ui button edit-routine" data-id="${event.id}">
+                            <i class="edit icon"></i> Edit
+                        </button>
+                        <button class="ui button delete-routine" data-id="${event.id}">
+                            <i class="trash icon"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
+    
+    container.innerHTML = html;
+    
+    // Add click handlers
+    document.querySelectorAll('.view-history').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            viewRoutineHistory(id);
+        });
+    });
+    
+    document.querySelectorAll('.edit-routine').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            editRoutine(id);
+        });
+    });
+    
+    document.querySelectorAll('.delete-routine').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            deleteRoutine(id);
+        });
+    });
+}
 </script>
 
 <style>

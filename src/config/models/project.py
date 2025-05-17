@@ -36,6 +36,7 @@ class ProjectTask(db.Model):
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     complete = db.Column(db.Boolean, default=False)
+    on_daily_todo = db.Column(db.Boolean, default=False)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -44,7 +45,7 @@ class ProjectTask(db.Model):
     comments = db.relationship(
         'Comment',
         primaryjoin="and_(Comment.entity_type=='project_task', foreign(Comment.entity_id)==ProjectTask.id)",
-        backref="project_task",
+        back_populates="project_task",
         lazy=True,
         cascade="all, delete-orphan"
     )
@@ -55,6 +56,7 @@ class ProjectTask(db.Model):
             "title": self.title,
             "description": self.description,
             "complete": self.complete,
+            "on_daily_todo": self.on_daily_todo,
             "project_id": self.project_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None

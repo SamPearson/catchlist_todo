@@ -8,12 +8,10 @@ from flask_jwt_extended import (
 
 from ..config.caldav_client import CalDAVClient
 
-from ..config.models import db, Todo, User, BlacklistedToken
+from ..config.models import db, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
 from .routes.auth import auth_bp
-from .routes.todos import todos_bp
-from .routes.catchlist import catchlist_bp
 from .routes.catchlist_items import catchlist_items_bp
 from .routes.projects import projects_bp
 from .routes.calendar_events import calendar_events_bp
@@ -21,13 +19,12 @@ from .routes.routines import routines_bp
 from .routes.today import today_bp
 from .routes.comments import comments_bp
 from .routes.reports import reports_bp
+from .routes.commitments import bp as commitments_bp
 
 app = create_app()
 
 # Register all blueprints
 app.register_blueprint(auth_bp)
-app.register_blueprint(todos_bp)
-app.register_blueprint(catchlist_bp)
 app.register_blueprint(catchlist_items_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(calendar_events_bp)
@@ -35,6 +32,7 @@ app.register_blueprint(routines_bp)
 app.register_blueprint(today_bp)
 app.register_blueprint(comments_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(commitments_bp)
 
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -127,7 +125,7 @@ def delete_account():
         token = BlacklistedToken(jti=jti)
         db.session.add(token)
 
-        # Delete the user (will cascade delete their todos thanks to our model setup)
+        # Delete the user
         db.session.delete(user)
         db.session.commit()
 
@@ -176,66 +174,6 @@ def test_caldav_connection():
         "calendars": []
     })
 
-
-@app.route('/api/todos', methods=['GET'])
-@jwt_required()
-def get_todos():
-    current_user_id = int(get_jwt_identity())
-    todos = Todo.query.filter_by(user_id=current_user_id).all()
-    return jsonify([todo.as_dict() for todo in todos])
-
-@app.route('/api/todos/<int:todo_id>', methods=['GET'])
-@jwt_required()
-def get_todo(todo_id):
-    current_user_id = int(get_jwt_identity())  # Convert string ID to integer
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
-    if todo:
-        return jsonify(todo.as_dict())
-    return jsonify({"message": "Todo not found"}), 404
-
-@app.route('/api/todos', methods=['POST'])
-@jwt_required()
-def create_todo():
-    data = request.get_json()
-    current_user_id = int(get_jwt_identity())
-    
-    try:
-        new_todo = Todo(
-            title=data.get('title'),
-            complete=False,
-            user_id=current_user_id
-        )
-        db.session.add(new_todo)
-        db.session.commit()
-        return jsonify(new_todo.as_dict()), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
-
-
-@app.route('/api/todos/<int:todo_id>', methods=['PUT'])
-@jwt_required()
-def update_todo(todo_id):
-    current_user_id = int(get_jwt_identity())  # Convert string ID to integer
-    data = request.get_json()
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
-    if todo:
-        todo.title = data.get('title', todo.title)
-        todo.complete = data.get('complete', todo.complete)
-        db.session.commit()
-        return jsonify(todo.as_dict())
-    return jsonify({"message": "Todo not found"}), 404
-
-@app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
-@jwt_required()
-def delete_todo(todo_id):
-    current_user_id = int(get_jwt_identity())  # Convert string ID to integer
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
-    if todo:
-        db.session.delete(todo)
-        db.session.commit()
-        return jsonify({"message": "Todo deleted"})
-    return jsonify({"message": "Todo not found"}), 404
 
 # Allows starting the server by running this script with the python3 command instead of flask or gunicorn commands
 # only do this on local/dev. see README.md for more on server/prod vs local/dev

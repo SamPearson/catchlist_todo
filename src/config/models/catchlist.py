@@ -17,7 +17,7 @@ class CatchlistItem(db.Model):
     comments = db.relationship(
         'Comment',
         primaryjoin="and_(Comment.entity_type=='catchlist_item', foreign(Comment.entity_id)==CatchlistItem.id)",
-        backref="catchlist_item",
+        back_populates="catchlist_item",
         lazy=True,
         cascade="all, delete-orphan"
     )

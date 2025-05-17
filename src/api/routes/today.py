@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, CatchListEntry, TaskExecution, Commitment, CatchlistItem
+from ...config.models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, TaskExecution, Commitment, CatchlistItem, ProjectTask
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 
@@ -166,7 +166,7 @@ def toggle_task_completion(task_id):
     current_user_id = get_current_user_id()
     
     # Find the task
-    task = ProjectSubtask.query.get(task_id)
+    task = ProjectTask.query.get(task_id)
     if not task:
         return jsonify({"message": "Task not found"}), 404
     
@@ -178,27 +178,17 @@ def toggle_task_completion(task_id):
     # Toggle completion status
     task.complete = not task.complete
     
-    # Update the TaskExecution record for today
+    # Update the commitment for today
     today_date = date.today()
-    execution = TaskExecution.query.filter_by(
-        task_id=task.id,
-        execution_date=today_date
+    commitment = Commitment.query.filter_by(
+        project_task_id=task.id,
+        due_date=today_date,
+        user_id=current_user_id
     ).first()
     
-    # If no execution record exists yet, create one
-    if not execution:
-        execution = TaskExecution(
-            task_id=task.id,
-            project_id=task.project_id,
-            user_id=current_user_id,
-            execution_date=today_date,
-            attempted=True,
-            completed=False
-        )
-        db.session.add(execution)
-    
-    # Update the execution completion status
-    execution.completed = task.complete
+    if commitment:
+        commitment.completed = task.complete
+        commitment.completed_at = datetime.utcnow() if task.complete else None
     
     try:
         db.session.commit()
@@ -210,57 +200,25 @@ def toggle_task_completion(task_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@today_bp.route('/api/today/catchlist', methods=['GET'])
+@today_bp.route('/api/today/items', methods=['GET'])
 @jwt_required()
-def get_today_catchlist():
+def get_today_items():
     current_user_id = get_current_user_id()
-    
-    # Get all catchlist entries marked for today
-    items = CatchListEntry.query.filter_by(
-        user_id=current_user_id,
-        on_daily_todo=True
-    ).all()
-    
-    result = []
-    for item in items:
-        result.append({
-            'id': item.id,
-            'content': item.content,
-            'created_at': item.created_at.strftime('%Y-%m-%d %H:%M'),
-            'status': item.status,
-            'on_daily_todo': item.on_daily_todo
-        })
-    
-    return jsonify(result)
-
-@today_bp.route('/api/today/catchlist-items', methods=['GET'])
-@jwt_required()
-def get_today_catchlist_items():
-    current_user_id = get_current_user_id()
-    
-    # Get all catchlist items with active commitments for today
     today = date.today()
     
-    # Query commitments for today that are linked to catchlist items
-    commitments = Commitment.query.filter(
-        Commitment.user_id == current_user_id,
-        Commitment.due_date == today,
-        Commitment.completed == False,
-        Commitment.catchlist_item_id != None
+    # Get all items for today
+    items = CatchlistItem.query.filter_by(
+        user_id=current_user_id,
+        completed=False
     ).all()
     
-    result = []
-    for commitment in commitments:
-        # Get the associated catchlist item
-        item = CatchlistItem.query.get(commitment.catchlist_item_id)
-        if item and not item.completed:
-            result.append({
-                'id': item.id,
-                'content': item.content,
-                'created_at': item.created_at.isoformat(),
-                'status': item.status,
-                'commitment_id': commitment.id,
-                'due_date': commitment.due_date.isoformat()
-            })
-    
-    return jsonify(result)
+    return jsonify([{
+        'id': item.id,
+        'content': item.content,
+        'type': 'catchlist_item',
+        'has_commitment_today': bool(Commitment.query.filter_by(
+            catchlist_item_id=item.id,
+            due_date=today,
+            completed=False
+        ).first())
+    } for item in items])

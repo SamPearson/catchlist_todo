@@ -49,6 +49,9 @@
 </div>
 
 <script>
+// Define global API_URL variable
+const API_URL = '{{ API_URL }}';
+
 // Load catchlist items when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadCatchlistItems();
@@ -66,7 +69,7 @@ function loadCatchlistItems() {
     // Get the show completed flag
     const showCompleted = document.getElementById('show-completed').checked;
 
-    fetch(`{{ API_URL }}/catchlist-items?show_completed=${showCompleted}`, {
+    fetch(`${API_URL}/catchlist-items?show_completed=${showCompleted}`, {
         method: 'GET',
         headers: {
             'Authorization': 'Bearer ' + token,
@@ -110,38 +113,52 @@ function displayItems(items) {
     
     items.forEach(item => {
         const itemElement = document.createElement('div');
-        itemElement.className = `item ${item.status === 'someday' ? 'someday-item' : ''} ${item.completed ? 'completed-item' : ''}`;
+        itemElement.className = `item ${item.status === 'someday' ? 'someday-item' : ''} ${item.is_completed ? 'completed-item' : ''}`;
         itemElement.dataset.id = item.id;
         
         // Handle visibility based on filters
         if (item.status === 'someday' && !document.getElementById('show-someday').checked) {
             itemElement.style.display = 'none';
         }
-        if (item.completed && !document.getElementById('show-completed').checked) {
+        if (item.is_completed && !document.getElementById('show-completed').checked) {
             itemElement.style.display = 'none';
         }
         
         // Format dates for display
         const createdDate = new Date(item.created_at);
-        const completedText = item.completed ? 
-            `<div class="ui green label">Completed: ${new Date(item.completed_at).toLocaleString()}</div>` : '';
+        const completedText = item.is_completed ? 
+            `<div class="ui green label">Completed</div>` : '';
         
         itemElement.innerHTML = `
             <div class="content">
-                <div class="header">${item.content}</div>
-                <div class="meta">
-                    ${createdDate.toLocaleString()}
+                <div class="header">
+                    ${item.content}
                     ${completedText}
+                </div>
+                <div class="meta">
+                    Created: ${createdDate.toLocaleString()}
                 </div>
                 <div class="description">
                     <div class="ui buttons">
-                        ${!item.completed ? `<button class="ui tiny teal button mark-done">Mark as Done</button>` : ''}
-                        <button class="ui tiny button upgrade-to-project" ${item.completed ? 'disabled' : ''}>Convert to Project</button>
-                        <button class="ui tiny button ${item.on_daily_todo ? 'green' : ''} add-to-today" ${item.completed ? 'disabled' : ''}>
-                            ${item.on_daily_todo ? 'On Today\'s List' : 'Add to Today'}
+                        <button class="ui tiny teal button mark-done" ${item.is_completed ? 'disabled' : ''}>
+                            Mark as Done
                         </button>
-                        <button class="ui red tiny button delete-item">Delete</button>
+                        <button class="ui tiny button upgrade-to-project">
+                            Convert to Project
+                        </button>
+                        <button class="ui tiny button add-to-today ${item.has_commitment_today ? 'green' : ''}">
+                            ${item.has_commitment_today ? 'Remove from Today' : 'Add to Today'}
+                        </button>
+                        <button class="ui tiny button view-commitments" data-id="${item.id}">
+                            <i class="calendar icon"></i> View Commitments
+                        </button>
+                        <button class="ui red tiny button delete-item">
+                            Delete
+                        </button>
                     </div>
+                </div>
+                <div class="commitments-list" id="commitments-${item.id}" style="display: none;">
+                    <!-- Commitments will be loaded here -->
                 </div>
             </div>
         `;
@@ -149,7 +166,6 @@ function displayItems(items) {
         container.appendChild(itemElement);
     });
     
-    // Reattach event listeners
     attachItemEventListeners();
 }
 
@@ -168,7 +184,7 @@ function initializeEventListeners() {
             return;
         }
         
-        fetch('{{ API_URL }}/catchlist-items', {
+        fetch(`${API_URL}/catchlist-items`, {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + token,
@@ -246,7 +262,7 @@ function attachItemEventListeners() {
                 return;
             }
             
-            fetch(`{{ API_URL }}/catchlist-items/${itemId}/mark-done`, {
+            fetch(`${API_URL}/catchlist-items/${itemId}/mark-done`, {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token,
@@ -309,7 +325,7 @@ function attachItemEventListeners() {
                 return;
             }
             
-            fetch(`{{ API_URL }}/catchlist-items/${itemId}/toggle-today`, {
+            fetch(`${API_URL}/catchlist-items/${itemId}/toggle-today`, {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token,
@@ -331,15 +347,15 @@ function attachItemEventListeners() {
             })
             .then(data => {
                 // Update the button appearance
-                if (data.on_daily_todo) {
+                if (data.has_commitment_today) {
                     this.classList.add('green');
-                    this.textContent = 'On Today\'s List';
+                    this.textContent = 'Remove from Today';
                 } else {
                     this.classList.remove('green');
                     this.textContent = 'Add to Today';
                 }
                 
-                showCustomMessage(`Item ${data.on_daily_todo ? 'added to' : 'removed from'} today's list!`, 'positive');
+                showCustomMessage(`Item ${data.has_commitment_today ? 'added to' : 'removed from'} today's list!`, 'positive');
             })
             .catch(error => {
                 console.error('Full error:', error);
@@ -348,6 +364,22 @@ function attachItemEventListeners() {
                     'Failed to update item';
                 showError(errorMessage);
             });
+        });
+    });
+    
+    // View commitments button
+    document.querySelectorAll('.view-commitments').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            const list = document.getElementById(`commitments-${itemId}`);
+            
+            if (list.style.display === 'none') {
+                loadCommitments(itemId);
+                list.style.display = 'block';
+            } else {
+                list.style.display = 'none';
+            }
         });
     });
     
@@ -364,7 +396,7 @@ function attachItemEventListeners() {
                     return;
                 }
                 
-                fetch(`{{ API_URL }}/catchlist-items/${itemId}`, {
+                fetch(`${API_URL}/catchlist-items/${itemId}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': 'Bearer ' + token
@@ -444,6 +476,67 @@ function getToken() {
         }
     }
     return '';
+}
+
+// Add new functions for handling commitments
+function loadCommitments(itemId) {
+    const token = getToken();
+    if (!token) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const list = document.getElementById(`commitments-${itemId}`);
+    list.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
+    
+    fetch(`${API_URL}/commitments?catchlist_item_id=${itemId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load commitments');
+        }
+        return response.json();
+    })
+    .then(commitments => {
+        displayCommitments(itemId, commitments);
+    })
+    .catch(error => {
+        console.error('Error loading commitments:', error);
+        list.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+    });
+}
+
+function displayCommitments(itemId, commitments) {
+    const list = document.getElementById(`commitments-${itemId}`);
+    
+    if (!commitments || commitments.length === 0) {
+        list.innerHTML = '<div class="ui info message">No commitments found.</div>';
+        return;
+    }
+    
+    let html = '<div class="ui list">';
+    commitments.forEach(commitment => {
+        const dueDate = new Date(commitment.due_date);
+        html += `
+        <div class="item">
+            <i class="calendar icon"></i>
+            <div class="content">
+                <div class="header">
+                    Due: ${dueDate.toLocaleDateString()}
+                    ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                </div>
+                <div class="description">
+                    ${commitment.notes || ''}
+                </div>
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    
+    list.innerHTML = html;
 }
 </script>
 

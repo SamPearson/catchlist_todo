@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from ...config.models import db, CalendarEvent, EventExecution
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from ...config.models import db, CalendarEvent, EventExecution, Routine, Session, Commitment
 from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient
-from datetime import datetime
+from datetime import datetime, date, timedelta
+from ..utils.commitment_utils import create_commitment_from_routine
 
 routines_bp = Blueprint('routines', __name__)
 
@@ -20,19 +21,26 @@ def options_routines_import():
 @jwt_required()
 def get_routines():
     current_user_id = get_current_user_id()
-    events = CalendarEvent.query.filter_by(user_id=current_user_id).all()
+    routines = Routine.query.filter_by(user_id=current_user_id).all()
     
     result = []
-    for event in events:
+    for routine in routines:
+        # Get the next session for this routine
+        next_session = Session.query.filter(
+            Session.routine_id == routine.id,
+            Session.start_time >= datetime.now()
+        ).order_by(Session.start_time.asc()).first()
+        
         result.append({
-            'id': event.id,
-            'uid': event.uid,
-            'summary': event.summary,
-            'description': event.description,
-            'start_time': event.start_time.strftime('%H:%M') if event.start_time else None,
-            'end_time': event.end_time.strftime('%H:%M') if event.end_time else None,
-            'rrule': event.rrule,
-            'active': event.active
+            'id': routine.id,
+            'uid': routine.external_uid,
+            'summary': routine.title,
+            'description': routine.description,
+            'rrule': routine.rrule,
+            'active': routine.active,
+            'external_source': routine.external_source,
+            'start_time': next_session.start_time.strftime('%H:%M') if next_session else None,
+            'end_time': next_session.end_time.strftime('%H:%M') if next_session else None
         })
     
     return jsonify(result)
@@ -40,40 +48,49 @@ def get_routines():
 @routines_bp.route('/api/routines', methods=['POST'])
 @jwt_required()
 def create_routine():
-    current_user_id = get_current_user_id()
+    """Create a new routine"""
+    user_id = get_jwt_identity()
     data = request.get_json()
     
-    if not data or not data.get('summary'):
-        return jsonify({"message": "Summary is required"}), 400
+    if not data or not data.get('title'):
+        return jsonify({"message": "Title is required"}), 400
     
     try:
-        start_time = datetime.strptime(data.get('start_time', '00:00'), '%H:%M')
-        end_time = datetime.strptime(data.get('end_time', '00:00'), '%H:%M')
-        
-        new_event = CalendarEvent(
-            uid=data.get('uid', f"manual-{datetime.now().timestamp()}"),
-            summary=data.get('summary'),
-            description=data.get('description', ''),
-            start_time=start_time,
-            end_time=end_time,
-            rrule=data.get('rrule', ''),
-            user_id=current_user_id
+        routine = Routine(
+            title=data.get('title'),
+            description=data.get('description'),
+            rrule=data.get('rrule'),
+            active=True,
+            user_id=user_id
         )
         
-        db.session.add(new_event)
+        db.session.add(routine)
         db.session.commit()
         
-        result = {
-            'id': new_event.id,
-            'uid': new_event.uid,
-            'summary': new_event.summary,
-            'description': new_event.description,
-            'start_time': new_event.start_time.strftime('%H:%M'),
-            'end_time': new_event.end_time.strftime('%H:%M'),
-            'rrule': new_event.rrule
-        }
+        # Create a session for today if start_time and end_time are provided
+        if data.get('start_time') and data.get('end_time'):
+            start_time = datetime.strptime(data.get('start_time'), '%H:%M')
+            end_time = datetime.strptime(data.get('end_time'), '%H:%M')
+            
+            # Set the date to today
+            today = date.today()
+            start_time = datetime.combine(today, start_time.time())
+            end_time = datetime.combine(today, end_time.time())
+            
+            session = Session(
+                routine_id=routine.id,
+                start_time=start_time,
+                end_time=end_time,
+                user_id=user_id
+            )
+            
+            db.session.add(session)
+            db.session.commit()
+            
+            # Create a commitment for the session
+            create_commitment_from_routine(routine, session, user_id)
         
-        return jsonify(result), 201
+        return jsonify(routine.as_dict()), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
@@ -170,42 +187,76 @@ def import_caldav_events():
         if not event_dict.get('uid') or not event_dict.get('summary') or not event_dict.get('start') or not event_dict.get('end'):
             continue
             
-        # Check if event already exists to avoid duplicates
-        existing_event = CalendarEvent.query.filter_by(uid=event_dict['uid'], user_id=current_user_id).first()
-        if existing_event:
+        # Check if routine already exists to avoid duplicates
+        existing_routine = Routine.query.filter_by(external_uid=event_dict['uid'], user_id=current_user_id).first()
+        if existing_routine:
             continue
             
         try:
-            # Convert datetime objects to appropriate format
-            start_time = event_dict['start']
-            end_time = event_dict['end']
-            
-            new_event = CalendarEvent(
-                uid=event_dict['uid'],
-                summary=event_dict['summary'],
+            # Create the routine
+            routine = Routine(
+                title=event_dict['summary'],
                 description=event_dict.get('description', ''),
-                start_time=start_time,
-                end_time=end_time,
                 rrule=event_dict.get('rrule', ''),
                 active=True,
-                user_id=current_user_id
+                user_id=current_user_id,
+                external_uid=event_dict['uid'],
+                external_source='caldav'
             )
+            db.session.add(routine)
+            db.session.flush()  # Get the routine ID
             
-            db.session.add(new_event)
+            # Create sessions for the next 90 days
+            start_date = datetime.now()
+            end_date = start_date + timedelta(days=90)
+            
+            # Parse RRULE to get recurring dates
+            if event_dict.get('rrule'):
+                # Use dateutil.rrule to parse the RRULE string
+                from dateutil.rrule import rrulestr
+                from dateutil.parser import parse
+                
+                rrule_str = event_dict['rrule']
+                if 'DTSTART' not in rrule_str:
+                    # Add DTSTART if not present
+                    rrule_str = f"DTSTART:{event_dict['start'].strftime('%Y%m%dT%H%M%S')}\n{rrule_str}"
+                
+                rule = rrulestr(rrule_str)
+                dates = list(rule.between(start_date, end_date))
+            else:
+                # Single event
+                dates = [event_dict['start']]
+            
+            # Create sessions and commitments for each date
+            for date in dates:
+                session = Session(
+                    routine_id=routine.id,
+                    start_time=date,
+                    end_time=date + (event_dict['end'] - event_dict['start']),
+                    user_id=current_user_id
+                )
+                db.session.add(session)
+                db.session.flush()  # Get the session ID
+                
+                # Create commitment for this session
+                create_commitment_from_routine(routine, session, current_user_id)
+            
             imported_count += 1
+            
         except Exception as e:
             print(f"Error importing event: {str(e)}")
+            continue
             
     try:
         db.session.commit()
         return jsonify({
             "success": True, 
-            "message": f"Successfully imported {imported_count} events", 
+            "message": f"Successfully imported {imported_count} routines", 
             "imported_count": imported_count
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"Error saving imported events: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"Error saving imported routines: {str(e)}"}), 500
 
 @routines_bp.route('/api/routines/<int:event_id>/executions', methods=['GET'])
 @jwt_required()
@@ -298,22 +349,58 @@ def toggle_event_active(event_id):
 @jwt_required()
 def get_today_routines():
     current_user_id = get_current_user_id()
-    events = CalendarEvent.query.filter_by(user_id=current_user_id, active=True).all()
+    today = date.today()
     
-    today = datetime.today()
+    # Get all commitments for today that are from routines
+    commitments = Commitment.query.filter(
+        Commitment.user_id == current_user_id,
+        Commitment.due_date == today,
+        Commitment.routine_id.isnot(None)
+    ).all()
     
     result = []
-    for event in events:
-        # Add logic here to determine if this routine should be shown today
-        # For now, just return all active routines
+    for commitment in commitments:
+        routine = commitment.routine
+        session = commitment.session
+        
         result.append({
-            'id': event.id,
-            'uid': event.uid,
-            'summary': event.summary,
-            'description': event.description,
-            'start_time': event.start_time.strftime('%H:%M') if event.start_time else None,
-            'end_time': event.end_time.strftime('%H:%M') if event.end_time else None,
-            'rrule': event.rrule
+            'id': commitment.id,
+            'summary': routine.title,
+            'description': routine.description,
+            'start_time': session.start_time.strftime('%H:%M') if session.start_time else None,
+            'end_time': session.end_time.strftime('%H:%M') if session.end_time else None,
+            'rrule': routine.rrule,
+            'completed': commitment.completed
         })
     
-    return jsonify(result) 
+    return jsonify(result)
+
+@routines_bp.route('/routines/<int:routine_id>/toggle-active', methods=['PUT'])
+@jwt_required()
+def toggle_routine_active(routine_id):
+    """Toggle a routine's active status"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    routine = Routine.query.filter_by(id=routine_id, user_id=user_id).first_or_404()
+    
+    try:
+        routine.active = data.get('active', not routine.active)
+        db.session.commit()
+        
+        # If routine is being activated, create a commitment for today's session
+        if routine.active:
+            today = date.today()
+            session = Session.query.filter(
+                Session.routine_id == routine.id,
+                Session.start_time >= datetime.combine(today, datetime.min.time()),
+                Session.start_time < datetime.combine(today, datetime.max.time())
+            ).first()
+            
+            if session:
+                create_commitment_from_routine(routine, session, user_id)
+        
+        return jsonify(routine.as_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500 

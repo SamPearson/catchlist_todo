@@ -3,12 +3,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from ..db_setup import db
 from ..db_config import Config
+from sqlalchemy.orm import relationship
 
 class User(UserMixin, db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    
+    # Relationships
+    commitments = relationship("Commitment", back_populates="user")
+    checkins = relationship("Checkin", 
+                          primaryjoin="User.id==Checkin.user_id",
+                          back_populates="user")
     
     # Relationships will be defined as backref from their respective models
     # to avoid circular imports
