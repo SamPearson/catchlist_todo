@@ -17,7 +17,6 @@ from .routes.projects import projects_bp
 from .routes.calendar_events import calendar_events_bp
 from .routes.routines import routines_bp
 from .routes.today import today_bp
-from .routes.comments import comments_bp
 from .routes.reports import reports_bp
 from .routes.commitments import bp as commitments_bp
 
@@ -30,7 +29,6 @@ app.register_blueprint(projects_bp)
 app.register_blueprint(calendar_events_bp)
 app.register_blueprint(routines_bp)
 app.register_blueprint(today_bp)
-app.register_blueprint(comments_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(commitments_bp)
 

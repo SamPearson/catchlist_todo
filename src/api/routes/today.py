@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, CalendarEvent, EventExecution, ProjectSubtask, Project, TaskExecution, Commitment, CatchlistItem, ProjectTask
+from ...config.models import db, Routine, Session, Project, Commitment, CatchlistItem, ProjectTask
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 
@@ -10,59 +10,32 @@ today_bp = Blueprint('today', __name__)
 @jwt_required()
 def get_today_events():
     current_user_id = get_current_user_id()
+    today = date.today()
     
-    # Get all active recurring events
-    events = CalendarEvent.query.filter_by(
-        user_id=current_user_id,
-        active=True
-    ).all()
-    
-    today_date = date.today()
+    # Get all sessions for today
+    sessions = Session.query.join(Routine).filter(
+        Session.user_id == current_user_id,
+        db.func.date(Session.start_time) == today,
+        Routine.active == True
+    ).order_by(Session.start_time.asc()).all()
     
     result = []
-    for event in events:
-        # Check if the event has an execution for today
-        execution = EventExecution.query.filter_by(
-            event_id=event.id,
-            execution_date=today_date
-        ).first()
-        
-        # If execution doesn't exist, create it
-        if not execution:
-            execution = EventExecution(
-                event_id=event.id,
-                execution_date=today_date,
-                completed=None,
-                rpe=None,
-                notes=None,
-                check_in_count=0
-            )
-            db.session.add(execution)
-            
+    for session in sessions:
+        routine = session.routine
         result.append({
-            'id': execution.id,
-            'event_id': event.id,
-            'summary': event.summary,
-            'start_time': event.start_time.strftime('%H:%M') if event.start_time else None,
-            'end_time': event.end_time.strftime('%H:%M') if event.end_time else None,
-            'description': event.description,
-            'completed': execution.completed,
-            'rpe': execution.rpe,
-            'notes': execution.notes,
-            'check_in_count': execution.check_in_count or 0,
+            'id': session.id,
+            'routine_id': routine.id,
+            'title': routine.title,
+            'start_time': session.start_time.strftime('%H:%M') if session.start_time else None,
+            'end_time': session.end_time.strftime('%H:%M') if session.end_time else None,
+            'description': routine.description,
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes,
             'is_current': False,  # Will be set below
-            'is_all_day': ((event.start_time.strftime('%H:%M') if event.start_time else None) == '00:00' and
-                           (event.end_time.strftime('%H:%M') if event.end_time else None) == '00:00')
+            'is_all_day': ((session.start_time.strftime('%H:%M') if session.start_time else None) == '00:00' and
+                          (session.end_time.strftime('%H:%M') if session.end_time else None) == '00:00')
         })
-    
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
-    
-    # Sort events by start time
-    result.sort(key=lambda x: x['start_time'] if x['start_time'] else '23:59')
     
     # Set current event based on current time
     current_time = datetime.now().strftime('%H:%M')
@@ -90,16 +63,24 @@ def get_today_events():
 def get_today_tasks():
     current_user_id = get_current_user_id()
     
-    # Join with Project to get the project title
+    # Get today's date in local time
+    now = datetime.now()
+    today = date(now.year, now.month, now.day)
+    
+    # Get all tasks that have commitments for today
     tasks = db.session.query(
-        ProjectSubtask, 
+        ProjectTask, 
         Project.title.label('project_title')
     ).join(
         Project, 
-        ProjectSubtask.project_id == Project.id
+        ProjectTask.project_id == Project.id
+    ).join(
+        Commitment,
+        Commitment.project_task_id == ProjectTask.id
     ).filter(
         Project.user_id == current_user_id,
-        ProjectSubtask.on_daily_todo == True
+        Commitment.due_date == today,
+        Commitment.completed == False
     ).all()
     
     result = []
@@ -114,47 +95,39 @@ def get_today_tasks():
     
     return jsonify(result)
 
-@today_bp.route('/api/today/event-check-in/<int:execution_id>', methods=['POST'])
+@today_bp.route('/api/today/session-check-in/<int:session_id>', methods=['POST'])
 @jwt_required()
-def check_in_event(execution_id):
+def check_in_session(session_id):
     current_user_id = get_current_user_id()
     data = request.get_json() or {}
     
-    # Find the execution
-    execution = EventExecution.query.get(execution_id)
-    if not execution:
-        return jsonify({"message": "Execution not found"}), 404
+    # Find the session
+    session = Session.query.get(session_id)
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
     
-    # Verify user owns this execution through the event
-    event = CalendarEvent.query.get(execution.event_id)
-    if not event or event.user_id != current_user_id:
+    # Verify user owns this session through the routine
+    routine = Routine.query.get(session.routine_id)
+    if not routine or routine.user_id != current_user_id:
         return jsonify({"message": "Not authorized"}), 403
     
     # Mark as completed if not already completed
-    if not execution.completed:
-        execution.completed = "yes"
+    if not session.completed:
+        session.completed = True
     
     # Update RPE and notes if provided
     if 'rpe' in data:
-        execution.rpe = data.get('rpe')
+        session.rpe = data.get('rpe')
     
     if 'notes' in data:
-        execution.notes = data.get('notes')
-    
-    # Increment check-in count
-    if execution.check_in_count is None:
-        execution.check_in_count = 1
-    else:
-        execution.check_in_count += 1
+        session.notes = data.get('notes')
     
     try:
         db.session.commit()
         return jsonify({
             "message": "Check-in successful",
-            "check_in_count": execution.check_in_count,
-            "rpe": execution.rpe,
-            "notes": execution.notes,
-            "points": execution.check_in_count * 10  # 10 points per check-in
+            "rpe": session.rpe,
+            "notes": session.notes
         })
     except Exception as e:
         db.session.rollback()

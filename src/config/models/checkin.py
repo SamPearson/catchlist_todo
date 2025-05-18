@@ -16,7 +16,7 @@ class Checkin(db.Model):
     entity_id = db.Column(db.Integer, nullable=False)
     
     # Core checkin data
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now)
     comment = db.Column(db.Text)
     rpe = db.Column(db.Integer)  # Rate of Perceived Exertion (1-10)
     

@@ -48,7 +48,6 @@ class Session(db.Model):
     checkins = relationship('Checkin', 
                           primaryjoin="and_(foreign(Checkin.entity_id)==Session.id, "
                                     "Checkin.entity_type=='session')",
-                          backref="session",
                           lazy=True,
                           cascade="all, delete-orphan")
     notes = db.Column(db.Text)

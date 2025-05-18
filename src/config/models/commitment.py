@@ -21,7 +21,7 @@ class Commitment(db.Model):
     due_date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.DateTime, nullable=True)  # Optional start time
     end_time = db.Column(db.DateTime, nullable=True)  # Optional end time
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Status tracking
     completed = db.Column(db.Boolean, default=False)
@@ -36,7 +36,6 @@ class Commitment(db.Model):
     checkins = relationship("Checkin", 
                           primaryjoin="and_(foreign(Checkin.entity_id)==Commitment.id, "
                                     "Checkin.entity_type=='commitment')",
-                          backref="commitment",
                           lazy=True,
                           cascade="all, delete-orphan")
     

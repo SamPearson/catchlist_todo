@@ -204,7 +204,7 @@ def mark_item_done(item_id):
     
     # Mark commitment as completed
     commitment.completed = True
-    commitment.completed_at = datetime.utcnow()
+    commitment.completed_at = datetime.now()
     
     # Create a checkin for this completion
     checkin = Checkin(

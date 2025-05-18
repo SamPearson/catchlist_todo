@@ -1,11 +1,170 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Project, ProjectSubtask, CalendarEvent, EventExecution, Comment, TaskExecution, Commitment, ProjectTask, CatchlistItem, Session
+from ...config.models import db, Project, Routine, Session, Checkin, Commitment, ProjectTask, CatchlistItem
 from ..utils.helpers import get_current_user_id
-from datetime import datetime, timedelta, date
+from datetime import datetime, date, timedelta
 from sqlalchemy import func, and_, cast, Date
 
 reports_bp = Blueprint('reports', __name__)
+
+@reports_bp.route('/api/reports/daily-checkins', methods=['GET'])
+@jwt_required()
+def get_daily_checkins():
+    current_user_id = get_current_user_id()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if not start_date or not end_date:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get daily check-ins from Session records
+    daily_checkins = db.session.query(
+        func.date(Session.start_time).label('day'),
+        func.count(Session.id).label('count')
+    ).join(
+        Routine, Routine.id == Session.routine_id
+    ).filter(
+        Routine.user_id == current_user_id,
+        Session.start_time.between(
+            datetime.combine(start_date, datetime.min.time()),
+            datetime.combine(end_date, datetime.max.time())
+        ),
+        Session.completed == True
+    ).group_by(
+        func.date(Session.start_time)
+    ).all()
+    
+    # Convert to dictionary format
+    result = {
+        'daily_checkins': [
+            {
+                'day': day.strftime('%Y-%m-%d'),
+                'count': count
+            }
+            for day, count in daily_checkins
+        ]
+    }
+    
+    return jsonify(result)
+
+@reports_bp.route('/api/reports/daily-activity', methods=['GET'])
+@jwt_required()
+def get_daily_activity():
+    current_user_id = get_current_user_id()
+    day = request.args.get('day')
+    
+    if not day:
+        return jsonify({"message": "Day is required"}), 400
+    
+    try:
+        day_date = datetime.strptime(day, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get all sessions for the day
+    sessions = db.session.query(
+        Session, Routine
+    ).join(
+        Routine, Routine.id == Session.routine_id
+    ).filter(
+        Routine.user_id == current_user_id,
+        func.date(Session.start_time) == day_date,
+        Session.completed == True
+    ).all()
+    
+    result = {
+        'sessions': [
+            {
+                'id': session.id,
+                'title': routine.title,
+                'start_time': session.start_time.strftime('%H:%M'),
+                'end_time': session.end_time.strftime('%H:%M'),
+                'rpe': session.rpe,
+                'notes': session.notes
+            }
+            for session, routine in sessions
+        ]
+    }
+    
+    return jsonify(result)
+
+@reports_bp.route('/api/reports/comments', methods=['GET'])
+@jwt_required()
+def get_comments():
+    current_user_id = get_current_user_id()
+    entity_type = request.args.get('entity_type')
+    entity_id = request.args.get('entity_id')
+    
+    if not entity_type or not entity_id:
+        return jsonify({"message": "Entity type and ID are required"}), 400
+    
+    try:
+        entity_id = int(entity_id)
+    except ValueError:
+        return jsonify({"message": "Invalid entity ID"}), 400
+    
+    # Get checkins based on entity type
+    if entity_type == 'session':
+        session = Session.query.get(entity_id)
+        if not session:
+            return jsonify({"message": "Session not found"}), 404
+            
+        routine = Routine.query.get(session.routine_id)
+        if not routine or routine.user_id != current_user_id:
+            return jsonify({"message": "Not authorized"}), 403
+            
+        checkins = Checkin.query.filter_by(
+            entity_type='session',
+            entity_id=entity_id
+        ).order_by(Checkin.timestamp.desc()).all()
+        
+    elif entity_type == 'project_task':
+        task = ProjectTask.query.get(entity_id)
+        if not task:
+            return jsonify({"message": "Task not found"}), 404
+            
+        project = Project.query.get(task.project_id)
+        if not project or project.user_id != current_user_id:
+            return jsonify({"message": "Not authorized"}), 403
+            
+        checkins = Checkin.query.filter_by(
+            entity_type='project_task',
+            entity_id=entity_id
+        ).order_by(Checkin.timestamp.desc()).all()
+        
+    elif entity_type == 'catchlist_item':
+        item = CatchlistItem.query.get(entity_id)
+        if not item or item.user_id != current_user_id:
+            return jsonify({"message": "Not authorized"}), 403
+            
+        checkins = Checkin.query.filter_by(
+            entity_type='catchlist_item',
+            entity_id=entity_id
+        ).order_by(Checkin.timestamp.desc()).all()
+        
+    else:
+        return jsonify({"message": "Invalid entity type"}), 400
+    
+    result = {
+        'checkins': [
+            {
+                'id': checkin.id,
+                'content': checkin.comment,
+                'timestamp': checkin.timestamp.isoformat(),
+                'user_id': checkin.user_id,
+                'rpe': checkin.rpe
+            }
+            for checkin in checkins
+        ]
+    }
+    
+    return jsonify(result)
 
 @reports_bp.route('/api/reports/weekly', methods=['GET'])
 @jwt_required()
@@ -69,37 +228,43 @@ def get_weekly_report():
     # Get projects and their task completion stats
     projects = Project.query.filter_by(user_id=current_user_id).all()
     for project in projects:
-        # Count completed subtasks in the date range
-        completed_subtasks = db.session.query(ProjectSubtask).filter(
-            ProjectSubtask.project_id == project.id,
-            ProjectSubtask.complete == True
+        # Count completed tasks in the date range using Commitment records
+        completed_tasks = db.session.query(ProjectTask).join(
+            Commitment, Commitment.project_task_id == ProjectTask.id
+        ).filter(
+            ProjectTask.project_id == project.id,
+            Commitment.completed == True,
+            Commitment.due_date.between(start_date, end_date)
         ).all()
         
-        # Get all subtasks for this project
-        all_subtasks = ProjectSubtask.query.filter_by(project_id=project.id).all()
+        # Get all tasks for this project
+        all_tasks = ProjectTask.query.filter_by(project_id=project.id).all()
         
         project_data = {
             'id': project.id,
             'title': project.title,
-            'total_subtasks': len(all_subtasks),
-            'completed_subtasks': len(completed_subtasks),
-            'completion_percentage': round(len(completed_subtasks) / max(len(all_subtasks), 1) * 100)
+            'total_tasks': len(all_tasks),
+            'completed_tasks': len(completed_tasks),
+            'completion_percentage': round(len(completed_tasks) / max(len(all_tasks), 1) * 100)
         }
         
         report['projects'].append(project_data)
     
-    # Get daily check-ins from EventExecution records
+    # Get daily check-ins from Session records
     checkins = db.session.query(
-        func.date(EventExecution.execution_date).label('day'),
-        func.sum(EventExecution.check_in_count).label('count')
+        func.date(Session.start_time).label('day'),
+        func.count(Session.id).label('count')
     ).join(
-        CalendarEvent, CalendarEvent.id == EventExecution.event_id
+        Routine, Routine.id == Session.routine_id
     ).filter(
-        CalendarEvent.user_id == current_user_id,
-        EventExecution.execution_date.between(start_date, end_date),
-        EventExecution.check_in_count > 0
+        Routine.user_id == current_user_id,
+        Session.start_time.between(
+            datetime.combine(start_date, datetime.min.time()),
+            datetime.combine(end_date, datetime.max.time())
+        ),
+        Session.completed == True
     ).group_by(
-        func.date(EventExecution.execution_date)
+        func.date(Session.start_time)
     ).all()
     
     total_checkins = 0
@@ -115,16 +280,17 @@ def get_weekly_report():
     
     report['checkins']['total'] = total_checkins
     
-    # Get completed tasks by day using TaskExecution records
+    # Get completed tasks by day using Commitment records
     completed_tasks = db.session.query(
-        EventExecution.execution_date.label('day'),
+        Commitment.due_date.label('day'),
         func.count().label('count')
     ).filter(
-        TaskExecution.user_id == current_user_id,
-        TaskExecution.completed == True,
-        TaskExecution.execution_date.between(start_date, end_date)
+        Commitment.user_id == current_user_id,
+        Commitment.completed == True,
+        Commitment.project_task_id.isnot(None),
+        Commitment.due_date.between(start_date, end_date)
     ).group_by(
-        TaskExecution.execution_date
+        Commitment.due_date
     ).all()
     
     total_completed_tasks = 0
@@ -170,12 +336,12 @@ def get_weekly_report():
     
     # Get RPE values for the period
     rpe_values = db.session.query(
-        cast(Comment.created_at, Date).label('day'),
-        Comment.rpe
+        cast(Checkin.timestamp, Date).label('day'),
+        Checkin.rpe
     ).filter(
-        Comment.user_id == current_user_id,
-        Comment.rpe.isnot(None),
-        cast(Comment.created_at, Date).between(start_date, end_date)
+        Checkin.user_id == current_user_id,
+        Checkin.rpe.isnot(None),
+        cast(Checkin.timestamp, Date).between(start_date, end_date)
     ).all()
     
     all_rpe_values = []
@@ -217,62 +383,6 @@ def get_weekly_report():
     
     return jsonify(report)
 
-@reports_bp.route('/api/reports/comments', methods=['GET'])
-@jwt_required()
-def get_comments_report():
-    current_user_id = get_current_user_id()
-    
-    # Get date parameters
-    days = request.args.get('days', '7')
-    try:
-        days = int(days)
-    except ValueError:
-        return jsonify({"message": "Invalid days parameter"}), 400
-    
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days-1)
-    
-    # Get all comments without date filtering
-    comments = Comment.query.filter(
-        Comment.user_id == current_user_id
-    ).order_by(Comment.created_at.desc()).all()
-    
-    result = []
-    for comment in comments:
-        entry = comment.as_dict()
-        
-        # Get the related entity details
-        if comment.entity_type == 'project_subtask':
-            subtask = ProjectSubtask.query.get(comment.entity_id)
-            if subtask:
-                project = Project.query.get(subtask.project_id)
-                entry['entity_details'] = {
-                    'title': subtask.title,
-                    'project_title': project.title if project else 'Unknown Project'
-                }
-        elif comment.entity_type == 'catchlist_item':
-            catchlist = CatchlistItem.query.get(comment.entity_id)
-            if catchlist:
-                entry['entity_details'] = {
-                    'content': catchlist.content
-                }
-        elif comment.entity_type == 'event_execution':
-            execution = EventExecution.query.get(comment.entity_id)
-            if execution:
-                event = CalendarEvent.query.get(execution.event_id)
-                entry['entity_details'] = {
-                    'summary': event.summary if event else 'Unknown Event',
-                    'execution_date': execution.execution_date.strftime('%Y-%m-%d')
-                }
-        elif comment.entity_type == 'project_task':
-            entity = ProjectTask.query.get(comment.entity_id)
-        elif comment.entity_type == 'session':
-            entity = Session.query.get(comment.entity_id)
-        
-        result.append(entry)
-    
-    return jsonify(result)
-
 @reports_bp.route('/api/reports/day-details', methods=['GET'])
 @jwt_required()
 def day_details():
@@ -302,45 +412,44 @@ def day_details():
     
     # Get details based on category
     if category == 'checkins':
-        # Get event executions with check-ins for this day
-        check_ins = db.session.query(
-            EventExecution, CalendarEvent
+        # Get sessions for this day
+        sessions = db.session.query(
+            Session, Routine
         ).join(
-            CalendarEvent, CalendarEvent.id == EventExecution.event_id
+            Routine, Routine.id == Session.routine_id
         ).filter(
-            CalendarEvent.user_id == current_user_id,
-            func.date(EventExecution.execution_date) == day_date,
-            EventExecution.check_in_count > 0
+            Routine.user_id == current_user_id,
+            func.date(Session.start_time) == day_date,
+            Session.completed == True
         ).all()
         
-        for execution, event in check_ins:
-            # Get comments for this execution
-            comments = Comment.query.filter_by(
-                entity_type='event_execution',
-                entity_id=execution.id,
+        for session, routine in sessions:
+            # Get checkins for this session
+            checkins = Checkin.query.filter_by(
+                entity_type='session',
+                entity_id=session.id,
                 user_id=current_user_id
-            ).order_by(Comment.created_at).all()
+            ).order_by(Checkin.timestamp).all()
             
-            comments_data = []
-            for comment in comments:
-                comments_data.append({
-                    'content': comment.content,
-                    'rpe': comment.rpe,
-                    'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M')
+            checkins_data = []
+            for checkin in checkins:
+                checkins_data.append({
+                    'content': checkin.comment,
+                    'rpe': checkin.rpe,
+                    'created_at': checkin.timestamp.strftime('%Y-%m-%d %H:%M')
                 })
             
             result['items'].append({
-                'id': execution.id,
-                'type': 'event_execution',
-                'title': event.summary,
+                'id': session.id,
+                'type': 'session',
+                'title': routine.title,
                 'details': {
-                    'check_in_count': execution.check_in_count,
-                    'notes': execution.notes,
-                    'rpe': execution.rpe,
-                    'completed': execution.completed,
-                    'execution_date': execution.execution_date.strftime('%Y-%m-%d')
+                    'start_time': session.start_time.strftime('%H:%M'),
+                    'end_time': session.end_time.strftime('%H:%M'),
+                    'rpe': session.rpe,
+                    'notes': session.notes
                 },
-                'comments': comments_data
+                'checkins': checkins_data
             })
             
     elif category == 'tasks':
@@ -358,19 +467,19 @@ def day_details():
         ).all()
         
         for execution, task, project in tasks:
-            # Get comments for this task
-            comments = Comment.query.filter_by(
-                entity_type='project_subtask',
+            # Get checkins for this task
+            checkins = Checkin.query.filter_by(
+                entity_type='project_task',
                 entity_id=task.id,
                 user_id=current_user_id
-            ).order_by(Comment.created_at).all()
+            ).order_by(Checkin.timestamp).all()
             
-            comments_data = []
-            for comment in comments:
-                comments_data.append({
-                    'content': comment.content,
-                    'rpe': comment.rpe,
-                    'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M')
+            checkins_data = []
+            for checkin in checkins:
+                checkins_data.append({
+                    'content': checkin.comment,
+                    'rpe': checkin.rpe,
+                    'created_at': checkin.timestamp.strftime('%Y-%m-%d %H:%M')
                 })
             
             result['items'].append({
@@ -382,7 +491,7 @@ def day_details():
                     'completed_at': execution.execution_date.strftime('%Y-%m-%d'),
                     'notes': execution.notes
                 },
-                'comments': comments_data
+                'checkins': checkins_data
             })
     
     elif category == 'catchlist':
@@ -398,19 +507,19 @@ def day_details():
         ).all()
         
         for item in catchlist_items:
-            # Get comments for this catchlist item
-            comments = Comment.query.filter_by(
+            # Get checkins for this catchlist item
+            checkins = Checkin.query.filter_by(
                 entity_type='catchlist_item',
                 entity_id=item.CatchlistItem.id,
                 user_id=current_user_id
-            ).order_by(Comment.created_at).all()
+            ).order_by(Checkin.timestamp).all()
             
-            comments_data = []
-            for comment in comments:
-                comments_data.append({
-                    'content': comment.content,
-                    'rpe': comment.rpe,
-                    'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M')
+            checkins_data = []
+            for checkin in checkins:
+                checkins_data.append({
+                    'content': checkin.comment,
+                    'rpe': checkin.rpe,
+                    'created_at': checkin.timestamp.strftime('%Y-%m-%d %H:%M')
                 })
             
             result['items'].append({
@@ -422,7 +531,7 @@ def day_details():
                     'status': item.CatchlistItem.status,
                     'notes': item.Commitment.notes
                 },
-                'comments': comments_data
+                'checkins': checkins_data
             })
     
     return jsonify(result)

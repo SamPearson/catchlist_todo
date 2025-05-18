@@ -26,6 +26,10 @@ def create_commitment():
     if not data.get('due_date'):
         return jsonify({"message": "Due date is required"}), 400
     
+    # Parse the date string directly as YYYY-MM-DD
+    year, month, day = map(int, data['due_date'].split('-'))
+    due_date = date(year, month, day)
+    
     # Create commitment
     commitment = Commitment(
         user_id=user_id,
@@ -33,7 +37,7 @@ def create_commitment():
         catchlist_item_id=data.get('catchlist_item_id'),
         routine_id=data.get('routine_id'),
         session_id=data.get('session_id'),
-        due_date=datetime.fromisoformat(data['due_date']).date(),
+        due_date=due_date,
         start_time=datetime.fromisoformat(data['start_time']) if data.get('start_time') else None,
         end_time=datetime.fromisoformat(data['end_time']) if data.get('end_time') else None
     )
@@ -74,7 +78,7 @@ def update_commitment(commitment_id):
     
     if 'completed' in data:
         commitment.completed = data['completed']
-        commitment.completed_at = datetime.utcnow() if data['completed'] else None
+        commitment.completed_at = datetime.now() if data['completed'] else None
     
     db.session.commit()
     return jsonify(commitment.as_dict())
@@ -228,6 +232,11 @@ def get_commitments():
     catchlist_item_id = request.args.get('catchlist_item_id')
     if catchlist_item_id:
         query = query.filter(Commitment.catchlist_item_id == catchlist_item_id)
+    
+    # Filter by project task ID if provided
+    project_task_id = request.args.get('project_task_id')
+    if project_task_id:
+        query = query.filter(Commitment.project_task_id == project_task_id)
     
     commitments = query.order_by(Commitment.due_date.desc()).all()
     return jsonify([commitment.as_dict() for commitment in commitments]) 

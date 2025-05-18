@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import db, CalendarEvent, EventExecution, Routine, Session, Commitment
+from ...config.models import db, Routine, Session, Commitment
 from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient
 from datetime import datetime, date, timedelta
@@ -34,7 +34,7 @@ def get_routines():
         result.append({
             'id': routine.id,
             'uid': routine.external_uid,
-            'summary': routine.title,
+            'title': routine.title,
             'description': routine.description,
             'rrule': routine.rrule,
             'active': routine.active,
@@ -95,38 +95,34 @@ def create_routine():
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@routines_bp.route('/api/routines/<int:event_id>', methods=['PUT'])
+@routines_bp.route('/api/routines/<int:routine_id>', methods=['PUT'])
 @jwt_required()
-def update_routine(event_id):
+def update_routine(routine_id):
     current_user_id = get_current_user_id()
     data = request.get_json()
     
-    event = CalendarEvent.query.filter_by(id=event_id, user_id=current_user_id).first()
-    if not event:
-        return jsonify({"message": "Event not found"}), 404
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
     
     try:
-        if 'summary' in data:
-            event.summary = data.get('summary')
+        if 'title' in data:
+            routine.title = data.get('title')
         if 'description' in data:
-            event.description = data.get('description')
-        if 'start_time' in data:
-            event.start_time = datetime.strptime(data.get('start_time'), '%H:%M')
-        if 'end_time' in data:
-            event.end_time = datetime.strptime(data.get('end_time'), '%H:%M')
+            routine.description = data.get('description')
         if 'rrule' in data:
-            event.rrule = data.get('rrule')
+            routine.rrule = data.get('rrule')
         
         db.session.commit()
         
         result = {
-            'id': event.id,
-            'uid': event.uid,
-            'summary': event.summary,
-            'description': event.description,
-            'start_time': event.start_time.strftime('%H:%M'),
-            'end_time': event.end_time.strftime('%H:%M'),
-            'rrule': event.rrule
+            'id': routine.id,
+            'uid': routine.external_uid,
+            'title': routine.title,
+            'description': routine.description,
+            'rrule': routine.rrule,
+            'active': routine.active,
+            'external_source': routine.external_source
         }
         
         return jsonify(result)
@@ -134,19 +130,19 @@ def update_routine(event_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@routines_bp.route('/api/routines/<int:event_id>', methods=['DELETE'])
+@routines_bp.route('/api/routines/<int:routine_id>', methods=['DELETE'])
 @jwt_required()
-def delete_routine(event_id):
+def delete_routine(routine_id):
     current_user_id = get_current_user_id()
-    event = CalendarEvent.query.filter_by(id=event_id, user_id=current_user_id).first()
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
     
-    if not event:
-        return jsonify({"message": "Event not found"}), 404
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
     
     try:
-        db.session.delete(event)
+        db.session.delete(routine)
         db.session.commit()
-        return jsonify({"message": "Event deleted"})
+        return jsonify({"message": "Routine deleted"})
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
@@ -251,67 +247,69 @@ def import_caldav_events():
         db.session.commit()
         return jsonify({
             "success": True, 
-            "message": f"Successfully imported {imported_count} routines", 
+            "message": f"Successfully imported {imported_count} events", 
             "imported_count": imported_count
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"Error saving imported routines: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"Error saving imported events: {str(e)}"}), 500
 
-@routines_bp.route('/api/routines/<int:event_id>/executions', methods=['GET'])
+@routines_bp.route('/api/routines/<int:routine_id>/sessions', methods=['GET'])
 @jwt_required()
-def get_event_executions(event_id):
+def get_routine_sessions(routine_id):
     current_user_id = get_current_user_id()
-    event = CalendarEvent.query.filter_by(id=event_id, user_id=current_user_id).first()
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
     
-    if not event:
-        return jsonify({"message": "Event not found"}), 404
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
         
-    executions = EventExecution.query.filter_by(event_id=event_id).order_by(EventExecution.execution_date.desc()).all()
+    sessions = Session.query.filter_by(routine_id=routine_id).order_by(Session.start_time.desc()).all()
     
     result = []
-    for execution in executions:
+    for session in sessions:
         result.append({
-            'id': execution.id,
-            'date': execution.execution_date.strftime('%Y-%m-%d'),
-            'completed': execution.completed,
-            'rpe': execution.rpe,
-            'notes': execution.notes
+            'id': session.id,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat(),
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes
         })
         
     return jsonify(result)
 
-@routines_bp.route('/api/event-executions/<int:execution_id>', methods=['PUT'])
+@routines_bp.route('/api/sessions/<int:session_id>', methods=['PUT'])
 @jwt_required()
-def update_event_execution(execution_id):
+def update_session(session_id):
     current_user_id = get_current_user_id()
     data = request.get_json()
     
-    # Find execution and verify it belongs to the current user
-    execution = EventExecution.query.join(CalendarEvent).filter(
-        EventExecution.id == execution_id,
-        CalendarEvent.user_id == current_user_id
+    # Find session and verify it belongs to the current user
+    session = Session.query.join(Routine).filter(
+        Session.id == session_id,
+        Routine.user_id == current_user_id
     ).first()
     
-    if not execution:
-        return jsonify({"message": "Execution not found"}), 404
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
         
     try:
         if 'completed' in data:
-            execution.completed = data.get('completed')
+            session.completed = data.get('completed')
         if 'rpe' in data:
-            execution.rpe = data.get('rpe')
+            session.rpe = data.get('rpe')
         if 'notes' in data:
-            execution.notes = data.get('notes')
+            session.notes = data.get('notes')
             
         db.session.commit()
         
         result = {
-            'id': execution.id,
-            'date': execution.execution_date.strftime('%Y-%m-%d'),
-            'completed': execution.completed,
-            'rpe': execution.rpe,
-            'notes': execution.notes
+            'id': session.id,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat(),
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes
         }
         
         return jsonify(result)
@@ -319,27 +317,27 @@ def update_event_execution(execution_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@routines_bp.route('/api/routines/<int:event_id>/toggle-active', methods=['PUT'])
+@routines_bp.route('/api/routines/<int:routine_id>/toggle-active', methods=['PUT'])
 @jwt_required()
-def toggle_event_active(event_id):
+def toggle_routine_active(routine_id):
     current_user_id = get_current_user_id()
     data = request.get_json()
     
     if 'active' not in data:
         return jsonify({"message": "Active state is required"}), 400
     
-    event = CalendarEvent.query.filter_by(id=event_id, user_id=current_user_id).first()
-    if not event:
-        return jsonify({"message": "Event not found"}), 404
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
     
     try:
-        event.active = data.get('active')
+        routine.active = data.get('active')
         db.session.commit()
         
         return jsonify({
-            'id': event.id,
-            'summary': event.summary,
-            'active': event.active
+            'id': routine.id,
+            'title': routine.title,
+            'active': routine.active
         })
     except Exception as e:
         db.session.rollback()
@@ -351,56 +349,25 @@ def get_today_routines():
     current_user_id = get_current_user_id()
     today = date.today()
     
-    # Get all commitments for today that are from routines
-    commitments = Commitment.query.filter(
-        Commitment.user_id == current_user_id,
-        Commitment.due_date == today,
-        Commitment.routine_id.isnot(None)
-    ).all()
+    # Get all sessions for today
+    sessions = Session.query.join(Routine).filter(
+        Session.user_id == current_user_id,
+        db.func.date(Session.start_time) == today
+    ).order_by(Session.start_time.asc()).all()
     
     result = []
-    for commitment in commitments:
-        routine = commitment.routine
-        session = commitment.session
-        
+    for session in sessions:
+        routine = session.routine
         result.append({
-            'id': commitment.id,
-            'summary': routine.title,
+            'id': session.id,
+            'routine_id': routine.id,
+            'title': routine.title,
             'description': routine.description,
-            'start_time': session.start_time.strftime('%H:%M') if session.start_time else None,
-            'end_time': session.end_time.strftime('%H:%M') if session.end_time else None,
-            'rrule': routine.rrule,
-            'completed': commitment.completed
+            'start_time': session.start_time.strftime('%H:%M'),
+            'end_time': session.end_time.strftime('%H:%M'),
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes
         })
     
-    return jsonify(result)
-
-@routines_bp.route('/routines/<int:routine_id>/toggle-active', methods=['PUT'])
-@jwt_required()
-def toggle_routine_active(routine_id):
-    """Toggle a routine's active status"""
-    user_id = get_jwt_identity()
-    data = request.get_json()
-    
-    routine = Routine.query.filter_by(id=routine_id, user_id=user_id).first_or_404()
-    
-    try:
-        routine.active = data.get('active', not routine.active)
-        db.session.commit()
-        
-        # If routine is being activated, create a commitment for today's session
-        if routine.active:
-            today = date.today()
-            session = Session.query.filter(
-                Session.routine_id == routine.id,
-                Session.start_time >= datetime.combine(today, datetime.min.time()),
-                Session.start_time < datetime.combine(today, datetime.max.time())
-            ).first()
-            
-            if session:
-                create_commitment_from_routine(routine, session, user_id)
-        
-        return jsonify(routine.as_dict())
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500 
+    return jsonify(result) 

@@ -413,6 +413,13 @@ function attachSubtaskEventListeners(subtaskElement) {
             return; // Button is disabled when already committed
         }
         
+        // Get today's date in local timezone
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const localDate = `${year}-${month}-${day}`;
+        
         fetch(`{{ API_URL }}/commitments`, {
             method: 'POST',
             headers: {
@@ -421,7 +428,7 @@ function attachSubtaskEventListeners(subtaskElement) {
             },
             body: JSON.stringify({
                 project_task_id: subtaskId,
-                due_date: new Date().toISOString().split('T')[0]
+                due_date: localDate
             })
         })
         .then(response => {

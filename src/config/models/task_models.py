@@ -1,6 +1,7 @@
 from datetime import datetime
 from ..db_setup import db
 from sqlalchemy.orm import relationship, foreign
+from sqlalchemy.sql import func
 
 
 class Project(db.Model):
@@ -31,8 +32,8 @@ class ProjectTask(db.Model):
     title = db.Column(db.String(100), nullable=False)
     complete = db.Column(db.Boolean, default=False)
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, server_default=func.now())
+    updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
     completed_at = db.Column(db.DateTime, nullable=True)
     
     # Comments relationship defined through the Comment model

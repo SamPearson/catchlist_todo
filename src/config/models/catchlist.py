@@ -1,25 +1,26 @@
 from datetime import datetime
 from ..db_setup import db
 from sqlalchemy.orm import foreign
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 class CatchlistItem(db.Model):
     __tablename__ = 'catchlist_item'
-    id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    status = db.Column(db.String(20), default='active')  # active, completed, archived, someday
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    completed = db.Column(db.Boolean, default=False)
-    completed_at = db.Column(db.DateTime, nullable=True)
+    id = Column(Integer, primary_key=True)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    status = Column(String(20), default='active')  # active, completed, archived, someday
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
     
     # Relationships
-    comments = db.relationship(
-        'Comment',
-        primaryjoin="and_(Comment.entity_type=='catchlist_item', foreign(Comment.entity_id)==CatchlistItem.id)",
-        back_populates="catchlist_item",
-        lazy=True,
-        cascade="all, delete-orphan"
+    checkins = relationship(
+        'Checkin',
+        primaryjoin="and_(Checkin.entity_type=='catchlist_item', foreign(Checkin.entity_id)==CatchlistItem.id)",
+        cascade='all, delete-orphan'
     )
     
     def as_dict(self):

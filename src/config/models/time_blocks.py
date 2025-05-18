@@ -1,36 +1,44 @@
 from datetime import datetime, date, timedelta
 from ..db_setup import db
 from sqlalchemy.orm import foreign
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 class TimeBlock(db.Model):
     __tablename__ = 'time_block'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Polymorphic discriminator
-    block_type = db.Column(db.String(50), nullable=False)
+    block_type = Column(String(50), nullable=False)
     
     # Common fields
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
-    journal_entry = db.Column(db.Text)
-    sleep_hours = db.Column(db.Float)
-    rpe = db.Column(db.Integer)  # Rating of perceived exertion (1-10)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    journal_entry = Column(Text)
+    sleep_hours = Column(db.Float)
+    rpe = Column(Integer)  # Rating of perceived exertion (1-10)
     
     # Common time-related fields
-    year = db.Column(db.Integer)
+    year = Column(Integer)
     
     # Metadata
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    comments = db.relationship(
-        'Comment',
-        primaryjoin="and_(Comment.entity_type=='time_block', foreign(Comment.entity_id)==TimeBlock.id)",
+    checkins = relationship(
+        'Checkin',
+        primaryjoin="and_(Checkin.entity_type=='time_block', foreign(Checkin.entity_id)==TimeBlock.id)",
         back_populates="time_block",
-        lazy=True,
-        cascade="all, delete-orphan"
+        cascade='all, delete-orphan'
     )
     
     __mapper_args__ = {
@@ -68,7 +76,7 @@ class DayBlock(TimeBlock):
     }
     
     # Day-specific fields can be added here
-    mood = db.Column(db.String(50))
+    mood = Column(String(50))
     
     def __init__(self, user_id, date, **kwargs):
         """Initialize a DayBlock for a specific date"""
@@ -94,7 +102,7 @@ class WeekBlock(TimeBlock):
     }
     
     # Week-specific fields
-    week_number = db.Column(db.Integer)
+    week_number = Column(Integer)
     
     def __init__(self, user_id, start_date, **kwargs):
         """Initialize a WeekBlock starting on a specific date"""
@@ -125,7 +133,7 @@ class MonthBlock(TimeBlock):
     }
     
     # Month-specific fields
-    month_number = db.Column(db.Integer)
+    month_number = Column(Integer)
     
     def __init__(self, user_id, year, month, **kwargs):
         """Initialize a MonthBlock for a specific year/month"""
@@ -160,7 +168,7 @@ class SeasonBlock(TimeBlock):
     }
     
     # Season-specific fields
-    season_name = db.Column(db.String(20))  # Spring, Summer, Fall, Winter
+    season_name = Column(String(20))  # Spring, Summer, Fall, Winter
     
     def __init__(self, user_id, year, season_name, **kwargs):
         """Initialize a SeasonBlock for a specific year/season"""
