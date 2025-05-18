@@ -393,4 +393,47 @@ def get_today_routines():
             'notes': session.notes
         })
     
+    return jsonify(result)
+
+@routines_bp.route('/api/routines/range', methods=['GET'])
+@jwt_required()
+def get_routines_range():
+    """Get routines within a date range"""
+    current_user_id = get_current_user_id()
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    if not start_date or not end_date:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get all sessions within the date range
+    sessions = Session.query.join(Routine).filter(
+        Session.user_id == current_user_id,
+        db.func.date(Session.start_time).between(start_date, end_date),
+        Routine.active == True
+    ).order_by(Session.start_time.asc()).all()
+    
+    result = []
+    for session in sessions:
+        routine = session.routine
+        result.append({
+            'id': session.id,
+            'routine_id': routine.id,
+            'title': routine.title,
+            'start_time': session.start_time.strftime('%H:%M') if session.start_time else None,
+            'end_time': session.end_time.strftime('%H:%M') if session.end_time else None,
+            'description': routine.description,
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes,
+            'is_all_day': ((session.start_time.strftime('%H:%M') if session.start_time else None) == '00:00' and
+                          (session.end_time.strftime('%H:%M') if session.end_time else None) == '00:00')
+        })
+    
     return jsonify(result) 

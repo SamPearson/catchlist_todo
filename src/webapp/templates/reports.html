@@ -3,136 +3,158 @@
 {% block title %}Reports{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-8">Reports</h1>
+<div class="ui container">
+    <h1 class="ui header">Reports</h1>
     
     <!-- Report Type Tabs -->
-    <div class="mb-8">
-        <div class="border-b border-gray-200">
-            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button class="tab-button border-indigo-500 text-indigo-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="day">
-                    Day
-                </button>
-                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="week">
-                    Week
-                </button>
-                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="month">
-                    Month
-                </button>
-                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="season">
-                    Season
-                </button>
-                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="year">
-                    Year
-                </button>
-                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="custom">
-                    Custom
-                </button>
-                {% if config.SHOW_DEMO %}
-                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="demo">
-                    Demo
-                </button>
-                {% endif %}
-            </nav>
-        </div>
+    <div class="ui secondary pointing menu">
+        <a class="item active" data-tab="day">Day</a>
+        <a class="item" data-tab="week">Week</a>
+        <a class="item" data-tab="month">Month</a>
+        <a class="item" data-tab="season">Season</a>
+        <a class="item" data-tab="year">Year</a>
+        <a class="item" data-tab="custom">Custom</a>
+        {% if config.SHOW_DEMO %}
+        <a class="item" data-tab="demo">Demo</a>
+        {% endif %}
     </div>
     
     <!-- Report Content -->
-    <div class="report-content">
-        <!-- Day Report -->
-        <div class="tab-content" id="day-content">
-            <div class="mb-4">
-                <input type="date" id="day-date" class="form-input rounded-md shadow-sm">
+    <div class="ui tab active" data-tab="day">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="field">
+                    <label>Select Date</label>
+                    <input type="date" id="day-date" class="ui input">
+                </div>
             </div>
-            <div id="day-report" class="bg-white shadow rounded-lg p-6">
+            <div id="day-report" class="ui segment">
                 <!-- Day report content will be loaded here -->
             </div>
         </div>
-        
-        <!-- Week Report -->
-        <div class="tab-content hidden" id="week-content">
-            <div class="mb-4">
-                <input type="date" id="week-date" class="form-input rounded-md shadow-sm">
+    </div>
+    
+    <div class="ui tab" data-tab="week">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="field">
+                    <label>Select Week</label>
+                    <input type="date" id="week-date" class="ui input">
+                </div>
             </div>
-            <div id="week-report" class="bg-white shadow rounded-lg p-6">
+            <div id="week-report" class="ui segment">
                 <!-- Week report content will be loaded here -->
             </div>
         </div>
-        
-        <!-- Month Report -->
-        <div class="tab-content hidden" id="month-content">
-            <div class="mb-4">
-                <input type="month" id="month-date" class="form-input rounded-md shadow-sm">
+    </div>
+    
+    <div class="ui tab" data-tab="month">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="field">
+                    <label>Select Month</label>
+                    <input type="month" id="month-date" class="ui input">
+                </div>
             </div>
-            <div id="month-report" class="bg-white shadow rounded-lg p-6">
+            <div id="month-report" class="ui segment">
                 <!-- Month report content will be loaded here -->
             </div>
         </div>
-        
-        <!-- Season Report -->
-        <div class="tab-content hidden" id="season-content">
-            <div class="mb-4 flex space-x-4">
-                <select id="season-year" class="form-select rounded-md shadow-sm">
-                    <!-- Years will be populated dynamically -->
-                </select>
-                <select id="season-name" class="form-select rounded-md shadow-sm">
-                    <option value="Winter">Winter</option>
-                    <option value="Spring">Spring</option>
-                    <option value="Summer">Summer</option>
-                    <option value="Fall">Fall</option>
-                </select>
+    </div>
+    
+    <div class="ui tab" data-tab="season">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="two fields">
+                    <div class="field">
+                        <label>Year</label>
+                        <select id="season-year" class="ui dropdown">
+                            <!-- Years will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Season</label>
+                        <select id="season-name" class="ui dropdown">
+                            <option value="Winter">Winter</option>
+                            <option value="Spring">Spring</option>
+                            <option value="Summer">Summer</option>
+                            <option value="Fall">Fall</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div id="season-report" class="bg-white shadow rounded-lg p-6">
+            <div id="season-report" class="ui segment">
                 <!-- Season report content will be loaded here -->
             </div>
         </div>
-        
-        <!-- Year Report -->
-        <div class="tab-content hidden" id="year-content">
-            <div class="mb-4">
-                <select id="year-select" class="form-select rounded-md shadow-sm">
-                    <!-- Years will be populated dynamically -->
-                </select>
+    </div>
+    
+    <div class="ui tab" data-tab="year">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="field">
+                    <label>Select Year</label>
+                    <select id="year-select" class="ui dropdown">
+                        <!-- Years will be populated dynamically -->
+                    </select>
+                </div>
             </div>
-            <div id="year-report" class="bg-white shadow rounded-lg p-6">
+            <div id="year-report" class="ui segment">
                 <!-- Year report content will be loaded here -->
             </div>
         </div>
-        
-        <!-- Custom Report -->
-        <div class="tab-content hidden" id="custom-content">
-            <div class="mb-4 flex space-x-4">
-                <input type="date" id="custom-start-date" class="form-input rounded-md shadow-sm" placeholder="Start Date">
-                <input type="date" id="custom-end-date" class="form-input rounded-md shadow-sm" placeholder="End Date">
+    </div>
+    
+    <div class="ui tab" data-tab="custom">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="two fields">
+                    <div class="field">
+                        <label>Start Date</label>
+                        <input type="date" id="custom-start-date" class="ui input" placeholder="Start Date">
+                    </div>
+                    <div class="field">
+                        <label>End Date</label>
+                        <input type="date" id="custom-end-date" class="ui input" placeholder="End Date">
+                    </div>
+                </div>
             </div>
-            <div id="custom-report" class="bg-white shadow rounded-lg p-6">
+            <div id="custom-report" class="ui segment">
                 <!-- Custom report content will be loaded here -->
             </div>
         </div>
-        
-        <!-- Demo Report -->
-        {% if config.SHOW_DEMO %}
-        <div class="tab-content hidden" id="demo-content">
-            <div class="mb-4">
-                <select id="demo-type" class="form-select rounded-md shadow-sm">
-                    <option value="day">Day</option>
-                    <option value="week">Week</option>
-                    <option value="month">Month</option>
-                    <option value="season">Season</option>
-                    <option value="year">Year</option>
-                </select>
+    </div>
+    
+    {% if config.SHOW_DEMO %}
+    <div class="ui tab" data-tab="demo">
+        <div class="ui segment">
+            <div class="ui form">
+                <div class="field">
+                    <label>Demo Type</label>
+                    <select id="demo-type" class="ui dropdown">
+                        <option value="day">Day</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="season">Season</option>
+                        <option value="year">Year</option>
+                    </select>
+                </div>
             </div>
-            <div id="demo-report" class="bg-white shadow rounded-lg p-6">
+            <div id="demo-report" class="ui segment">
                 <!-- Demo report content will be loaded here -->
             </div>
         </div>
-        {% endif %}
     </div>
+    {% endif %}
 </div>
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Semantic UI components
+    $('.ui.dropdown').dropdown();
+    $('.menu .item').tab();
+    
     // Initialize date inputs with current date
     const today = new Date();
     const year = today.getFullYear();
@@ -158,35 +180,6 @@ document.addEventListener('DOMContentLoaded', function() {
     yearSelect.value = currentYear;
     seasonYear.value = currentYear;
     
-    // Tab switching
-    const tabs = document.querySelectorAll('.tab-button');
-    const contents = document.querySelectorAll('.tab-content');
-    
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            // Update tab styles
-            tabs.forEach(t => {
-                t.classList.remove('border-indigo-500', 'text-indigo-600');
-                t.classList.add('border-transparent', 'text-gray-500');
-            });
-            tab.classList.remove('border-transparent', 'text-gray-500');
-            tab.classList.add('border-indigo-500', 'text-indigo-600');
-            
-            // Show selected content
-            const tabId = tab.dataset.tab;
-            contents.forEach(content => {
-                content.classList.add('hidden');
-                if (content.id === `${tabId}-content`) {
-                    content.classList.remove('hidden');
-                    loadReport(tabId);
-                }
-            });
-        });
-    });
-    
-    // Load initial report
-    loadReport('day');
-    
     // Event listeners for date/period changes
     document.getElementById('day-date').addEventListener('change', () => loadReport('day'));
     document.getElementById('week-date').addEventListener('change', () => loadReport('week'));
@@ -199,6 +192,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('demo-type')) {
         document.getElementById('demo-type').addEventListener('change', () => loadReport('demo'));
     }
+    
+    // Load initial report
+    loadReport('day');
 });
 
 function loadReport(type) {
@@ -208,7 +204,7 @@ function loadReport(type) {
         return;
     }
     
-    reportDiv.innerHTML = '<div class="text-center py-4">Loading...</div>';
+    reportDiv.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading...</div></div>';
     
     let url;
     switch (type) {
@@ -237,7 +233,7 @@ function loadReport(type) {
             const startDate = document.getElementById('custom-start-date').value;
             const endDate = document.getElementById('custom-end-date').value;
             if (!startDate || !endDate) {
-                reportDiv.innerHTML = '<div class="text-center py-4 text-red-500">Please select both start and end dates</div>';
+                reportDiv.innerHTML = '<div class="ui negative message">Please select both start and end dates</div>';
                 return;
             }
             fetch('/api/reports/custom', {
@@ -250,13 +246,13 @@ function loadReport(type) {
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">${data.error}</div>`;
+                    reportDiv.innerHTML = `<div class="ui negative message">${data.error}</div>`;
                 } else {
                     displayReport(data, reportDiv);
                 }
             })
             .catch(error => {
-                reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">Error: ${error.message}</div>`;
+                reportDiv.innerHTML = `<div class="ui negative message">Error: ${error.message}</div>`;
             });
             return;
         case 'demo':
@@ -277,13 +273,13 @@ function loadReport(type) {
         })
         .then(data => {
             if (data.error) {
-                reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">${data.error}</div>`;
+                reportDiv.innerHTML = `<div class="ui negative message">${data.error}</div>`;
             } else {
                 displayReport(data, reportDiv);
             }
         })
         .catch(error => {
-            reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">Error: ${error.message}</div>`;
+            reportDiv.innerHTML = `<div class="ui negative message">Error: ${error.message}</div>`;
         });
 }
 
@@ -291,49 +287,63 @@ function displayReport(data, container) {
     const { time_block, stats, commitments } = data;
     
     let html = `
-        <div class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-sm font-medium text-gray-500">Total Commitments</h3>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.total_commitments}</p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-sm font-medium text-gray-500">Completed</h3>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.completed_commitments}</p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-sm font-medium text-gray-500">Completion Rate</h3>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.completion_rate.toFixed(1)}%</p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-sm font-medium text-gray-500">Average RPE</h3>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.average_rpe ? stats.average_rpe.toFixed(1) : 'N/A'}</p>
-                </div>
+        <div class="ui statistics">
+            <div class="statistic">
+                <div class="value">${stats.total_commitments}</div>
+                <div class="label">Total Commitments</div>
             </div>
-            
-            <div class="bg-white shadow rounded-lg">
-                <div class="px-4 py-5 sm:p-6">
-                    <h3 class="text-lg font-medium text-gray-900">Commitments</h3>
-                    <div class="mt-4 space-y-4">
-                        ${commitments.map(commitment => `
-                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                                <div class="flex items-center space-x-3">
-                                    <input type="checkbox" class="h-4 w-4 text-indigo-600" 
-                                           ${commitment.completed ? 'checked' : ''} disabled>
-                                    <span class="text-sm font-medium text-gray-900">${commitment.title}</span>
+            <div class="statistic">
+                <div class="value">${stats.completed_commitments}</div>
+                <div class="label">Completed</div>
+            </div>
+            <div class="statistic">
+                <div class="value">${stats.completion_rate.toFixed(1)}%</div>
+                <div class="label">Completion Rate</div>
+            </div>
+            <div class="statistic">
+                <div class="value">${stats.average_rpe ? stats.average_rpe.toFixed(1) : 'N/A'}</div>
+                <div class="label">Average RPE</div>
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h3 class="ui header">Commitments</h3>
+            <div class="ui divided items">
+                ${commitments.map(commitment => {
+                    // Get the latest checkin with RPE if any
+                    const latestCheckin = commitment.checkins && commitment.checkins.length > 0 
+                        ? commitment.checkins.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0]
+                        : null;
+                    
+                    return `
+                        <div class="item">
+                            <div class="content">
+                                <div class="header">
+                                    <div class="ui checkbox">
+                                        <input type="checkbox" ${commitment.completed ? 'checked' : ''} disabled>
+                                        <label>${commitment.title}</label>
+                                    </div>
                                 </div>
-                                ${commitment.rpe ? `
-                                    <span class="text-sm text-gray-500">RPE: ${commitment.rpe}</span>
+                                ${latestCheckin && latestCheckin.rpe ? `
+                                    <div class="meta">
+                                        <span class="ui label">RPE: ${latestCheckin.rpe}</span>
+                                        ${latestCheckin.progress ? `<span class="ui label">Progress: ${latestCheckin.progress}%</span>` : ''}
+                                        ${latestCheckin.mood ? `<span class="ui label">Mood: ${latestCheckin.mood}</span>` : ''}
+                                        ${latestCheckin.energy ? `<span class="ui label">Energy: ${latestCheckin.energy}</span>` : ''}
+                                    </div>
                                 ` : ''}
                             </div>
-                        `).join('')}
-                    </div>
-                </div>
+                        </div>
+                    `;
+                }).join('')}
             </div>
         </div>
     `;
     
     container.innerHTML = html;
+    
+    // Initialize Semantic UI components
+    $('.ui.checkbox').checkbox();
 }
 </script>
 {% endblock %}

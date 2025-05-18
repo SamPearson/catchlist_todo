@@ -239,4 +239,37 @@ def get_commitments():
         query = query.filter(Commitment.project_task_id == project_task_id)
     
     commitments = query.order_by(Commitment.due_date.desc()).all()
+    return jsonify([commitment.as_dict() for commitment in commitments])
+
+@bp.route('/api/commitments/range', methods=['OPTIONS'])
+def options_commitments_range():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
+@bp.route('/api/commitments/range', methods=['GET'])
+@jwt_required()
+def get_commitments_range():
+    """Get commitments within a date range"""
+    user_id = get_jwt_identity()
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    if not start_date or not end_date:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get all commitments within the date range
+    commitments = Commitment.query.filter(
+        Commitment.user_id == user_id,
+        Commitment.due_date.between(start_date, end_date)
+    ).order_by(Commitment.due_date.asc()).all()
+    
     return jsonify([commitment.as_dict() for commitment in commitments]) 

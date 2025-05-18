@@ -31,8 +31,15 @@ class Report:
             completed = sum(1 for c in self.commitments if c.completed)
             completion_rate = (completed / total * 100) if total > 0 else 0
             
-            # Calculate average RPE
-            rpe_values = [c.rpe for c in self.commitments if c.rpe is not None]
+            # Calculate average RPE from checkins
+            rpe_values = []
+            for commitment in self.commitments:
+                if commitment.checkins:
+                    # Get the latest checkin with RPE
+                    latest_checkin = max(commitment.checkins, key=lambda x: x.timestamp)
+                    if latest_checkin.rpe is not None:
+                        rpe_values.append(latest_checkin.rpe)
+            
             avg_rpe = sum(rpe_values) / len(rpe_values) if rpe_values else None
             
             self._stats = {

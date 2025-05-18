@@ -18,66 +18,113 @@
             <div class="label">Completion Rate</div>
         </div>
     </div>
-    
-    <div class="ui segment">
-        <h3 class="ui header">Current Activity</h3>
-        <div id="current-activity-container">
-            <!-- Current activity will be loaded here -->
-            <div class="ui placeholder">
-                <div class="header">
-                    <div class="line"></div>
+
+    <!-- Time Period Tabs -->
+    <div class="ui top attached tabular menu">
+        <a class="item active" data-tab="day">Day</a>
+        <a class="item" data-tab="week">Week</a>
+        <a class="item" data-tab="month">Month</a>
+        <a class="item" data-tab="season">Season</a>
+        <a class="item" data-tab="year">Year</a>
+        <a class="item" data-tab="custom">Custom</a>
+        <a class="item" data-tab="demo">Demo</a>
+    </div>
+
+    <!-- Custom Date Range Modal -->
+    <div class="ui modal" id="custom-date-modal">
+        <i class="close icon"></i>
+        <div class="header">Select Date Range</div>
+        <div class="content">
+            <form class="ui form" id="custom-date-form">
+                <div class="two fields">
+                    <div class="field">
+                        <label>Start Date</label>
+                        <input type="date" name="start_date" required>
+                    </div>
+                    <div class="field">
+                        <label>End Date</label>
+                        <input type="date" name="end_date" required>
+                    </div>
                 </div>
-                <div class="paragraph">
-                    <div class="line"></div>
-                    <div class="line"></div>
-                </div>
-            </div>
+            </form>
+        </div>
+        <div class="actions">
+            <div class="ui button cancel">Cancel</div>
+            <div class="ui primary button" id="apply-custom-date">Apply</div>
         </div>
     </div>
     
-    <div class="ui segment">
-        <h3 class="ui header">Today's Schedule</h3>
-        <div class="ui divided items" id="today-items">
-            <!-- Schedule will be loaded here -->
-            <div class="ui placeholder">
-                <div class="header">
-                    <div class="line"></div>
-                </div>
-                <div class="paragraph">
-                    <div class="line"></div>
-                    <div class="line"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="ui segment">
-        <h3 class="ui header">Project Tasks</h3>
-        <div class="ui divided items" id="project-tasks">
-            <!-- Project tasks will be loaded here -->
-            <div class="ui placeholder">
-                <div class="header">
-                    <div class="line"></div>
-                </div>
-                <div class="paragraph">
-                    <div class="line"></div>
-                    <div class="line"></div>
+    <!-- Tab Content -->
+    <div class="ui bottom attached tab segment active" data-tab="day"></div>
+    <div class="ui bottom attached tab segment" data-tab="week"></div>
+    <div class="ui bottom attached tab segment" data-tab="month"></div>
+    <div class="ui bottom attached tab segment" data-tab="season"></div>
+    <div class="ui bottom attached tab segment" data-tab="year"></div>
+    <div class="ui bottom attached tab segment" data-tab="custom"></div>
+    <div class="ui bottom attached tab segment" data-tab="demo"></div>
+
+    <!-- Content Sections -->
+    <div class="ui segments" id="content-sections">
+        <div class="ui segment">
+            <h3 class="ui header">Current Activity</h3>
+            <div id="current-activity-container">
+                <!-- Current activity will be loaded here -->
+                <div class="ui placeholder">
+                    <div class="header">
+                        <div class="line"></div>
+                    </div>
+                    <div class="paragraph">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <div class="ui segment">
-        <h3 class="ui header">Catchlist Items</h3>
-        <div class="ui divided items" id="catchlist-items">
-            <!-- Catchlist items will be loaded here -->
-            <div class="ui placeholder">
-                <div class="header">
-                    <div class="line"></div>
+        
+        <div class="ui segment">
+            <h3 class="ui header">Schedule</h3>
+            <div class="ui divided items" id="schedule-items">
+                <!-- Schedule will be loaded here -->
+                <div class="ui placeholder">
+                    <div class="header">
+                        <div class="line"></div>
+                    </div>
+                    <div class="paragraph">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
                 </div>
-                <div class="paragraph">
-                    <div class="line"></div>
-                    <div class="line"></div>
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h3 class="ui header">Project Tasks</h3>
+            <div class="ui divided items" id="project-tasks">
+                <!-- Project tasks will be loaded here -->
+                <div class="ui placeholder">
+                    <div class="header">
+                        <div class="line"></div>
+                    </div>
+                    <div class="paragraph">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h3 class="ui header">Catchlist Items</h3>
+            <div class="ui divided items" id="catchlist-items">
+                <!-- Catchlist items will be loaded here -->
+                <div class="ui placeholder">
+                    <div class="header">
+                        <div class="line"></div>
+                    </div>
+                    <div class="paragraph">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -160,6 +207,328 @@ function getAuthToken() {
     return '';
 }
 
+// Initialize tabs
+$(document).ready(function() {
+    // Initialize Semantic UI tabs
+    $('.menu .item').tab({
+        onVisible: function(tabPath) {
+            loadTabContent(tabPath);
+        }
+    });
+    
+    // Load initial content for the active tab
+    const activeTab = $('.menu .item.active').data('tab');
+    loadTabContent(activeTab);
+});
+
+// Function to load content for a specific tab
+function loadTabContent(tab) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    let startDate, endDate;
+    const today = new Date();
+    
+    // Calculate date range based on tab
+    switch(tab) {
+        case 'day':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            break;
+        case 'week':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setDate(today.getDate() + 6); // Next 7 days including today
+            break;
+        case 'month':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setMonth(today.getMonth() + 1);
+            break;
+        case 'season':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setMonth(today.getMonth() + 3);
+            break;
+        case 'year':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setFullYear(today.getFullYear() + 1);
+            break;
+        case 'custom':
+            // Show custom date modal
+            $('#custom-date-modal').modal('show');
+            return;
+        case 'demo':
+            // Load demo data
+            loadDemoData();
+            return;
+    }
+
+    // Format dates for API
+    const formatDate = (date) => {
+        return date.toISOString().split('T')[0];
+    };
+
+    // Show loading state
+    document.getElementById('schedule-items').innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading schedule...</div></div>';
+    document.getElementById('project-tasks').innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading project tasks...</div></div>';
+    document.getElementById('catchlist-items').innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading catchlist items...</div></div>';
+
+    // Load events for the date range
+    fetch(`${API_URL}/routines/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load events');
+        }
+        return response.json();
+    })
+    .then(events => {
+        displayEvents(events);
+    })
+    .catch(error => {
+        console.error('Error loading events:', error);
+        document.getElementById('schedule-items').innerHTML = '<div class="ui negative message">Failed to load events</div>';
+    });
+
+    // Load commitments for the date range
+    fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load commitments');
+        }
+        return response.json();
+    })
+    .then(commitments => {
+        const projectTasks = commitments.filter(c => c.item_type === 'project_task');
+        const catchlistItems = commitments.filter(c => c.item_type === 'catchlist_item');
+        
+        displayProjectTasks(projectTasks);
+        displayCatchlistItems(catchlistItems);
+    })
+    .catch(error => {
+        console.error('Error loading commitments:', error);
+        showError('Failed to load commitments');
+    });
+}
+
+// Function to display events
+function displayEvents(events) {
+    const container = document.getElementById('schedule-items');
+    if (!container) return;
+
+    let html = '';
+    if (!events || events.length === 0) {
+        html = '<div class="ui info message">No events scheduled for this period.</div>';
+    } else {
+        events.forEach(event => {
+            const timeRange = event.start_time && event.end_time ? 
+                `${event.start_time} - ${event.end_time}` : 
+                'All day';
+            
+            html += `
+                <div class="item" data-id="${event.id}">
+                    <div class="content">
+                        <div class="header">
+                            ${event.title || 'Untitled Event'}
+                            ${event.completed ? '<span class="ui blue label">Completed</span>' : ''}
+                        </div>
+                        <div class="meta">${timeRange}</div>
+                        <div class="description">${event.description || ''}</div>
+                        <div class="extra">
+                            <div class="ui checkbox">
+                                <input type="checkbox" ${event.completed ? 'checked' : ''} data-id="${event.id}">
+                                <label>Complete</label>
+                            </div>
+                            <button class="ui tiny button add-checkin" data-id="${event.id}">
+                                <i class="plus icon"></i> Add Checkin
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    container.innerHTML = html;
+    initializeCommitmentControls(container);
+}
+
+// Function to display project tasks
+function displayProjectTasks(commitments) {
+    const container = document.getElementById('project-tasks');
+    if (!container) return;
+
+    let html = '';
+    if (!commitments || commitments.length === 0) {
+        html = '<div class="ui info message">No project tasks for this period.</div>';
+    } else {
+        commitments.forEach(commitment => {
+            const dueDate = new Date(commitment.due_date);
+            html += `
+                <div class="item" data-id="${commitment.id}">
+                    <div class="content">
+                        <div class="header">
+                            ${commitment.title || 'Untitled Task'}
+                            ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                        </div>
+                        <div class="meta">
+                            Due: ${dueDate.toLocaleDateString()}
+                            ${commitment.item?.project_name ? `<span class="ui label">${commitment.item.project_name}</span>` : ''}
+                        </div>
+                        <div class="description">${commitment.item?.description || ''}</div>
+                        <div class="extra">
+                            <div class="ui checkbox">
+                                <input type="checkbox" ${commitment.completed ? 'checked' : ''} data-id="${commitment.id}">
+                                <label>Complete</label>
+                            </div>
+                            <button class="ui tiny button add-checkin" data-id="${commitment.id}">
+                                <i class="plus icon"></i> Add Checkin
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    container.innerHTML = html;
+    initializeCommitmentControls(container);
+}
+
+// Function to display catchlist items
+function displayCatchlistItems(commitments) {
+    const container = document.getElementById('catchlist-items');
+    if (!container) return;
+
+    let html = '';
+    if (!commitments || commitments.length === 0) {
+        html = '<div class="ui info message">No catchlist items for this period.</div>';
+    } else {
+        commitments.forEach(commitment => {
+            const dueDate = new Date(commitment.due_date);
+            html += `
+                <div class="item" data-id="${commitment.id}">
+                    <div class="content">
+                        <div class="header">
+                            ${commitment.title || 'Untitled Item'}
+                            ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                        </div>
+                        <div class="meta">
+                            Due: ${dueDate.toLocaleDateString()}
+                        </div>
+                        <div class="description">${commitment.item?.content || ''}</div>
+                        <div class="extra">
+                            <button class="ui tiny button add-checkin" data-id="${commitment.id}">
+                                <i class="plus icon"></i> Add Checkin
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    container.innerHTML = html;
+    initializeCommitmentControls(container);
+}
+
+// Function to show error message
+function showError(message) {
+    const container = document.querySelector('.ui.container');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'ui negative message';
+    errorDiv.innerHTML = `
+        <i class="close icon"></i>
+        <div class="header">Error</div>
+        <p>${message}</p>
+    `;
+    container.insertBefore(errorDiv, container.firstChild);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 5000);
+}
+
+// Function to load demo data
+function loadDemoData() {
+    const container = document.querySelector('[data-tab="demo"]');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="ui segment">
+            <h3 class="ui header">Demo Schedule</h3>
+            <div class="ui divided items">
+                <div class="item">
+                    <div class="content">
+                        <div class="header">Morning Routine</div>
+                        <div class="meta">06:00 - 07:00</div>
+                        <div class="description">Daily morning routine including meditation and exercise</div>
+                    </div>
+                </div>
+                <div class="item">
+                    <div class="content">
+                        <div class="header">Team Meeting</div>
+                        <div class="meta">10:00 - 11:00</div>
+                        <div class="description">Weekly team sync meeting</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ui segment">
+            <h3 class="ui header">Demo Project Tasks</h3>
+            <div class="ui divided items">
+                <div class="item">
+                    <div class="content">
+                        <div class="header">Website Redesign</div>
+                        <div class="meta">Due: 2024-03-15</div>
+                        <div class="description">Complete the new website design and implementation</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ui segment">
+            <h3 class="ui header">Demo Catchlist Items</h3>
+            <div class="ui divided items">
+                <div class="item">
+                    <div class="content">
+                        <div class="header">Research New Tools</div>
+                        <div class="meta">Due: 2024-03-10</div>
+                        <div class="description">Research and evaluate new productivity tools</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Handle custom date range
+document.getElementById('apply-custom-date').addEventListener('click', function() {
+    const form = document.getElementById('custom-date-form');
+    const startDate = new Date(form.start_date.value);
+    const endDate = new Date(form.end_date.value);
+    
+    if (startDate > endDate) {
+        alert('Start date must be before end date');
+        return;
+    }
+    
+    $('#custom-date-modal').modal('hide');
+    loadTabContent('custom');
+});
+
 // Load today's events when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadTodayEvents();
@@ -192,14 +561,14 @@ function loadTodayEvents() {
     })
     .catch(error => {
         console.error('Error loading today\'s events:', error);
-        document.getElementById('today-items').innerHTML = 
+        document.getElementById('schedule-items').innerHTML = 
             '<div class="ui negative message"><div class="header">Error</div>Failed to load events</div>';
     });
 }
 
 // Display today's events
 function displayTodayEvents(events) {
-    const container = document.getElementById('today-items');
+    const container = document.getElementById('schedule-items');
     
     if (!events || events.length === 0) {
         container.innerHTML = '<div class="ui info message">No events scheduled for today.</div>';
@@ -360,113 +729,6 @@ function loadTodayCommitments() {
         document.getElementById('catchlist-items').innerHTML = 
             '<div class="ui negative message"><div class="header">Error</div>Failed to load commitments</div>';
     });
-}
-
-// Display project tasks
-function displayProjectTasks(commitments) {
-    const container = document.getElementById('project-tasks');
-    
-    if (!commitments || commitments.length === 0) {
-        container.innerHTML = '<div class="ui info message">No project tasks for today.</div>';
-        return;
-    }
-    
-    // Create HTML for each commitment
-    let html = '';
-    commitments.forEach(commitment => {
-        const dueDate = new Date(commitment.due_date);
-        const startTime = commitment.start_time ? new Date(commitment.start_time) : null;
-        
-        html += `
-        <div class="item" data-id="${commitment.id}">
-            <div class="content">
-                <div class="header">
-                    ${commitment.title || 'Untitled Task'}
-                    ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
-                </div>
-                <div class="meta">
-                    ${startTime ? `Starts: ${startTime.toLocaleTimeString()}` : ''}
-                    Due: ${dueDate.toLocaleDateString()}
-                    ${commitment.item?.project_name ? `<span class="ui label">${commitment.item.project_name}</span>` : ''}
-                </div>
-                <div class="description">
-                    ${commitment.item?.description || ''}
-                </div>
-                <div class="extra">
-                    <div class="ui checkbox">
-                        <input type="checkbox" ${commitment.completed ? 'checked' : ''} data-id="${commitment.id}">
-                        <label>Complete</label>
-                    </div>
-                    <button class="ui tiny button add-checkin" data-id="${commitment.id}">
-                        <i class="plus icon"></i> Add Checkin
-                    </button>
-                    <div class="ui tiny buttons">
-                        <button class="ui button view-checkins" data-id="${commitment.id}">
-                            <i class="list icon"></i> Checkins
-                        </button>
-                    </div>
-                </div>
-                <div class="checkins-list" id="checkins-${commitment.id}" style="display: none;">
-                    <!-- Checkins will be loaded here -->
-                </div>
-            </div>
-        </div>`;
-    });
-    
-    container.innerHTML = html;
-    initializeCommitmentControls(container);
-}
-
-// Display catchlist items
-function displayCatchlistItems(commitments) {
-    const container = document.getElementById('catchlist-items');
-    
-    if (!commitments || commitments.length === 0) {
-        container.innerHTML = '<div class="ui info message">No catchlist items for today.</div>';
-        return;
-    }
-    
-    // Create HTML for each commitment
-    let html = '';
-    commitments.forEach(commitment => {
-        const dueDate = new Date(commitment.due_date);
-        const startTime = commitment.start_time ? new Date(commitment.start_time) : null;
-        
-        html += `
-        <div class="item" data-id="${commitment.id}">
-            <div class="content">
-                <div class="header">
-                    ${commitment.title || 'Untitled Item'}
-                    ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
-                </div>
-                <div class="meta">
-                    ${startTime ? `Starts: ${startTime.toLocaleTimeString()}` : ''}
-                    Due: ${dueDate.toLocaleDateString()}
-                </div>
-                <div class="description">
-                    ${commitment.item?.content || ''}
-                </div>
-                <div class="extra">
-                    <button class="ui tiny button add-checkin" data-id="${commitment.id}">
-                        <i class="plus icon"></i> Add Checkin
-                    </button>
-                    <div class="ui tiny buttons">
-                        <button class="ui button view-checkins" data-id="${commitment.id}">
-                            <i class="list icon"></i> Checkins
-                        </button>
-                    </div>
-                </div>
-                <div class="checkins-list" id="checkins-${commitment.id}" style="display: none;">
-                    <!-- Checkins will be loaded here -->
-                </div>
-            </div>
-        </div>`;
-    });
-    
-    container.innerHTML = html;
-    
-    // Initialize commitment controls for the new items
-    initializeCommitmentControls(container);
 }
 
 // Initialize commitment controls (checkboxes, checkin buttons, etc.)
@@ -731,6 +993,14 @@ function updateCommitmentCompletion(commitmentId, completed) {
 
 .ui.slider .ui.label {
     margin-left: 1em;
+}
+
+.ui.tabular.menu {
+    margin-bottom: 1em;
+}
+
+.ui.tab.segment {
+    padding: 1em 0;
 }
 </style>
 {% endblock %} 
