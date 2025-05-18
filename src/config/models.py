@@ -7,7 +7,7 @@ This file brings together all the models from the models/ directory.
 from .models.user_models import User, BlacklistedToken
 
 # Schedule models
-from .models.schedule_models import Routine, Session
+from .models.routines import Routine, Session
 
 # Task models
 from .models.task_models import Project, ProjectTask

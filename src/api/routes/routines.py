@@ -176,74 +176,97 @@ def import_caldav_events():
     if not events:
         return jsonify({"success": True, "message": "No events found to import", "imported_count": 0})
     
+    # Group events by UID
+    events_by_uid = {}
+    for event_dict in events:
+        uid = event_dict.get('uid')
+        if not uid:
+            continue
+        if uid not in events_by_uid:
+            events_by_uid[uid] = []
+        events_by_uid[uid].append(event_dict)
+    
     # Import events to database
     imported_count = 0
-    for event_dict in events:
+    for uid, event_instances in events_by_uid.items():
+        # Skip if no instances
+        if not event_instances:
+            continue
+            
+        # Use the first instance to get the event details
+        first_instance = event_instances[0]
+        
         # Skip events without required fields
-        if not event_dict.get('uid') or not event_dict.get('summary') or not event_dict.get('start') or not event_dict.get('end'):
+        if not first_instance.get('summary') or not first_instance.get('start') or not first_instance.get('end'):
+            print(f"Skipping event - missing required fields: {first_instance}")
             continue
             
         # Check if routine already exists to avoid duplicates
-        existing_routine = Routine.query.filter_by(external_uid=event_dict['uid'], user_id=current_user_id).first()
+        existing_routine = Routine.query.filter_by(external_uid=uid, user_id=current_user_id).first()
         if existing_routine:
+            print(f"Skipping event - already exists: {uid}")
             continue
             
         try:
+            # Start a new transaction for each event
+            db.session.begin_nested()
+            
+            # Log the data we're about to use
+            print(f"Creating routine with data:")
+            print(f"  title: {first_instance['summary'].strip() or 'Untitled Event'}")
+            print(f"  description: {first_instance.get('description', '')}")
+            print(f"  rrule: {first_instance.get('rrule', '')}")
+            print(f"  external_uid: {uid}")
+            
             # Create the routine
             routine = Routine(
-                title=event_dict['summary'],
-                description=event_dict.get('description', ''),
-                rrule=event_dict.get('rrule', ''),
+                title=first_instance['summary'].strip() or 'Untitled Event',
+                description=first_instance.get('description', ''),
+                rrule=first_instance.get('rrule', ''),
                 active=True,
                 user_id=current_user_id,
-                external_uid=event_dict['uid'],
+                external_uid=uid,
                 external_source='caldav'
             )
+            print(f"Created routine object: {routine.__dict__}")  # Log the routine object
+            
             db.session.add(routine)
             db.session.flush()  # Get the routine ID
+            print(f"Flushed routine to database, got ID: {routine.id}")
             
-            # Create sessions for the next 90 days
-            start_date = datetime.now()
-            end_date = start_date + timedelta(days=90)
+            # Create sessions for all instances
+            for instance in event_instances:
+                try:
+                    # Create the session
+                    session = Session(
+                        routine_id=routine.id,
+                        start_time=instance['start'],
+                        end_time=instance['end'],
+                        user_id=current_user_id
+                    )
+                    db.session.add(session)
+                    db.session.flush()  # Get the session ID
+                    
+                    # Create commitment for this session
+                    create_commitment_from_routine(routine, session, current_user_id)
+                    
+                except Exception as e:
+                    print(f"Error creating session/commitment for date {instance['start']}: {str(e)}")
+                    db.session.rollback()
+                    continue
             
-            # Parse RRULE to get recurring dates
-            if event_dict.get('rrule'):
-                # Use dateutil.rrule to parse the RRULE string
-                from dateutil.rrule import rrulestr
-                from dateutil.parser import parse
-                
-                rrule_str = event_dict['rrule']
-                if 'DTSTART' not in rrule_str:
-                    # Add DTSTART if not present
-                    rrule_str = f"DTSTART:{event_dict['start'].strftime('%Y%m%dT%H%M%S')}\n{rrule_str}"
-                
-                rule = rrulestr(rrule_str)
-                dates = list(rule.between(start_date, end_date))
-            else:
-                # Single event
-                dates = [event_dict['start']]
-            
-            # Create sessions and commitments for each date
-            for date in dates:
-                session = Session(
-                    routine_id=routine.id,
-                    start_time=date,
-                    end_time=date + (event_dict['end'] - event_dict['start']),
-                    user_id=current_user_id
-                )
-                db.session.add(session)
-                db.session.flush()  # Get the session ID
-                
-                # Create commitment for this session
-                create_commitment_from_routine(routine, session, current_user_id)
-            
+            # Commit the nested transaction
+            db.session.commit()
             imported_count += 1
             
         except Exception as e:
             print(f"Error importing event: {str(e)}")
+            # Rollback the nested transaction
+            db.session.rollback()
             continue
             
     try:
+        # Commit the main transaction
         db.session.commit()
         return jsonify({
             "success": True, 

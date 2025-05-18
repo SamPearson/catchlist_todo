@@ -62,12 +62,22 @@ class CalDAVClient:
         events = self.get_events(calendar, start_date, end_date)
         result = []
         
+        print(f"\nProcessing {len(events)} events from CalDAV")
+        
         for event in events:
             try:
                 ical_data = event.data
                 cal = icalendar.Calendar.from_ical(ical_data)
                 
                 for component in cal.walk('VEVENT'):
+                    print(f"\nProcessing VEVENT component:")
+                    print(f"  UID: {component.get('UID', '')}")
+                    print(f"  SUMMARY: {component.get('SUMMARY', '')}")
+                    print(f"  DESCRIPTION: {component.get('DESCRIPTION', '')}")
+                    print(f"  DTSTART: {component.get('DTSTART').dt if component.get('DTSTART') else None}")
+                    print(f"  DTEND: {component.get('DTEND').dt if component.get('DTEND') else None}")
+                    print(f"  RRULE: {component.get('RRULE', '')}")
+                    
                     event_dict = {
                         'uid': str(component.get('UID', '')),
                         'summary': str(component.get('SUMMARY', '')),
@@ -76,8 +86,10 @@ class CalDAVClient:
                         'end': component.get('DTEND').dt if component.get('DTEND') else None,
                         'rrule': str(component.get('RRULE', ''))
                     }
+                    print(f"Created event_dict: {event_dict}")
                     result.append(event_dict)
             except Exception as e:
                 print(f"Error parsing event: {str(e)}")
+                print(f"Event data: {event.data}")
                 
         return result

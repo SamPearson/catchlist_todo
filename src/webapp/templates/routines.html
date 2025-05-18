@@ -69,10 +69,10 @@
                 <h3 class="ui header">Recurring Events</h3>
                 <div class="ui divided items" id="events-list">
                     {% for event in events %}
-                    <div class="item" data-id="{{ event.id }}" data-summary="{{ event.summary }}" data-rrule="{{ event.rrule }}">
+                    <div class="item" data-id="{{ event.id }}" data-title="{{ event.title }}" data-rrule="{{ event.rrule }}">
                         <div class="content">
                             <div class="header">
-                                {{ event.summary }}
+                                {{ event.title }}
                                 <div class="ui toggle checkbox" style="float: right;">
                                     <input type="checkbox" class="event-toggle" {% if event.active %}checked{% endif %}>
                                     <label>Active</label>
@@ -128,8 +128,8 @@
             <div class="ui form" id="edit-routine-form">
                 <input type="hidden" name="routine-id">
                 <div class="field">
-                    <label>Summary</label>
-                    <input type="text" name="summary" placeholder="Routine title">
+                    <label>Title</label>
+                    <input type="text" name="title" placeholder="Routine title">
                 </div>
                 <div class="field">
                     <label>Description</label>
@@ -311,7 +311,7 @@ function handleEditRoutine() {
         // Populate form
         const form = document.getElementById('edit-routine-form');
         form.querySelector('[name="routine-id"]').value = routine.id;
-        form.querySelector('[name="summary"]').value = routine.summary;
+        form.querySelector('[name="title"]').value = routine.title;
         form.querySelector('[name="description"]').value = routine.description || '';
         form.querySelector('[name="start_time"]').value = routine.start_time || '';
         form.querySelector('[name="end_time"]').value = routine.end_time || '';
@@ -332,7 +332,7 @@ document.getElementById('save-routine-edit').addEventListener('click', function(
     const eventId = form.querySelector('[name="routine-id"]').value;
     
     const formData = {
-        summary: form.querySelector('[name="summary"]').value,
+        title: form.querySelector('[name="title"]').value,
         description: form.querySelector('[name="description"]').value,
         start_time: form.querySelector('[name="start_time"]').value,
         end_time: form.querySelector('[name="end_time"]').value,
@@ -356,12 +356,12 @@ document.getElementById('save-routine-edit').addEventListener('click', function(
     .then(routine => {
         // Update the routine in the list
         const eventItem = document.querySelector(`.item[data-id="${routine.id}"]`);
-        eventItem.querySelector('.header').childNodes[0].nodeValue = routine.summary;
+        eventItem.querySelector('.header').childNodes[0].nodeValue = routine.title;
         eventItem.querySelector('.description').textContent = routine.description;
         eventItem.querySelector('.time').textContent = `${routine.start_time} - ${routine.end_time}`;
         
         // Update data attributes
-        eventItem.dataset.summary = routine.summary;
+        eventItem.dataset.title = routine.title;
         eventItem.dataset.rrule = routine.rrule || '';
         
         // Hide modal
@@ -592,12 +592,12 @@ function filterRoutines() {
     const frequencyFilter = document.getElementById('frequency-filter').value;
     
     document.querySelectorAll('#events-list .item').forEach(item => {
-        const summary = item.dataset.summary.toLowerCase();
+        const title = item.dataset.title.toLowerCase();
         const isActive = item.querySelector('.event-toggle').checked;
         const rrule = item.dataset.rrule.toLowerCase();
         
         // Search term filter
-        const matchesSearch = searchTerm === '' || summary.includes(searchTerm);
+        const matchesSearch = searchTerm === '' || title.includes(searchTerm);
         
         // Active state filter
         let matchesActive = true;

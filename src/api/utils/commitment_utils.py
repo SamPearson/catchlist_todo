@@ -40,14 +40,11 @@ def create_commitment_from_routine(routine, session, user_id):
     """
     commitment = Commitment(
         user_id=user_id,
-        title=routine.title,
-        description=routine.description,
-        due_date=session.start_time.date(),
+        due_date=session.start_time.date() if hasattr(session.start_time, 'date') else session.start_time,
         start_time=session.start_time,
         end_time=session.end_time,
         routine_id=routine.id,
-        session_id=session.id,
-        item_type='routine'
+        session_id=session.id
     )
     
     db.session.add(commitment)

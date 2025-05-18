@@ -21,6 +21,14 @@ class Routine(db.Model):
     # Relationships
     sessions = relationship('Session', backref='routine', lazy=True, cascade="all, delete-orphan")
     
+    def __init__(self, **kwargs):
+        super(Routine, self).__init__(**kwargs)
+        print(f"Initializing Routine with kwargs: {kwargs}")  # Debug log
+        if 'title' not in kwargs:
+            raise ValueError("title is required")
+        if not kwargs['title']:
+            raise ValueError("title cannot be empty")
+    
     def as_dict(self):
         return {
             "id": self.id,

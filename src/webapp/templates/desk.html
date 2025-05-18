@@ -234,7 +234,7 @@ function displayTodayEvents(events) {
         <div class="item ${isCurrent ? 'current-event' : ''}" data-id="${event.id}">
             <div class="content">
                 <div class="header">
-                    ${event.summary || 'Untitled Event'}
+                    ${event.title || 'Untitled Event'}
                     ${isCurrent ? '<span class="ui green label">Current</span>' : ''}
                     ${event.completed ? '<span class="ui blue label">Completed</span>' : ''}
                 </div>
@@ -295,27 +295,32 @@ function displayCurrentActivity(events) {
         <div class="ui items">
             <div class="item">
                 <div class="content">
-                    <div class="header">${currentEvent.summary || 'Untitled Event'}</div>
+                    <div class="header">${currentEvent.title || 'Untitled Event'}</div>
                     <div class="meta">${timeRange}</div>
                     <div class="description">${currentEvent.description || ''}</div>
                     <div class="extra">
-                        <button class="ui button view-comments" data-id="${currentEvent.id}" data-type="calendar_event">
-                            <i class="comment icon"></i> Comments
+                        <div class="ui checkbox">
+                            <input type="checkbox" ${currentEvent.completed ? 'checked' : ''} data-id="${currentEvent.id}">
+                            <label>Complete</label>
+                        </div>
+                        <button class="ui tiny button add-checkin" data-id="${currentEvent.id}">
+                            <i class="plus icon"></i> Add Checkin
                         </button>
+                        <div class="ui tiny buttons">
+                            <button class="ui button view-checkins" data-id="${currentEvent.id}">
+                                <i class="list icon"></i> Checkins
+                            </button>
+                        </div>
+                    </div>
+                    <div class="checkins-list" id="checkins-${currentEvent.id}" style="display: none;">
+                        <!-- Checkins will be loaded here -->
                     </div>
                 </div>
             </div>
         </div>`;
         
-        // Add click handler for comments
-        const commentsButton = container.querySelector('.view-comments');
-        if (commentsButton) {
-            commentsButton.addEventListener('click', function() {
-                const id = this.getAttribute('data-id');
-                const type = this.getAttribute('data-type');
-                viewComments(id, type);
-            });
-        }
+        // Initialize commitment controls for the current activity
+        initializeCommitmentControls(container);
     } else {
         container.innerHTML = '<div class="ui info message">No activities currently in progress.</div>';
     }
