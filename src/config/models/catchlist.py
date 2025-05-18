@@ -20,7 +20,8 @@ class CatchlistItem(db.Model):
     checkins = relationship(
         'Checkin',
         primaryjoin="and_(Checkin.entity_type=='catchlist_item', foreign(Checkin.entity_id)==CatchlistItem.id)",
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        overlaps="checkins,checkins"
     )
     
     def as_dict(self):

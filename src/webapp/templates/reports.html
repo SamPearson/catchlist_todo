@@ -1,606 +1,340 @@
 {% extends "base.html" %}
 
-{% block head %}
-<!-- Add Semantic UI Calendar CSS and JS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/semantic-ui-calendar@0.0.8/dist/calendar.min.css">
-<script src="https://cdn.jsdelivr.net/npm/semantic-ui-calendar@0.0.8/dist/calendar.min.js"></script>
-{% endblock %}
+{% block title %}Reports{% endblock %}
 
 {% block content %}
-<div class="ui container">
-    <h1 class="ui header">Weekly Report</h1>
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">Reports</h1>
     
-    <div class="ui tiny buttons">
-        <button class="ui left labeled icon button" id="prev-week-btn">
-            <i class="left arrow icon"></i>
-            Previous Week
-        </button>
-        <button class="ui right labeled icon button" id="next-week-btn">
-            Next Week
-            <i class="right arrow icon"></i>
-        </button>
-    </div>
-    
-    <div class="ui calendar right floated" id="weekly-report-calendar">
-        <div class="ui input left icon">
-            <i class="calendar icon"></i>
-            <input type="text" placeholder="Select Date" id="report-end-date">
+    <!-- Report Type Tabs -->
+    <div class="mb-8">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button class="tab-button border-indigo-500 text-indigo-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="day">
+                    Day
+                </button>
+                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="week">
+                    Week
+                </button>
+                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="month">
+                    Month
+                </button>
+                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="season">
+                    Season
+                </button>
+                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="year">
+                    Year
+                </button>
+                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="custom">
+                    Custom
+                </button>
+                {% if config.SHOW_DEMO %}
+                <button class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="demo">
+                    Demo
+                </button>
+                {% endif %}
+            </nav>
         </div>
-        <button class="ui blue button" id="view-weekly-report">
-            <i class="search icon"></i> View
-        </button>
     </div>
     
-    <div class="ui clearing divider"></div>
-    
-    <div id="weekly-report-content">
-        <div class="ui active dimmer">
-            <div class="ui loader"></div>
-        </div>
-    </div>
-    
-    <!-- View Comments Report button (always visible) -->
-    <div class="ui center aligned container" style="margin-top: 2em;">
-        <button class="ui teal button" id="view-comments-report">
-            <i class="comments icon"></i> View Comments Report
-        </button>
-    </div>
-</div>
-
-<!-- Comments Report Modal -->
-<div class="ui modal" id="comments-report-modal">
-    <i class="close icon"></i>
-    <div class="header">Comments Report</div>
-    <div class="content" id="comments-report-content">
-        <!-- Comments will be loaded here -->
-    </div>
-</div>
-
-<!-- Day Details Modal -->
-<div class="ui modal" id="day-details-modal">
-    <i class="close icon"></i>
-    <div class="header" id="day-details-header">Day Details</div>
-    <div class="content" id="day-details-content">
-        <div class="ui placeholder">
-            <div class="header">
-                <div class="line"></div>
+    <!-- Report Content -->
+    <div class="report-content">
+        <!-- Day Report -->
+        <div class="tab-content" id="day-content">
+            <div class="mb-4">
+                <input type="date" id="day-date" class="form-input rounded-md shadow-sm">
             </div>
-            <div class="paragraph">
-                <div class="line"></div>
-                <div class="line"></div>
+            <div id="day-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Day report content will be loaded here -->
             </div>
         </div>
+        
+        <!-- Week Report -->
+        <div class="tab-content hidden" id="week-content">
+            <div class="mb-4">
+                <input type="date" id="week-date" class="form-input rounded-md shadow-sm">
+            </div>
+            <div id="week-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Week report content will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Month Report -->
+        <div class="tab-content hidden" id="month-content">
+            <div class="mb-4">
+                <input type="month" id="month-date" class="form-input rounded-md shadow-sm">
+            </div>
+            <div id="month-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Month report content will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Season Report -->
+        <div class="tab-content hidden" id="season-content">
+            <div class="mb-4 flex space-x-4">
+                <select id="season-year" class="form-select rounded-md shadow-sm">
+                    <!-- Years will be populated dynamically -->
+                </select>
+                <select id="season-name" class="form-select rounded-md shadow-sm">
+                    <option value="Winter">Winter</option>
+                    <option value="Spring">Spring</option>
+                    <option value="Summer">Summer</option>
+                    <option value="Fall">Fall</option>
+                </select>
+            </div>
+            <div id="season-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Season report content will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Year Report -->
+        <div class="tab-content hidden" id="year-content">
+            <div class="mb-4">
+                <select id="year-select" class="form-select rounded-md shadow-sm">
+                    <!-- Years will be populated dynamically -->
+                </select>
+            </div>
+            <div id="year-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Year report content will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Custom Report -->
+        <div class="tab-content hidden" id="custom-content">
+            <div class="mb-4 flex space-x-4">
+                <input type="date" id="custom-start-date" class="form-input rounded-md shadow-sm" placeholder="Start Date">
+                <input type="date" id="custom-end-date" class="form-input rounded-md shadow-sm" placeholder="End Date">
+            </div>
+            <div id="custom-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Custom report content will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Demo Report -->
+        {% if config.SHOW_DEMO %}
+        <div class="tab-content hidden" id="demo-content">
+            <div class="mb-4">
+                <select id="demo-type" class="form-select rounded-md shadow-sm">
+                    <option value="day">Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                    <option value="season">Season</option>
+                    <option value="year">Year</option>
+                </select>
+            </div>
+            <div id="demo-report" class="bg-white shadow rounded-lg p-6">
+                <!-- Demo report content will be loaded here -->
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+{% block scripts %}
 <script>
-// Set the API URL for comments.js
-setApiUrl('{{ API_URL }}');
-
-// Function to get auth token from cookies
-function getAuthToken() {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.startsWith('auth_token=')) {
-            return cookie.substring('auth_token='.length, cookie.length);
-        }
-    }
-    return '';
-}
-
-// Current report end date
-let currentReportEndDate = null;
-
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize semantic UI components
-    $('.ui.dropdown').dropdown();
-    $('#weekly-report-calendar').calendar({
-        type: 'date'
-    });
+    // Initialize date inputs with current date
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
     
-    // Set up weekly report button
-    document.getElementById('view-weekly-report').addEventListener('click', function() {
-        const endDate = document.getElementById('report-end-date').value;
-        loadWeeklyReport(endDate);
-    });
+    // Set default dates
+    document.getElementById('day-date').value = `${year}-${month}-${day}`;
+    document.getElementById('week-date').value = `${year}-${month}-${day}`;
+    document.getElementById('month-date').value = `${year}-${month}`;
     
-    // Set up comments report button
-    document.getElementById('view-comments-report').addEventListener('click', function() {
-        loadCommentsReport(7); // Default to 7 days
-    });
+    // Populate year selects
+    const yearSelect = document.getElementById('year-select');
+    const seasonYear = document.getElementById('season-year');
+    const currentYear = new Date().getFullYear();
     
-    // Set up weekly report navigation buttons
-    document.getElementById('prev-week-btn').addEventListener('click', function() {
-        navigateWeek(-1);
-    });
-    
-    document.getElementById('next-week-btn').addEventListener('click', function() {
-        navigateWeek(1);
-    });
-    
-    // Load report initially
-    loadWeeklyReport();
-});
-
-// Navigate to previous or next week
-function navigateWeek(direction) {
-    if (!currentReportEndDate) {
-        // If no current date, use today
-        currentReportEndDate = new Date();
-    } else {
-        // Convert string date to Date object if needed
-        currentReportEndDate = typeof currentReportEndDate === 'string' 
-            ? new Date(currentReportEndDate) 
-            : currentReportEndDate;
+    for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+        const option = new Option(y, y);
+        yearSelect.add(option);
+        seasonYear.add(option.cloneNode(true));
     }
     
-    // Move forward or backward by 7 days
-    const newDate = new Date(currentReportEndDate);
-    newDate.setDate(newDate.getDate() + (direction * 7));
+    yearSelect.value = currentYear;
+    seasonYear.value = currentYear;
     
-    // Ensure the end date is always a Saturday (day before Sunday)
-    const dayOfWeek = newDate.getDay();
-    if (dayOfWeek !== 6) { // 6 is Saturday
-        // Adjust to the nearest Saturday
-        const daysToSaturday = dayOfWeek === 0 ? -1 : 6 - dayOfWeek;
-        newDate.setDate(newDate.getDate() + daysToSaturday);
-    }
+    // Tab switching
+    const tabs = document.querySelectorAll('.tab-button');
+    const contents = document.querySelectorAll('.tab-content');
     
-    // Format date for API
-    const formattedDate = formatDateForAPI(newDate);
-    
-    // Load the report for the new week
-    loadWeeklyReport(formattedDate);
-}
-
-// Format date as YYYY-MM-DD for API
-function formatDateForAPI(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-// Load weekly report
-function loadWeeklyReport(endDate) {
-    // Show loading state
-    document.getElementById('weekly-report-content').innerHTML = `
-        <div class="ui active dimmer">
-            <div class="ui loader"></div>
-        </div>
-    `;
-    
-    // If no end date provided, use the current date and adjust to the nearest Saturday
-    if (!endDate) {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        if (dayOfWeek !== 6) { // 6 is Saturday
-            const daysToSaturday = dayOfWeek === 0 ? -1 : 6 - dayOfWeek;
-            today.setDate(today.getDate() + daysToSaturday);
-        }
-        endDate = formatDateForAPI(today);
-    }
-    
-    // Save the current report date
-    currentReportEndDate = endDate;
-    
-    const url = `{{ API_URL }}/reports/weekly?end_date=${endDate}`;
-    
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(report => {
-        displayWeeklyReport(report);
-        
-        // Update the "Next Week" button - disable if we're at the current week
-        const today = new Date();
-        const reportEndDate = new Date(report.period.end_date);
-        const nextWeekBtn = document.getElementById('next-week-btn');
-        
-        if (reportEndDate >= today) {
-            nextWeekBtn.classList.add('disabled');
-        } else {
-            nextWeekBtn.classList.remove('disabled');
-        }
-    })
-    .catch(error => {
-        console.error('Error loading weekly report:', error);
-        document.getElementById('weekly-report-content').innerHTML = `
-            <div class="ui negative message">
-                <div class="header">Error Loading Report</div>
-                <p>Could not load weekly report. Please try again later.</p>
-            </div>
-        `;
-    });
-}
-
-// Display weekly report
-function displayWeeklyReport(report) {
-    const content = document.getElementById('weekly-report-content');
-    
-    // Format the report period - ensure we display Sunday to Saturday
-    const startDate = new Date(report.period.start_date);
-    const endDate = new Date(report.period.end_date);
-    
-    // Verify that startDate is a Sunday and endDate is a Saturday
-    const isStartSunday = startDate.getDay() === 0;
-    const isEndSaturday = endDate.getDay() === 6;
-    
-    // Format dates in a user-friendly way (e.g., "May 3, 2023")
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedStartDate = startDate.toLocaleDateString(undefined, options);
-    const formattedEndDate = endDate.toLocaleDateString(undefined, options);
-    
-    let html = `
-        <div class="ui segment">
-            <h3>Week of ${formattedStartDate} to ${formattedEndDate}</h3>
-            ${!isStartSunday || !isEndSaturday ? 
-                `<div class="ui warning message">Note: This report may not cover a complete Sunday-to-Saturday week.</div>` : ''}
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Update tab styles
+            tabs.forEach(t => {
+                t.classList.remove('border-indigo-500', 'text-indigo-600');
+                t.classList.add('border-transparent', 'text-gray-500');
+            });
+            tab.classList.remove('border-transparent', 'text-gray-500');
+            tab.classList.add('border-indigo-500', 'text-indigo-600');
             
-            <div class="ui statistics">
-                <div class="statistic">
-                    <div class="value">${report.checkins.total}</div>
-                    <div class="label">Total Check-ins</div>
-                </div>
-                <div class="statistic">
-                    <div class="value">${report.completed_tasks.total}</div>
-                    <div class="label">Completed Tasks</div>
-                </div>
-                <div class="statistic">
-                    <div class="value">${report.completed_catchlist.total}</div>
-                    <div class="label">Completed Catchlist</div>
-                </div>
-                <div class="statistic">
-                    <div class="value">${report.average_rpe || 'N/A'}</div>
-                    <div class="label">Avg RPE</div>
-                </div>
-            </div>
-        </div>
-        
-        <h4 class="ui header">Projects</h4>
-        <div class="ui list">
-    `;
-    
-    // Add projects
-    report.projects.forEach(project => {
-        html += `
-            <div class="item">
-                <div class="content">
-                    <div class="header">${project.title}</div>
-                    <div class="description">
-                        <div class="ui indicating progress" data-percent="${project.completion_percentage}">
-                            <div class="bar" style="width:${project.completion_percentage}%"></div>
-                            <div class="label">${project.completed_subtasks} of ${project.total_subtasks} tasks (${project.completion_percentage}%)</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += `
-        </div>
-        
-        <h4 class="ui header">Daily Activity</h4>
-        <table class="ui celled table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Check-ins</th>
-                    <th>Tasks</th>
-                    <th>Catchlist</th>
-                    <th>Avg RPE</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    // Add daily stats
-    Object.keys(report.daily_stats).sort().forEach(date => {
-        const stats = report.daily_stats[date];
-        const displayDate = new Date(date).toLocaleDateString();
-        
-        html += `
-            <tr>
-                <td>${displayDate}</td>
-                <td>${(stats.checkins || 0) > 0 ? 
-                    `<a href="#" class="day-detail-link" data-date="${date}" data-category="checkins">${stats.checkins}</a>` : 
-                    '0'}</td>
-                <td>${(stats.completed_tasks || 0) > 0 ? 
-                    `<a href="#" class="day-detail-link" data-date="${date}" data-category="tasks">${stats.completed_tasks}</a>` : 
-                    '0'}</td>
-                <td>${(stats.completed_catchlist || 0) > 0 ? 
-                    `<a href="#" class="day-detail-link" data-date="${date}" data-category="catchlist">${stats.completed_catchlist}</a>` : 
-                    '0'}</td>
-                <td>${stats.average_rpe || 'N/A'}</td>
-            </tr>
-        `;
-    });
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    content.innerHTML = html;
-    
-    // Initialize progress bars
-    $('.ui.progress').progress();
-    
-    // Add click handlers for day detail links
-    document.querySelectorAll('.day-detail-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const date = this.getAttribute('data-date');
-            const category = this.getAttribute('data-category');
-            loadDayDetails(date, category);
+            // Show selected content
+            const tabId = tab.dataset.tab;
+            contents.forEach(content => {
+                content.classList.add('hidden');
+                if (content.id === `${tabId}-content`) {
+                    content.classList.remove('hidden');
+                    loadReport(tabId);
+                }
+            });
         });
     });
-}
-
-// Load day details
-function loadDayDetails(date, category) {
-    // Show loading state
-    const content = document.getElementById('day-details-content');
-    content.innerHTML = `
-        <div class="ui active dimmer">
-            <div class="ui loader"></div>
-        </div>
-    `;
     
-    // Set header based on category
-    const headerElement = document.getElementById('day-details-header');
-    const displayDate = new Date(date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    let categoryName;
+    // Load initial report
+    loadReport('day');
     
-    switch(category) {
-        case 'checkins':
-            categoryName = 'Check-ins';
-            break;
-        case 'tasks':
-            categoryName = 'Completed Tasks';
-            break;
-        case 'catchlist':
-            categoryName = 'Completed Catchlist Items';
-            break;
+    // Event listeners for date/period changes
+    document.getElementById('day-date').addEventListener('change', () => loadReport('day'));
+    document.getElementById('week-date').addEventListener('change', () => loadReport('week'));
+    document.getElementById('month-date').addEventListener('change', () => loadReport('month'));
+    document.getElementById('season-year').addEventListener('change', () => loadReport('season'));
+    document.getElementById('season-name').addEventListener('change', () => loadReport('season'));
+    document.getElementById('year-select').addEventListener('change', () => loadReport('year'));
+    document.getElementById('custom-start-date').addEventListener('change', () => loadReport('custom'));
+    document.getElementById('custom-end-date').addEventListener('change', () => loadReport('custom'));
+    if (document.getElementById('demo-type')) {
+        document.getElementById('demo-type').addEventListener('change', () => loadReport('demo'));
     }
-    
-    headerElement.textContent = `${categoryName} for ${displayDate}`;
-    
-    // Show the modal
-    $('#day-details-modal').modal('show');
-    
-    // Fetch the data from API
-    fetch(`{{ API_URL }}/reports/day-details?date=${date}&category=${category}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        displayDayDetails(data);
-    })
-    .catch(error => {
-        console.error('Error loading day details:', error);
-        content.innerHTML = `
-            <div class="ui negative message">
-                <div class="header">Error Loading Details</div>
-                <p>Could not load details. Please try again later.</p>
-            </div>
-        `;
-    });
-}
+});
 
-// Display day details
-function displayDayDetails(data) {
-    const content = document.getElementById('day-details-content');
-    
-    if (data.items.length === 0) {
-        content.innerHTML = `
-            <div class="ui message">
-                <div class="header">No items found</div>
-                <p>No details available for this day and category.</p>
-            </div>
-        `;
+function loadReport(type) {
+    const reportDiv = document.getElementById(`${type}-report`);
+    if (!reportDiv) {
+        console.error(`Report div not found for type: ${type}`);
         return;
     }
     
-    let html = '<div class="ui relaxed divided items">';
+    reportDiv.innerHTML = '<div class="text-center py-4">Loading...</div>';
     
-    // Display each item
-    data.items.forEach(item => {
-        html += `
-            <div class="item">
-                <div class="content">
-                    <div class="header">${item.title}</div>
-        `;
-        
-        // Display category-specific details
-        if (data.category === 'checkins') {
-            html += `
-                <div class="description">
-                    <div class="ui label">
-                        <i class="check circle icon"></i>
-                        ${item.details.check_in_count} check-in${item.details.check_in_count > 1 ? 's' : ''}
-                    </div>
-                    ${item.details.rpe ? `
-                    <div class="ui label">
-                        <i class="heartbeat icon"></i>
-                        RPE: ${item.details.rpe}/10
-                    </div>
-                    ` : ''}
-                    <p class="description-text">
-                        <i class="calendar icon"></i> Date: ${item.details.execution_date}
-                    </p>
-                    ${item.details.notes ? `
-                    <div class="ui segment">
-                        <i class="sticky note icon"></i> Notes: ${item.details.notes}
-                    </div>
-                    ` : ''}
-                </div>
-            `;
-        } else if (data.category === 'tasks') {
-            html += `
-                <div class="description">
-                    <p><i class="folder icon"></i> Project: ${item.details.project_title}</p>
-                    <p><i class="calendar check icon"></i> Completed at: ${item.details.completed_at}</p>
-                    ${item.details.notes ? `<p><i class="sticky note icon"></i> ${item.details.notes}</p>` : ''}
-                </div>
-            `;
-        } else if (data.category === 'catchlist') {
-            html += `
-                <div class="description">
-                    <p><i class="calendar check icon"></i> Completed at: ${item.details.completed_at}</p>
-                    <p><i class="tag icon"></i> Status: ${item.details.status}</p>
-                    ${item.details.notes ? `<p><i class="sticky note icon"></i> ${item.details.notes}</p>` : ''}
-                </div>
-            `;
-        }
-        
-        // Display comments if any
-        if (item.comments && item.comments.length > 0) {
-            html += `
-                <div class="extra">
-                    <div class="ui comments">
-                        <h4 class="ui dividing header">Comments (${item.comments.length})</h4>
-            `;
-            
-            item.comments.forEach(comment => {
-                html += `
-                    <div class="comment">
-                        <div class="content">
-                            <div class="metadata">
-                                <div class="date">${comment.created_at}</div>
-                                ${comment.rpe ? `<span class="ui mini label">RPE: ${comment.rpe}/10</span>` : ''}
-                            </div>
-                            <div class="text">${comment.content}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += `
-                    </div>
-                </div>
-            `;
-        }
-        
-        html += `
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    content.innerHTML = html;
-}
-
-// Load comments report
-function loadCommentsReport(days = 7) {
-    fetch(`{{ API_URL }}/reports/comments?days=${days}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(comments => {
-        displayCommentsReport(comments, days);
-    })
-    .catch(error => {
-        console.error('Error loading comments report:', error);
-        alert('Could not load comments report. Please try again later.');
-    });
-}
-
-// Display comments report
-function displayCommentsReport(comments, days) {
-    // Get the modal content
-    const content = document.getElementById('comments-report-content');
-    
-    // Create title based on days
-    let title;
-    if (days == 7) {
-        title = "Last 7 Days";
-    } else if (days == 14) {
-        title = "Last 14 Days";
-    } else if (days == 30) {
-        title = "Last 30 Days";
-    } else {
-        title = `Last ${days} Days`;
-    }
-    
-    if (comments.length === 0) {
-        content.innerHTML = `
-            <div class="ui message">
-                <div class="header">No Comments</div>
-                <p>You haven't added any comments in the ${title.toLowerCase()}.</p>
-            </div>
-        `;
-    } else {
-        content.innerHTML = `
-            <div class="ui comments">
-                <h3 class="ui dividing header">Comments for ${title}</h3>
-        `;
-        
-        comments.forEach(comment => {
-            let entityInfo = '';
-            let entityType = '';
-            
-            if (comment.entity_type === 'event_execution') {
-                entityType = 'Event';
-            } else if (comment.entity_type === 'project_subtask') {
-                entityType = 'Task';
-            } else if (comment.entity_type === 'catchlist_item') {
-                entityType = 'Catchlist Item';
-                entityInfo = comment.entity_details.title;
+    let url;
+    switch (type) {
+        case 'day':
+            const dayDate = document.getElementById('day-date').value;
+            url = `/api/reports/day/${dayDate}`;
+            break;
+        case 'week':
+            const weekDate = document.getElementById('week-date').value;
+            url = `/api/reports/week/${weekDate}`;
+            break;
+        case 'month':
+            const monthDate = document.getElementById('month-date').value;
+            url = `/api/reports/month/${monthDate}`;
+            break;
+        case 'season':
+            const year = document.getElementById('season-year').value;
+            const season = document.getElementById('season-name').value;
+            url = `/api/reports/season/${year}/${season}`;
+            break;
+        case 'year':
+            const selectedYear = document.getElementById('year-select').value;
+            url = `/api/reports/year/${selectedYear}`;
+            break;
+        case 'custom':
+            const startDate = document.getElementById('custom-start-date').value;
+            const endDate = document.getElementById('custom-end-date').value;
+            if (!startDate || !endDate) {
+                reportDiv.innerHTML = '<div class="text-center py-4 text-red-500">Please select both start and end dates</div>';
+                return;
             }
-            
-            content.innerHTML += `
-                <div class="comment">
-                    <div class="content">
-                        <div class="author">You</div>
-                        <div class="metadata">
-                            <div class="date">${comment.created_at}</div>
-                            ${comment.rpe ? `<span class="ui mini label">RPE: ${comment.rpe}/10</span>` : ''}
-                            <span class="ui mini label">${entityType}</span>
-                        </div>
-                        <div class="text">${comment.content}</div>
-                        <div class="metadata">
-                            <span class="entity-info">${entityInfo}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        content.innerHTML += `</div>`;
+            fetch('/api/reports/custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ start_date: startDate, end_date: endDate })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">${data.error}</div>`;
+                } else {
+                    displayReport(data, reportDiv);
+                }
+            })
+            .catch(error => {
+                reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">Error: ${error.message}</div>`;
+            });
+            return;
+        case 'demo':
+            const demoType = document.getElementById('demo-type').value;
+            url = `/api/reports/demo/${demoType}`;
+            break;
+        default:
+            console.error(`Unknown report type: ${type}`);
+            return;
     }
     
-    // Show the modal
-    $('#comments-report-modal').modal('show');
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">${data.error}</div>`;
+            } else {
+                displayReport(data, reportDiv);
+            }
+        })
+        .catch(error => {
+            reportDiv.innerHTML = `<div class="text-center py-4 text-red-500">Error: ${error.message}</div>`;
+        });
+}
+
+function displayReport(data, container) {
+    const { time_block, stats, commitments } = data;
+    
+    let html = `
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-gray-500">Total Commitments</h3>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.total_commitments}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-gray-500">Completed</h3>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.completed_commitments}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-gray-500">Completion Rate</h3>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.completion_rate.toFixed(1)}%</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-gray-500">Average RPE</h3>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900">${stats.average_rpe ? stats.average_rpe.toFixed(1) : 'N/A'}</p>
+                </div>
+            </div>
+            
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg font-medium text-gray-900">Commitments</h3>
+                    <div class="mt-4 space-y-4">
+                        ${commitments.map(commitment => `
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <input type="checkbox" class="h-4 w-4 text-indigo-600" 
+                                           ${commitment.completed ? 'checked' : ''} disabled>
+                                    <span class="text-sm font-medium text-gray-900">${commitment.title}</span>
+                                </div>
+                                ${commitment.rpe ? `
+                                    <span class="text-sm text-gray-500">RPE: ${commitment.rpe}</span>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
 }
 </script>
+{% endblock %}
 {% endblock %} 

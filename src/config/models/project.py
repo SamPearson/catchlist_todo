@@ -23,7 +23,8 @@ class Project(db.Model):
     checkins = relationship(
         'Checkin',
         primaryjoin="and_(Checkin.entity_type=='project', foreign(Checkin.entity_id)==Project.id)",
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        overlaps="checkins"
     )
     
     def as_dict(self):
@@ -55,7 +56,8 @@ class ProjectTask(db.Model):
     checkins = relationship(
         'Checkin',
         primaryjoin="and_(Checkin.entity_type=='project_task', foreign(Checkin.entity_id)==ProjectTask.id)",
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        overlaps="checkins"
     )
     
     def as_dict(self):

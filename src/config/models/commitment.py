@@ -37,7 +37,8 @@ class Commitment(db.Model):
                           primaryjoin="and_(foreign(Checkin.entity_id)==Commitment.id, "
                                     "Checkin.entity_type=='commitment')",
                           lazy=True,
-                          cascade="all, delete-orphan")
+                          cascade="all, delete-orphan",
+                          overlaps="checkins,checkins,checkins,checkins")
     
     @property
     def item_type(self):

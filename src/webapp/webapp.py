@@ -1,9 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response, current_app
 import os
 import requests
 from dotenv import load_dotenv
 import logging
 from pathlib import Path
+from .routes.reports import reports_bp
+from ..config.db_setup import db
+from ..config.db_config import Config
 
 # Configure logging for production - only show warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -17,8 +20,17 @@ app = Flask(__name__,
             template_folder=str(webapp_dir / 'templates'),
             static_folder=str(webapp_dir / 'static'))
 
+# Configure database
+app.config.from_object(Config)
+
+# Initialize database
+db.init_app(app)
+
 # Configure whether to show the demo page
 app.config['SHOW_DEMO'] = os.getenv('SHOW_DEMO', 'True').lower() in ('true', '1', 't')
+
+# Register blueprints
+app.register_blueprint(reports_bp)
 
 # env files are specified in systemd service files on staging&prod
 # we launch the app with gunicon on staging/prod, thus ( __name__ == main ) only on dev/local.

@@ -57,7 +57,8 @@ class Session(db.Model):
                           primaryjoin="and_(foreign(Checkin.entity_id)==Session.id, "
                                     "Checkin.entity_type=='session')",
                           lazy=True,
-                          cascade="all, delete-orphan")
+                          cascade="all, delete-orphan",
+                          overlaps="checkins,checkins,checkins")
     notes = db.Column(db.Text)
     rpe = db.Column(db.Integer)  # Rate of Perceived Exertion (1-10)
     

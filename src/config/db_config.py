@@ -10,7 +10,14 @@ config_dir = Path(__file__).parent
 load_dotenv(os.path.join(config_dir, '.env')) 
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URI', 'sqlite:///catchlist_todo.db')
+    # Always use the absolute path to the instance directory
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    INSTANCE_DIR = BASE_DIR / "instance"
+    DB_PATH = INSTANCE_DIR / "catchlist_todo.db"
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'DATABASE_URI',
+        f"sqlite:///{DB_PATH}"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Add a secure secret key for JWT
@@ -33,9 +40,16 @@ class Config:
 def initialize_database(app):
     """Initialize the database with all tables if they don't exist"""
     with app.app_context():
+        # Print the actual database URI being used
+        print("DB URI in use:", app.config['SQLALCHEMY_DATABASE_URI'])
         # Import all models to ensure they're registered with SQLAlchemy
         from .models import db
         
-        # Drop all tables and recreate them
+        # Force recreate all tables
         db.drop_all()
         db.create_all()
+        
+        # Verify tables were created
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        print("Created tables:", tables)

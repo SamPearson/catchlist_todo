@@ -15,6 +15,9 @@ class Checkin(db.Model):
     entity_type = db.Column(db.String(50), nullable=False)  # 'commitment', 'project_task', 'catchlist_item', 'session', etc.
     entity_id = db.Column(db.Integer, nullable=False)
     
+    # Time block relationship
+    time_block_id = db.Column(db.Integer, db.ForeignKey('time_block.id'), nullable=True)
+    
     # Core checkin data
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now)
     comment = db.Column(db.Text)
@@ -27,6 +30,7 @@ class Checkin(db.Model):
     
     # Relationships
     user = relationship("User", back_populates="checkins")
+    time_block = relationship("TimeBlock", back_populates="checkins")
     
     def as_dict(self):
         return {
@@ -38,5 +42,6 @@ class Checkin(db.Model):
             "mood": self.mood,
             "energy": self.energy,
             "entity_type": self.entity_type,
-            "entity_id": self.entity_id
+            "entity_id": self.entity_id,
+            "time_block_id": self.time_block_id
         } 
