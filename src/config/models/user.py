@@ -10,12 +10,18 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    name = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, default=db.func.now())
     
     # Relationships
-    commitments = relationship("Commitment", back_populates="user")
-    checkins = relationship("Checkin", 
-                          primaryjoin="User.id==Checkin.user_id",
-                          back_populates="user")
+    commitments = relationship("Commitment", back_populates="user", lazy=True)
+    soft_commitments = relationship("SoftCommitment", back_populates="user", lazy=True)
+    projects = relationship("Project", back_populates="user", lazy=True)
+    catchlist_items = relationship("CatchlistItem", back_populates="user", lazy=True)
+    routines = relationship("Routine", back_populates="user", lazy=True)
+    sessions = relationship("Session", back_populates="user", lazy=True)
+    checkins = relationship("Checkin", back_populates="user", lazy=True)
     
     # Relationships will be defined as backref from their respective models
     # to avoid circular imports
@@ -26,6 +32,13 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "name": self.name,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
 
 class BlacklistedToken(db.Model):
     __tablename__ = 'blacklisted_tokens'

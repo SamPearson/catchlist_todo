@@ -22,9 +22,9 @@ def create_commitment():
     user_id = get_jwt_identity()
     data = request.get_json()
     
-    # Validate required fields
+    # Validate required fields for hard commitments
     if not data.get('due_date'):
-        return jsonify({"message": "Due date is required"}), 400
+        return jsonify({"message": "Due date is required for hard commitments"}), 400
     
     # Parse the date string directly as YYYY-MM-DD
     year, month, day = map(int, data['due_date'].split('-'))
@@ -39,7 +39,8 @@ def create_commitment():
         session_id=data.get('session_id'),
         due_date=due_date,
         start_time=datetime.fromisoformat(data['start_time']) if data.get('start_time') else None,
-        end_time=datetime.fromisoformat(data['end_time']) if data.get('end_time') else None
+        end_time=datetime.fromisoformat(data['end_time']) if data.get('end_time') else None,
+        is_soft_commitment=False  # Explicitly set to False for hard commitments
     )
     
     try:
@@ -82,6 +83,26 @@ def update_commitment(commitment_id):
     
     db.session.commit()
     return jsonify(commitment.as_dict())
+
+@bp.route('/api/commitments/<int:commitment_id>', methods=['DELETE'])
+@jwt_required()
+def delete_commitment(commitment_id):
+    """Delete a hard commitment"""
+    user_id = get_jwt_identity()
+    
+    commitment = Commitment.query.filter(
+        Commitment.id == commitment_id,
+        Commitment.user_id == user_id,
+        Commitment.is_soft_commitment == False
+    ).first_or_404()
+    
+    try:
+        db.session.delete(commitment)
+        db.session.commit()
+        return jsonify({"message": "Commitment deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
 
 # Add OPTIONS method handler for checkins
 @bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['OPTIONS'])
@@ -238,7 +259,16 @@ def get_commitments():
     if project_task_id:
         query = query.filter(Commitment.project_task_id == project_task_id)
     
+    # Add logging
+    print(f"Querying commitments for user {user_id}")
+    if catchlist_item_id:
+        print(f"Filtering by catchlist_item_id: {catchlist_item_id}")
+    if project_task_id:
+        print(f"Filtering by project_task_id: {project_task_id}")
+    
     commitments = query.order_by(Commitment.due_date.desc()).all()
+    print(f"Found {len(commitments)} commitments")
+    
     return jsonify([commitment.as_dict() for commitment in commitments])
 
 @bp.route('/api/commitments/range', methods=['OPTIONS'])
@@ -272,4 +302,103 @@ def get_commitments_range():
         Commitment.due_date.between(start_date, end_date)
     ).order_by(Commitment.due_date.asc()).all()
     
-    return jsonify([commitment.as_dict() for commitment in commitments]) 
+    return jsonify([commitment.as_dict() for commitment in commitments])
+
+# Add OPTIONS method handler for soft commitments
+@bp.route('/api/commitments/soft/<period>', methods=['OPTIONS'])
+def options_soft_commitments(period):
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
+@bp.route('/api/commitments/soft/<period>', methods=['GET'])
+@jwt_required()
+def get_soft_commitments(period):
+    """Get soft commitments for a specific time period"""
+    user_id = get_jwt_identity()
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    if not start_date or not end_date:
+        return jsonify({"message": "Start and end dates are required"}), 400
+    
+    try:
+        start = datetime.fromisoformat(start_date).date()
+        end = datetime.fromisoformat(end_date).date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get soft commitments for the period
+    commitments = Commitment.query.filter(
+        Commitment.user_id == user_id,
+        Commitment.is_soft_commitment == True,
+        Commitment.time_period == period,
+        Commitment.start_date >= start,
+        Commitment.end_date <= end
+    ).all()
+    
+    return jsonify([commitment.as_dict() for commitment in commitments])
+
+@bp.route('/api/commitments/soft/<period>', methods=['POST'])
+@jwt_required()
+def create_soft_commitment(period):
+    """Create a new soft commitment for a time period"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    if not data.get('title'):
+        return jsonify({"message": "Title is required"}), 400
+    
+    if not data.get('start_date') or not data.get('end_date'):
+        return jsonify({"message": "Start and end dates are required"}), 400
+    
+    try:
+        start_date = datetime.fromisoformat(data['start_date']).date()
+        end_date = datetime.fromisoformat(data['end_date']).date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Create the commitment
+    commitment = Commitment(
+        user_id=user_id,
+        title=data['title'],
+        description=data.get('description'),
+        start_date=start_date,
+        end_date=end_date,
+        due_date=None,  # Soft commitments don't have due dates
+        is_soft_commitment=True,
+        time_period=period,
+        # Add item reference if provided
+        catchlist_item_id=data.get('catchlist_item_id'),
+        project_task_id=data.get('project_task_id')
+    )
+    
+    try:
+        db.session.add(commitment)
+        db.session.commit()
+        return jsonify(commitment.as_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@bp.route('/api/commitments/soft/<int:commitment_id>', methods=['DELETE'])
+@jwt_required()
+def delete_soft_commitment(commitment_id):
+    """Delete a soft commitment"""
+    user_id = get_jwt_identity()
+    
+    commitment = Commitment.query.filter(
+        Commitment.id == commitment_id,
+        Commitment.user_id == user_id,
+        Commitment.is_soft_commitment == True
+    ).first_or_404()
+    
+    try:
+        db.session.delete(commitment)
+        db.session.commit()
+        return jsonify({"message": "Soft commitment deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500 

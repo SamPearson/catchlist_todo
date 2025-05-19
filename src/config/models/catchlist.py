@@ -17,6 +17,7 @@ class CatchlistItem(db.Model):
     completed_at = Column(DateTime, nullable=True)
     
     # Relationships
+    user = relationship('User', back_populates='catchlist_items')
     checkins = relationship(
         'Checkin',
         primaryjoin="and_(Checkin.entity_type=='catchlist_item', foreign(Checkin.entity_id)==CatchlistItem.id)",

@@ -19,6 +19,7 @@ class Routine(db.Model):
     external_source = db.Column(db.String(50))  # e.g., 'caldav', 'google'
     
     # Relationships
+    user = relationship('User', back_populates='routines')
     sessions = relationship('Session', backref='routine', lazy=True, cascade="all, delete-orphan")
     
     def __init__(self, **kwargs):
@@ -53,6 +54,9 @@ class Session(db.Model):
     end_time = db.Column(db.DateTime, nullable=False)
     completed = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Relationships
+    user = relationship('User', back_populates='sessions')
     checkins = relationship('Checkin', 
                           primaryjoin="and_(foreign(Checkin.entity_id)==Session.id, "
                                     "Checkin.entity_type=='session')",

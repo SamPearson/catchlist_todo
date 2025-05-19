@@ -72,14 +72,19 @@ class DayBlock(TimeBlock):
     month = db.Column(db.Integer, nullable=False)
     day = db.Column(db.Integer, nullable=False)
     sleep_hours = db.Column(db.Float)
-    mood = db.Column(db.String(50))
+    mood = db.Column(db.Integer)  # Changed to Integer for 1-10 scale
     rpe = db.Column(db.Integer)  # Rating of perceived exertion (1-10)
+    food_notes = db.Column(db.Text)
+    gains = db.Column(db.Text)
+    gratitudes = db.Column(db.Text)
     
     __mapper_args__ = {
         'polymorphic_identity': 'day'
     }
     
-    def __init__(self, user_id: int, year: int, month: int, day: int, sleep_hours: float = None, mood: str = None, rpe: int = None):
+    def __init__(self, user_id: int, year: int, month: int, day: int, 
+                 sleep_hours: float = None, mood: int = None, rpe: int = None,
+                 food_notes: str = None, gains: str = None, gratitudes: str = None):
         start_date = date(year, month, day)
         end_date = start_date
         super().__init__(user_id=user_id, block_type='day')
@@ -90,10 +95,16 @@ class DayBlock(TimeBlock):
         self.end_date = end_date
         if sleep_hours is not None:
             self.sleep_hours = sleep_hours
-        if mood:
+        if mood is not None:
             self.mood = mood
         if rpe is not None:
             self.rpe = rpe
+        if food_notes:
+            self.food_notes = food_notes
+        if gains:
+            self.gains = gains
+        if gratitudes:
+            self.gratitudes = gratitudes
     
     @classmethod
     def get_or_create(cls, db: DBSession, user_id: int, year: int, month: int, day: int) -> 'DayBlock':
@@ -128,7 +139,10 @@ class DayBlock(TimeBlock):
             'day': self.day,
             'sleep_hours': self.sleep_hours,
             'mood': self.mood,
-            'rpe': self.rpe
+            'rpe': self.rpe,
+            'food_notes': self.food_notes,
+            'gains': self.gains,
+            'gratitudes': self.gratitudes
         })
         return data
 
@@ -143,12 +157,17 @@ class WeekBlock(TimeBlock):
     week_number = db.Column(db.Integer, nullable=False)
     weekly_aim = db.Column(db.String(255))
     weekly_notes = db.Column(db.Text)
+    rpe = db.Column(db.Integer)  # Weekly RPE (1-10)
+    gains = db.Column(db.Text)
+    gratitudes = db.Column(db.Text)
     
     __mapper_args__ = {
         'polymorphic_identity': 'week'
     }
     
-    def __init__(self, user_id: int, year: int, week_number: int, weekly_aim: str = None, weekly_notes: str = None):
+    def __init__(self, user_id: int, year: int, week_number: int, 
+                 weekly_aim: str = None, weekly_notes: str = None,
+                 rpe: int = None, gains: str = None, gratitudes: str = None):
         # Calculate start and end dates for the week
         start_date = datetime.strptime(f'{year}-W{week_number:02d}-1', '%Y-W%W-%w').date()
         end_date = start_date + timedelta(days=6)
@@ -162,6 +181,12 @@ class WeekBlock(TimeBlock):
             self.weekly_aim = weekly_aim
         if weekly_notes:
             self.weekly_notes = weekly_notes
+        if rpe is not None:
+            self.rpe = rpe
+        if gains:
+            self.gains = gains
+        if gratitudes:
+            self.gratitudes = gratitudes
     
     @classmethod
     def get_or_create(cls, db: DBSession, user_id: int, year: int, week_number: int) -> 'WeekBlock':
@@ -186,7 +211,10 @@ class WeekBlock(TimeBlock):
             'year': self.year,
             'week_number': self.week_number,
             'weekly_aim': self.weekly_aim,
-            'weekly_notes': self.weekly_notes
+            'weekly_notes': self.weekly_notes,
+            'rpe': self.rpe,
+            'gains': self.gains,
+            'gratitudes': self.gratitudes
         })
         return data
 
@@ -199,12 +227,20 @@ class MonthBlock(TimeBlock):
     id = db.Column(db.Integer, db.ForeignKey('time_block.id'), primary_key=True)
     year = db.Column(db.Integer, nullable=False)
     month = db.Column(db.Integer, nullable=False)
+    month_theme = db.Column(db.String(255))  # Renamed from theme to month_theme
+    goals = db.Column(db.Text)
+    goals_rationale = db.Column(db.Text)
+    rpe = db.Column(db.Integer)  # Monthly RPE (1-10)
+    gains = db.Column(db.Text)
+    gratitudes = db.Column(db.Text)
     
     __mapper_args__ = {
         'polymorphic_identity': 'month'
     }
     
-    def __init__(self, user_id: int, year: int, month: int, theme: str = None):
+    def __init__(self, user_id: int, year: int, month: int, 
+                 theme: str = None, goals: str = None, goals_rationale: str = None,
+                 rpe: int = None, gains: str = None, gratitudes: str = None):
         # Calculate start and end dates for the month
         start_date = date(year, month, 1)
         if month == 12:
@@ -217,6 +253,18 @@ class MonthBlock(TimeBlock):
         self.month = month
         self.start_date = start_date
         self.end_date = end_date
+        if theme:
+            self.month_theme = theme
+        if goals:
+            self.goals = goals
+        if goals_rationale:
+            self.goals_rationale = goals_rationale
+        if rpe is not None:
+            self.rpe = rpe
+        if gains:
+            self.gains = gains
+        if gratitudes:
+            self.gratitudes = gratitudes
     
     @classmethod
     def get_or_create(cls, db: DBSession, user_id: int, year: int, month: int) -> 'MonthBlock':
@@ -239,7 +287,13 @@ class MonthBlock(TimeBlock):
         data = super().as_dict()
         data.update({
             'year': self.year,
-            'month': self.month
+            'month': self.month,
+            'month_theme': self.month_theme,
+            'goals': self.goals,
+            'goals_rationale': self.goals_rationale,
+            'rpe': self.rpe,
+            'gains': self.gains,
+            'gratitudes': self.gratitudes
         })
         return data
 
@@ -251,47 +305,64 @@ class SeasonBlock(TimeBlock):
     
     id = db.Column(db.Integer, db.ForeignKey('time_block.id'), primary_key=True)
     year = db.Column(db.Integer, nullable=False)
-    season_name = db.Column(db.String(50), nullable=False)
-    aim = db.Column(db.String(255))
+    season = db.Column(db.String(20), nullable=False)  # spring, summer, fall, winter
+    season_theme = db.Column(db.String(255))  # Renamed from theme to season_theme
+    goals = db.Column(db.Text)
+    goals_rationale = db.Column(db.Text)
+    rpe = db.Column(db.Integer)  # Seasonal RPE (1-10)
+    gains = db.Column(db.Text)
+    gratitudes = db.Column(db.Text)
     
     __mapper_args__ = {
         'polymorphic_identity': 'season'
     }
     
-    def __init__(self, user_id: int, year: int, season_name: str, aim: str = None):
+    def __init__(self, user_id: int, year: int, season: str,
+                 theme: str = None, goals: str = None, goals_rationale: str = None,
+                 rpe: int = None, gains: str = None, gratitudes: str = None):
         # Calculate start and end dates for the season
-        if season_name == 'Winter':
-            start_date = date(year, 12, 1)
-            end_date = date(year + 1, 2, 28)  # or 29 for leap years
-        elif season_name == 'Spring':
+        if season == 'spring':
             start_date = date(year, 3, 1)
             end_date = date(year, 5, 31)
-        elif season_name == 'Summer':
+        elif season == 'summer':
             start_date = date(year, 6, 1)
             end_date = date(year, 8, 31)
-        else:  # Fall
+        elif season == 'fall':
             start_date = date(year, 9, 1)
             end_date = date(year, 11, 30)
+        else:  # winter
+            start_date = date(year, 12, 1)
+            end_date = date(year + 1, 2, 28)
         
-        super().__init__(user_id=user_id, block_type='season')
+        super().__init__(user_id=user_id, block_type='season', theme=theme)
         self.year = year
-        self.season_name = season_name
+        self.season = season
         self.start_date = start_date
         self.end_date = end_date
-        if aim:
-            self.aim = aim
+        if theme:
+            self.season_theme = theme
+        if goals:
+            self.goals = goals
+        if goals_rationale:
+            self.goals_rationale = goals_rationale
+        if rpe is not None:
+            self.rpe = rpe
+        if gains:
+            self.gains = gains
+        if gratitudes:
+            self.gratitudes = gratitudes
     
     @classmethod
-    def get_or_create(cls, db: DBSession, user_id: int, year: int, season_name: str) -> 'SeasonBlock':
+    def get_or_create(cls, db: DBSession, user_id: int, year: int, season: str) -> 'SeasonBlock':
         """Get an existing season block or create a new one"""
         season_block = db.query(cls).filter_by(
             user_id=user_id,
             year=year,
-            season_name=season_name
+            season=season
         ).first()
         
         if not season_block:
-            season_block = cls(user_id=user_id, year=year, season_name=season_name)
+            season_block = cls(user_id=user_id, year=year, season=season)
             db.add(season_block)
             db.commit()
         
@@ -302,8 +373,13 @@ class SeasonBlock(TimeBlock):
         data = super().as_dict()
         data.update({
             'year': self.year,
-            'season_name': self.season_name,
-            'aim': self.aim
+            'season': self.season,
+            'season_theme': self.season_theme,
+            'goals': self.goals,
+            'goals_rationale': self.goals_rationale,
+            'rpe': self.rpe,
+            'gains': self.gains,
+            'gratitudes': self.gratitudes
         })
         return data
 

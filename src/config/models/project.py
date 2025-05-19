@@ -19,6 +19,7 @@ class Project(db.Model):
     active = Column(Boolean, default=True)
     
     # Relationships
+    user = relationship('User', back_populates='projects')
     tasks = relationship('ProjectTask', back_populates='project', cascade='all, delete-orphan')
     checkins = relationship(
         'Checkin',
