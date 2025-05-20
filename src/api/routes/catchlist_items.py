@@ -43,7 +43,8 @@ def get_catchlist_items():
         'is_completed': bool(Commitment.query.filter_by(
             catchlist_item_id=item.id,
             completed=True
-        ).first())
+        ).first()),
+        'tags': [tag.tag.as_dict() for tag in item.tag_associations]
     } for item in catchlist_items])
 
 @catchlist_items_bp.route('/api/catchlist-items', methods=['POST'])

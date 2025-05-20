@@ -529,6 +529,30 @@
     </div>
 </div>
 
+<!-- Add Tag Management Modal -->
+<div class="ui modal" id="tag-management-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Tags</div>
+    <div class="content">
+        <div class="ui segment">
+            <h4 class="ui header">Current Tags</h4>
+            <div id="current-tags-list" class="ui labels">
+                <!-- Current tags will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h4 class="ui header">Available Tags</h4>
+            <div id="available-tags-list" class="ui labels">
+                <!-- Available tags will be loaded here -->
+            </div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button cancel">Close</div>
+    </div>
+</div>
+
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 <script>
 // Define global API_URL variable
@@ -948,6 +972,14 @@ function displayProjectTasks(commitments) {
     } else {
         commitments.forEach(commitment => {
             const dueDate = new Date(commitment.due_date);
+            // Create tags HTML
+            const tagsHtml = commitment.item?.tags && commitment.item.tags.length > 0 ? 
+                commitment.item.tags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                        ${tag.name}
+                    </div>
+                `).join('') : '';
+            
             html += `
                 <div class="item" data-id="${commitment.id}">
                     <div class="content">
@@ -958,6 +990,7 @@ function displayProjectTasks(commitments) {
                         <div class="meta">
                             Due: ${dueDate.toLocaleDateString()}
                             ${commitment.item?.project_name ? `<span class="ui label">${commitment.item.project_name}</span>` : ''}
+                            ${tagsHtml}
                         </div>
                         <div class="description">${commitment.item?.description || ''}</div>
                         <div class="extra">
@@ -967,6 +1000,9 @@ function displayProjectTasks(commitments) {
                             </div>
                             <button class="ui tiny button add-checkin" data-id="${commitment.id}">
                                 <i class="plus icon"></i> Add Checkin
+                            </button>
+                            <button class="ui tiny button manage-tags" data-id="${commitment.item?.id}" data-type="project_task">
+                                <i class="tags icon"></i> Manage Tags
                             </button>
                         </div>
                     </div>
@@ -990,6 +1026,14 @@ function displayCatchlistItems(commitments) {
     } else {
         commitments.forEach(commitment => {
             const dueDate = new Date(commitment.due_date);
+            // Create tags HTML
+            const tagsHtml = commitment.item?.tags && commitment.item.tags.length > 0 ? 
+                commitment.item.tags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                        ${tag.name}
+                    </div>
+                `).join('') : '';
+            
             html += `
                 <div class="item" data-id="${commitment.id}">
                     <div class="content">
@@ -999,6 +1043,7 @@ function displayCatchlistItems(commitments) {
                         </div>
                         <div class="meta">
                             Due: ${dueDate.toLocaleDateString()}
+                            ${tagsHtml}
                         </div>
                         <div class="description">${commitment.item?.content || ''}</div>
                         <div class="extra">
@@ -1066,6 +1111,14 @@ function displaySoftCommittedTasks(tasks) {
         html = '<div class="ui info message">No soft committed tasks for this period.</div>';
     } else {
         tasks.forEach(task => {
+            // Create tags HTML
+            const tagsHtml = task.item?.tags && task.item.tags.length > 0 ? 
+                task.item.tags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                        ${tag.name}
+                    </div>
+                `).join('') : '';
+            
             html += `
                 <div class="item" data-id="${task.id}">
                     <div class="content">
@@ -1076,6 +1129,7 @@ function displaySoftCommittedTasks(tasks) {
                         <div class="meta">
                             ${task.item?.project_name ? `<span class="ui label">${task.item.project_name}</span>` : ''}
                             ${task.item?.type ? `<span class="ui label">${task.item.type}</span>` : ''}
+                            ${tagsHtml}
                         </div>
                         <div class="description">${task.item?.description || ''}</div>
                         <div class="extra">
@@ -2771,6 +2825,198 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ... existing code ...
+});
+
+// Add tag management functions
+function showTagManagementModal(itemId, itemType) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Load current tags
+    fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load item tags');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Display current tags
+        const currentTagsContainer = document.getElementById('current-tags-list');
+        const currentTags = data.tags || [];
+        currentTagsContainer.innerHTML = currentTags.map(tag => `
+            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                ${tag.name}
+                <i class="delete icon" data-tag-id="${tag.id}"></i>
+            </div>
+        `).join('');
+        
+        // Add click handlers for delete icons
+        currentTagsContainer.querySelectorAll('.delete.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const tagId = this.dataset.tagId;
+                removeTag(itemId, tagId, itemType);
+            });
+        });
+        
+        // Load available tags and filter out already applied ones
+        fetch(`${API_URL}/tags`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load available tags');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const availableTagsContainer = document.getElementById('available-tags-list');
+            // Filter out tags that are already applied
+            const availableTags = data.tags.filter(tag => 
+                !currentTags.some(currentTag => currentTag.id === tag.id)
+            );
+            
+            if (availableTags.length === 0) {
+                availableTagsContainer.innerHTML = '<div class="ui message">No more tags available to add.</div>';
+            } else {
+                availableTagsContainer.innerHTML = availableTags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white; cursor: pointer;">
+                        ${tag.name}
+                    </div>
+                `).join('');
+                
+                // Add click handlers for available tags
+                availableTagsContainer.querySelectorAll('.ui.label').forEach(label => {
+                    label.addEventListener('click', function() {
+                        const tagName = this.textContent.trim();
+                        const tag = availableTags.find(t => t.name === tagName);
+                        if (tag) {
+                            applyTag(itemId, tag.id, itemType);
+                        }
+                    });
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading available tags:', error);
+            showError('Failed to load available tags');
+        });
+    })
+    .catch(error => {
+        console.error('Error loading item tags:', error);
+        showError('Failed to load item tags');
+    });
+    
+    // Show modal
+    $('#tag-management-modal').modal('show');
+}
+
+function applyTag(itemId, tagId, itemType) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch(`${API_URL}/tags/apply/${itemType}/${itemId}/${tagId}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to apply tag',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        // Reload the content to update tags
+        const activeTab = $('.menu .item.active').data('tab');
+        loadTabContent(activeTab);
+        showTagManagementModal(itemId, itemType);
+        showSuccess('Tag applied successfully');
+    })
+    .catch(error => {
+        console.error('Error applying tag:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to apply tag';
+        showError(errorMessage);
+    });
+}
+
+function removeTag(itemId, tagId, itemType) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch(`${API_URL}/tags/remove/${itemType}/${itemId}/${tagId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to remove tag',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        // Reload the content to update tags
+        const activeTab = $('.menu .item.active').data('tab');
+        loadTabContent(activeTab);
+        showTagManagementModal(itemId, itemType);
+        showSuccess('Tag removed successfully');
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to remove tag';
+        showError(errorMessage);
+    });
+}
+
+// Add event delegation for manage tags buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing code ...
+    
+    // Add event delegation for manage tags buttons
+    document.getElementById('project-tasks').addEventListener('click', function(e) {
+        if (e.target.closest('.manage-tags')) {
+            const button = e.target.closest('.manage-tags');
+            const itemId = button.getAttribute('data-id');
+            const itemType = button.getAttribute('data-type');
+            showTagManagementModal(itemId, itemType);
+        }
+    });
 });
 </script>
 

@@ -83,11 +83,33 @@
                                 <div class="description">{{ project.description }}</div>
                             </div>
                         </div>
+                        <div class="item">
+                            <i class="tags icon"></i>
+                            <div class="content">
+                                <div class="header">Tags</div>
+                                <div class="description">
+                                    <div class="ui labels">
+                                        {% if project.tags %}
+                                            {% for tag in project.tags %}
+                                                <div class="ui label" style="background-color: {{ tag.color }}; color: white;">
+                                                    {{ tag.name }}
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="ui text">No tags</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="ui buttons">
                         <button class="ui blue tiny button edit-project">Edit</button>
                         <button class="ui teal tiny button manage-project-commitments">
                             <i class="calendar icon"></i> Manage Commitments
+                        </button>
+                        <button class="ui tiny button manage-tags" data-id="{{ project.id }}" data-type="project">
+                            <i class="tags icon"></i> Manage Tags
                         </button>
                         <button class="ui red tiny button delete-project">Delete</button>
                     </div>
@@ -102,12 +124,24 @@
                                 <input type="checkbox" {% if subtask.complete %}checked{% endif %}>
                                 <label>{{ subtask.title }}</label>
                             </div>
+                            <div class="ui labels" style="margin-left: 15px;">
+                                {% if subtask.tags %}
+                                    {% for tag in subtask.tags %}
+                                        <div class="ui label" style="background-color: {{ tag.color }}; color: white;">
+                                            {{ tag.name }}
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
                             <div class="ui buttons" style="margin-left: 15px;">
                                 <button class="ui tiny button {% if subtask.has_commitment %}green disabled{% endif %} commit-to-today">
                                     {% if subtask.has_commitment %}Committed for Today{% else %}Commit to Today{% endif %}
                                 </button>
                                 <button class="ui tiny button view-commitments">
                                     <i class="calendar icon"></i> Commits
+                                </button>
+                                <button class="ui tiny button manage-tags" data-id="{{ subtask.id }}" data-type="project_task">
+                                    <i class="tags icon"></i> Manage Tags
                                 </button>
                                 <button class="ui red tiny button delete-subtask">Delete</button>
                             </div>
@@ -230,6 +264,30 @@
     <div class="actions">
         <div class="ui button cancel">Cancel</div>
         <div class="ui primary button" id="save-project-commitment">Save Commitment</div>
+    </div>
+</div>
+
+<!-- Add Tag Management Modal -->
+<div class="ui modal" id="tag-management-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Tags</div>
+    <div class="content">
+        <div class="ui segment">
+            <h4 class="ui header">Current Tags</h4>
+            <div id="current-tags-list" class="ui labels">
+                <!-- Current tags will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h4 class="ui header">Available Tags</h4>
+            <div id="available-tags-list" class="ui labels">
+                <!-- Available tags will be loaded here -->
+            </div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button cancel">Close</div>
     </div>
 </div>
 
@@ -428,7 +486,7 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
             return;
         }
         
-        fetch(`{{ API_URL }}/projects/${projectId}/subtasks`, {
+        fetch(`${API_URL}/projects/${projectId}/subtasks`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -456,10 +514,15 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
                     <input type="checkbox">
                     <label>${data.title}</label>
                 </div>
+                <div class="ui labels" style="margin-left: 15px;">
+                </div>
                 <div class="ui buttons" style="margin-left: 15px;">
                     <button class="ui tiny button commit-to-today">Commit to Today</button>
                     <button class="ui tiny button view-commitments">
                         <i class="calendar icon"></i> Commits
+                    </button>
+                    <button class="ui tiny button manage-tags" data-id="${data.id}" data-type="project_task">
+                        <i class="tags icon"></i> Manage Tags
                     </button>
                     <button class="ui red tiny button delete-subtask">Delete</button>
                 </div>
@@ -469,6 +532,9 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
             
             // Clear input
             inputElement.value = '';
+            
+            // Initialize checkbox
+            $(newSubtaskElement.querySelector('.ui.checkbox')).checkbox();
             
             // Attach event listeners to new subtask
             attachSubtaskEventListeners(newSubtaskElement);
@@ -482,90 +548,60 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
 
 // Function to attach event listeners to subtasks
 function attachSubtaskEventListeners(subtaskElement) {
+    if (!subtaskElement) return;
+    
     // Checkbox change event
     const checkbox = subtaskElement.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener('change', function() {
-        const subtaskId = subtaskElement.getAttribute('data-id');
-        
-        fetch(`{{ API_URL }}/subtasks/${subtaskId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify({
-                complete: this.checked
+    if (checkbox) {
+        checkbox.addEventListener('change', function() {
+            const subtaskId = subtaskElement.getAttribute('data-id');
+            
+            fetch(`${API_URL}/subtasks/${subtaskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getAuthToken()
+                },
+                body: JSON.stringify({
+                    complete: this.checked
+                })
             })
-        })
-        .catch(error => {
-            console.error('Error updating subtask:', error);
-            // Revert checkbox state on error
-            this.checked = !this.checked;
+            .catch(error => {
+                console.error('Error updating subtask:', error);
+                // Revert checkbox state on error
+                this.checked = !this.checked;
+            });
         });
-    });
+    }
     
     // Commit to today button
     const commitToTodayBtn = subtaskElement.querySelector('.commit-to-today');
-    commitToTodayBtn.addEventListener('click', function() {
-        const subtaskId = subtaskElement.getAttribute('data-id');
-        const isAlreadyCommitted = this.classList.contains('green');
-        
-        if (isAlreadyCommitted) {
-            return; // Button is disabled when already committed
-        }
-        
-        // Get today's date in local timezone
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const localDate = `${year}-${month}-${day}`;
-        
-        fetch(`{{ API_URL }}/commitments`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify({
-                project_task_id: subtaskId,
-                due_date: localDate
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            this.classList.add('green', 'disabled');
-            this.textContent = 'Committed for Today';
-        })
-        .catch(error => {
-            console.error('Error creating commitment:', error);
-            alert('Error creating commitment. Please try again.');
-        });
-    });
-    
-    // View commitments button - updated to show the improved commitments modal
-    const viewCommitmentsBtn = subtaskElement.querySelector('.view-commitments');
-    viewCommitmentsBtn.addEventListener('click', function() {
-        const subtaskId = subtaskElement.getAttribute('data-id');
-        showCommitmentsModal(subtaskId, 'project_task');
-    });
-    
-    // Delete subtask button
-    const deleteSubtaskBtn = subtaskElement.querySelector('.delete-subtask');
-    deleteSubtaskBtn.addEventListener('click', function() {
-        if (confirm('Are you sure you want to delete this subtask?')) {
+    if (commitToTodayBtn) {
+        commitToTodayBtn.addEventListener('click', function() {
             const subtaskId = subtaskElement.getAttribute('data-id');
+            const isAlreadyCommitted = this.classList.contains('green');
             
-            fetch(`{{ API_URL }}/subtasks/${subtaskId}`, {
-                method: 'DELETE',
+            if (isAlreadyCommitted) {
+                return; // Button is disabled when already committed
+            }
+            
+            // Get today's date in local timezone
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+            
+            fetch(`${API_URL}/commitments`, {
+                method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + getAuthToken()
-                }
+                },
+                body: JSON.stringify({
+                    project_task_id: subtaskId,
+                    due_date: localDate
+                })
             })
             .then(response => {
                 if (!response.ok) {
@@ -574,15 +610,65 @@ function attachSubtaskEventListeners(subtaskElement) {
                 return response.json();
             })
             .then(data => {
-                // Remove subtask element from DOM
-                subtaskElement.remove();
+                this.classList.add('green', 'disabled');
+                this.textContent = 'Committed for Today';
             })
             .catch(error => {
-                console.error('Error deleting subtask:', error);
-                alert('Error deleting subtask. Please try again.');
+                console.error('Error creating commitment:', error);
+                alert('Error creating commitment. Please try again.');
             });
-        }
-    });
+        });
+    }
+    
+    // View commitments button
+    const viewCommitmentsBtn = subtaskElement.querySelector('.view-commitments');
+    if (viewCommitmentsBtn) {
+        viewCommitmentsBtn.addEventListener('click', function() {
+            const subtaskId = subtaskElement.getAttribute('data-id');
+            showCommitmentsModal(subtaskId, 'project_task');
+        });
+    }
+    
+    // Delete subtask button
+    const deleteSubtaskBtn = subtaskElement.querySelector('.delete-subtask');
+    if (deleteSubtaskBtn) {
+        deleteSubtaskBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete this subtask?')) {
+                const subtaskId = subtaskElement.getAttribute('data-id');
+                
+                fetch(`${API_URL}/subtasks/${subtaskId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer ' + getAuthToken()
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Remove subtask element from DOM
+                    subtaskElement.remove();
+                })
+                .catch(error => {
+                    console.error('Error deleting subtask:', error);
+                    alert('Error deleting subtask. Please try again.');
+                });
+            }
+        });
+    }
+    
+    // Manage tags button
+    const manageTagsBtn = subtaskElement.querySelector('.manage-tags');
+    if (manageTagsBtn) {
+        manageTagsBtn.addEventListener('click', function() {
+            const subtaskId = subtaskElement.getAttribute('data-id');
+            const itemType = this.getAttribute('data-type');
+            showTagManagementModal(subtaskId, itemType);
+        });
+    }
 }
 
 // Attach event listeners to all existing subtasks
@@ -1295,6 +1381,421 @@ function deleteProjectCommitment(commitmentId) {
     .catch(error => {
         console.error('Error deleting project commitment:', error);
         showError('Failed to delete project commitment');
+    });
+}
+
+// Update the tag management modal JavaScript
+function showTagManagementModal(itemId, itemType) {
+    const token = getAuthToken();
+    if (!token) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Store the current item ID and type
+    document.getElementById('tag-management-modal').setAttribute('data-item-id', itemId);
+    document.getElementById('tag-management-modal').setAttribute('data-item-type', itemType);
+    
+    // Load current tags
+    loadCurrentTags(itemId, itemType);
+    
+    // Load available tags
+    loadAvailableTags(itemId, itemType);
+    
+    // Show modal
+    $('#tag-management-modal').modal('show');
+}
+
+function loadCurrentTags(itemId, itemType) {
+    const token = getAuthToken();
+    const container = document.getElementById('current-tags-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading tags...</div></div>';
+    
+    // Use the correct endpoint for getting entity tags
+    const endpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
+    
+    fetch(endpoint, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load tags');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const tags = data.tags || [];
+        if (tags.length === 0) {
+            container.innerHTML = '<div class="ui info message">No tags applied yet.</div>';
+            return;
+        }
+        
+        let html = '';
+        tags.forEach(tag => {
+            html += `
+                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                    ${tag.name}
+                    <i class="delete icon" data-id="${tag.id}" data-name="${tag.name}"></i>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        
+        // Add click handlers for delete icons
+        container.querySelectorAll('.delete.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const tagId = this.getAttribute('data-id');
+                removeTag(itemId, itemType, tagId);
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading tags:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load tags</div>';
+    });
+}
+
+function loadAvailableTags(itemId, itemType) {
+    const token = getAuthToken();
+    const container = document.getElementById('available-tags-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading available tags...</div></div>';
+    
+    // First get current tags to filter them out
+    const currentEndpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
+    
+    fetch(currentEndpoint, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load current tags');
+        }
+        return response.json();
+    })
+    .then(currentData => {
+        const currentTags = currentData.tags || [];
+        const currentTagIds = new Set(currentTags.map(tag => tag.id));
+        
+        // Then get all tags
+        return fetch(`${API_URL}/tags`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load available tags');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const allTags = data.tags || [];
+            const availableTags = allTags.filter(tag => !currentTagIds.has(tag.id));
+            
+            if (availableTags.length === 0) {
+                container.innerHTML = '<div class="ui info message">No more tags available.</div>';
+                return;
+            }
+            
+            let html = '';
+            availableTags.forEach(tag => {
+                html += `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                        ${tag.name}
+                        <i class="add icon" data-id="${tag.id}" data-name="${tag.name}"></i>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            
+            // Add click handlers for add icons
+            container.querySelectorAll('.add.icon').forEach(icon => {
+                icon.addEventListener('click', function() {
+                    const tagId = this.getAttribute('data-id');
+                    applyTag(itemId, itemType, tagId);
+                });
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading available tags:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load available tags</div>';
+    });
+}
+
+function applyTag(itemId, itemType, tagId) {
+    const token = getAuthToken();
+    
+    // Use the correct endpoint for applying tags
+    const endpoint = `${API_URL}/tags/apply/${itemType}/${itemId}/${tagId}`;
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to apply tag');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload tags
+        loadCurrentTags(itemId, itemType);
+        loadAvailableTags(itemId, itemType);
+        
+        // If this is a project, update the project header without reloading
+        if (itemType === 'project') {
+            const projectElement = document.querySelector(`.ui.segment[data-id="${itemId}"]`);
+            if (projectElement) {
+                const tagsContainer = projectElement.querySelector('.item:nth-child(5) .ui.labels');
+                if (tagsContainer) {
+                    // Get the updated tags
+                    fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const tags = data.tags || [];
+                        if (tags.length === 0) {
+                            tagsContainer.innerHTML = '<span class="ui text">No tags</span>';
+                        } else {
+                            tagsContainer.innerHTML = tags.map(tag => `
+                                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                    ${tag.name}
+                                </div>
+                            `).join('');
+                        }
+                    });
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error applying tag:', error);
+        showError('Failed to apply tag');
+    });
+}
+
+function removeTag(itemId, itemType, tagId) {
+    const token = getAuthToken();
+    
+    // Use the correct endpoint for removing tags
+    const endpoint = `${API_URL}/tags/remove/${itemType}/${itemId}/${tagId}`;
+    
+    fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to remove tag');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload tags
+        loadCurrentTags(itemId, itemType);
+        loadAvailableTags(itemId, itemType);
+        
+        // If this is a project, update the project header without reloading
+        if (itemType === 'project') {
+            const projectElement = document.querySelector(`.ui.segment[data-id="${itemId}"]`);
+            if (projectElement) {
+                const tagsContainer = projectElement.querySelector('.item:nth-child(5) .ui.labels');
+                if (tagsContainer) {
+                    // Get the updated tags
+                    fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const tags = data.tags || [];
+                        if (tags.length === 0) {
+                            tagsContainer.innerHTML = '<span class="ui text">No tags</span>';
+                        } else {
+                            tagsContainer.innerHTML = tags.map(tag => `
+                                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                    ${tag.name}
+                                </div>
+                            `).join('');
+                        }
+                    });
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        showError('Failed to remove tag');
+    });
+}
+
+// Add event listeners for manage tags buttons
+document.querySelectorAll('.manage-tags').forEach(button => {
+    button.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-id');
+        const itemType = this.getAttribute('data-type');
+        showTagManagementModal(itemId, itemType);
+    });
+});
+
+// Update the loadProjects function to properly handle tags for new items
+function loadProjects() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch(`${API_URL}/projects`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(projects => {
+        const projectList = document.getElementById('project-list');
+        projectList.innerHTML = '';
+        
+        projects.forEach(project => {
+            const projectElement = document.createElement('div');
+            projectElement.className = 'ui segment';
+            projectElement.setAttribute('data-id', project.id);
+            
+            // Create project header
+            const headerHtml = `
+                <h3 class="ui header">${project.title}</h3>
+                <div class="ui list">
+                    <div class="item">
+                        <i class="trophy icon"></i>
+                        <div class="content">
+                            <div class="header">Win Condition</div>
+                            <div class="description">${project.win_condition}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="compass icon"></i>
+                        <div class="content">
+                            <div class="header">Reason</div>
+                            <div class="description">${project.reason}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="arrow right icon"></i>
+                        <div class="content">
+                            <div class="header">Next Step</div>
+                            <div class="description">${project.next_step}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="file text icon"></i>
+                        <div class="content">
+                            <div class="header">Description</div>
+                            <div class="description">${project.description}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="tags icon"></i>
+                        <div class="content">
+                            <div class="header">Tags</div>
+                            <div class="description">
+                                <div class="ui labels">
+                                    ${project.tags && project.tags.length > 0 ? 
+                                        project.tags.map(tag => `
+                                            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                                ${tag.name}
+                                            </div>
+                                        `).join('') : 
+                                        '<span class="ui text">No tags</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui buttons">
+                    <button class="ui blue tiny button edit-project">Edit</button>
+                    <button class="ui teal tiny button manage-project-commitments">
+                        <i class="calendar icon"></i> Manage Commitments
+                    </button>
+                    <button class="ui tiny button manage-tags" data-id="${project.id}" data-type="project">
+                        <i class="tags icon"></i> Manage Tags
+                    </button>
+                    <button class="ui red tiny button delete-project">Delete</button>
+                </div>
+            `;
+            
+            // Create subtasks section
+            const subtasksHtml = `
+                <div class="ui attached segment">
+                    <h4 class="ui header">Subtasks</h4>
+                    <div class="ui list subtasks-list">
+                        ${project.subtasks ? project.subtasks.map(subtask => `
+                            <div class="item" data-id="${subtask.id}">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" ${subtask.complete ? 'checked' : ''}>
+                                    <label>${subtask.title}</label>
+                                </div>
+                                <div class="ui labels" style="margin-left: 15px;">
+                                    ${subtask.tags && subtask.tags.length > 0 ? subtask.tags.map(tag => `
+                                        <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                            ${tag.name}
+                                        </div>
+                                    `).join('') : ''}
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button ${subtask.has_commitment ? 'green disabled' : ''} commit-to-today">
+                                        ${subtask.has_commitment ? 'Committed for Today' : 'Commit to Today'}
+                                    </button>
+                                    <button class="ui tiny button view-commitments">
+                                        <i class="calendar icon"></i> Commits
+                                    </button>
+                                    <button class="ui tiny button manage-tags" data-id="${subtask.id}" data-type="project_task">
+                                        <i class="tags icon"></i> Manage Tags
+                                    </button>
+                                    <button class="ui red tiny button delete-subtask">Delete</button>
+                                </div>
+                            </div>
+                        `).join('') : ''}
+                    </div>
+                    
+                    <div class="ui form add-subtask-form">
+                        <div class="fields">
+                            <div class="twelve wide field">
+                                <input type="text" placeholder="Add new subtask...">
+                            </div>
+                            <div class="four wide field">
+                                <button class="ui teal button add-subtask-button">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            projectElement.innerHTML = headerHtml + subtasksHtml;
+            projectList.appendChild(projectElement);
+        });
+        
+        // Attach event listeners
+        attachEventListeners();
+    })
+    .catch(error => {
+        console.error('Error loading projects:', error);
+        showError('Failed to load projects');
     });
 }
 </script>

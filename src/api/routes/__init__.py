@@ -8,4 +8,5 @@ from . import commitments
 from . import reports
 from . import catchlist_items
 from . import today
-from . import calendar_events 
+from . import calendar_events
+from . import tags 

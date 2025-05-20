@@ -109,6 +109,30 @@
     </div>
 </div>
 
+<!-- Add Tag Management Modal -->
+<div class="ui modal" id="tag-management-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Tags</div>
+    <div class="content">
+        <div class="ui segment">
+            <h4 class="ui header">Current Tags</h4>
+            <div id="current-tags-list" class="ui labels">
+                <!-- Current tags will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h4 class="ui header">Available Tags</h4>
+            <div id="available-tags-list" class="ui labels">
+                <!-- Available tags will be loaded here -->
+            </div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button cancel">Close</div>
+    </div>
+</div>
+
 <script>
 // Define global API_URL variable
 const API_URL = '{{ API_URL }}';
@@ -191,6 +215,14 @@ function displayItems(items) {
         const completedText = item.is_completed ? 
             `<div class="ui green label">Completed</div>` : '';
         
+        // Create tags HTML
+        const tagsHtml = item.tags && item.tags.length > 0 ? item.tags.map(tag => `
+            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                ${tag.name}
+                <i class="delete icon" data-tag-id="${tag.id}"></i>
+            </div>
+        `).join('') : '';
+        
         itemElement.innerHTML = `
             <div class="content">
                 <div class="header">
@@ -201,6 +233,9 @@ function displayItems(items) {
                     Created: ${createdDate.toLocaleString()}
                 </div>
                 <div class="description">
+                    <div class="ui labels" style="margin-bottom: 10px;">
+                        ${tagsHtml}
+                    </div>
                     <div class="ui buttons">
                         <button class="ui tiny teal button mark-done" ${item.is_completed ? 'disabled' : ''}>
                             Mark as Done
@@ -210,6 +245,9 @@ function displayItems(items) {
                         </button>
                         <button class="ui tiny button view-commitments" data-id="${item.id}">
                             <i class="calendar icon"></i> Manage Commitments
+                        </button>
+                        <button class="ui tiny button manage-tags" data-id="${item.id}">
+                            <i class="tags icon"></i> Manage Tags
                         </button>
                         <button class="ui red tiny button delete-item">
                             Delete
@@ -430,6 +468,26 @@ function attachItemEventListeners() {
                     showError(errorMessage);
                 });
             }
+        });
+    });
+    
+    // Manage tags button
+    document.querySelectorAll('.manage-tags').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            showTagManagementModal(itemId);
+        });
+    });
+    
+    // Tag delete icons
+    document.querySelectorAll('.ui.label .delete.icon').forEach(icon => {
+        icon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const tagId = this.dataset.tagId;
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            removeTag(itemId, tagId);
         });
     });
 }
@@ -891,6 +949,178 @@ function showCheckinModal(commitmentId) {
     // For now, just show a message that checkins are not yet implemented
     showCustomMessage('Checkins functionality will be implemented soon!', 'info');
 }
+
+// Function to show tag management modal
+function showTagManagementModal(itemId) {
+    const token = getToken();
+    if (!token) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Load current tags by getting all items and finding the one we want
+    fetch(`${API_URL}/catchlist-items`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(items => {
+        const item = items.find(i => i.id === parseInt(itemId));
+        if (!item) {
+            throw new Error('Item not found');
+        }
+        
+        // Display current tags
+        const currentTagsContainer = document.getElementById('current-tags-list');
+        const currentTags = item.tags || [];
+        currentTagsContainer.innerHTML = currentTags.map(tag => `
+            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                ${tag.name}
+                <i class="delete icon" data-tag-id="${tag.id}"></i>
+            </div>
+        `).join('');
+        
+        // Add click handlers for delete icons
+        currentTagsContainer.querySelectorAll('.delete.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const tagId = this.dataset.tagId;
+                removeTag(itemId, tagId);
+            });
+        });
+        
+        // Load available tags and filter out already applied ones
+        fetch(`${API_URL}/tags`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const availableTagsContainer = document.getElementById('available-tags-list');
+            // Filter out tags that are already applied
+            const availableTags = data.tags.filter(tag => 
+                !currentTags.some(currentTag => currentTag.id === tag.id)
+            );
+            
+            if (availableTags.length === 0) {
+                availableTagsContainer.innerHTML = '<div class="ui message">No more tags available to add.</div>';
+            } else {
+                availableTagsContainer.innerHTML = availableTags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white; cursor: pointer;">
+                        ${tag.name}
+                    </div>
+                `).join('');
+                
+                // Add click handlers for available tags
+                availableTagsContainer.querySelectorAll('.ui.label').forEach(label => {
+                    label.addEventListener('click', function() {
+                        const tagName = this.textContent.trim();
+                        const tag = availableTags.find(t => t.name === tagName);
+                        if (tag) {
+                            applyTag(itemId, tag.id);
+                        }
+                    });
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading available tags:', error);
+            showError('Failed to load available tags');
+        });
+    })
+    .catch(error => {
+        console.error('Error loading item tags:', error);
+        showError('Failed to load item tags');
+    });
+    
+    // Show modal
+    $('#tag-management-modal').modal('show');
+}
+
+// Function to apply a tag
+function applyTag(itemId, tagId) {
+    const token = getToken();
+    if (!token) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/tags/apply/catchlist_item/${itemId}/${tagId}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to apply tag',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        // Reload the item to update tags
+        loadCatchlistItems();
+        showTagManagementModal(itemId);
+        showCustomMessage('Tag applied successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error applying tag:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to apply tag';
+        showError(errorMessage);
+    });
+}
+
+// Function to remove a tag
+function removeTag(itemId, tagId) {
+    const token = getToken();
+    if (!token) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/tags/remove/catchlist_item/${itemId}/${tagId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to remove tag',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        // Reload the item to update tags
+        loadCatchlistItems();
+        showTagManagementModal(itemId);
+        showCustomMessage('Tag removed successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to remove tag';
+        showError(errorMessage);
+    });
+}
 </script>
 
 <style>
@@ -1000,6 +1230,37 @@ function showCheckinModal(commitmentId) {
     background-color: #f8f9fa;
     color: #0c5460;
     border: 1px solid #bee5eb;
+}
+
+/* Tag Management Modal Styles */
+#tag-management-modal .ui.labels {
+    margin: 1em 0;
+}
+
+#tag-management-modal .ui.label {
+    margin: 0.25em;
+    cursor: pointer;
+}
+
+#tag-management-modal .ui.label:hover {
+    opacity: 0.8;
+}
+
+#tag-management-modal .ui.label .delete.icon {
+    margin-left: 0.5em;
+    opacity: 0.7;
+}
+
+#tag-management-modal .ui.label .delete.icon:hover {
+    opacity: 1;
+}
+
+#tag-management-modal .ui.segment {
+    margin: 1em 0;
+}
+
+#tag-management-modal .ui.header {
+    margin-bottom: 1em;
 }
 </style>
 {% endblock %} 

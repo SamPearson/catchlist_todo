@@ -40,7 +40,8 @@ def get_routines():
             'active': routine.active,
             'external_source': routine.external_source,
             'start_time': next_session.start_time.strftime('%H:%M') if next_session else None,
-            'end_time': next_session.end_time.strftime('%H:%M') if next_session else None
+            'end_time': next_session.end_time.strftime('%H:%M') if next_session else None,
+            'tags': [assoc.tag.as_dict() for assoc in routine.tag_associations]
         })
     
     return jsonify(result)
@@ -378,7 +379,8 @@ def get_routine_sessions(routine_id):
             'end_time': session.end_time.isoformat(),
             'completed': session.completed,
             'rpe': session.rpe,
-            'notes': session.notes
+            'notes': session.notes,
+            'tags': [assoc.tag.as_dict() for assoc in session.tag_associations]
         })
         
     return jsonify(result)
@@ -414,7 +416,8 @@ def update_session(session_id):
             'end_time': session.end_time.isoformat(),
             'completed': session.completed,
             'rpe': session.rpe,
-            'notes': session.notes
+            'notes': session.notes,
+            'tags': [assoc.tag.as_dict() for assoc in session.tag_associations]
         }
         
         return jsonify(result)

@@ -28,6 +28,7 @@ class Project(db.Model):
         cascade='all, delete-orphan',
         overlaps="checkins"
     )
+    tag_associations = relationship('ProjectTag', back_populates='project', cascade='all, delete-orphan')
     
     def as_dict(self):
         return {
@@ -38,7 +39,8 @@ class Project(db.Model):
             "reason": self.reason,
             "next_step": self.next_step,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         }
 
 
@@ -61,6 +63,7 @@ class ProjectTask(db.Model):
         cascade='all, delete-orphan',
         overlaps="checkins"
     )
+    tag_associations = relationship('ProjectTaskTag', back_populates='project_task', cascade='all, delete-orphan')
     
     def as_dict(self):
         return {
@@ -70,5 +73,6 @@ class ProjectTask(db.Model):
             "complete": self.complete,
             "project_id": self.project_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         } 

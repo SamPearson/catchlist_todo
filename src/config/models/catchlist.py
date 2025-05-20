@@ -24,6 +24,7 @@ class CatchlistItem(db.Model):
         cascade='all, delete-orphan',
         overlaps="checkins,checkins"
     )
+    tag_associations = relationship('CatchlistItemTag', back_populates='catchlist_item', cascade='all, delete-orphan')
     
     def as_dict(self):
         return {
@@ -33,5 +34,6 @@ class CatchlistItem(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "completed": self.completed,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         } 

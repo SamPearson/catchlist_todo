@@ -119,6 +119,8 @@
                             </div>
                             <div class="description">{{ routine.description }}</div>
                             <div class="extra">
+                                <div class="ui labels" id="routine-tags-{{ routine.id }}">
+                                </div>
                                 <div class="ui tiny buttons">
                                     <button class="ui blue button view-sessions">
                                         <i class="calendar icon"></i> View Sessions
@@ -132,6 +134,9 @@
                                     <button class="ui red button delete-routine">
                                         <i class="trash icon"></i> Delete
                                     </button>
+                                    <button class="ui teal button manage-tags">
+                                        <i class="tags icon"></i> Tags
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -139,6 +144,30 @@
                     {% endfor %}
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Tag Management Modal -->
+    <div class="ui modal" id="tag-management-modal">
+        <i class="close icon"></i>
+        <div class="header">Manage Tags</div>
+        <div class="content">
+            <div class="ui segment">
+                <h4 class="ui header">Current Tags</h4>
+                <div id="current-tags-list" class="ui labels">
+                    <!-- Current tags will be loaded here -->
+                </div>
+            </div>
+            
+            <div class="ui segment">
+                <h4 class="ui header">Available Tags</h4>
+                <div id="available-tags-list" class="ui labels">
+                    <!-- Available tags will be loaded here -->
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <div class="ui button cancel">Close</div>
         </div>
     </div>
     
@@ -168,6 +197,7 @@
                         <th>Status</th>
                         <th>RPE</th>
                         <th>Notes</th>
+                        <th>Tags</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -256,6 +286,9 @@
 </div>
 
 <script>
+// Define API_URL from the template variable
+const API_URL = "{{ API_URL }}";
+
 // Function to get auth token from cookies
 function getAuthToken() {
     const cookies = document.cookie.split(';');
@@ -297,7 +330,7 @@ function handleToggleActive() {
     }
     
     // Update active state in the database
-    fetch(`{{ API_URL }}/routines/${routineId}/toggle-active`, {
+    fetch(`${API_URL}/routines/${routineId}/toggle-active`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -350,7 +383,7 @@ function handleViewSessions() {
 }
 
 function loadSessions(routineId, startDate, endDate) {
-    fetch(`{{ API_URL }}/routines/${routineId}/sessions?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`, {
+    fetch(`${API_URL}/routines/${routineId}/sessions?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`, {
         method: 'GET',
         headers: {
             'Authorization': 'Bearer ' + getAuthToken()
@@ -368,7 +401,7 @@ function loadSessions(routineId, startDate, endDate) {
         
         if (sessions.length === 0) {
             const tr = document.createElement('tr');
-            tr.innerHTML = '<td colspan="6" class="center aligned">No sessions found in this date range</td>';
+            tr.innerHTML = '<td colspan="7" class="center aligned">No sessions found in this date range</td>';
             tbody.appendChild(tr);
         } else {
             sessions.forEach(session => {
@@ -391,7 +424,21 @@ function loadSessions(routineId, startDate, endDate) {
                         <input type="text" class="session-notes" value="${session.notes || ''}">
                     </td>
                     <td>
-                        <button class="ui tiny green button save-session">Save</button>
+                        <div class="ui labels">
+                            ${(session.tags || []).map(tag => `
+                                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                    ${tag.name}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="ui tiny buttons">
+                            <button class="ui tiny green button save-session">Save</button>
+                            <button class="ui tiny teal button manage-session-tags">
+                                <i class="tags icon"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -402,8 +449,8 @@ function loadSessions(routineId, startDate, endDate) {
         }
     })
     .catch(error => {
-        console.error('Error fetching sessions:', error);
-        alert('Error fetching sessions. Please try again.');
+        console.error('Error loading sessions:', error);
+        alert('Failed to load sessions. Please try again.');
     });
 }
 
@@ -432,7 +479,7 @@ function handleEditRoutine() {
     const eventId = eventItem.dataset.id;
     
     // Fetch routine details
-    fetch(`{{ API_URL }}/routines/${eventId}`, {
+    fetch(`${API_URL}/routines/${eventId}`, {
         method: 'GET',
         headers: {
             'Authorization': 'Bearer ' + getAuthToken()
@@ -476,7 +523,7 @@ document.getElementById('save-routine-edit').addEventListener('click', function(
         rrule: form.querySelector('[name="rrule"]').value
     };
     
-    fetch(`{{ API_URL }}/routines/${eventId}`, {
+    fetch(`${API_URL}/routines/${eventId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -521,7 +568,7 @@ function handleDeleteRoutine() {
     const eventItem = this.closest('.item');
     const eventId = eventItem.dataset.id;
     
-    fetch(`{{ API_URL }}/routines/${eventId}`, {
+    fetch(`${API_URL}/routines/${eventId}`, {
         method: 'DELETE',
         headers: {
             'Authorization': 'Bearer ' + getAuthToken()
@@ -554,7 +601,7 @@ document.getElementById('caldav-import-form').addEventListener('submit', functio
         password: this.password.value
     };
     
-    fetch('{{ API_URL }}/caldav/test-connection', {
+    fetch(`${API_URL}/caldav/test-connection`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -594,7 +641,7 @@ document.getElementById('import-button').addEventListener('click', function(e) {
         end_date: currentTimeframe.end.toISOString().split('T')[0]
     };
     
-    fetch('{{ API_URL }}/routines/import', {
+    fetch(`${API_URL}/routines/import`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -635,7 +682,7 @@ document.addEventListener('click', function(e) {
             notes: sessionRow.querySelector('.session-notes').value
         };
         
-        fetch(`{{ API_URL }}/sessions/${sessionId}`, {
+        fetch(`${API_URL}/sessions/${sessionId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -688,7 +735,7 @@ document.getElementById('save-commitment').addEventListener('click', function() 
         goal: parseInt(form.querySelector('[name="goal"]').value)
     };
     
-    fetch(`{{ API_URL }}/commitments`, {
+    fetch(`${API_URL}/commitments`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -799,6 +846,8 @@ function displayRoutines(routines) {
                 </div>
                 <div class="description">${routine.description || ''}</div>
                 <div class="extra">
+                    <div class="ui labels" id="routine-tags-${routine.id}">
+                    </div>
                     <div class="ui tiny buttons">
                         <button class="ui blue button view-sessions">
                             <i class="calendar icon"></i> View Sessions
@@ -811,6 +860,9 @@ function displayRoutines(routines) {
                         </button>
                         <button class="ui red button delete-routine">
                             <i class="trash icon"></i> Delete
+                        </button>
+                        <button class="ui teal button manage-tags">
+                            <i class="tags icon"></i> Tags
                         </button>
                     </div>
                 </div>
@@ -827,10 +879,27 @@ function displayRoutines(routines) {
         item.querySelector('.edit-routine').addEventListener('click', handleEditRoutine);
         item.querySelector('.delete-routine').addEventListener('click', handleDeleteRoutine);
         item.querySelector('.routine-toggle').addEventListener('change', handleToggleActive);
+        item.querySelector('.manage-tags').addEventListener('click', function() {
+            showTagManagementModal(item.dataset.id, 'routine');
+        });
     });
     
     // Initialize checkboxes
     $('.ui.checkbox').checkbox();
+    
+    // Load tags for each routine
+    routines.forEach(routine => {
+        if (routine.tags && routine.tags.length > 0) {
+            const tagsContainer = document.getElementById(`routine-tags-${routine.id}`);
+            if (tagsContainer) {
+                tagsContainer.innerHTML = routine.tags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                        ${tag.name}
+                    </div>
+                `).join('');
+            }
+        }
+    });
 }
 
 // Timeframe selection functionality
@@ -921,7 +990,7 @@ function adjustTimeframe(direction) {
             currentTimeframe.start.setFullYear(currentTimeframe.start.getFullYear() + amount);
             currentTimeframe.start.setMonth(0);
             currentTimeframe.start.setDate(1);
-            currentTimeframe.end = new Date(currentTimeframe.start.getFullYear(), 11, 31);
+            currentTimeframe.end = new Date(today.getFullYear(), 11, 31);
             break;
     }
     
@@ -980,6 +1049,250 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('next-timeframe').addEventListener('click', function() {
         adjustTimeframe('next');
     });
+});
+
+// Tag Management Functions
+function showTagManagementModal(itemId, itemType) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // Store the current item info in the modal
+    const modal = document.getElementById('tag-management-modal');
+    modal.dataset.itemId = itemId;
+    modal.dataset.itemType = itemType;
+    
+    // Load current tags
+    loadCurrentTags(itemId, itemType);
+    loadAvailableTags(itemId, itemType);
+    
+    // Show the modal
+    $('#tag-management-modal').modal('show');
+}
+
+function loadCurrentTags(itemId, itemType) {
+    const token = getAuthToken();
+    const container = document.getElementById('current-tags-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading tags...</div></div>';
+    
+    fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load tags');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const tags = data.tags || [];
+        if (tags.length === 0) {
+            container.innerHTML = '<div class="ui info message">No tags applied yet.</div>';
+            return;
+        }
+        
+        let html = '';
+        tags.forEach(tag => {
+            html += `
+                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                    ${tag.name}
+                    <i class="delete icon" data-id="${tag.id}" data-name="${tag.name}"></i>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        
+        // Add click handlers for delete icons
+        container.querySelectorAll('.delete.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const tagId = this.getAttribute('data-id');
+                removeTag(itemId, itemType, tagId);
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading tags:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load tags</div>';
+    });
+}
+
+function loadAvailableTags(itemId, itemType) {
+    const token = getAuthToken();
+    const container = document.getElementById('available-tags-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading available tags...</div></div>';
+    
+    // First get current tags to filter them out
+    const currentEndpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
+    
+    fetch(currentEndpoint, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load current tags');
+        }
+        return response.json();
+    })
+    .then(currentData => {
+        const currentTags = currentData.tags || [];
+        const currentTagIds = new Set(currentTags.map(tag => tag.id));
+        
+        // Then get all tags
+        return fetch(`${API_URL}/tags`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load available tags');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const allTags = data.tags || [];
+            const availableTags = allTags.filter(tag => !currentTagIds.has(tag.id));
+            
+            if (availableTags.length === 0) {
+                container.innerHTML = '<div class="ui info message">No more tags available.</div>';
+                return;
+            }
+            
+            let html = '';
+            availableTags.forEach(tag => {
+                html += `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white; cursor: pointer;">
+                        ${tag.name}
+                        <i class="add icon" data-id="${tag.id}" data-name="${tag.name}"></i>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            
+            // Add click handlers for add icons
+            container.querySelectorAll('.add.icon').forEach(icon => {
+                icon.addEventListener('click', function() {
+                    const tagId = this.getAttribute('data-id');
+                    applyTag(itemId, itemType, tagId);
+                });
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading available tags:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load available tags</div>';
+    });
+}
+
+function applyTag(itemId, itemType, tagId) {
+    const token = getAuthToken();
+    
+    fetch(`${API_URL}/tags/apply/${itemType}/${itemId}/${tagId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to apply tag');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload tags
+        loadCurrentTags(itemId, itemType);
+        loadAvailableTags(itemId, itemType);
+        
+        // If this is a routine, update the routine header
+        if (itemType === 'routine') {
+            // Fetch updated routine data
+            fetch(`${API_URL}/routines`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(routines => {
+                displayRoutines(routines);
+            })
+            .catch(error => {
+                console.error('Error fetching routines:', error);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error applying tag:', error);
+        alert('Failed to apply tag. Please try again.');
+    });
+}
+
+function removeTag(itemId, itemType, tagId) {
+    const token = getAuthToken();
+    
+    fetch(`${API_URL}/tags/remove/${itemType}/${itemId}/${tagId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to remove tag');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload tags
+        loadCurrentTags(itemId, itemType);
+        loadAvailableTags(itemId, itemType);
+        
+        // If this is a routine, update the routine header
+        if (itemType === 'routine') {
+            // Fetch updated routine data
+            fetch(`${API_URL}/routines`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(routines => {
+                displayRoutines(routines);
+            })
+            .catch(error => {
+                console.error('Error fetching routines:', error);
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        alert('Failed to remove tag. Please try again.');
+    });
+}
+
+// Add event listener for tag management button
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.manage-tags')) {
+        const routineItem = e.target.closest('.item');
+        const routineId = routineItem.dataset.id;
+        showTagManagementModal(routineId, 'routine');
+    }
+});
+
+// Add event listener for session tag management
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.manage-session-tags')) {
+        const sessionRow = e.target.closest('tr');
+        const sessionId = sessionRow.dataset.id;
+        showTagManagementModal(sessionId, 'session');
+    }
 });
 </script>
 

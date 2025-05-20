@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
     routines = relationship("Routine", back_populates="user", lazy=True)
     sessions = relationship("Session", back_populates="user", lazy=True)
     checkins = relationship("Checkin", back_populates="user", lazy=True)
+    tags = relationship("Tag", back_populates="user", lazy=True)
     
     # Relationships will be defined as backref from their respective models
     # to avoid circular imports
