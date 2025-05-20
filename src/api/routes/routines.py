@@ -286,11 +286,9 @@ def import_caldav_events():
                     external_uid=uid,
                     external_source='caldav'
                 )
-                print(f"Created routine object: {routine.__dict__}")  # Log the routine object
                 
                 db.session.add(routine)
-                db.session.flush()  # Get the routine ID
-                print(f"Flushed routine to database, got ID: {routine.id}")
+                db.session.flush()
             
             # Create sessions for all instances in the filtered date range
             for instance in filtered_instances:

@@ -40,16 +40,12 @@ class Config:
 def initialize_database(app):
     """Initialize the database with all tables if they don't exist"""
     with app.app_context():
-        # Print the actual database URI being used
-        print("DB URI in use:", app.config['SQLALCHEMY_DATABASE_URI'])
         # Import all models to ensure they're registered with SQLAlchemy
         from .models import db
         
-        # Force recreate all tables
-        db.drop_all()
+        # Create tables if they don't exist
         db.create_all()
         
         # Verify tables were created
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
-        print("Created tables:", tables)

@@ -5,6 +5,4 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 if __name__ == '__main__':
-    print("Initializing database...")
-    initialize_database(app)
-    print("Database initialized successfully!") 
+    initialize_database(app) 
