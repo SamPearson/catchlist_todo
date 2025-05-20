@@ -21,6 +21,7 @@ class Project(db.Model):
     # Relationships
     user = relationship('User', back_populates='projects')
     tasks = relationship('ProjectTask', back_populates='project', cascade='all, delete-orphan')
+    commitments = relationship('Commitment', back_populates='project', foreign_keys='Commitment.project_id')
     checkins = relationship(
         'Checkin',
         primaryjoin="and_(Checkin.entity_type=='project', foreign(Checkin.entity_id)==Project.id)",

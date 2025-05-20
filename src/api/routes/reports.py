@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
-from ...config.models import db, Project, Routine, Session, Checkin, Commitment, ProjectTask, CatchlistItem
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from ...config.models import db, Project, Routine, Session, Checkin, Commitment, ProjectTask, CatchlistItem, ReportGenerator, DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date, timedelta
 from sqlalchemy import func, and_, cast, Date
@@ -400,158 +400,222 @@ def get_weekly_report(end_date):
     
     return jsonify(report)
 
-@reports_bp.route('/api/reports/day-details', methods=['GET'])
+@reports_bp.route('/api/reports/day/<date_str>', methods=['GET', 'POST'])
 @jwt_required()
-def day_details():
-    current_user_id = get_current_user_id()
-    
-    # Get date parameter
-    date_str = request.args.get('date')
-    if not date_str:
-        return jsonify({"message": "Date parameter is required"}), 400
-    
+def handle_single_day_report(date_str):
+    """Handle operations for a single day report"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+
     try:
-        day_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        day_str = day_date.strftime('%Y-%m-%d')
+        report_date = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Get category parameter
-    category = request.args.get('category')
-    if not category or category not in ['checkins', 'tasks', 'catchlist']:
-        return jsonify({"message": "Valid category parameter is required"}), 400
-    
-    result = {
-        'date': day_str,
-        'category': category,
-        'items': []
-    }
-    
-    # Get details based on category
-    if category == 'checkins':
-        # Get sessions for this day
+
+    if request.method == 'GET':
+        # Get day block
+        day_block = db.session.query(DayBlock).filter_by(
+            user_id=user_id,
+            year=report_date.year,
+            month=report_date.month,
+            day=report_date.day
+        ).first()
+
+        # Get daily activity data
         sessions = db.session.query(
             Session, Routine
         ).join(
             Routine, Routine.id == Session.routine_id
         ).filter(
-            Routine.user_id == current_user_id,
-            func.date(Session.start_time) == day_date,
+            Routine.user_id == user_id,
+            func.date(Session.start_time) == report_date,
             Session.completed == True
         ).all()
-        
-        for session, routine in sessions:
-            # Get checkins for this session
-            checkins = Checkin.query.filter_by(
-                entity_type='session',
-                entity_id=session.id,
-                user_id=current_user_id
-            ).order_by(Checkin.timestamp).all()
-            
-            checkins_data = []
-            for checkin in checkins:
-                checkins_data.append({
-                    'content': checkin.comment,
-                    'rpe': checkin.rpe,
-                    'created_at': checkin.timestamp.strftime('%Y-%m-%d %H:%M')
-                })
-            
-            result['items'].append({
-                'id': session.id,
-                'type': 'session',
-                'title': routine.title,
-                'details': {
-                    'start_time': session.start_time.strftime('%H:%M'),
-                    'end_time': session.end_time.strftime('%H:%M'),
-                    'rpe': session.rpe,
-                    'notes': session.notes
-                },
-                'checkins': checkins_data
-            })
-            
-    elif category == 'tasks':
-        # Get completed tasks for this day using TaskExecution records
-        tasks = db.session.query(
-            TaskExecution, ProjectSubtask, Project
+
+        # Get completed tasks
+        completed_tasks = db.session.query(
+            ProjectTask, Commitment
         ).join(
-            ProjectSubtask, ProjectSubtask.id == TaskExecution.task_id
-        ).join(
-            Project, Project.id == TaskExecution.project_id
+            Commitment, Commitment.project_task_id == ProjectTask.id
         ).filter(
-            TaskExecution.user_id == current_user_id,
-            TaskExecution.execution_date == day_date,
-            TaskExecution.completed == True
+            Commitment.user_id == user_id,
+            Commitment.due_date == report_date,
+            Commitment.completed == True
         ).all()
-        
-        for execution, task, project in tasks:
-            # Get checkins for this task
-            checkins = Checkin.query.filter_by(
-                entity_type='project_task',
-                entity_id=task.id,
-                user_id=current_user_id
-            ).order_by(Checkin.timestamp).all()
-            
-            checkins_data = []
-            for checkin in checkins:
-                checkins_data.append({
-                    'content': checkin.comment,
-                    'rpe': checkin.rpe,
-                    'created_at': checkin.timestamp.strftime('%Y-%m-%d %H:%M')
-                })
-            
-            result['items'].append({
-                'id': task.id,
-                'type': 'project_subtask',
-                'title': task.title,
-                'details': {
-                    'project_title': project.title,
-                    'completed_at': execution.execution_date.strftime('%Y-%m-%d'),
-                    'notes': execution.notes
-                },
-                'checkins': checkins_data
-            })
-    
-    elif category == 'catchlist':
-        # Get completed catchlist entries for this day using Commitment records
-        catchlist_items = db.session.query(
+
+        # Get completed catchlist items
+        completed_catchlist = db.session.query(
             CatchlistItem, Commitment
         ).join(
             Commitment, Commitment.catchlist_item_id == CatchlistItem.id
         ).filter(
-            Commitment.user_id == current_user_id,
-            Commitment.due_date == day_date,
+            Commitment.user_id == user_id,
+            Commitment.due_date == report_date,
             Commitment.completed == True
         ).all()
-        
-        for item in catchlist_items:
-            # Get checkins for this catchlist item
-            checkins = Checkin.query.filter_by(
-                entity_type='catchlist_item',
-                entity_id=item.CatchlistItem.id,
-                user_id=current_user_id
-            ).order_by(Checkin.timestamp).all()
-            
-            checkins_data = []
-            for checkin in checkins:
-                checkins_data.append({
-                    'content': checkin.comment,
-                    'rpe': checkin.rpe,
-                    'created_at': checkin.timestamp.strftime('%Y-%m-%d %H:%M')
-                })
-            
-            result['items'].append({
-                'id': item.CatchlistItem.id,
-                'type': 'catchlist_item',
-                'title': item.CatchlistItem.content,
-                'details': {
-                    'completed_at': item.Commitment.completed_at.isoformat() if item.Commitment.completed_at else None,
-                    'status': item.CatchlistItem.status,
-                    'notes': item.Commitment.notes
-                },
-                'checkins': checkins_data
+
+        return jsonify({
+            'date': report_date.isoformat(),
+            'day_block': day_block.as_dict() if day_block else None,
+            'sessions': [{
+                'id': session.id,
+                'title': routine.title,
+                'start_time': session.start_time.strftime('%H:%M'),
+                'end_time': session.end_time.strftime('%H:%M'),
+                'rpe': session.rpe,
+                'notes': session.notes
+            } for session, routine in sessions],
+            'completed_tasks': [{
+                'id': task.id,
+                'title': task.title,
+                'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
+            } for task, commitment in completed_tasks],
+            'completed_catchlist': [{
+                'id': item.id,
+                'content': item.content,
+                'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
+            } for item, commitment in completed_catchlist]
+        })
+    else:  # POST
+        data = request.get_json()
+        if not data:
+            return jsonify({"message": "No data provided"}), 400
+
+        # Get or create day block
+        day_block = DayBlock.get_or_create(db.session, user_id, report_date.year, report_date.month, report_date.day)
+
+        # Update fields
+        if 'sleep_hours' in data:
+            day_block.sleep_hours = data['sleep_hours']
+        if 'mood' in data:
+            day_block.mood = data['mood']
+        if 'rpe' in data:
+            day_block.rpe = data['rpe']
+        if 'food_notes' in data:
+            day_block.food_notes = data['food_notes']
+        if 'gains' in data:
+            day_block.gains = data['gains']
+        if 'gratitudes' in data:
+            day_block.gratitudes = data['gratitudes']
+
+        db.session.commit()
+        return jsonify({"message": "Daily report saved successfully"})
+
+@reports_bp.route('/api/reports/day/range', methods=['GET'])
+@jwt_required()
+def get_daily_reports_range():
+    """Get daily reports for a date range"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "Start date and end date are required"}), 400
+
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    # Get all day blocks in the range
+    day_blocks = db.session.query(DayBlock).filter(
+        DayBlock.user_id == user_id,
+        DayBlock.start_date >= start_date,
+        DayBlock.start_date <= end_date
+    ).order_by(DayBlock.start_date.asc()).all()
+
+    # Get all sessions in the range
+    sessions = db.session.query(
+        Session, Routine
+    ).join(
+        Routine, Routine.id == Session.routine_id
+    ).filter(
+        Routine.user_id == user_id,
+        func.date(Session.start_time).between(start_date, end_date),
+        Session.completed == True
+    ).all()
+
+    # Get all completed tasks in the range
+    completed_tasks = db.session.query(
+        ProjectTask, Commitment
+    ).join(
+        Commitment, Commitment.project_task_id == ProjectTask.id
+    ).filter(
+        Commitment.user_id == user_id,
+        Commitment.due_date.between(start_date, end_date),
+        Commitment.completed == True
+    ).all()
+
+    # Get all completed catchlist items in the range
+    completed_catchlist = db.session.query(
+        CatchlistItem, Commitment
+    ).join(
+        Commitment, Commitment.catchlist_item_id == CatchlistItem.id
+    ).filter(
+        Commitment.user_id == user_id,
+        Commitment.due_date.between(start_date, end_date),
+        Commitment.completed == True
+    ).all()
+
+    # Organize data by date
+    reports = {}
+    current_date = start_date
+    while current_date <= end_date:
+        date_str = current_date.isoformat()
+        reports[date_str] = {
+            'date': date_str,
+            'day_block': None,
+            'sessions': [],
+            'completed_tasks': [],
+            'completed_catchlist': []
+        }
+        current_date += timedelta(days=1)
+
+    # Add day blocks
+    for block in day_blocks:
+        date_str = block.start_date.isoformat()
+        if date_str in reports:
+            reports[date_str]['day_block'] = block.as_dict()
+
+    # Add sessions
+    for session, routine in sessions:
+        date_str = session.start_time.date().isoformat()
+        if date_str in reports:
+            reports[date_str]['sessions'].append({
+                'id': session.id,
+                'title': routine.title,
+                'start_time': session.start_time.strftime('%H:%M'),
+                'end_time': session.end_time.strftime('%H:%M'),
+                'rpe': session.rpe,
+                'notes': session.notes
             })
-    
-    return jsonify(result)
+
+    # Add completed tasks
+    for task, commitment in completed_tasks:
+        date_str = commitment.due_date.isoformat()
+        if date_str in reports:
+            reports[date_str]['completed_tasks'].append({
+                'id': task.id,
+                'title': task.title,
+                'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
+            })
+
+    # Add completed catchlist items
+    for item, commitment in completed_catchlist:
+        date_str = commitment.due_date.isoformat()
+        if date_str in reports:
+            reports[date_str]['completed_catchlist'].append({
+                'id': item.id,
+                'content': item.content,
+                'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
+            })
+
+    return jsonify(list(reports.values()))
 
 @reports_bp.route('/api/reports/fix-all-dates', methods=['POST'])
 @jwt_required()
@@ -869,48 +933,6 @@ def get_daily_summary(date_str):
         } for item in session_completions]
     })
 
-@reports_bp.route('/api/reports/daily-report', methods=['POST'])
-@jwt_required()
-def save_daily_report():
-    """Save daily report data"""
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    data = request.get_json()
-    date_str = data.get('date')
-    sleep_hours = data.get('sleep_hours')
-    mood = data.get('mood')
-    rpe = data.get('rpe')
-    food_notes = data.get('food_notes')
-    gains = data.get('gains')
-    gratitudes = data.get('gratitudes')
-    
-    try:
-        report_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Get or create day block
-    day_block = DayBlock.get_or_create(db.session, user_id, report_date.year, report_date.month, report_date.day)
-    
-    # Update fields
-    if sleep_hours is not None:
-        day_block.sleep_hours = sleep_hours
-    if mood is not None:
-        day_block.mood = mood
-    if rpe is not None:
-        day_block.rpe = rpe
-    if food_notes is not None:
-        day_block.food_notes = food_notes
-    if gains is not None:
-        day_block.gains = gains
-    if gratitudes is not None:
-        day_block.gratitudes = gratitudes
-    
-    db.session.commit()
-    return jsonify({"message": "Daily report saved successfully"})
-
 @reports_bp.route('/api/reports/weekly-report', methods=['POST'])
 @jwt_required()
 def save_weekly_report():
@@ -1047,189 +1069,9 @@ def save_seasonal_report():
     db.session.commit()
     return jsonify(season_block.as_dict())
 
-@reports_bp.route('/api/reports/daily-report/<date>', methods=['GET'])
-@jwt_required()
-def get_daily_report(date):
-    """Get daily report data"""
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    try:
-        report_date = datetime.strptime(date, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Get day block
-    day_block = db.session.query(DayBlock).filter_by(
-        user_id=user_id,
-        year=report_date.year,
-        month=report_date.month,
-        day=report_date.day
-    ).first()
-    
-    if not day_block:
-        return jsonify({
-            "sleep_hours": None,
-            "mood": None,
-            "rpe": None,
-            "food_notes": None,
-            "gains": None,
-            "gratitudes": None
-        })
-    
-    return jsonify(day_block.as_dict())
-
-@reports_bp.route('/api/reports/monthly-report/<int:year>/<int:month>', methods=['GET'])
-@jwt_required()
-def get_monthly_report(year, month):
-    """Get monthly report data"""
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    month_block = MonthBlock.query.filter_by(
-        user_id=user_id,
-        year=year,
-        month=month
-    ).first()
-    
-    if not month_block:
-        return jsonify({
-            'year': year,
-            'month': month,
-            'theme': None,
-            'goals': None,
-            'goals_rationale': None,
-            'rpe': None,
-            'gains': None,
-            'gratitudes': None
-        })
-    
-    return jsonify(month_block.as_dict())
-
-@reports_bp.route('/api/reports/seasonal-report/<int:year>/<season>', methods=['GET'])
-@jwt_required()
-def get_seasonal_report(year, season):
-    """Get seasonal report data"""
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    season_block = SeasonBlock.query.filter_by(
-        user_id=user_id,
-        year=year,
-        season=season
-    ).first()
-    
-    if not season_block:
-        return jsonify({
-            'year': year,
-            'season': season,
-            'theme': None,
-            'goals': None,
-            'goals_rationale': None,
-            'rpe': None,
-            'gains': None,
-            'gratitudes': None
-        })
-    
-    return jsonify(season_block.as_dict())
-
-@reports_bp.route('/api/reports/day', methods=['GET'])
-@jwt_required()
-def get_day_report():
-    """Get daily report data for a specific date range"""
-    user_id = get_current_user_id()
-    if not user_id:
-        return jsonify({"message": "Unauthorized"}), 401
-    
-    start_date_str = request.args.get('start')
-    end_date_str = request.args.get('end')
-    
-    if not start_date_str or not end_date_str:
-        return jsonify({"message": "Start date and end date are required"}), 400
-    
-    try:
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Get day block
-    day_block = db.session.query(DayBlock).filter_by(
-        user_id=user_id,
-        year=start_date.year,
-        month=start_date.month,
-        day=start_date.day
-    ).first()
-    
-    # Get daily activity data
-    sessions = db.session.query(
-        Session, Routine
-    ).join(
-        Routine, Routine.id == Session.routine_id
-    ).filter(
-        Routine.user_id == user_id,
-        func.date(Session.start_time) == start_date,
-        Session.completed == True
-    ).all()
-    
-    # Get completed tasks
-    completed_tasks = db.session.query(
-        ProjectTask, Commitment
-    ).join(
-        Commitment, Commitment.project_task_id == ProjectTask.id
-    ).filter(
-        Commitment.user_id == user_id,
-        Commitment.due_date == start_date,
-        Commitment.completed == True
-    ).all()
-    
-    # Get completed catchlist items
-    completed_catchlist = db.session.query(
-        CatchlistItem, Commitment
-    ).join(
-        Commitment, Commitment.catchlist_item_id == CatchlistItem.id
-    ).filter(
-        Commitment.user_id == user_id,
-        Commitment.due_date == start_date,
-        Commitment.completed == True
-    ).all()
-    
-    return jsonify({
-        'date': start_date.isoformat(),
-        'day_block': day_block.as_dict() if day_block else {
-            'sleep_hours': None,
-            'mood': None,
-            'rpe': None,
-            'food_notes': None,
-            'gains': None,
-            'gratitudes': None
-        },
-        'sessions': [{
-            'id': session.id,
-            'title': routine.title,
-            'start_time': session.start_time.strftime('%H:%M'),
-            'end_time': session.end_time.strftime('%H:%M'),
-            'rpe': session.rpe,
-            'notes': session.notes
-        } for session, routine in sessions],
-        'completed_tasks': [{
-            'id': task.id,
-            'title': task.title,
-            'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
-        } for task, commitment in completed_tasks],
-        'completed_catchlist': [{
-            'id': item.id,
-            'content': item.content,
-            'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
-        } for item, commitment in completed_catchlist]
-    })
-
 @reports_bp.route('/api/reports/week', methods=['GET'])
 @jwt_required()
-def get_week_report():
+def get_week_report_range():
     """Get weekly report data for a specific date range"""
     user_id = get_current_user_id()
     if not user_id:
@@ -1309,7 +1151,7 @@ def get_week_report():
 
 @reports_bp.route('/api/reports/month', methods=['GET'])
 @jwt_required()
-def get_month_report():
+def get_month_report_range():
     """Get monthly report data for a specific date range"""
     user_id = get_current_user_id()
     if not user_id:
@@ -1391,7 +1233,7 @@ def get_month_report():
 
 @reports_bp.route('/api/reports/season', methods=['GET'])
 @jwt_required()
-def get_season_report():
+def get_season_report_range():
     """Get seasonal report data for a specific date range"""
     user_id = get_current_user_id()
     if not user_id:
@@ -1469,4 +1311,675 @@ def get_season_report():
             'content': item.content,
             'completed_at': commitment.completed_at.isoformat() if commitment.completed_at else None
         } for item, commitment in completed_catchlist]
-    }) 
+    })
+
+@reports_bp.route('/api/reports/generate', methods=['POST'])
+@jwt_required()
+def generate_reports():
+    """Manually trigger report generation for the current user"""
+    user_id = get_jwt_identity()
+    
+    try:
+        ReportGenerator.generate_missing_reports(user_id, db.session)
+        return jsonify({"message": "Reports generated successfully"})
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+@reports_bp.route('/api/reports/day/<int:year>/<int:month>/<int:day>', methods=['GET'])
+@jwt_required()
+def get_day_report_by_date(year, month, day):
+    """Get a specific day report"""
+    user_id = get_jwt_identity()
+    
+    day_block = DayBlock.query.filter(
+        DayBlock.user_id == user_id,
+        DayBlock.year == year,
+        DayBlock.month == month,
+        DayBlock.day == day
+    ).first_or_404()
+    
+    return jsonify(day_block.as_dict())
+
+@reports_bp.route('/api/reports/week/<int:year>/<int:week>', methods=['GET'])
+@jwt_required()
+def get_week_report_by_date(year, week):
+    """Get a specific week report"""
+    user_id = get_jwt_identity()
+    
+    week_block = WeekBlock.query.filter(
+        WeekBlock.user_id == user_id,
+        WeekBlock.year == year,
+        WeekBlock.week == week
+    ).first_or_404()
+    
+    return jsonify(week_block.as_dict())
+
+@reports_bp.route('/api/reports/month/<int:year>/<int:month>', methods=['GET'])
+@jwt_required()
+def get_month_report_by_date(year, month):
+    """Get a specific month report"""
+    user_id = get_jwt_identity()
+    
+    month_block = MonthBlock.query.filter(
+        MonthBlock.user_id == user_id,
+        MonthBlock.year == year,
+        MonthBlock.month == month
+    ).first_or_404()
+    
+    return jsonify(month_block.as_dict())
+
+@reports_bp.route('/api/reports/season/<int:year>/<int:season>', methods=['GET'])
+@jwt_required()
+def get_season_report_by_date(year, season):
+    """Get a specific season report"""
+    user_id = get_jwt_identity()
+    
+    season_block = SeasonBlock.query.filter(
+        SeasonBlock.user_id == user_id,
+        SeasonBlock.year == year,
+        SeasonBlock.season == season
+    ).first_or_404()
+    
+    return jsonify(season_block.as_dict())
+
+@reports_bp.route('/api/reports/year/<int:year>', methods=['GET'])
+@jwt_required()
+def get_year_report_by_date(year):
+    """Get a specific year report"""
+    user_id = get_jwt_identity()
+    
+    year_block = YearBlock.query.filter(
+        YearBlock.user_id == user_id,
+        YearBlock.year == year
+    ).first_or_404()
+    
+    return jsonify(year_block.as_dict())
+
+@reports_bp.route('/api/reports/range', methods=['GET'])
+@jwt_required()
+def get_reports_range():
+    """Get reports within a date range"""
+    user_id = get_jwt_identity()
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    report_type = request.args.get('type', 'day')  # day, week, month, season, year
+    
+    if not start_date or not end_date:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    if report_type == 'day':
+        blocks = DayBlock.query.filter(
+            DayBlock.user_id == user_id,
+            DayBlock.start_date >= start,
+            DayBlock.end_date <= end
+        ).order_by(DayBlock.start_date.asc()).all()
+    elif report_type == 'week':
+        blocks = WeekBlock.query.filter(
+            WeekBlock.user_id == user_id,
+            WeekBlock.start_date >= start,
+            WeekBlock.end_date <= end
+        ).order_by(WeekBlock.start_date.asc()).all()
+    elif report_type == 'month':
+        blocks = MonthBlock.query.filter(
+            MonthBlock.user_id == user_id,
+            MonthBlock.start_date >= start,
+            MonthBlock.end_date <= end
+        ).order_by(MonthBlock.start_date.asc()).all()
+    elif report_type == 'season':
+        blocks = SeasonBlock.query.filter(
+            SeasonBlock.user_id == user_id,
+            SeasonBlock.start_date >= start,
+            SeasonBlock.end_date <= end
+        ).order_by(SeasonBlock.start_date.asc()).all()
+    elif report_type == 'year':
+        blocks = YearBlock.query.filter(
+            YearBlock.user_id == user_id,
+            YearBlock.start_date >= start,
+            YearBlock.end_date <= end
+        ).order_by(YearBlock.start_date.asc()).all()
+    else:
+        return jsonify({"message": "Invalid report type"}), 400
+    
+    return jsonify([block.as_dict() for block in blocks])
+
+@reports_bp.route('/api/reports/week/range', methods=['GET', 'POST'])
+@jwt_required()
+def handle_week_range_report():
+    """Handle operations for a week range report"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+    
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+    
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Calculate the week number based on the end date
+    week_number = end_date.isocalendar()[1]
+    year = end_date.year
+    
+    if request.method == 'GET':
+        # Get or create the week block
+        week_block = db.session.query(WeekBlock).filter_by(
+            user_id=user_id,
+            year=year,
+            week_number=week_number
+        ).first()
+        
+        if not week_block:
+            # No week block found, return empty data
+            return jsonify({
+                'period': {
+                    'start_date': start_date_str,
+                    'end_date': end_date_str
+                },
+                'rpe': None,
+                'gains': None,
+                'gratitudes': None,
+                'daily_metrics': []
+            }), 200
+        
+        # Get daily blocks for the week
+        daily_blocks = db.session.query(DayBlock).filter(
+            DayBlock.user_id == user_id,
+            DayBlock.start_date >= start_date,
+            DayBlock.start_date <= end_date
+        ).all()
+        
+        # Format daily metrics
+        daily_metrics = []
+        for block in daily_blocks:
+            daily_metrics.append({
+                'date': block.start_date.isoformat(),
+                'sleep': block.sleep_hours,
+                'food': block.food_notes,
+                'rpe': block.rpe,
+                'mood': block.mood
+            })
+        
+        # Return week report data
+        return jsonify({
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'rpe': week_block.rpe,
+            'gains': week_block.gains,
+            'gratitudes': week_block.gratitudes,
+            'daily_metrics': daily_metrics
+        })
+    
+    elif request.method == 'POST':
+        # Get data from request
+        data = request.get_json()
+        
+        # Get or create week block
+        week_block = db.session.query(WeekBlock).filter_by(
+            user_id=user_id,
+            year=year,
+            week_number=week_number
+        ).first()
+        
+        if not week_block:
+            # Create a new week block
+            week_block = WeekBlock(
+                user_id=user_id,
+                year=year,
+                week_number=week_number
+            )
+            db.session.add(week_block)
+        
+        # Update week block data
+        if 'rpe' in data and data['rpe']:
+            week_block.rpe = data['rpe']
+        if 'gains' in data and data['gains']:
+            week_block.gains = data['gains']
+        if 'gratitudes' in data and data['gratitudes']:
+            week_block.gratitudes = data['gratitudes']
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Weekly report saved successfully',
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'rpe': week_block.rpe,
+            'gains': week_block.gains,
+            'gratitudes': week_block.gratitudes
+        })
+
+@reports_bp.route('/api/reports/month/range', methods=['GET', 'POST'])
+@jwt_required()
+def handle_month_range_report():
+    """Handle operations for a month range report"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+    
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+    
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get the year and month from the start date
+    year = start_date.year
+    month = start_date.month
+    
+    if request.method == 'GET':
+        # Get or create the month block
+        month_block = db.session.query(MonthBlock).filter_by(
+            user_id=user_id,
+            year=year,
+            month=month
+        ).first()
+        
+        if not month_block:
+            # No month block found, return empty data
+            return jsonify({
+                'period': {
+                    'start_date': start_date_str,
+                    'end_date': end_date_str
+                },
+                'theme': None,
+                'goals': None,
+                'why': None,
+                'rpe': None,
+                'gains': None,
+                'gratitudes': None,
+                'weekly_metrics': []
+            }), 200
+        
+        # Get weekly blocks for the month
+        weekly_blocks = db.session.query(WeekBlock).filter(
+            WeekBlock.user_id == user_id,
+            WeekBlock.start_date >= start_date,
+            WeekBlock.start_date <= end_date
+        ).all()
+        
+        # Format weekly metrics
+        weekly_metrics = []
+        for block in weekly_blocks:
+            week_number = block.week_number
+            weekly_metrics.append({
+                'week_number': week_number,
+                'sleep_avg': None,  # Would need to calculate this from day blocks
+                'food_notes': None,  # Would need aggregate data from day blocks
+                'rpe_avg': block.rpe,
+                'mood_avg': None,  # Would need to calculate from day blocks
+            })
+        
+        # Return month report data
+        return jsonify({
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'theme': month_block.month_theme,
+            'goals': month_block.goals,
+            'why': month_block.goals_rationale,
+            'rpe': month_block.rpe,
+            'gains': month_block.gains,
+            'gratitudes': month_block.gratitudes,
+            'weekly_metrics': weekly_metrics
+        })
+    
+    elif request.method == 'POST':
+        # Get data from request
+        data = request.get_json()
+        
+        # Get or create month block
+        month_block = db.session.query(MonthBlock).filter_by(
+            user_id=user_id,
+            year=year,
+            month=month
+        ).first()
+        
+        if not month_block:
+            # Create a new month block
+            month_block = MonthBlock(
+                user_id=user_id,
+                year=year,
+                month=month
+            )
+            db.session.add(month_block)
+        
+        # Update month block data
+        if 'theme' in data and data['theme'] is not None:
+            month_block.month_theme = data['theme']
+        if 'goals' in data and data['goals'] is not None:
+            month_block.goals = data['goals']
+        if 'why' in data and data['why'] is not None:
+            month_block.goals_rationale = data['why']
+        if 'rpe' in data and data['rpe'] is not None:
+            month_block.rpe = data['rpe']
+        if 'gains' in data and data['gains'] is not None:
+            month_block.gains = data['gains']
+        if 'gratitudes' in data and data['gratitudes'] is not None:
+            month_block.gratitudes = data['gratitudes']
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Monthly report saved successfully',
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'theme': month_block.month_theme,
+            'goals': month_block.goals,
+            'why': month_block.goals_rationale,
+            'rpe': month_block.rpe,
+            'gains': month_block.gains,
+            'gratitudes': month_block.gratitudes
+        })
+
+@reports_bp.route('/api/reports/season/range', methods=['GET', 'POST'])
+@jwt_required()
+def handle_season_range_report():
+    """Handle operations for a season range report"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+    
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+    
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get the year and season from the start date
+    year = start_date.year
+    # Convert month to season (1-4)
+    season = start_date.month // 3 + 1
+    
+    if request.method == 'GET':
+        # Get or create the season block
+        season_block = db.session.query(SeasonBlock).filter_by(
+            user_id=user_id,
+            year=year,
+            season=season
+        ).first()
+        
+        if not season_block:
+            # No season block found, return empty data
+            return jsonify({
+                'period': {
+                    'start_date': start_date_str,
+                    'end_date': end_date_str
+                },
+                'theme': None,
+                'goals': None,
+                'why': None,
+                'rpe': None,
+                'gains': None,
+                'gratitudes': None,
+                'monthly_metrics': []
+            }), 200
+        
+        # Get monthly blocks for the season
+        monthly_blocks = db.session.query(MonthBlock).filter(
+            MonthBlock.user_id == user_id,
+            MonthBlock.start_date >= start_date,
+            MonthBlock.start_date <= end_date
+        ).all()
+        
+        # Format monthly metrics
+        monthly_metrics = []
+        for block in monthly_blocks:
+            month_name = datetime(block.year, block.month, 1).strftime('%B')
+            monthly_metrics.append({
+                'month': month_name,
+                'sleep_avg': None,  # Would need to calculate from day blocks
+                'food_notes': None,  # Would need aggregate data from day blocks
+                'rpe_avg': block.rpe,
+                'mood_avg': None,  # Would need to calculate from day blocks
+            })
+        
+        # Return season report data
+        return jsonify({
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'theme': season_block.season_theme,
+            'goals': season_block.goals,
+            'why': season_block.goals_rationale,
+            'rpe': season_block.rpe,
+            'gains': season_block.gains,
+            'gratitudes': season_block.gratitudes,
+            'monthly_metrics': monthly_metrics
+        })
+    
+    elif request.method == 'POST':
+        # Get data from request
+        data = request.get_json()
+        
+        # Get or create season block
+        season_block = db.session.query(SeasonBlock).filter_by(
+            user_id=user_id,
+            year=year,
+            season=season
+        ).first()
+        
+        if not season_block:
+            # Create a new season block
+            season_block = SeasonBlock(
+                user_id=user_id,
+                year=year,
+                season=season
+            )
+            db.session.add(season_block)
+        
+        # Update season block data
+        if 'theme' in data and data['theme'] is not None:
+            season_block.season_theme = data['theme']
+        if 'goals' in data and data['goals'] is not None:
+            season_block.goals = data['goals']
+        if 'why' in data and data['why'] is not None:
+            season_block.goals_rationale = data['why']
+        if 'rpe' in data and data['rpe'] is not None:
+            season_block.rpe = data['rpe']
+        if 'gains' in data and data['gains'] is not None:
+            season_block.gains = data['gains']
+        if 'gratitudes' in data and data['gratitudes'] is not None:
+            season_block.gratitudes = data['gratitudes']
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Seasonal report saved successfully',
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'theme': season_block.season_theme,
+            'goals': season_block.goals,
+            'why': season_block.goals_rationale,
+            'rpe': season_block.rpe,
+            'gains': season_block.gains,
+            'gratitudes': season_block.gratitudes
+        })
+
+@reports_bp.route('/api/reports/year/range', methods=['GET', 'POST'])
+@jwt_required()
+def handle_year_range_report():
+    """Handle operations for a year range report"""
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"message": "Unauthorized"}), 401
+    
+    start_date_str = request.args.get('start')
+    end_date_str = request.args.get('end')
+    
+    if not start_date_str or not end_date_str:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get the year from the start date
+    year = start_date.year
+    
+    if request.method == 'GET':
+        # Get or create the year block
+        year_block = db.session.query(YearBlock).filter_by(
+            user_id=user_id,
+            year=year
+        ).first()
+        
+        if not year_block:
+            # No year block found, return empty data
+            return jsonify({
+                'period': {
+                    'start_date': start_date_str,
+                    'end_date': end_date_str
+                },
+                'theme': None,
+                'goals': None,
+                'why': None,
+                'rpe': None,
+                'gains': None,
+                'gratitudes': None,
+                'seasonal_metrics': []
+            }), 200
+        
+        # Get seasonal blocks for the year
+        seasonal_blocks = db.session.query(SeasonBlock).filter(
+            SeasonBlock.user_id == user_id,
+            SeasonBlock.year == year
+        ).all()
+        
+        # Format seasonal metrics
+        seasonal_metrics = []
+        season_names = ['Winter', 'Spring', 'Summer', 'Fall']
+        for block in seasonal_blocks:
+            # Convert block.season to int if it's a string
+            season_index = int(block.season) - 1 if isinstance(block.season, str) else block.season - 1
+            seasonal_metrics.append({
+                'season': season_names[season_index],
+                'sleep_avg': None,  # Would need to calculate from day blocks
+                'food_notes': None,  # Would need aggregate data from day blocks
+                'rpe_avg': block.rpe,
+                'mood_avg': None,  # Would need to calculate from day blocks
+            })
+        
+        # Return year report data
+        return jsonify({
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'theme': year_block.year_theme,
+            'goals': year_block.goals,
+            'why': year_block.goals_rationale,
+            'rpe': year_block.rpe,
+            'gains': year_block.gains,
+            'gratitudes': year_block.gratitudes,
+            'seasonal_metrics': seasonal_metrics
+        })
+    
+    elif request.method == 'POST':
+        # Get data from request
+        data = request.get_json()
+        
+        # Get or create year block
+        year_block = db.session.query(YearBlock).filter_by(
+            user_id=user_id,
+            year=year
+        ).first()
+        
+        if not year_block:
+            # Create a new year block with the correct start and end dates
+            year_block = YearBlock(
+                user_id=user_id,
+                year=year
+            )
+            # Set the start_date and end_date manually
+            year_block.start_date = date(year, 1, 1)  # January 1st of the year
+            year_block.end_date = date(year, 12, 31)  # December 31st of the year
+            db.session.add(year_block)
+        
+        # Update year block data from the request
+        if 'theme' in data and data['theme'] is not None:
+            year_block.year_theme = data['theme']
+        if 'goals' in data and data['goals'] is not None:
+            year_block.goals = data['goals']
+        if 'why' in data and data['why'] is not None:
+            year_block.goals_rationale = data['why']
+        if 'rpe' in data and data['rpe'] is not None:
+            year_block.rpe = data['rpe']
+        if 'gains' in data and data['gains'] is not None:
+            year_block.gains = data['gains']
+        if 'gratitudes' in data and data['gratitudes'] is not None:
+            year_block.gratitudes = data['gratitudes']
+        
+        # Ensure start_date and end_date are set
+        if data.get('start_date'):
+            try:
+                year_block.start_date = datetime.strptime(data['start_date'], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                # If there's an error parsing the date, use January 1st
+                year_block.start_date = date(year, 1, 1)
+        else:
+            year_block.start_date = date(year, 1, 1)
+            
+        if data.get('end_date'):
+            try:
+                year_block.end_date = datetime.strptime(data['end_date'], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                # If there's an error parsing the date, use December 31st
+                year_block.end_date = date(year, 12, 31)
+        else:
+            year_block.end_date = date(year, 12, 31)
+        
+        # Save to database
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Yearly report saved successfully',
+            'period': {
+                'start_date': start_date_str,
+                'end_date': end_date_str
+            },
+            'theme': year_block.year_theme,
+            'goals': year_block.goals,
+            'why': year_block.goals_rationale,
+            'rpe': year_block.rpe,
+            'gains': year_block.gains,
+            'gratitudes': year_block.gratitudes
+        }) 

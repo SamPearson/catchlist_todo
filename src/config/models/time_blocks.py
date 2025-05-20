@@ -391,16 +391,33 @@ class YearBlock(TimeBlock):
     
     id = db.Column(db.Integer, db.ForeignKey('time_block.id'), primary_key=True)
     year = db.Column(db.Integer, nullable=False)
+    year_theme = db.Column(db.String(255))  # Renamed from theme to year_theme
+    goals = db.Column(db.Text)
+    goals_rationale = db.Column(db.Text)
+    rpe = db.Column(db.Integer)  # Yearly RPE (1-10)
+    gains = db.Column(db.Text)
+    gratitudes = db.Column(db.Text)
     
     __mapper_args__ = {
         'polymorphic_identity': 'year'
     }
     
     def __init__(self, user_id: int, year: int, theme: str = None):
-        super().__init__(user_id=user_id, block_type='year')
+        # Calculate start and end dates for the year
+        start_date = date(year, 1, 1)  # January 1st of the year
+        end_date = date(year, 12, 31)  # December 31st of the year
+        
+        super().__init__(user_id=user_id, block_type='year', theme=theme)
         self.year = year
-        if theme:
-            self.theme = theme
+        self.start_date = start_date
+        self.end_date = end_date
+        # Additional attributes needed for YearBlock
+        self.year_theme = theme
+        self.goals = None
+        self.goals_rationale = None
+        self.rpe = None
+        self.gains = None
+        self.gratitudes = None
     
     @classmethod
     def get_or_create(cls, db: DBSession, user_id: int, year: int) -> 'YearBlock':
@@ -422,6 +439,13 @@ class YearBlock(TimeBlock):
         data = super().as_dict()
         data.update({
             'year': self.year,
-            'theme': self.theme
+            'year_theme': self.year_theme,
+            'theme': self.theme,  # Keep for backward compatibility
+            'goals': self.goals,
+            'goals_rationale': self.goals_rationale,
+            'why': self.goals_rationale,  # Include 'why' for consistency with frontend
+            'rpe': self.rpe,
+            'gains': self.gains,
+            'gratitudes': self.gratitudes
         })
         return data 

@@ -4,27 +4,56 @@
 <div class="ui container">
     <h1 class="ui header">Routines & Recurring Events</h1>
     
-    <div class="ui three column stackable grid">
+    <!-- Changed from three column grid to one column stacked grid -->
+    <div class="ui one column grid">
         <!-- Import Box -->
         <div class="column">
             <div class="ui segment">
-                <h3 class="ui header">CalDAV Import</h3>
-                <p>Import your recurring events from CalDAV-compatible calendars (Google Calendar, iCloud, etc.)</p>
+                <h3 class="ui header">Import Routines</h3>
+                <p>Import your recurring routines from CalDAV-compatible calendars (Google Calendar, iCloud, etc.)</p>
                 <form class="ui form" id="caldav-import-form">
-                    <div class="field">
-                        <label>CalDAV URL</label>
-                        <input type="text" name="url" placeholder="https://caldav.example.com/calendars/username/calendar" required>
+                    <div class="fields">
+                        <div class="eight wide field">
+                            <label>CalDAV URL</label>
+                            <input type="text" name="url" placeholder="https://caldav.example.com/calendars/username/calendar" required>
+                        </div>
+                        <div class="four wide field">
+                            <label>Username</label>
+                            <input type="text" name="username" placeholder="CalDAV username">
+                        </div>
+                        <div class="four wide field">
+                            <label>Password</label>
+                            <input type="password" name="password" placeholder="CalDAV password">
+                        </div>
                     </div>
                     <div class="field">
-                        <label>Username</label>
-                        <input type="text" name="username" placeholder="CalDAV username">
+                        <label>Timeframe</label>
+                        <div class="ui grid">
+                            <div class="eight wide column">
+                                <select class="ui dropdown" id="timeframe-type">
+                                    <option value="week">Week</option>
+                                    <option value="month">Month</option>
+                                    <option value="season">Season</option>
+                                    <option value="year">Year</option>
+                                </select>
+                            </div>
+                            <div class="eight wide column">
+                                <div class="ui buttons">
+                                    <button class="ui icon button" id="prev-timeframe" type="button">
+                                        <i class="chevron left icon"></i>
+                                    </button>
+                                    <button class="ui button" id="timeframe-display" type="button">Current Week</button>
+                                    <button class="ui icon button" id="next-timeframe" type="button">
+                                        <i class="chevron right icon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="field">
-                        <label>Password</label>
-                        <input type="password" name="password" placeholder="CalDAV password">
+                        <button class="ui teal button" type="submit">Test Connection</button>
+                        <button class="ui blue button" id="import-button" disabled>Import Routines</button>
                     </div>
-                    <button class="ui teal button" type="submit">Test Connection</button>
-                    <button class="ui blue button" id="import-button" disabled>Import Events</button>
                 </form>
             </div>
         </div>
@@ -34,31 +63,35 @@
             <div class="ui segment">
                 <h3 class="ui header">Search Routines</h3>
                 <div class="ui form">
-                    <div class="field">
-                        <label>Search</label>
-                        <div class="ui icon input">
-                            <input type="text" id="routine-search" placeholder="Search routines...">
-                            <i class="search icon"></i>
+                    <div class="fields">
+                        <div class="eight wide field">
+                            <label>Search</label>
+                            <div class="ui icon input">
+                                <input type="text" id="routine-search" placeholder="Search routines...">
+                                <i class="search icon"></i>
+                            </div>
+                        </div>
+                        <div class="four wide field">
+                            <label>Filter</label>
+                            <select class="ui dropdown" id="routine-filter">
+                                <option value="all">All Routines</option>
+                                <option value="active">Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                            </select>
+                        </div>
+                        <div class="four wide field">
+                            <label>Frequency</label>
+                            <select class="ui dropdown" id="frequency-filter">
+                                <option value="all">All Frequencies</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
                         </div>
                     </div>
                     <div class="field">
-                        <label>Filter</label>
-                        <select class="ui dropdown" id="routine-filter">
-                            <option value="all">All Routines</option>
-                            <option value="active">Active Only</option>
-                            <option value="inactive">Inactive Only</option>
-                        </select>
+                        <button class="ui button" id="reset-filters">Reset Filters</button>
                     </div>
-                    <div class="field">
-                        <label>Frequency</label>
-                        <select class="ui dropdown" id="frequency-filter">
-                            <option value="all">All Frequencies</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                    <button class="ui button" id="reset-filters">Reset Filters</button>
                 </div>
             </div>
         </div>
@@ -66,29 +99,40 @@
         <!-- List Box -->
         <div class="column">
             <div class="ui segment">
-                <h3 class="ui header">Recurring Events</h3>
-                <div class="ui divided items" id="events-list">
-                    {% for event in events %}
-                    <div class="item" data-id="{{ event.id }}" data-title="{{ event.title }}" data-rrule="{{ event.rrule }}">
+                <h3 class="ui header">Manage Routines</h3>
+                <div class="ui divided items" id="routines-list">
+                    {% for routine in routines %}
+                    <div class="item" data-id="{{ routine.id }}" data-title="{{ routine.title }}" data-rrule="{{ routine.rrule }}">
                         <div class="content">
                             <div class="header">
-                                {{ event.title }}
+                                {{ routine.title }}
                                 <div class="ui toggle checkbox" style="float: right;">
-                                    <input type="checkbox" class="event-toggle" {% if event.active %}checked{% endif %}>
+                                    <input type="checkbox" class="routine-toggle" {% if routine.active %}checked{% endif %}>
                                     <label>Active</label>
                                 </div>
                             </div>
                             <div class="meta">
-                                {% if event.rrule %}
+                                {% if routine.rrule %}
                                 <span class="recurring"><i class="sync icon"></i> Recurring</span>
                                 {% endif %}
-                                <span class="time">{{ event.start_time }} - {{ event.end_time }}</span>
+                                <span class="time">{{ routine.start_time }} - {{ routine.end_time }}</span>
                             </div>
-                            <div class="description">{{ event.description }}</div>
+                            <div class="description">{{ routine.description }}</div>
                             <div class="extra">
-                                <button class="ui blue tiny button view-executions">View History</button>
-                                <button class="ui tiny button edit-routine">Edit</button>
-                                <button class="ui red tiny button delete-routine">Delete</button>
+                                <div class="ui tiny buttons">
+                                    <button class="ui blue button view-sessions">
+                                        <i class="calendar icon"></i> View Sessions
+                                    </button>
+                                    <button class="ui green button create-commitment">
+                                        <i class="flag icon"></i> Create Commitment
+                                    </button>
+                                    <button class="ui button edit-routine">
+                                        <i class="edit icon"></i> Edit
+                                    </button>
+                                    <button class="ui red button delete-routine">
+                                        <i class="trash icon"></i> Delete
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -98,25 +142,78 @@
         </div>
     </div>
     
-    <!-- Event Executions Modal -->
-    <div class="ui modal" id="event-executions-modal">
+    <!-- View Sessions Modal -->
+    <div class="ui modal" id="view-sessions-modal">
         <i class="close icon"></i>
-        <div class="header">Event History</div>
+        <div class="header">Routine Sessions</div>
         <div class="content">
+            <div class="ui form">
+                <div class="field">
+                    <label>Date Range</label>
+                    <div class="two fields">
+                        <div class="field">
+                            <input type="date" id="sessions-start-date">
+                        </div>
+                        <div class="field">
+                            <input type="date" id="sessions-end-date">
+                        </div>
+                    </div>
+                </div>
+            </div>
             <table class="ui celled table">
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Completed</th>
-                        <th>RPE (1-10)</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>RPE</th>
                         <th>Notes</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="executions-table-body">
+                <tbody id="sessions-table-body">
                     <!-- Will be populated dynamically -->
                 </tbody>
             </table>
+        </div>
+    </div>
+    
+    <!-- Create Commitment Modal -->
+    <div class="ui modal" id="create-commitment-modal">
+        <i class="close icon"></i>
+        <div class="header">Create Commitment</div>
+        <div class="content">
+            <div class="ui form" id="commitment-form">
+                <input type="hidden" name="routine-id">
+                <div class="field">
+                    <label>Commitment Name</label>
+                    <input type="text" name="name" placeholder="e.g., January Workout Challenge">
+                </div>
+                <div class="field">
+                    <label>Description</label>
+                    <textarea name="description" rows="2" placeholder="Describe your commitment..."></textarea>
+                </div>
+                <div class="two fields">
+                    <div class="field">
+                        <label>Start Date</label>
+                        <input type="date" name="start_date" required>
+                    </div>
+                    <div class="field">
+                        <label>End Date</label>
+                        <input type="date" name="end_date" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Goal</label>
+                    <div class="ui input">
+                        <input type="number" name="goal" min="1" placeholder="Number of sessions to complete">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="ui deny button">Cancel</button>
+            <button class="ui positive button" id="save-commitment">Create Commitment</button>
         </div>
     </div>
     
@@ -177,40 +274,30 @@ $(document).ready(function() {
 });
 
 // Attach event listeners to routine items
-function attachEventListeners(itemElement) {
-    // Toggle active state
-    itemElement.querySelector('.event-toggle').addEventListener('change', handleToggleActive);
-    
-    // View executions
-    itemElement.querySelector('.view-executions').addEventListener('click', handleViewExecutions);
-    
-    // Edit routine
-    itemElement.querySelector('.edit-routine').addEventListener('click', handleEditRoutine);
-    
-    // Delete routine
-    itemElement.querySelector('.delete-routine').addEventListener('click', handleDeleteRoutine);
-}
-
 // Initialize event listeners for existing items
-document.querySelectorAll('#events-list .item').forEach(item => {
-    attachEventListeners(item);
+document.querySelectorAll('#routines-list .item').forEach(item => {
+    item.querySelector('.view-sessions').addEventListener('click', handleViewSessions);
+    item.querySelector('.create-commitment').addEventListener('click', handleCreateCommitment);
+    item.querySelector('.edit-routine').addEventListener('click', handleEditRoutine);
+    item.querySelector('.delete-routine').addEventListener('click', handleDeleteRoutine);
+    item.querySelector('.routine-toggle').addEventListener('change', handleToggleActive);
 });
 
 // Handle routine toggle (active/inactive)
 function handleToggleActive() {
-    const eventItem = this.closest('.item');
-    const eventId = eventItem.dataset.id;
+    const routineItem = this.closest('.item');
+    const routineId = routineItem.dataset.id;
     const isActive = this.checked;
     
     // Visual feedback
     if (isActive) {
-        eventItem.classList.remove('disabled');
+        routineItem.classList.remove('disabled');
     } else {
-        eventItem.classList.add('disabled');
+        routineItem.classList.add('disabled');
     }
     
     // Update active state in the database
-    fetch(`{{ API_URL }}/routines/${eventId}/toggle-active`, {
+    fetch(`{{ API_URL }}/routines/${routineId}/toggle-active`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -227,23 +314,43 @@ function handleToggleActive() {
         return response.json();
     })
     .catch(error => {
-        console.error('Error updating event active state:', error);
+        console.error('Error updating routine active state:', error);
         // Revert toggle state on error
         this.checked = !isActive;
         if (!isActive) {
-            eventItem.classList.remove('disabled');
+            routineItem.classList.remove('disabled');
         } else {
-            eventItem.classList.add('disabled');
+            routineItem.classList.add('disabled');
         }
-        alert('Error updating event. Please try again.');
+        alert('Error updating routine. Please try again.');
     });
 }
 
-// Handle view executions
-function handleViewExecutions() {
-    const eventId = this.closest('.item').dataset.id;
+// Handle view sessions
+function handleViewSessions() {
+    const routineId = this.closest('.item').dataset.id;
+    const modal = $('#view-sessions-modal');
     
-    fetch(`{{ API_URL }}/routines/${eventId}/executions`, {
+    // Store the routine ID in the modal for later use
+    modal[0].dataset.routineId = routineId;
+    
+    // Set default date range to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    $('#sessions-start-date').val(firstDay.toISOString().split('T')[0]);
+    $('#sessions-end-date').val(lastDay.toISOString().split('T')[0]);
+    
+    // Load initial sessions
+    loadSessions(routineId, firstDay, lastDay);
+    
+    // Show modal
+    modal.modal('show');
+}
+
+function loadSessions(routineId, startDate, endDate) {
+    fetch(`{{ API_URL }}/routines/${routineId}/sessions?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`, {
         method: 'GET',
         headers: {
             'Authorization': 'Bearer ' + getAuthToken()
@@ -255,38 +362,68 @@ function handleViewExecutions() {
         }
         return response.json();
     })
-    .then(executions => {
-        const tbody = document.getElementById('executions-table-body');
+    .then(sessions => {
+        const tbody = document.getElementById('sessions-table-body');
         tbody.innerHTML = '';
         
-        if (executions.length === 0) {
+        if (sessions.length === 0) {
             const tr = document.createElement('tr');
-            tr.innerHTML = '<td colspan="5" class="center aligned">No execution history found</td>';
+            tr.innerHTML = '<td colspan="6" class="center aligned">No sessions found in this date range</td>';
             tbody.appendChild(tr);
         } else {
-            executions.forEach(exec => {
+            sessions.forEach(session => {
                 const tr = document.createElement('tr');
-                tr.dataset.id = exec.id;
+                tr.dataset.id = session.id;
                 tr.innerHTML = `
-                    <td>${exec.date}</td>
-                    <td>${exec.completed || 'N/A'}</td>
-                    <td>${exec.rpe || 'N/A'}</td>
-                    <td>${exec.notes || ''}</td>
+                    <td>${new Date(session.start_time).toLocaleDateString()}</td>
+                    <td>${new Date(session.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(session.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                     <td>
-                        <button class="ui tiny blue button edit-execution">Edit</button>
+                        <select class="ui dropdown session-status">
+                            <option value="pending" ${!session.completed ? 'selected' : ''}>Pending</option>
+                            <option value="completed" ${session.completed ? 'selected' : ''}>Completed</option>
+                            <option value="missed">Missed</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" min="1" max="10" class="session-rpe" value="${session.rpe || ''}">
+                    </td>
+                    <td>
+                        <input type="text" class="session-notes" value="${session.notes || ''}">
+                    </td>
+                    <td>
+                        <button class="ui tiny green button save-session">Save</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+            
+            // Initialize dropdowns
+            $('.ui.dropdown').dropdown();
         }
-        
-        // Show the modal with Semantic UI
-        $('#event-executions-modal').modal('show');
     })
     .catch(error => {
-        console.error('Error fetching executions:', error);
-        alert('Error fetching execution history. Please try again.');
+        console.error('Error fetching sessions:', error);
+        alert('Error fetching sessions. Please try again.');
     });
+}
+
+// Handle create commitment
+function handleCreateCommitment() {
+    const routineId = this.closest('.item').dataset.id;
+    const modal = $('#create-commitment-modal');
+    
+    // Set default date range to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    const form = document.getElementById('commitment-form');
+    form.querySelector('[name="routine-id"]').value = routineId;
+    form.querySelector('[name="start_date"]').value = firstDay.toISOString().split('T')[0];
+    form.querySelector('[name="end_date"]').value = lastDay.toISOString().split('T')[0];
+    
+    // Show modal
+    modal.modal('show');
 }
 
 // Handle edit routine
@@ -452,7 +589,9 @@ document.getElementById('import-button').addEventListener('click', function(e) {
     const formData = {
         url: document.querySelector('[name="url"]').value,
         username: document.querySelector('[name="username"]').value,
-        password: document.querySelector('[name="password"]').value
+        password: document.querySelector('[name="password"]').value,
+        start_date: currentTimeframe.start.toISOString().split('T')[0],
+        end_date: currentTimeframe.end.toISOString().split('T')[0]
     };
     
     fetch('{{ API_URL }}/routines/import', {
@@ -484,92 +623,93 @@ document.getElementById('import-button').addEventListener('click', function(e) {
     });
 });
 
-// Edit execution
+// Save session updates
 document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('edit-execution')) {
-        const executionRow = e.target.closest('tr');
-        const executionId = executionRow.dataset.id;
+    if (e.target.classList.contains('save-session')) {
+        const sessionRow = e.target.closest('tr');
+        const sessionId = sessionRow.dataset.id;
         
-        // Get the current values
-        const cells = executionRow.querySelectorAll('td');
-        const date = cells[0].textContent;
-        const completed = cells[1].textContent;
-        const rpe = cells[2].textContent;
-        const notes = cells[3].textContent;
+        const formData = {
+            completed: sessionRow.querySelector('.session-status').value === 'completed',
+            rpe: sessionRow.querySelector('.session-rpe').value || null,
+            notes: sessionRow.querySelector('.session-notes').value
+        };
         
-        // Replace the row with an edit form
-        const originalHTML = executionRow.innerHTML;
-        executionRow.innerHTML = `
-            <td>${date}</td>
-            <td>
-                <select class="ui dropdown execution-completed">
-                    <option value="yes" ${completed === 'yes' ? 'selected' : ''}>Yes</option>
-                    <option value="no" ${completed === 'no' ? 'selected' : ''}>No</option>
-                    <option value="missed" ${completed === 'missed' ? 'selected' : ''}>Missed</option>
-                </select>
-            </td>
-            <td>
-                <input type="number" min="1" max="10" class="execution-rpe" value="${rpe !== 'N/A' ? rpe : ''}">
-            </td>
-            <td>
-                <input type="text" class="execution-notes" value="${notes}">
-            </td>
-            <td>
-                <button class="ui tiny green button save-execution">Save</button>
-                <button class="ui tiny button cancel-edit">Cancel</button>
-            </td>
-        `;
-        
-        // Initialize Semantic UI dropdown
-        $(executionRow).find('.ui.dropdown').dropdown();
-        
-        // Handle save button
-        executionRow.querySelector('.save-execution').addEventListener('click', function() {
-            const updatedData = {
-                completed: executionRow.querySelector('.execution-completed').value,
-                rpe: executionRow.querySelector('.execution-rpe').value || null,
-                notes: executionRow.querySelector('.execution-notes').value
-            };
-            
-            fetch(`{{ API_URL }}/event-executions/${executionId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
-                },
-                body: JSON.stringify(updatedData)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update the row with new data
-                executionRow.innerHTML = `
-                    <td>${data.date}</td>
-                    <td>${data.completed || 'N/A'}</td>
-                    <td>${data.rpe || 'N/A'}</td>
-                    <td>${data.notes || ''}</td>
-                    <td>
-                        <button class="ui tiny blue button edit-execution">Edit</button>
-                    </td>
-                `;
-            })
-            .catch(error => {
-                console.error('Error updating execution:', error);
-                alert('Error updating execution. Please try again.');
-                // Restore original row on error
-                executionRow.innerHTML = originalHTML;
-            });
-        });
-        
-        // Handle cancel button
-        executionRow.querySelector('.cancel-edit').addEventListener('click', function() {
-            executionRow.innerHTML = originalHTML;
+        fetch(`{{ API_URL }}/sessions/${sessionId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getAuthToken()
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Session updated successfully!');
+        })
+        .catch(error => {
+            console.error('Error updating session:', error);
+            alert('Error updating session. Please try again.');
         });
     }
+});
+
+// Date range change handler
+document.getElementById('sessions-start-date').addEventListener('change', function() {
+    const routineId = document.querySelector('#view-sessions-modal').dataset.routineId;
+    const startDate = new Date(this.value);
+    const endDate = new Date(document.getElementById('sessions-end-date').value);
+    loadSessions(routineId, startDate, endDate);
+});
+
+document.getElementById('sessions-end-date').addEventListener('change', function() {
+    const routineId = document.querySelector('#view-sessions-modal').dataset.routineId;
+    const startDate = new Date(document.getElementById('sessions-start-date').value);
+    const endDate = new Date(this.value);
+    loadSessions(routineId, startDate, endDate);
+});
+
+// Save commitment
+document.getElementById('save-commitment').addEventListener('click', function() {
+    const form = document.getElementById('commitment-form');
+    const routineId = form.querySelector('[name="routine-id"]').value;
+    
+    const formData = {
+        routine_id: routineId,
+        name: form.querySelector('[name="name"]').value,
+        description: form.querySelector('[name="description"]').value,
+        start_date: form.querySelector('[name="start_date"]').value,
+        end_date: form.querySelector('[name="end_date"]').value,
+        goal: parseInt(form.querySelector('[name="goal"]').value)
+    };
+    
+    fetch(`{{ API_URL }}/commitments`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getAuthToken()
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        $('#create-commitment-modal').modal('hide');
+        alert('Commitment created successfully!');
+    })
+    .catch(error => {
+        console.error('Error creating commitment:', error);
+        alert('Error creating commitment. Please try again.');
+    });
 });
 
 // Search and filter functionality
@@ -591,9 +731,9 @@ function filterRoutines() {
     const activeFilter = document.getElementById('routine-filter').value;
     const frequencyFilter = document.getElementById('frequency-filter').value;
     
-    document.querySelectorAll('#events-list .item').forEach(item => {
+    document.querySelectorAll('#routines-list .item').forEach(item => {
         const title = item.dataset.title.toLowerCase();
-        const isActive = item.querySelector('.event-toggle').checked;
+        const isActive = item.querySelector('.routine-toggle').checked;
         const rrule = item.dataset.rrule.toLowerCase();
         
         // Search term filter
@@ -629,38 +769,47 @@ function filterRoutines() {
 }
 
 // Display events in the list
-function displayEvents(events) {
-    const container = document.getElementById('events-list');
+function displayRoutines(routines) {
+    const container = document.getElementById('routines-list');
     
-    if (!events || events.length === 0) {
+    if (!routines || routines.length === 0) {
         container.innerHTML = '<div class="ui info message">No routines found.</div>';
         return;
     }
     
     let html = '';
-    events.forEach(event => {
-        const timeRange = event.start_time && event.end_time ? 
-            `${event.start_time} - ${event.end_time}` : 
+    routines.forEach(routine => {
+        const timeRange = routine.start_time && routine.end_time ? 
+            `${routine.start_time} - ${routine.end_time}` : 
             'All day';
         
         html += `
-        <div class="item" data-id="${event.id}" data-external-uid="${event.external_uid || ''}">
+        <div class="item" data-id="${routine.id}" data-title="${routine.title}" data-rrule="${routine.rrule || ''}" data-external-uid="${routine.external_uid || ''}">
             <div class="content">
                 <div class="header">
-                    ${event.title || 'Untitled Routine'}
-                    ${event.active ? '<span class="ui green label">Active</span>' : '<span class="ui red label">Inactive</span>'}
+                    ${routine.title || 'Untitled Routine'}
+                    <div class="ui toggle checkbox" style="float: right;">
+                        <input type="checkbox" class="routine-toggle" ${routine.active ? 'checked' : ''}>
+                        <label>Active</label>
+                    </div>
                 </div>
-                <div class="meta">${timeRange}</div>
-                <div class="description">${event.description || ''}</div>
+                <div class="meta">
+                    ${routine.rrule ? '<span class="recurring"><i class="sync icon"></i> Recurring</span>' : ''}
+                    <span class="time">${timeRange}</span>
+                </div>
+                <div class="description">${routine.description || ''}</div>
                 <div class="extra">
                     <div class="ui tiny buttons">
-                        <button class="ui button view-history" data-id="${event.id}">
-                            <i class="history icon"></i> History
+                        <button class="ui blue button view-sessions">
+                            <i class="calendar icon"></i> View Sessions
                         </button>
-                        <button class="ui button edit-routine" data-id="${event.id}">
+                        <button class="ui green button create-commitment">
+                            <i class="flag icon"></i> Create Commitment
+                        </button>
+                        <button class="ui button edit-routine">
                             <i class="edit icon"></i> Edit
                         </button>
-                        <button class="ui button delete-routine" data-id="${event.id}">
+                        <button class="ui red button delete-routine">
                             <i class="trash icon"></i> Delete
                         </button>
                     </div>
@@ -671,33 +820,176 @@ function displayEvents(events) {
     
     container.innerHTML = html;
     
-    // Add click handlers
-    document.querySelectorAll('.view-history').forEach(button => {
-        button.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            viewRoutineHistory(id);
-        });
+    // Add event listeners
+    document.querySelectorAll('#routines-list .item').forEach(item => {
+        item.querySelector('.view-sessions').addEventListener('click', handleViewSessions);
+        item.querySelector('.create-commitment').addEventListener('click', handleCreateCommitment);
+        item.querySelector('.edit-routine').addEventListener('click', handleEditRoutine);
+        item.querySelector('.delete-routine').addEventListener('click', handleDeleteRoutine);
+        item.querySelector('.routine-toggle').addEventListener('change', handleToggleActive);
     });
     
-    document.querySelectorAll('.edit-routine').forEach(button => {
-        button.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            editRoutine(id);
-        });
-    });
-    
-    document.querySelectorAll('.delete-routine').forEach(button => {
-        button.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            deleteRoutine(id);
-        });
-    });
+    // Initialize checkboxes
+    $('.ui.checkbox').checkbox();
 }
+
+// Timeframe selection functionality
+let currentTimeframe = {
+    type: 'week',
+    start: new Date(),
+    end: new Date()
+};
+
+function initializeTimeframe() {
+    // Set the initial timeframe to current week
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust for Sunday
+    
+    currentTimeframe.start = new Date(today.setDate(diff));
+    currentTimeframe.end = new Date(currentTimeframe.start);
+    currentTimeframe.end.setDate(currentTimeframe.start.getDate() + 6);
+    
+    updateTimeframeDisplay();
+}
+
+function updateTimeframeDisplay() {
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    let displayText = '';
+    
+    switch(currentTimeframe.type) {
+        case 'week':
+            displayText = `Week of ${currentTimeframe.start.toLocaleDateString(undefined, options)}`;
+            break;
+        case 'month':
+            displayText = currentTimeframe.start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+            break;
+        case 'season':
+            const season = getSeason(currentTimeframe.start);
+            displayText = `${season} ${currentTimeframe.start.getFullYear()}`;
+            break;
+        case 'year':
+            displayText = currentTimeframe.start.getFullYear().toString();
+            break;
+    }
+    
+    document.getElementById('timeframe-display').textContent = displayText;
+}
+
+function getSeason(date) {
+    const month = date.getMonth();
+    if (month >= 2 && month <= 4) return 'Spring';
+    if (month >= 5 && month <= 7) return 'Summer';
+    if (month >= 8 && month <= 10) return 'Fall';
+    return 'Winter';
+}
+
+function adjustTimeframe(direction) {
+    const amount = direction === 'next' ? 1 : -1;
+    
+    switch(currentTimeframe.type) {
+        case 'week':
+            currentTimeframe.start.setDate(currentTimeframe.start.getDate() + (7 * amount));
+            currentTimeframe.end = new Date(currentTimeframe.start);
+            currentTimeframe.end.setDate(currentTimeframe.end.getDate() + 6);
+            break;
+        case 'month':
+            currentTimeframe.start.setMonth(currentTimeframe.start.getMonth() + amount);
+            // Set to first day of month
+            currentTimeframe.start.setDate(1);
+            // Set end to last day of month
+            currentTimeframe.end = new Date(currentTimeframe.start.getFullYear(), currentTimeframe.start.getMonth() + 1, 0);
+            break;
+        case 'season':
+            // Adjust to beginning of season
+            let newMonth;
+            switch(getSeason(currentTimeframe.start)) {
+                case 'Winter': newMonth = amount > 0 ? 2 : 8; break; // Winter -> Spring or Fall -> Winter
+                case 'Spring': newMonth = amount > 0 ? 5 : 11; break; // Spring -> Summer or Winter -> Spring
+                case 'Summer': newMonth = amount > 0 ? 8 : 2; break; // Summer -> Fall or Spring -> Summer
+                case 'Fall': newMonth = amount > 0 ? 11 : 5; break; // Fall -> Winter or Summer -> Fall
+            }
+            currentTimeframe.start.setMonth(newMonth);
+            currentTimeframe.start.setDate(1);
+            
+            // Set end date to last day of season
+            currentTimeframe.end = new Date(currentTimeframe.start);
+            currentTimeframe.end.setMonth(currentTimeframe.end.getMonth() + 2);
+            currentTimeframe.end = new Date(currentTimeframe.end.getFullYear(), currentTimeframe.end.getMonth() + 1, 0);
+            break;
+        case 'year':
+            currentTimeframe.start.setFullYear(currentTimeframe.start.getFullYear() + amount);
+            currentTimeframe.start.setMonth(0);
+            currentTimeframe.start.setDate(1);
+            currentTimeframe.end = new Date(currentTimeframe.start.getFullYear(), 11, 31);
+            break;
+    }
+    
+    updateTimeframeDisplay();
+}
+
+function changeTimeframeType(newType) {
+    currentTimeframe.type = newType;
+    const today = new Date();
+    
+    switch(newType) {
+        case 'week':
+            const dayOfWeek = today.getDay();
+            const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            currentTimeframe.start = new Date(today.setDate(diff));
+            currentTimeframe.end = new Date(currentTimeframe.start);
+            currentTimeframe.end.setDate(currentTimeframe.start.getDate() + 6);
+            break;
+        case 'month':
+            currentTimeframe.start = new Date(today.getFullYear(), today.getMonth(), 1);
+            currentTimeframe.end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'season':
+            const seasons = [
+                {name: 'Winter', startMonth: 0}, // Jan-Mar
+                {name: 'Spring', startMonth: 3}, // Apr-Jun
+                {name: 'Summer', startMonth: 6}, // Jul-Sep
+                {name: 'Fall', startMonth: 9}    // Oct-Dec
+            ];
+            
+            const currentSeason = Math.floor(today.getMonth() / 3);
+            currentTimeframe.start = new Date(today.getFullYear(), seasons[currentSeason].startMonth, 1);
+            currentTimeframe.end = new Date(today.getFullYear(), seasons[currentSeason].startMonth + 3, 0);
+            break;
+        case 'year':
+            currentTimeframe.start = new Date(today.getFullYear(), 0, 1);
+            currentTimeframe.end = new Date(today.getFullYear(), 11, 31);
+            break;
+    }
+    
+    updateTimeframeDisplay();
+}
+
+// Add event listeners for timeframe controls
+document.addEventListener('DOMContentLoaded', function() {
+    initializeTimeframe();
+    
+    document.getElementById('timeframe-type').addEventListener('change', function(e) {
+        changeTimeframeType(e.target.value);
+    });
+    
+    document.getElementById('prev-timeframe').addEventListener('click', function() {
+        adjustTimeframe('prev');
+    });
+    
+    document.getElementById('next-timeframe').addEventListener('click', function() {
+        adjustTimeframe('next');
+    });
+});
 </script>
 
 <style>
 .ui.segment {
-    height: 100%;
+    margin-bottom: 1.5rem;
+}
+
+#routines-list {
+    max-height: 500px;
     overflow-y: auto;
 }
 
@@ -710,9 +1002,48 @@ function displayEvents(events) {
     display: none;
 }
 
-#events-list {
-    max-height: 500px;
-    overflow-y: auto;
+/* Add some style for the timeframe buttons */
+#timeframe-display {
+    min-width: 140px;
+    text-align: center;
+}
+
+.ui.buttons .button {
+    margin: 0;
+}
+
+/* Add styles for the new buttons */
+.ui.tiny.buttons .button {
+    margin: 0 0.25em 0 0;
+}
+
+.ui.tiny.buttons .button:last-child {
+    margin-right: 0;
+}
+
+/* Style for the sessions table */
+#sessions-table-body input,
+#sessions-table-body select {
+    width: 100%;
+}
+
+/* Style for the commitment form */
+#commitment-form .field {
+    margin-bottom: 1em;
+}
+
+/* Style for the routine items */
+.item .extra {
+    margin-top: 1em;
+}
+
+.item .meta {
+    margin: 0.5em 0;
+}
+
+.item .meta .recurring {
+    margin-right: 1em;
+    color: #2185d0;
 }
 </style>
 {% endblock %} 

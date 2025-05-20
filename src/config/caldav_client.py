@@ -58,38 +58,72 @@ class CalDAVClient:
             return []
             
     def get_events_as_dict(self, calendar=None, start_date=None, end_date=None):
-        """Get events formatted as a dictionary"""
+        """
+        Get events from calendar and convert to dictionary format
+        
+        Args:
+            calendar: Calendar object to fetch events from
+            start_date: Start date for date range search (datetime object)
+            end_date: End date for date range search (datetime object)
+            
+        Returns:
+            List of event dictionaries
+        """
         events = self.get_events(calendar, start_date, end_date)
         result = []
         
-        print(f"\nProcessing {len(events)} events from CalDAV")
-        
         for event in events:
             try:
-                ical_data = event.data
-                cal = icalendar.Calendar.from_ical(ical_data)
+                event_data = event.data
+                ical = icalendar.Calendar.from_ical(event_data)
                 
-                for component in cal.walk('VEVENT'):
-                    print(f"\nProcessing VEVENT component:")
-                    print(f"  UID: {component.get('UID', '')}")
-                    print(f"  SUMMARY: {component.get('SUMMARY', '')}")
-                    print(f"  DESCRIPTION: {component.get('DESCRIPTION', '')}")
-                    print(f"  DTSTART: {component.get('DTSTART').dt if component.get('DTSTART') else None}")
-                    print(f"  DTEND: {component.get('DTEND').dt if component.get('DTEND') else None}")
-                    print(f"  RRULE: {component.get('RRULE', '')}")
-                    
-                    event_dict = {
-                        'uid': str(component.get('UID', '')),
-                        'summary': str(component.get('SUMMARY', '')),
-                        'description': str(component.get('DESCRIPTION', '')),
-                        'start': component.get('DTSTART').dt if component.get('DTSTART') else None,
-                        'end': component.get('DTEND').dt if component.get('DTEND') else None,
-                        'rrule': str(component.get('RRULE', ''))
-                    }
-                    print(f"Created event_dict: {event_dict}")
-                    result.append(event_dict)
+                for component in ical.walk():
+                    if component.name == "VEVENT":
+                        dtstart = component.get('dtstart')
+                        dtend = component.get('dtend')
+                        
+                        # Skip if no start/end
+                        if not dtstart or not dtend:
+                            continue
+                            
+                        start_dt = dtstart.dt
+                        end_dt = dtend.dt
+                        
+                        # Convert to datetime if date
+                        if not isinstance(start_dt, datetime):
+                            start_dt = datetime.combine(start_dt, datetime.min.time())
+                        if not isinstance(end_dt, datetime):
+                            end_dt = datetime.combine(end_dt, datetime.min.time())
+                        
+                        # If there's a recurring rule, expand it
+                        rrule = component.get('rrule')
+                        if rrule:
+                            # Use the base event
+                            result.append({
+                                'uid': str(component.get('uid')),
+                                'summary': str(component.get('summary', '')),
+                                'description': str(component.get('description', '')),
+                                'location': str(component.get('location', '')),
+                                'start': start_dt,
+                                'end': end_dt,
+                                'rrule': str(rrule)
+                            })
+                            
+                            # TODO: Expand recurring events based on the rrule
+                            # This is a simplistic approach - for a complete solution
+                            # we would need to use dateutil.rrule to expand all instances
+                        else:
+                            # Non-recurring event
+                            result.append({
+                                'uid': str(component.get('uid')),
+                                'summary': str(component.get('summary', '')),
+                                'description': str(component.get('description', '')),
+                                'location': str(component.get('location', '')),
+                                'start': start_dt,
+                                'end': end_dt
+                            })
             except Exception as e:
                 print(f"Error parsing event: {str(e)}")
-                print(f"Event data: {event.data}")
+                continue
                 
         return result

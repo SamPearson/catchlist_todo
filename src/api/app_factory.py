@@ -24,6 +24,7 @@ def create_app():
 
     # Add JWT configuration
     app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
+    app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
     jwt = JWTManager(app)
 
     @jwt.token_in_blocklist_loader

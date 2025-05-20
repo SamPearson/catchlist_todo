@@ -11,26 +11,17 @@ from ..config.caldav_client import CalDAVClient
 from ..config.models import db, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
-from .routes.auth import auth_bp
-from .routes.catchlist_items import catchlist_items_bp
-from .routes.projects import projects_bp
-from .routes.calendar_events import calendar_events_bp
-from .routes.routines import routines_bp
-from .routes.today import today_bp
-from .routes.reports import reports_bp
-from .routes.commitments import bp as commitments_bp
+from .routes import auth, projects, routines, commitments, reports, catchlist_items
 
 app = create_app()
 
 # Register all blueprints
-app.register_blueprint(auth_bp)
-app.register_blueprint(catchlist_items_bp)
-app.register_blueprint(projects_bp)
-app.register_blueprint(calendar_events_bp)
-app.register_blueprint(routines_bp)
-app.register_blueprint(today_bp)
-app.register_blueprint(reports_bp)
-app.register_blueprint(commitments_bp)
+app.register_blueprint(auth.auth_bp)
+app.register_blueprint(projects.projects_bp)
+app.register_blueprint(routines.routines_bp)
+app.register_blueprint(commitments.commitments_bp)
+app.register_blueprint(reports.reports_bp)
+app.register_blueprint(catchlist_items.catchlist_items_bp)
 
 
 @app.route('/api/auth/register', methods=['POST'])

@@ -1,13 +1,13 @@
 from datetime import datetime, date
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import Commitment, Checkin, db
+from ...config.models import Commitment, Checkin, db, ReportGenerator
 from sqlalchemy import and_, or_
 
-bp = Blueprint('commitments', __name__)
+commitments_bp = Blueprint('commitments', __name__)
 
 # Add OPTIONS method handler for CORS preflight requests
-@bp.route('/api/commitments', methods=['OPTIONS'])
+@commitments_bp.route('/api/commitments', methods=['OPTIONS'])
 def options_commitments():
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -15,7 +15,7 @@ def options_commitments():
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
 
-@bp.route('/api/commitments', methods=['POST'])
+@commitments_bp.route('/api/commitments', methods=['POST'])
 @jwt_required()
 def create_commitment():
     """Create a new commitment"""
@@ -51,7 +51,7 @@ def create_commitment():
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@bp.route('/api/commitments/today', methods=['GET'])
+@commitments_bp.route('/api/commitments/today', methods=['GET'])
 @jwt_required()
 def get_today_commitments():
     """Get all commitments due today for the current user"""
@@ -65,7 +65,7 @@ def get_today_commitments():
     
     return jsonify([commitment.as_dict() for commitment in commitments])
 
-@bp.route('/api/commitments/<int:commitment_id>', methods=['PUT'])
+@commitments_bp.route('/api/commitments/<int:commitment_id>', methods=['PUT'])
 @jwt_required()
 def update_commitment(commitment_id):
     """Update a commitment's completion status"""
@@ -80,11 +80,14 @@ def update_commitment(commitment_id):
     if 'completed' in data:
         commitment.completed = data['completed']
         commitment.completed_at = datetime.now() if data['completed'] else None
+        
+        # Generate reports after updating commitment
+        ReportGenerator.generate_missing_reports(user_id, db.session)
     
     db.session.commit()
     return jsonify(commitment.as_dict())
 
-@bp.route('/api/commitments/<int:commitment_id>', methods=['DELETE'])
+@commitments_bp.route('/api/commitments/<int:commitment_id>', methods=['DELETE'])
 @jwt_required()
 def delete_commitment(commitment_id):
     """Delete a hard commitment"""
@@ -105,7 +108,7 @@ def delete_commitment(commitment_id):
         return jsonify({"message": str(e)}), 500
 
 # Add OPTIONS method handler for checkins
-@bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['OPTIONS'])
+@commitments_bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['OPTIONS'])
 def options_commitment_checkins(commitment_id):
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -113,7 +116,7 @@ def options_commitment_checkins(commitment_id):
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
 
-@bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['GET'])
+@commitments_bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['GET'])
 @jwt_required()
 def get_commitment_checkins(commitment_id):
     """Get all checkins for a commitment"""
@@ -132,7 +135,7 @@ def get_commitment_checkins(commitment_id):
     
     return jsonify([checkin.as_dict() for checkin in checkins])
 
-@bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['POST'])
+@commitments_bp.route('/api/commitments/<int:commitment_id>/checkins', methods=['POST'])
 @jwt_required()
 def add_commitment_checkin(commitment_id):
     """Add a new checkin to a commitment"""
@@ -159,9 +162,12 @@ def add_commitment_checkin(commitment_id):
     db.session.add(checkin)
     db.session.commit()
     
+    # Generate reports after adding checkin
+    ReportGenerator.generate_missing_reports(user_id, db.session)
+    
     return jsonify(checkin.as_dict())
 
-@bp.route('/api/commitments/search', methods=['GET'])
+@commitments_bp.route('/api/commitments/search', methods=['GET'])
 @jwt_required()
 def search_commitments():
     """
@@ -242,7 +248,7 @@ def search_commitments():
     commitments = query.all()
     return jsonify([commitment.as_dict() for commitment in commitments])
 
-@bp.route('/api/commitments', methods=['GET'])
+@commitments_bp.route('/api/commitments', methods=['GET'])
 @jwt_required()
 def get_commitments():
     """Get commitments with optional filtering"""
@@ -271,7 +277,7 @@ def get_commitments():
     
     return jsonify([commitment.as_dict() for commitment in commitments])
 
-@bp.route('/api/commitments/range', methods=['OPTIONS'])
+@commitments_bp.route('/api/commitments/range', methods=['OPTIONS'])
 def options_commitments_range():
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -279,7 +285,7 @@ def options_commitments_range():
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
 
-@bp.route('/api/commitments/range', methods=['GET'])
+@commitments_bp.route('/api/commitments/range', methods=['GET'])
 @jwt_required()
 def get_commitments_range():
     """Get commitments within a date range"""
@@ -305,7 +311,7 @@ def get_commitments_range():
     return jsonify([commitment.as_dict() for commitment in commitments])
 
 # Add OPTIONS method handler for soft commitments
-@bp.route('/api/commitments/soft/<period>', methods=['OPTIONS'])
+@commitments_bp.route('/api/commitments/soft/<period>', methods=['OPTIONS'])
 def options_soft_commitments(period):
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -313,7 +319,16 @@ def options_soft_commitments(period):
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
 
-@bp.route('/api/commitments/soft/<period>', methods=['GET'])
+# Add a new OPTIONS handler for the base soft commitments endpoint
+@commitments_bp.route('/api/commitments/soft', methods=['OPTIONS'])
+def options_soft_commitments_base():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+    return response
+
+@commitments_bp.route('/api/commitments/soft/<period>', methods=['GET'])
 @jwt_required()
 def get_soft_commitments(period):
     """Get soft commitments for a specific time period"""
@@ -341,7 +356,40 @@ def get_soft_commitments(period):
     
     return jsonify([commitment.as_dict() for commitment in commitments])
 
-@bp.route('/api/commitments/soft/<period>', methods=['POST'])
+# Add a new endpoint to get all soft commitments, with optional project_id filter
+@commitments_bp.route('/api/commitments/soft', methods=['GET'])
+@jwt_required()
+def get_all_soft_commitments():
+    """Get all soft commitments with optional filtering"""
+    user_id = get_jwt_identity()
+    
+    # Base query for all soft commitments for the current user
+    query = Commitment.query.filter(
+        Commitment.user_id == user_id,
+        Commitment.is_soft_commitment == True
+    )
+    
+    # Apply project_id filter if provided
+    project_id = request.args.get('project_id')
+    if project_id:
+        query = query.filter(Commitment.project_id == project_id)
+    
+    # Apply project_task_id filter if provided
+    project_task_id = request.args.get('project_task_id')
+    if project_task_id:
+        query = query.filter(Commitment.project_task_id == project_task_id)
+    
+    # Apply catchlist_item_id filter if provided
+    catchlist_item_id = request.args.get('catchlist_item_id')
+    if catchlist_item_id:
+        query = query.filter(Commitment.catchlist_item_id == catchlist_item_id)
+    
+    # Get all matching soft commitments
+    commitments = query.order_by(Commitment.start_date.desc()).all()
+    
+    return jsonify([commitment.as_dict() for commitment in commitments])
+
+@commitments_bp.route('/api/commitments/soft/<period>', methods=['POST'])
 @jwt_required()
 def create_soft_commitment(period):
     """Create a new soft commitment for a time period"""
@@ -364,13 +412,14 @@ def create_soft_commitment(period):
     commitment = Commitment(
         user_id=user_id,
         title=data['title'],
-        description=data.get('description'),
+        description=data.get('description') or data.get('notes'),
         start_date=start_date,
         end_date=end_date,
         due_date=None,  # Soft commitments don't have due dates
         is_soft_commitment=True,
         time_period=period,
         # Add item reference if provided
+        project_id=data.get('project_id'),
         catchlist_item_id=data.get('catchlist_item_id'),
         project_task_id=data.get('project_task_id')
     )
@@ -383,7 +432,7 @@ def create_soft_commitment(period):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@bp.route('/api/commitments/soft/<int:commitment_id>', methods=['DELETE'])
+@commitments_bp.route('/api/commitments/soft/<int:commitment_id>', methods=['DELETE'])
 @jwt_required()
 def delete_soft_commitment(commitment_id):
     """Delete a soft commitment"""

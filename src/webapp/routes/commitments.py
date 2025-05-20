@@ -1,5 +1,6 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 from flask_login import login_required, current_user
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
 from ...config.models.commitment import Commitment, SoftCommitment
 from ...config.models.time_blocks import TimeBlock
@@ -111,4 +112,14 @@ def delete_soft_commitment(commitment_id):
     db.session.delete(commitment)
     db.session.commit()
     
-    return '', 204 
+    return '', 204
+
+@commitments.route('/commitments')
+@jwt_required()
+def index():
+    return render_template('commitments/index.html')
+
+@commitments.route('/commitments/today')
+@jwt_required()
+def today():
+    return render_template('commitments/today.html') 

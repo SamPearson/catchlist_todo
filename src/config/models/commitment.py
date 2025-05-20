@@ -13,6 +13,7 @@ class Commitment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # The item this commitment refers to - only one will be set
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True)
     project_task_id = db.Column(db.Integer, db.ForeignKey('project_task.id'), nullable=True)
     catchlist_item_id = db.Column(db.Integer, db.ForeignKey('catchlist_item.id'), nullable=True)
     routine_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=True)
@@ -40,6 +41,7 @@ class Commitment(db.Model):
     
     # Relationships
     user = relationship("User", back_populates="commitments")
+    project = relationship("Project", foreign_keys=[project_id], back_populates="commitments")
     project_task = relationship("ProjectTask", foreign_keys=[project_task_id])
     catchlist_item = relationship("CatchlistItem", foreign_keys=[catchlist_item_id])
     routine = relationship("Routine", foreign_keys=[routine_id])
@@ -54,7 +56,9 @@ class Commitment(db.Model):
     @property
     def item_type(self):
         """Returns the type of item this commitment refers to"""
-        if self.project_task_id:
+        if self.project_id:
+            return "project"
+        elif self.project_task_id:
             return "project_task"
         elif self.catchlist_item_id:
             return "catchlist_item"
@@ -65,7 +69,9 @@ class Commitment(db.Model):
     @property
     def item(self):
         """Returns the actual item this commitment refers to"""
-        if self.project_task_id:
+        if self.project_id:
+            return self.project
+        elif self.project_task_id:
             return self.project_task
         elif self.catchlist_item_id:
             return self.catchlist_item
@@ -78,7 +84,9 @@ class Commitment(db.Model):
         """Returns a title for this commitment based on the associated item or stored title"""
         if self.title:
             return self.title
-        if self.project_task_id:
+        if self.project_id:
+            return self.project.title
+        elif self.project_task_id:
             return self.project_task.title
         elif self.catchlist_item_id:
             return self.catchlist_item.content
@@ -102,7 +110,8 @@ class Commitment(db.Model):
             "item": self.item.as_dict() if self.item else None,
             "checkins": [checkin.as_dict() for checkin in self.checkins],
             "is_soft_commitment": self.is_soft_commitment,
-            "time_period": self.time_period
+            "time_period": self.time_period,
+            "project_id": self.project_id
         }
 
 class SoftCommitment(db.Model):

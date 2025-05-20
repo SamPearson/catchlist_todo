@@ -159,6 +159,25 @@ def import_caldav_events():
     url = data.get('url')
     username = data.get('username')
     password = data.get('password')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    
+    # Convert string dates to datetime objects if provided
+    start_datetime = None
+    end_datetime = None
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({"success": False, "message": "Invalid start_date format. Use YYYY-MM-DD."}), 400
+    
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            # Set to end of day
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            return jsonify({"success": False, "message": "Invalid end_date format. Use YYYY-MM-DD."}), 400
     
     caldav_client = CalDAVClient(url, username, password)
     
@@ -171,7 +190,7 @@ def import_caldav_events():
         
     # Use the first calendar for simplicity
     first_calendar = calendars[0]
-    events = caldav_client.get_events_as_dict(first_calendar)
+    events = caldav_client.get_events_as_dict(first_calendar, start_date=start_datetime, end_date=end_datetime)
     
     if not events:
         return jsonify({"success": True, "message": "No events found to import", "imported_count": 0})
@@ -197,51 +216,114 @@ def import_caldav_events():
         first_instance = event_instances[0]
         
         # Skip events without required fields
-        if not first_instance.get('summary') or not first_instance.get('start') or not first_instance.get('end'):
-            print(f"Skipping event - missing required fields: {first_instance}")
+        if not first_instance.get('start') or not first_instance.get('end'):
+            print(f"Skipping event - missing start or end time: {first_instance}")
             continue
+            
+        # Set empty summary to "Untitled Event" instead of skipping
+        if not first_instance.get('summary'):
+            first_instance['summary'] = "Untitled Event"
+            print(f"Using default title for event with empty summary: {uid}")
+        
+        # Filter instances by date range if specified
+        filtered_instances = event_instances
+        if start_datetime or end_datetime:
+            filtered_instances = []
+            for instance in event_instances:
+                event_start = instance.get('start')
+                event_end = instance.get('end')
+                
+                if not event_start or not event_end:
+                    continue
+                
+                # Fix timezone comparison issue by converting to naive datetimes for comparison
+                if event_start.tzinfo is not None:
+                    # Make naive datetime for comparison only
+                    naive_event_start = event_start.replace(tzinfo=None)
+                    naive_event_end = event_end.replace(tzinfo=None)
+                else:
+                    naive_event_start = event_start
+                    naive_event_end = event_end
+                
+                # Check if event is within the specified date range
+                if start_datetime and naive_event_end < start_datetime:
+                    continue
+                if end_datetime and naive_event_start > end_datetime:
+                    continue
+                
+                filtered_instances.append(instance)
+            
+            # Skip if no instances in the date range
+            if not filtered_instances:
+                continue
             
         # Check if routine already exists to avoid duplicates
         existing_routine = Routine.query.filter_by(external_uid=uid, user_id=current_user_id).first()
-        if existing_routine:
-            print(f"Skipping event - already exists: {uid}")
-            continue
-            
+        
         try:
             # Start a new transaction for each event
             db.session.begin_nested()
             
-            # Log the data we're about to use
-            print(f"Creating routine with data:")
-            print(f"  title: {first_instance['summary'].strip() or 'Untitled Event'}")
-            print(f"  description: {first_instance.get('description', '')}")
-            print(f"  rrule: {first_instance.get('rrule', '')}")
-            print(f"  external_uid: {uid}")
+            if existing_routine:
+                # If routine exists, just create new sessions for the specified timeframe
+                routine = existing_routine
+                print(f"Using existing routine: {routine.id}")
+            else:
+                # Create a new routine
+                print(f"Creating routine with data:")
+                print(f"  title: {first_instance['summary'].strip() or 'Untitled Event'}")
+                print(f"  description: {first_instance.get('description', '')}")
+                print(f"  rrule: {first_instance.get('rrule', '')}")
+                print(f"  external_uid: {uid}")
+                
+                routine = Routine(
+                    title=first_instance['summary'].strip() or 'Untitled Event',
+                    description=first_instance.get('description', ''),
+                    rrule=first_instance.get('rrule', ''),
+                    active=True,
+                    user_id=current_user_id,
+                    external_uid=uid,
+                    external_source='caldav'
+                )
+                print(f"Created routine object: {routine.__dict__}")  # Log the routine object
+                
+                db.session.add(routine)
+                db.session.flush()  # Get the routine ID
+                print(f"Flushed routine to database, got ID: {routine.id}")
             
-            # Create the routine
-            routine = Routine(
-                title=first_instance['summary'].strip() or 'Untitled Event',
-                description=first_instance.get('description', ''),
-                rrule=first_instance.get('rrule', ''),
-                active=True,
-                user_id=current_user_id,
-                external_uid=uid,
-                external_source='caldav'
-            )
-            print(f"Created routine object: {routine.__dict__}")  # Log the routine object
-            
-            db.session.add(routine)
-            db.session.flush()  # Get the routine ID
-            print(f"Flushed routine to database, got ID: {routine.id}")
-            
-            # Create sessions for all instances
-            for instance in event_instances:
+            # Create sessions for all instances in the filtered date range
+            for instance in filtered_instances:
                 try:
+                    # Check if a session already exists for this time
+                    start_time = instance['start']
+                    end_time = instance['end']
+                    
+                    # Store the timezone info if present, but use naive datetimes for DB queries
+                    tz_info = None
+                    if start_time.tzinfo:
+                        tz_info = start_time.tzinfo
+                        db_start_time = start_time.replace(tzinfo=None)
+                        db_end_time = end_time.replace(tzinfo=None)
+                    else:
+                        db_start_time = start_time
+                        db_end_time = end_time
+                    
+                    existing_session = Session.query.filter_by(
+                        routine_id=routine.id,
+                        start_time=db_start_time,
+                        end_time=db_end_time,
+                        user_id=current_user_id
+                    ).first()
+                    
+                    if existing_session:
+                        print(f"Session already exists for {start_time}")
+                        continue
+                    
                     # Create the session
                     session = Session(
                         routine_id=routine.id,
-                        start_time=instance['start'],
-                        end_time=instance['end'],
+                        start_time=db_start_time,
+                        end_time=db_end_time,
                         user_id=current_user_id
                     )
                     db.session.add(session)

@@ -4,6 +4,7 @@ import requests
 from dotenv import load_dotenv
 import logging
 from pathlib import Path
+from flask_jwt_extended import JWTManager
 from .routes.reports import reports_bp
 from ..config.db_setup import db
 from ..config.db_config import Config
@@ -22,6 +23,11 @@ app = Flask(__name__,
 
 # Configure database
 app.config.from_object(Config)
+
+# Configure JWT
+app.config['JWT_SECRET_KEY'] = 'your-secret-key'  # Change this in production
+app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
+jwt = JWTManager(app)
 
 # Initialize database
 db.init_app(app)
@@ -203,24 +209,15 @@ def routines():
         response = requests.get(f"{API_URL}/routines", headers=headers)
         
         if response.status_code == 200:
-            events = response.json()
+            routines = response.json()
         else:
-            events = []
+            routines = []
             
-        return render_template("routines.html", events=events, API_URL=API_URL)
+        return render_template("routines.html", routines=routines, API_URL=API_URL)
     except Exception as e:
         logger.error(f"Error fetching routines: {str(e)}")
-        events = []
-        return render_template("routines.html", events=events, API_URL=API_URL)
-
-
-@app.route('/reports')
-def reports():
-    token = get_auth_token()
-    if not token:
-        return redirect(url_for('login'))
-    
-    return render_template("reports.html", API_URL=API_URL)
+        routines = []
+        return render_template("routines.html", routines=routines, API_URL=API_URL)
 
 
 @app.route('/demo')

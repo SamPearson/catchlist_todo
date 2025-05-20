@@ -1,10 +1,11 @@
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, render_template, redirect, url_for
 from datetime import datetime, date
 from ...config.models.reports import DayReport, WeekReport, MonthReport, SeasonReport, YearReport
 from ...config.models.time_blocks import DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
 from ...config.models.commitment import Commitment
 from ...config.db_setup import db
 from functools import wraps
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 reports_bp = Blueprint('reports', __name__)
 
@@ -263,4 +264,45 @@ def get_demo_report(report_type):
     report = report_class(time_block, db.session)
     report._commitments = commitments  # Override the commitments property
     
-    return jsonify(report.as_dict()) 
+    return jsonify(report.as_dict())
+
+@reports_bp.route('/reports')
+def index():
+    token = request.cookies.get('auth_token')
+    if not token:
+        return redirect(url_for('login'))
+    
+    # Use the API_URL from the injected globals in the webapp
+    return render_template("reports.html")
+
+@reports_bp.route('/reports/daily')
+def daily():
+    token = request.cookies.get('auth_token')
+    if not token:
+        return redirect(url_for('login'))
+    
+    return render_template('reports/daily.html')
+
+@reports_bp.route('/reports/weekly')
+def weekly():
+    token = request.cookies.get('auth_token')
+    if not token:
+        return redirect(url_for('login'))
+    
+    return render_template('reports/weekly.html')
+
+@reports_bp.route('/reports/monthly')
+def monthly():
+    token = request.cookies.get('auth_token')
+    if not token:
+        return redirect(url_for('login'))
+    
+    return render_template('reports/monthly.html')
+
+@reports_bp.route('/reports/seasonal')
+def seasonal():
+    token = request.cookies.get('auth_token')
+    if not token:
+        return redirect(url_for('login'))
+    
+    return render_template('reports/seasonal.html') 

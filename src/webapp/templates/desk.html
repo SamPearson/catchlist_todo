@@ -30,14 +30,6 @@
         <a class="item" data-tab="demo">Demo</a>
     </div>
 
-    <!-- View Toggle (hidden for day tab) -->
-    <div class="ui segment" id="view-toggle-container" style="display: none;">
-        <div class="ui toggle checkbox">
-            <input type="checkbox" id="view-toggle">
-            <label>Show Routines</label>
-        </div>
-    </div>
-
     <!-- Custom Date Range Modal -->
     <div class="ui modal" id="custom-date-modal">
         <i class="close icon"></i>
@@ -68,6 +60,10 @@
         <div class="ui segment">
             <h3 class="ui header">Daily Report</h3>
             <div class="ui form">
+                <div class="field">
+                    <label>Date</label>
+                    <input type="date" id="report-date" required>
+                </div>
                 <div class="two fields">
                     <div class="field">
                         <label>Sleep (hours)</label>
@@ -240,7 +236,57 @@
         </div>
     </div>
 
-    <div class="ui bottom attached tab segment" data-tab="year"></div>
+    <div class="ui bottom attached tab segment" data-tab="year">
+        <!-- Yearly Report Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Yearly Report</h3>
+            <div class="ui form">
+                <div class="field">
+                    <label>Theme</label>
+                    <input type="text" id="yearly-theme">
+                </div>
+                <div class="field">
+                    <label>Goals</label>
+                    <textarea id="yearly-goals" rows="3"></textarea>
+                </div>
+                <div class="field">
+                    <label>Why</label>
+                    <textarea id="yearly-why" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Seasonal Metrics</label>
+                    <table class="ui celled table">
+                        <thead>
+                            <tr>
+                                <th>Season</th>
+                                <th>Sleep Avg</th>
+                                <th>Food Notes</th>
+                                <th>RPE Avg</th>
+                                <th>Mood Avg</th>
+                            </tr>
+                        </thead>
+                        <tbody id="yearly-metrics-table">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="field">
+                    <label>Yearly RPE</label>
+                    <input type="number" id="yearly-rpe" min="1" max="10">
+                </div>
+                <div class="field">
+                    <label>Yearly Gains</label>
+                    <textarea id="yearly-gains" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Yearly Gratitudes</label>
+                    <textarea id="yearly-gratitudes" rows="2"></textarea>
+                </div>
+                <button class="ui primary button" id="save-yearly-report">Save Yearly Report</button>
+            </div>
+        </div>
+    </div>
+
     <div class="ui bottom attached tab segment" data-tab="custom">
         <!-- Custom Date Range Section -->
         <div class="ui segment">
@@ -280,7 +326,17 @@
         </div>
         
         <div class="ui segment">
-            <h3 class="ui header">Schedule</h3>
+            <div class="ui grid">
+                <div class="twelve wide column">
+                    <h3 class="ui header">Schedule</h3>
+                </div>
+                <div class="four wide column" id="view-toggle-container" style="display: none; text-align: right;">
+                    <div class="ui toggle checkbox">
+                        <input type="checkbox" id="view-toggle">
+                        <label>Show Routines</label>
+                    </div>
+                </div>
+            </div>
             <div class="ui divided items" id="schedule-items">
                 <!-- Schedule will be loaded here -->
                 <div class="ui placeholder">
@@ -481,6 +537,9 @@ const API_URL = '{{ API_URL }}';
 // Set the API URL for comments.js
 setApiUrl(API_URL);
 
+// Utility function to format dates for API - defined as a constant to ensure it's available immediately
+const formatDate = (date) => date.toISOString().split('T')[0];
+
 // Function to get auth token from cookies
 function getAuthToken() {
     const cookies = document.cookie.split(';');
@@ -552,11 +611,53 @@ function loadTabContent(tab) {
         case 'day':
             startDate = new Date(today);
             endDate = new Date(today);
+            // Load today's report data
+            const todayStr = startDate.toISOString().split('T')[0]; // Format date inline
+            fetch(`${API_URL}/reports/day/${todayStr}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok && response.status !== 404) {
+                    throw new Error('Failed to load report data');
+                }
+                return response.status === 404 ? null : response.json();
+            })
+            .then(data => {
+                displayDailyReport(data);
+            })
+            .catch(error => {
+                console.error('Error loading report data:', error);
+                showError('Failed to load report data');
+            });
             break;
         case 'week':
             startDate = new Date(today);
             endDate = new Date(today);
             endDate.setDate(today.getDate() + 6); // Next 7 days including today
+            
+            // Load week's report data
+            const weekStartStr = startDate.toISOString().split('T')[0];
+            const weekEndStr = endDate.toISOString().split('T')[0];
+            fetch(`${API_URL}/reports/week/range?start=${weekStartStr}&end=${weekEndStr}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok && response.status !== 404) {
+                    throw new Error('Failed to load report data');
+                }
+                return response.status === 404 ? null : response.json();
+            })
+            .then(data => {
+                displayWeeklyReport(data);
+            })
+            .catch(error => {
+                console.error('Error loading report data:', error);
+                showError('Failed to load report data');
+            });
             break;
         case 'month':
             startDate = new Date(today);
@@ -569,9 +670,30 @@ function loadTabContent(tab) {
             endDate.setMonth(today.getMonth() + 3);
             break;
         case 'year':
-            startDate = new Date(today);
-            endDate = new Date(today);
-            endDate.setFullYear(today.getFullYear() + 1);
+            startDate = new Date(today.getFullYear(), 0, 1); // January 1st of current year
+            endDate = new Date(today.getFullYear(), 11, 31); // December 31st of current year
+            
+            // Load year's report data
+            const yearStartStr = startDate.toISOString().split('T')[0];
+            const yearEndStr = endDate.toISOString().split('T')[0];
+            fetch(`${API_URL}/reports/year/range?start=${yearStartStr}&end=${yearEndStr}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok && response.status !== 404) {
+                    throw new Error('Failed to load report data');
+                }
+                return response.status === 404 ? null : response.json();
+            })
+            .then(data => {
+                displayYearlyReport(data);
+            })
+            .catch(error => {
+                console.error('Error loading report data:', error);
+                showError('Failed to load report data');
+            });
             break;
         case 'custom':
             // Get dates from the date pickers
@@ -600,7 +722,63 @@ function loadTabContent(tab) {
 
     // Load report data for the time period
     if (['day', 'week', 'month', 'season'].includes(tab)) {
-        loadReportData(tab, startDate, endDate);
+        if (tab === 'day') {
+            // For day tab, use the single day endpoint
+            const dayStr = startDate.toISOString().split('T')[0];
+            fetch(`${API_URL}/reports/day/${dayStr}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok && response.status !== 404) {
+                    throw new Error('Failed to load report data');
+                }
+                return response.status === 404 ? null : response.json();
+            })
+            .then(data => {
+                displayDailyReport(data);
+            })
+            .catch(error => {
+                console.error('Error loading report data:', error);
+                showError('Failed to load report data');
+            });
+        } else {
+            // For other tabs, use the range endpoint
+            const startStr = startDate.toISOString().split('T')[0];
+            const endStr = endDate.toISOString().split('T')[0];
+            fetch(`${API_URL}/reports/${tab}/range?start=${startStr}&end=${endStr}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok && response.status !== 404) {
+                    throw new Error('Failed to load report data');
+                }
+                return response.status === 404 ? null : response.json();
+            })
+            .then(data => {
+                switch(tab) {
+                    case 'week':
+                        displayWeeklyReport(data);
+                        break;
+                    case 'month':
+                        displayMonthlyReport(data);
+                        break;
+                    case 'season':
+                        displaySeasonalReport(data);
+                        break;
+                    case 'year':
+                        displayYearlyReport(data);
+                        break;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading report data:', error);
+                showError('Failed to load report data');
+            });
+        }
     }
 
     // Format dates for API
@@ -619,34 +797,57 @@ function loadTabContent(tab) {
     console.log('Show routines:', showRoutines);
 
     // Load events for the date range
-    const endpoint = showRoutines ? '/routines' : '/routines/range';
-    console.log('Using endpoint:', endpoint);
-    fetch(`${API_URL}${endpoint}?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to load events');
-        }
-        return response.json();
-    })
-    .then(events => {
-        console.log('Received events:', events);
-        if (showRoutines) {
-            displayRoutines(events);
-        } else {
+    const routinesStartStr = startDate.toISOString().split('T')[0]; // Format dates inline
+    const routinesEndStr = endDate.toISOString().split('T')[0];
+    
+    if (showRoutines) {
+        // When toggle is on, show routines that have hard commitments in the time period
+        fetch(`${API_URL}/routines?has_commitments=true&start=${routinesStartStr}&end=${routinesEndStr}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load routines');
+            }
+            return response.json();
+        })
+        .then(routines => {
+            console.log('Received routines with commitments:', routines);
+            displayRoutines(routines);
+        })
+        .catch(error => {
+            console.error('Error loading routines:', error);
+            document.getElementById('schedule-items').innerHTML = '<div class="ui negative message">Failed to load routines</div>';
+        });
+    } else {
+        // When toggle is off, show routine sessions for the date range
+        fetch(`${API_URL}/routines/range?start=${routinesStartStr}&end=${routinesEndStr}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load events');
+            }
+            return response.json();
+        })
+        .then(events => {
+            console.log('Received events:', events);
             displayEvents(events);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading events:', error);
-        document.getElementById('schedule-items').innerHTML = '<div class="ui negative message">Failed to load events</div>';
-    });
+        })
+        .catch(error => {
+            console.error('Error loading events:', error);
+            document.getElementById('schedule-items').innerHTML = '<div class="ui negative message">Failed to load events</div>';
+        });
+    }
 
     // Load commitments for the date range
-    fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
+    const commitStartStr = startDate.toISOString().split('T')[0]; // Format dates inline
+    const commitEndStr = endDate.toISOString().split('T')[0];
+    fetch(`${API_URL}/commitments/range?start=${commitStartStr}&end=${commitEndStr}`, {
         headers: {
             'Authorization': `Bearer ${token}`
         }
@@ -671,7 +872,9 @@ function loadTabContent(tab) {
 
     // Load soft committed tasks for the time period
     if (tab !== 'day') {
-        fetch(`${API_URL}/commitments/soft/${tab}?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
+        const softStartStr = startDate.toISOString().split('T')[0]; // Format dates inline
+        const softEndStr = endDate.toISOString().split('T')[0];
+        fetch(`${API_URL}/commitments/soft/${tab}?start=${softStartStr}&end=${softEndStr}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -998,6 +1201,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTodayEvents();
     loadTodayCommitments();
     setupCheckinModal();
+    loadTodayReport();
 });
 
 // Load today's events
@@ -1433,11 +1637,6 @@ function loadReportData(tab, startDate, endDate) {
         return;
     }
 
-    // Format dates for API
-    const formatDate = (date) => {
-        return date.toISOString().split('T')[0];
-    };
-
     // Load report data based on tab
     fetch(`${API_URL}/reports/${tab}?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
         headers: {
@@ -1464,6 +1663,9 @@ function loadReportData(tab, startDate, endDate) {
             case 'season':
                 displaySeasonalReport(data);
                 break;
+            case 'year':
+                displayYearlyReport(data);
+                break;
         }
     })
     .catch(error => {
@@ -1476,12 +1678,15 @@ function loadReportData(tab, startDate, endDate) {
 function displayDailyReport(data) {
     if (!data) return;
     
-    document.getElementById('sleep-hours').value = data.sleep || '';
-    document.getElementById('mood-score').value = data.mood || '';
-    document.getElementById('food-notes').value = data.food || '';
-    document.getElementById('rpe-score').value = data.rpe || '';
-    document.getElementById('gains-notes').value = data.gains || '';
-    document.getElementById('gratitudes-notes').value = data.gratitudes || '';
+    document.getElementById('report-date').value = data.date || new Date().toISOString().split('T')[0];
+    if (data.day_block) {
+        document.getElementById('sleep-hours').value = data.day_block.sleep_hours || '';
+        document.getElementById('mood-score').value = data.day_block.mood || '';
+        document.getElementById('food-notes').value = data.day_block.food_notes || '';
+        document.getElementById('rpe-score').value = data.day_block.rpe || '';
+        document.getElementById('gains-notes').value = data.day_block.gains || '';
+        document.getElementById('gratitudes-notes').value = data.day_block.gratitudes || '';
+    }
 }
 
 // Function to display weekly report data
@@ -1590,6 +1795,43 @@ function displaySeasonalReport(data) {
     document.getElementById('seasonal-gratitudes').value = data.gratitudes || '';
 }
 
+// Function to display yearly report data
+function displayYearlyReport(data) {
+    if (!data) return;
+    
+    // Display theme, goals, and why
+    document.getElementById('yearly-theme').value = data.theme || '';
+    document.getElementById('yearly-goals').value = data.goals || '';
+    document.getElementById('yearly-why').value = data.why || '';
+    
+    // Display seasonal metrics table
+    const tableBody = document.getElementById('yearly-metrics-table');
+    let html = '';
+    
+    if (data.seasonal_metrics && data.seasonal_metrics.length > 0) {
+        data.seasonal_metrics.forEach(metric => {
+            html += `
+                <tr>
+                    <td>${metric.season}</td>
+                    <td>${metric.sleep_avg || '-'}</td>
+                    <td>${metric.food_notes || '-'}</td>
+                    <td>${metric.rpe_avg || '-'}</td>
+                    <td>${metric.mood_avg || '-'}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html = '<tr><td colspan="5">No data available</td></tr>';
+    }
+    
+    tableBody.innerHTML = html;
+    
+    // Display yearly summary
+    document.getElementById('yearly-rpe').value = data.rpe || '';
+    document.getElementById('yearly-gains').value = data.gains || '';
+    document.getElementById('yearly-gratitudes').value = data.gratitudes || '';
+}
+
 // Function to save report data
 function saveReportData(tab, startDate, endDate) {
     const token = getAuthToken();
@@ -1598,16 +1840,12 @@ function saveReportData(tab, startDate, endDate) {
         return;
     }
 
-    // Format dates for API
-    const formatDate = (date) => {
-        return date.toISOString().split('T')[0];
-    };
-
     // Get data based on tab
     let data = {};
     switch(tab) {
         case 'day':
             data = {
+                date: document.getElementById('report-date').value,
                 sleep: document.getElementById('sleep-hours').value,
                 mood: document.getElementById('mood-score').value,
                 food: document.getElementById('food-notes').value,
@@ -1643,10 +1881,33 @@ function saveReportData(tab, startDate, endDate) {
                 gratitudes: document.getElementById('seasonal-gratitudes').value
             };
             break;
+        case 'year':
+            data = {
+                theme: document.getElementById('yearly-theme').value,
+                goals: document.getElementById('yearly-goals').value,
+                why: document.getElementById('yearly-why').value,
+                rpe: document.getElementById('yearly-rpe').value,
+                gains: document.getElementById('yearly-gains').value,
+                gratitudes: document.getElementById('yearly-gratitudes').value,
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: endDate.toISOString().split('T')[0]
+            };
+            break;
     }
 
     // Save report data
-    fetch(`${API_URL}/reports/${tab}?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
+    let url;
+    if (tab === 'day') {
+        const dateStr = document.getElementById('report-date').value;
+        url = `${API_URL}/reports/day/${dateStr}`;
+    } else {
+        // Use inline date formatting to avoid formatDate dependency
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        url = `${API_URL}/reports/${tab}?start=${startStr}&end=${endStr}`;
+    }
+
+    fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1693,29 +1954,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add save button event listeners
     document.getElementById('save-daily-report').addEventListener('click', function() {
-        const today = new Date();
-        saveReportData('day', today, today);
+        saveDailyReport();
     });
 
     document.getElementById('save-weekly-report').addEventListener('click', function() {
-        const today = new Date();
-        const endDate = new Date(today);
-        endDate.setDate(today.getDate() + 6);
-        saveReportData('week', today, endDate);
+        saveWeeklyReport();
     });
 
     document.getElementById('save-monthly-report').addEventListener('click', function() {
-        const today = new Date();
-        const endDate = new Date(today);
-        endDate.setMonth(today.getMonth() + 1);
-        saveReportData('month', today, endDate);
+        saveMonthlyReport();
     });
 
     document.getElementById('save-seasonal-report').addEventListener('click', function() {
-        const today = new Date();
-        const endDate = new Date(today);
-        endDate.setMonth(today.getMonth() + 3);
-        saveReportData('season', today, endDate);
+        saveSeasonalReport();
     });
 
     // Add event listeners for custom date inputs
@@ -1788,17 +2039,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 endDate.setMonth(today.getMonth() + 3);
                 break;
             case 'year':
-                startDate = new Date(today);
-                endDate = new Date(today);
-                endDate.setFullYear(today.getFullYear() + 1);
+                startDate = new Date(today.getFullYear(), 0, 1); // January 1st of current year
+                endDate = new Date(today.getFullYear(), 11, 31); // December 31st of current year
                 break;
             default:
                 return;
         }
-
-        const formatDate = (date) => {
-            return date.toISOString().split('T')[0];
-        };
 
         fetch(`${API_URL}/commitments/soft/${activeTab}`, {
             method: 'POST',
@@ -1808,8 +2054,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 title: title,
-                start_date: formatDate(startDate),
-                end_date: formatDate(endDate)
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: endDate.toISOString().split('T')[0]
             })
         })
         .then(response => {
@@ -1837,6 +2083,9 @@ document.addEventListener('DOMContentLoaded', function() {
             removeSoftTask(taskId);
         }
     });
+
+    // Remove duplicate event listener - the button already has a listener above
+    // document.getElementById('save-daily-report').addEventListener('click', saveDailyReport);
 });
 
 // Add function to remove soft committed task
@@ -2062,9 +2311,8 @@ function saveCommitment() {
                 endDate.setMonth(today.getMonth() + 3);
                 break;
             case 'year':
-                startDate = new Date(today);
-                endDate = new Date(today);
-                endDate.setFullYear(today.getFullYear() + 1);
+                startDate = new Date(today.getFullYear(), 0, 1); // January 1st of current year
+                endDate = new Date(today.getFullYear(), 11, 31); // December 31st of current year
                 break;
         }
         
@@ -2221,6 +2469,309 @@ function deleteCommitment(commitmentId) {
         showError('Failed to delete commitment');
     });
 }
+
+// Function to load today's report data
+function loadTodayReport() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Set today's date in the date input
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    document.getElementById('report-date').value = dateStr;
+
+    // Fetch today's report data
+    fetch(`${API_URL}/reports/day/${dateStr}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (!response.ok && response.status !== 404) {
+            throw new Error('Failed to load report data');
+        }
+        return response.status === 404 ? null : response.json();
+    })
+    .then(data => {
+        if (data) {
+            document.getElementById('sleep-hours').value = data.sleep_hours || '';
+            document.getElementById('mood-score').value = data.mood || '';
+            document.getElementById('food-notes').value = data.food_notes || '';
+            document.getElementById('rpe-score').value = data.rpe || '';
+            document.getElementById('gains-notes').value = data.gains || '';
+            document.getElementById('gratitudes-notes').value = data.gratitudes || '';
+        }
+    })
+    .catch(error => {
+        console.error('Error loading report data:', error);
+        showError('Failed to load report data');
+    });
+}
+
+// Function to save daily report
+function saveDailyReport() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const date = document.getElementById('report-date').value;
+    if (!date) {
+        showError('Please select a date');
+        return;
+    }
+
+    const data = {
+        sleep_hours: document.getElementById('sleep-hours').value,
+        mood: document.getElementById('mood-score').value,
+        food_notes: document.getElementById('food-notes').value,
+        rpe: document.getElementById('rpe-score').value,
+        gains: document.getElementById('gains-notes').value,
+        gratitudes: document.getElementById('gratitudes-notes').value,
+        date: date
+    };
+
+    fetch(`${API_URL}/reports/day/${date}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to save report');
+        }
+        return response.json();
+    })
+    .then(() => {
+        showSuccess('Daily report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving report:', error);
+        showError('Failed to save report');
+    });
+}
+
+// Function to save weekly report
+function saveWeeklyReport() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Get the current week's date range
+    const today = new Date();
+    const startDate = new Date(today);
+    const endDate = new Date(today);
+    endDate.setDate(today.getDate() + 6);
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const data = {
+        rpe: document.getElementById('weekly-rpe').value,
+        gains: document.getElementById('weekly-gains').value,
+        gratitudes: document.getElementById('weekly-gratitudes').value,
+        start_date: startStr,
+        end_date: endStr
+    };
+
+    fetch(`${API_URL}/reports/week/range?start=${startStr}&end=${endStr}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to save weekly report');
+        }
+        return response.json();
+    })
+    .then(() => {
+        showSuccess('Weekly report saved successfully');
+        // Reload the weekly report data to reflect changes
+        loadTabContent('week');
+    })
+    .catch(error => {
+        console.error('Error saving weekly report:', error);
+        showError('Failed to save weekly report');
+    });
+}
+
+// Function to save monthly report
+function saveMonthlyReport() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Get the current month's date range
+    const today = new Date();
+    const startDate = new Date(today.getFullYear(), today.getMonth(), 1); // First day of current month
+    const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const data = {
+        theme: document.getElementById('monthly-theme').value,
+        goals: document.getElementById('monthly-goals').value,
+        why: document.getElementById('monthly-why').value,
+        rpe: document.getElementById('monthly-rpe').value,
+        gains: document.getElementById('monthly-gains').value,
+        gratitudes: document.getElementById('monthly-gratitudes').value,
+        start_date: startStr,
+        end_date: endStr
+    };
+
+    fetch(`${API_URL}/reports/month/range?start=${startStr}&end=${endStr}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to save monthly report');
+        }
+        return response.json();
+    })
+    .then(() => {
+        showSuccess('Monthly report saved successfully');
+        // Reload the monthly report data to reflect changes
+        loadTabContent('month');
+    })
+    .catch(error => {
+        console.error('Error saving monthly report:', error);
+        showError('Failed to save monthly report');
+    });
+}
+
+// Function to save seasonal report
+function saveSeasonalReport() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Get the current season's date range
+    const today = new Date();
+    const currentSeason = Math.floor(today.getMonth() / 3);
+    const startDate = new Date(today.getFullYear(), currentSeason * 3, 1); // First day of current season
+    const endDate = new Date(today.getFullYear(), (currentSeason + 1) * 3, 0); // Last day of current season
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const data = {
+        theme: document.getElementById('seasonal-theme').value,
+        goals: document.getElementById('seasonal-goals').value,
+        why: document.getElementById('seasonal-why').value,
+        rpe: document.getElementById('seasonal-rpe').value,
+        gains: document.getElementById('seasonal-gains').value,
+        gratitudes: document.getElementById('seasonal-gratitudes').value,
+        start_date: startStr,
+        end_date: endStr
+    };
+
+    fetch(`${API_URL}/reports/season/range?start=${startStr}&end=${endStr}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to save seasonal report');
+        }
+        return response.json();
+    })
+    .then(() => {
+        showSuccess('Seasonal report saved successfully');
+        // Reload the seasonal report data to reflect changes
+        loadTabContent('season');
+    })
+    .catch(error => {
+        console.error('Error saving seasonal report:', error);
+        showError('Failed to save seasonal report');
+    });
+}
+
+// Function to save yearly report
+function saveYearlyReport() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Get the current year's date range
+    const today = new Date();
+    const startDate = new Date(today.getFullYear(), 0, 1); // January 1st of current year
+    const endDate = new Date(today.getFullYear(), 11, 31); // December 31st of current year
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const data = {
+        theme: document.getElementById('yearly-theme').value,
+        goals: document.getElementById('yearly-goals').value,
+        why: document.getElementById('yearly-why').value,
+        rpe: document.getElementById('yearly-rpe').value,
+        gains: document.getElementById('yearly-gains').value,
+        gratitudes: document.getElementById('yearly-gratitudes').value,
+        start_date: startStr,
+        end_date: endStr
+    };
+
+    fetch(`${API_URL}/reports/year/range?start=${startStr}&end=${endStr}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to save yearly report');
+        }
+        return response.json();
+    })
+    .then(() => {
+        showSuccess('Yearly report saved successfully');
+        // Reload the yearly report data to reflect changes
+        loadTabContent('year');
+    })
+    .catch(error => {
+        console.error('Error saving yearly report:', error);
+        showError('Failed to save yearly report');
+    });
+}
+
+// Add event listener for save yearly report button
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing code ...
+    
+    // Add save yearly report button event listener
+    document.getElementById('save-yearly-report').addEventListener('click', function() {
+        saveYearlyReport();
+    });
+    
+    // ... existing code ...
+});
 </script>
 
 <style>
