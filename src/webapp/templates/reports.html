@@ -6,101 +6,37 @@
 <div class="ui container">
     <h1 class="ui header">Reports</h1>
     
-    <!-- Time Period Tabs -->
-    <div class="ui top attached tabular menu">
-        <a class="item active" data-tab="day">Day</a>
-        <a class="item" data-tab="week">Week</a>
-        <a class="item" data-tab="month">Month</a>
-        <a class="item" data-tab="season">Season</a>
-        <a class="item" data-tab="year">Year</a>
-        <a class="item" data-tab="custom">Custom</a>
-        <a class="item" data-tab="demo">Demo</a>
-    </div>
-
-    <!-- Date Navigation Controls -->
+    {% include "components/time_period_nav.html" %}
+    
+    <!-- Date Navigation -->
     <div class="ui segment" id="date-navigation">
         <div class="ui grid">
             <div class="four wide column">
-                <button class="ui labeled icon button" id="prev-date">
-                    <i class="left arrow icon"></i>
-                    Previous
+                <button class="ui icon button" id="prev-date">
+                    <i class="chevron left icon"></i>
                 </button>
             </div>
-            <div class="eight wide column">
-                <div class="ui form">
-                    <div class="field">
-                        <input type="date" id="date-picker">
-                    </div>
-                </div>
+            <div class="eight wide column center aligned">
+                <h3 id="date-display" class="ui header"></h3>
             </div>
-            <div class="four wide column">
-                <button class="ui right labeled icon button" id="next-date">
-                    Next
-                    <i class="right arrow icon"></i>
+            <div class="four wide column right aligned">
+                <button class="ui icon button" id="next-date">
+                    <i class="chevron right icon"></i>
                 </button>
             </div>
         </div>
-    </div>
-
-    <!-- Custom Date Range Modal -->
-    <div class="ui modal" id="custom-date-modal">
-        <i class="close icon"></i>
-        <div class="header">Select Date Range</div>
-        <div class="content">
-            <form class="ui form" id="custom-date-form">
-                <div class="two fields">
-                    <div class="field">
-                        <label>Start Date</label>
-                        <input type="date" name="start_date" required>
-                    </div>
-                <div class="field">
-                        <label>End Date</label>
-                        <input type="date" name="end_date" required>
-                    </div>
-                </div>
-            </form>
+        <div class="ui grid">
+            <div class="sixteen wide column center aligned">
+                <input type="date" id="date-picker" class="ui input">
             </div>
-        <div class="actions">
-            <div class="ui button cancel">Cancel</div>
-            <div class="ui primary button" id="apply-custom-date">Apply</div>
         </div>
     </div>
     
+    {% include "components/date_navigation.html" %}
+    
     <!-- Tab Content -->
     <div class="ui bottom attached tab segment active" data-tab="day">
-        <!-- Daily Report Section -->
-        <div class="ui segment">
-            <h3 class="ui header">Daily Report</h3>
-            <div class="ui form">
-                <div class="two fields">
-                    <div class="field">
-                        <label>Sleep (hours)</label>
-                        <input type="number" id="sleep-hours" min="0" max="24" step="0.5">
-                    </div>
-                    <div class="field">
-                        <label>Mood (1-10)</label>
-                        <input type="number" id="mood-score" min="1" max="10">
-                    </div>
-                </div>
-                <div class="field">
-                    <label>Food</label>
-                    <textarea id="food-notes" rows="2"></textarea>
-                </div>
-                <div class="field">
-                    <label>RPE (Rate of Perceived Exertion)</label>
-                    <input type="number" id="rpe-score" min="1" max="10">
-                </div>
-                <div class="field">
-                    <label>Gains</label>
-                    <textarea id="gains-notes" rows="2"></textarea>
-                </div>
-                <div class="field">
-                    <label>Gratitudes</label>
-                    <textarea id="gratitudes-notes" rows="2"></textarea>
-                </div>
-                <button class="ui primary button" id="save-daily-report">Save Daily Report</button>
-            </div>
-        </div>
+        {% include "components/daily_report_form.html" %}
 
         <!-- Daily Activity Section -->
         <div class="ui segment">
@@ -133,20 +69,7 @@
             <div class="ui form">
                 <div class="field">
                     <label>Daily Metrics</label>
-                    <table class="ui celled table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Sleep</th>
-                                <th>Food</th>
-                                <th>RPE</th>
-                                <th>Mood</th>
-                            </tr>
-                        </thead>
-                        <tbody id="weekly-metrics-table">
-                            <!-- Will be populated dynamically -->
-                        </tbody>
-                    </table>
+                    {% include "components/metrics_table.html" with context %}
                 </div>
                 <div class="field">
                     <label>Weekly RPE</label>
@@ -182,27 +105,14 @@
                     <label>Why</label>
                     <textarea id="monthly-why" rows="2"></textarea>
                 </div>
-                    <div class="field">
+                <div class="field">
                     <label>Weekly Metrics</label>
-                    <table class="ui celled table">
-                        <thead>
-                            <tr>
-                                <th>Week</th>
-                                <th>Sleep Avg</th>
-                                <th>Food Notes</th>
-                                <th>RPE Avg</th>
-                                <th>Mood Avg</th>
-                            </tr>
-                        </thead>
-                        <tbody id="monthly-metrics-table">
-                            <!-- Will be populated dynamically -->
-                        </tbody>
-                    </table>
-                    </div>
-                    <div class="field">
+                    {% include "components/metrics_table.html" with context %}
+                </div>
+                <div class="field">
                     <label>Monthly RPE</label>
                     <input type="number" id="monthly-rpe" min="1" max="10">
-                    </div>
+                </div>
                 <div class="field">
                     <label>Monthly Gains</label>
                     <textarea id="monthly-gains" rows="2"></textarea>
@@ -317,6 +227,7 @@
             </div>
         </div>
     </div>
+    
     <div class="ui bottom attached tab segment" data-tab="custom">
         <!-- Custom Date Range Section -->
         <div class="ui segment">
@@ -338,76 +249,48 @@
     <div class="ui bottom attached tab segment" data-tab="demo"></div>
     
     <!-- Content Sections -->
-    <div class="ui segments" id="content-sections">
-        <div class="ui segment">
-            <div class="ui grid">
-                <div class="twelve wide column">
-                    <h3 class="ui header">Commitments</h3>
-                </div>
-                <div class="four wide column" id="view-toggle-container" style="display: none; text-align: right;">
-                    <div class="ui toggle checkbox">
-                        <input type="checkbox" id="view-toggle">
-                        <label>Show Routines</label>
-                    </div>
-                </div>
-            </div>
-            <div class="ui divided items" id="commitments-list">
-                <!-- Commitments will be loaded here -->
-                <div class="ui placeholder">
-                    <div class="header">
-                        <div class="line"></div>
-                    </div>
-                    <div class="paragraph">
-                        <div class="line"></div>
-                        <div class="line"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    {% from "components/commitments_list.html" import commitments_list %}
+    {{ commitments_list(id="commitments-list", show_routines=true) }}
 
-        <!-- Soft Committed Tasks Section -->
-        <div id="soft-committed-section" class="ui segment" style="display: none;">
-            <h3 class="ui header">
-                <i class="tasks icon"></i>
-                <div class="content">
-                    Soft Committed Tasks
-                    <div class="sub header">Tasks you plan to complete within this time period</div>
+    <!-- Soft Committed Tasks Section -->
+    <div id="soft-committed-section" class="ui segment" style="display: none;">
+        <h3 class="ui header">
+            <i class="tasks icon"></i>
+            <div class="content">
+                Soft Committed Tasks
+                <div class="sub header">Tasks you plan to complete within this time period</div>
+            </div>
+        </h3>
+        
+        {{ commitments_list(id="soft-committed-tasks", empty_message="No soft committed tasks") }}
+        
+        <form id="add-soft-commitment-form" class="ui form">
+            <div class="two fields">
+                <div class="field">
+                    <label>Title</label>
+                    <input type="text" name="title" placeholder="What do you plan to do?">
                 </div>
-            </h3>
-            
-            <div id="soft-committed-tasks" class="ui segment">
-                <div class="ui placeholder">
-                    <div class="ui icon header">
-                        <i class="tasks icon"></i>
-                        No soft committed tasks
-                    </div>
+                <div class="field">
+                    <label>Description (optional)</label>
+                    <textarea name="description" rows="1" placeholder="Add more details..."></textarea>
                 </div>
             </div>
-            
-            <form id="add-soft-commitment-form" class="ui form">
-                <div class="two fields">
-                    <div class="field">
-                        <label>Title</label>
-                        <input type="text" name="title" placeholder="What do you plan to do?">
-                    </div>
-                    <div class="field">
-                        <label>Description (optional)</label>
-                        <textarea name="description" rows="1" placeholder="Add more details..."></textarea>
-                    </div>
-                </div>
-                <button type="submit" class="ui primary button">
-                    <i class="plus icon"></i>
-                    Add Soft Commitment
-                </button>
-            </form>
-        </div>
+            <button type="submit" class="ui primary button">
+                <i class="plus icon"></i>
+                Add Soft Commitment
+            </button>
+        </form>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>
+console.log('Script block starting...');
+
 // Define global API_URL variable
 const API_URL = '{{ API_URL }}';
+console.log('API_URL:', API_URL);
 
 // Define global variables for current date ranges
 let currentDay = new Date();
@@ -415,347 +298,288 @@ let currentWeekStart = new Date();
 let currentMonthStart = new Date();
 let currentSeasonStart = new Date();
 let currentYearStart = new Date();
+console.log('Date variables initialized');
 
 // Function to get auth token from cookies
 function getAuthToken() {
+    console.log('Getting auth token...');
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
         const cookie = cookies[i].trim();
         if (cookie.startsWith('auth_token=')) {
-            return cookie.substring('auth_token='.length, cookie.length);
+            const token = cookie.substring('auth_token='.length, cookie.length);
+            console.log('Auth token found');
+            return token;
         }
     }
+    console.log('No auth token found');
     return '';
 }
 
 // Format dates for API calls
 function formatDate(date) {
+    console.log('Formatting date:', date);
     return date.toISOString().split('T')[0];
 }
 
 // Initialize tabs
 $(document).ready(function() {
-    // Initialize Semantic UI tabs
-    $('.menu .item').tab({
-        onVisible: function(tabPath) {
-            // Show/hide view toggle based on selected tab
-            if (tabPath === 'day') {
-                $('#view-toggle-container').hide();
-            } else {
-                $('#view-toggle-container').show();
+    console.log('Document ready, starting initialization...');
+    
+    try {
+        console.log('Initializing Semantic UI tabs...');
+        // Initialize Semantic UI tabs
+        $('.menu .item').tab({
+            context: 'parent',
+            autoTabActivation: true,
+            onVisible: function(tabPath) {
+                console.log('Tab changed to:', tabPath);
+                try {
+                    // Show/hide view toggle based on selected tab
+                    if (tabPath === 'day') {
+                        $('#view-toggle-container').hide();
+                    } else {
+                        $('#view-toggle-container').show();
+                    }
+                    updateDatePicker(tabPath);
+                    loadTabContent(tabPath);
+                } catch (error) {
+                    console.error('Error in tab onVisible callback:', error);
+                }
             }
-            updateDatePicker(tabPath);
-            loadTabContent(tabPath);
-        }
-    });
-    
-    // Initialize view toggle
-    $('#view-toggle').on('change', function() {
-        const activeTab = $('.menu .item.active').data('tab');
-        if (activeTab !== 'day') {
-            loadTabContent(activeTab);
-        }
-    });
-    
-    // Initialize date picker
-    const today = new Date();
-    document.getElementById('date-picker').valueAsDate = today;
-    document.getElementById('date-picker').addEventListener('change', function() {
-        const activeTab = $('.menu .item.active').data('tab');
-        const selectedDate = new Date(this.value);
-        
-        switch(activeTab) {
-            case 'day':
-                currentDay = selectedDate;
-                break;
-            case 'week':
-                currentWeekStart = selectedDate;
-                break;
-            case 'month':
-                currentMonthStart = selectedDate;
-                break;
-            case 'season':
-                currentSeasonStart = selectedDate;
-                break;
-            case 'year':
-                currentYearStart = selectedDate;
-                break;
+        });
+        console.log('Semantic UI tabs initialized');
+
+        // Force initial tab load
+        const initialTab = $('.menu .item.active').data('tab');
+        console.log('Initial tab:', initialTab);
+        if (initialTab) {
+            console.log('Loading initial tab content');
+            loadTabContent(initialTab);
+        } else {
+            console.error('No initial tab found');
         }
         
-        loadTabContent(activeTab);
-    });
-    
-    // Initialize navigation buttons
-    document.getElementById('prev-date').addEventListener('click', function() {
-        navigateDate('prev');
-    });
-    
-    document.getElementById('next-date').addEventListener('click', function() {
-        navigateDate('next');
-    });
-    
-    // Load initial content for the active tab
-    const activeTab = $('.menu .item.active').data('tab');
-    updateDatePicker(activeTab);
-    loadTabContent(activeTab);
+        // Initialize date picker with today's date
+        const datePicker = document.getElementById('date-picker');
+        if (datePicker) {
+            const today = new Date();
+            datePicker.valueAsDate = today;
+            currentDay = today;
+            currentWeekStart = new Date(today.setDate(today.getDate() - today.getDay())); // Start of week
+            currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); // Start of month
+            currentSeasonStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1); // Start of season
+            currentYearStart = new Date(today.getFullYear(), 0, 1); // Start of year
+            
+            datePicker.addEventListener('change', function() {
+                console.log('Date picker changed');
+                const activeTab = $('.menu .item.active').data('tab');
+                console.log('Active tab:', activeTab);
+                const selectedDate = new Date(this.value);
+                console.log('Selected date:', selectedDate);
+                
+                try {
+                    switch(activeTab) {
+                        case 'day':
+                            currentDay = selectedDate;
+                            break;
+                        case 'week':
+                            currentWeekStart = new Date(selectedDate.setDate(selectedDate.getDate() - selectedDate.getDay()));
+                            break;
+                        case 'month':
+                            currentMonthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                            break;
+                        case 'season':
+                            currentSeasonStart = new Date(selectedDate.getFullYear(), Math.floor(selectedDate.getMonth() / 3) * 3, 1);
+                            break;
+                        case 'year':
+                            currentYearStart = new Date(selectedDate.getFullYear(), 0, 1);
+                            break;
+                    }
+                    
+                    loadTabContent(activeTab);
+                } catch (error) {
+                    console.error('Error in date picker change handler:', error);
+                }
+            });
+            console.log('Date picker initialized');
+        } else {
+            console.error('Date picker element not found');
+        }
+
+        // Initialize navigation buttons
+        $('#prev-date').on('click', function() {
+            console.log('Previous date clicked');
+            navigateDate('prev');
+        });
+        
+        $('#next-date').on('click', function() {
+            console.log('Next date clicked');
+            navigateDate('next');
+        });
+        
+        console.log('Navigation buttons initialized');
+        console.log('Initialization complete');
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
 });
-
-// Function to update the date picker based on the active tab
-function updateDatePicker(tab) {
-    const datePicker = document.getElementById('date-picker');
-    
-    switch(tab) {
-        case 'day':
-            datePicker.valueAsDate = currentDay;
-            break;
-        case 'week':
-            datePicker.valueAsDate = currentWeekStart;
-            break;
-        case 'month':
-            datePicker.valueAsDate = currentMonthStart;
-            break;
-        case 'season':
-            datePicker.valueAsDate = currentSeasonStart;
-            break;
-        case 'year':
-            datePicker.valueAsDate = currentYearStart;
-            break;
-    }
-}
-
-// Function to navigate to previous or next date range
-function navigateDate(direction) {
-    const activeTab = $('.menu .item.active').data('tab');
-    let date;
-    
-    switch(activeTab) {
-        case 'day':
-            date = new Date(currentDay);
-            date.setDate(date.getDate() + (direction === 'next' ? 1 : -1));
-            currentDay = date;
-            break;
-        case 'week':
-            date = new Date(currentWeekStart);
-            date.setDate(date.getDate() + (direction === 'next' ? 7 : -7));
-            currentWeekStart = date;
-            break;
-        case 'month':
-            date = new Date(currentMonthStart);
-            date.setMonth(date.getMonth() + (direction === 'next' ? 1 : -1));
-            currentMonthStart = date;
-            break;
-        case 'season':
-            date = new Date(currentSeasonStart);
-            date.setMonth(date.getMonth() + (direction === 'next' ? 3 : -3));
-            currentSeasonStart = date;
-            break;
-        case 'year':
-            date = new Date(currentYearStart);
-            date.setFullYear(date.getFullYear() + (direction === 'next' ? 1 : -1));
-            currentYearStart = date;
-            break;
-        case 'custom':
-            return; // Custom date range doesn't use navigation
-        case 'demo':
-            return; // Demo doesn't use navigation
-    }
-    
-    updateDatePicker(activeTab);
-    loadTabContent(activeTab);
-}
 
 // Function to load content for a specific tab
 function loadTabContent(tab) {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
+    console.log('loadTabContent called with tab:', tab);
     
-    // Show/hide soft committed section based on tab
-    const softCommittedSection = document.getElementById('soft-committed-section');
-    if (tab === 'day') {
-        softCommittedSection.style.display = 'none';
-    } else {
-        softCommittedSection.style.display = 'block';
-    }
-
-    let startDate, endDate;
-    
-    // Calculate date range based on tab
-    switch(tab) {
-        case 'day':
-            startDate = new Date(currentDay);
-            endDate = new Date(currentDay);
-            break;
-        case 'week':
-            startDate = new Date(currentWeekStart);
-            endDate = new Date(currentWeekStart);
-            endDate.setDate(endDate.getDate() + 6);
-            break;
-        case 'month':
-            startDate = new Date(currentMonthStart);
-            endDate = new Date(currentMonthStart);
-            endDate.setMonth(endDate.getMonth() + 1);
-            endDate.setDate(0); // Last day of the month
-            break;
-        case 'season':
-            startDate = new Date(currentSeasonStart);
-            endDate = new Date(currentSeasonStart);
-            endDate.setMonth(endDate.getMonth() + 3);
-            endDate.setDate(0); // Last day of the third month
-            break;
-        case 'year':
-            startDate = new Date(currentYearStart);
-            endDate = new Date(startDate.getFullYear(), 11, 31); // December 31st of the year
-            break;
-        case 'custom':
-            const startDateInput = document.getElementById('custom-start-date');
-            const endDateInput = document.getElementById('custom-end-date');
-            
-            if (!startDateInput.value) {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token found');
+            window.location.href = '/login';
+            return;
+        }
+        
+        let startDate, endDate;
+        
+        // Calculate date range based on tab
+        console.log('Calculating date range for tab:', tab);
+        switch(tab) {
+            case 'day':
                 startDate = new Date(currentDay);
                 endDate = new Date(currentDay);
+                break;
+            case 'week':
+                startDate = new Date(currentWeekStart);
+                endDate = new Date(currentWeekStart);
                 endDate.setDate(endDate.getDate() + 6);
+                break;
+            case 'month':
+                startDate = new Date(currentMonthStart);
+                endDate = new Date(currentMonthStart);
+                endDate.setMonth(endDate.getMonth() + 1);
+                endDate.setDate(0);
+                break;
+            case 'season':
+                startDate = new Date(currentSeasonStart);
+                endDate = new Date(currentSeasonStart);
+                endDate.setMonth(endDate.getMonth() + 3);
+                endDate.setDate(0);
+                break;
+            case 'year':
+                startDate = new Date(currentYearStart);
+                endDate = new Date(startDate.getFullYear(), 11, 31);
+                break;
+            case 'custom':
+                const startDateInput = document.getElementById('custom-start-date');
+                const endDateInput = document.getElementById('custom-end-date');
                 
-                startDateInput.value = formatDate(startDate);
-                endDateInput.value = formatDate(endDate);
-            } else {
-                startDate = new Date(startDateInput.value);
-                endDate = new Date(endDateInput.value);
-            }
-            break;
-        case 'demo':
-            loadDemoData();
-            return;
-    }
-    
-    // Update the date navigation display
-    updateDateNavigation(tab, startDate, endDate);
-    
-    // Load report data for the time period
-    if (['day', 'week', 'month', 'season', 'year'].includes(tab)) {
-        loadReportData(tab, startDate, endDate);
-    }
-
-    // Show loading state
-    document.getElementById('commitments-list').innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
-    
-    if (tab !== 'day' && document.getElementById('soft-committed-tasks')) {
-        document.getElementById('soft-committed-tasks').innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading soft committed tasks...</div></div>';
-    }
-
-    // Determine if we should show routines or sessions
-    const showRoutines = tab !== 'day' && $('#view-toggle').is(':checked');
-
-    if (showRoutines) {
-        // When toggle is on, show routines that have hard commitments in the time period
-        fetch(`${API_URL}/routines?has_commitments=true&start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to load routines');
-            }
-            return response.json();
-        })
-        .then(routines => {
-            displayRoutineCommitments(routines);
-        })
-        .catch(error => {
-            console.error('Error loading routines:', error);
-            document.getElementById('commitments-list').innerHTML = '<div class="ui negative message">Failed to load routines</div>';
-        });
-    } else {
+                if (!startDateInput || !endDateInput) {
+                    console.error('Custom date inputs not found');
+                    return;
+                }
+                
+                if (!startDateInput.value) {
+                    startDate = new Date(currentDay);
+                    endDate = new Date(currentDay);
+                    endDate.setDate(endDate.getDate() + 6);
+                    
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(endDate);
+                } else {
+                    startDate = new Date(startDateInput.value);
+                    endDate = new Date(endDateInput.value);
+                }
+                break;
+        }
+        
+        console.log('Date range calculated:', { startDate: formatDate(startDate), endDate: formatDate(endDate) });
+        
+        // Update the date navigation display
+        updateDateNavigation(tab, startDate, endDate);
+        
+        // Show loading state for commitments
+        const commitmentsList = document.getElementById('commitments-list');
+        if (commitmentsList) {
+            console.log('Found commitments list container');
+            commitmentsList.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
+        }
+        
         // Load commitments for the date range
-        fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
+        const commitmentsUrl = `${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
+        console.log('Fetching commitments from:', commitmentsUrl);
+        
+        fetch(commitmentsUrl, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         })
         .then(response => {
+            console.log('Commitments response status:', response.status);
             if (!response.ok) {
                 throw new Error('Failed to load commitments');
             }
             return response.json();
         })
         .then(commitments => {
-            displayCommitments(commitments);
+            console.log('Received commitments:', commitments);
+            if (window.commitmentComponents && window.commitmentComponents['commitments-list']) {
+                console.log('Found commitments component, displaying commitments');
+                window.commitmentComponents['commitments-list'].displayCommitments(commitments);
+            } else {
+                console.error('Commitments component not initialized');
+                commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments: Component not initialized</div>';
+            }
         })
         .catch(error => {
             console.error('Error loading commitments:', error);
-            showError('Failed to load commitments');
+            commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
         });
-    }
-
-    // Load soft committed tasks for the time period
-    if (tab !== 'day') {
-        fetch(`${API_URL}/commitments/soft/${tab}?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to load soft committed tasks');
-            }
-            return response.json();
-        })
-        .then(tasks => {
-            displaySoftCommittedTasks(tasks);
-        })
-        .catch(error => {
-            console.error('Error loading soft committed tasks:', error);
-            showError('Failed to load soft committed tasks');
-        });
+        
+        // Load report data for the time period
+        if (['day', 'week', 'month', 'season', 'year'].includes(tab)) {
+            console.log('Loading report data for tab:', tab);
+            loadReportData(tab, startDate, endDate);
+        }
+    } catch (error) {
+        console.error('Error in loadTabContent:', error);
     }
 }
 
-// Function to display commitments
-function displayCommitments(commitments) {
-    const container = document.getElementById('commitments-list');
-    if (!container) return;
-
-    let html = '';
-    if (!commitments || commitments.length === 0) {
-        html = '<div class="ui info message">No commitments for this period.</div>';
-    } else {
-        commitments.forEach(commitment => {
-            const dueDate = new Date(commitment.due_date);
-            html += `
-                <div class="item" data-id="${commitment.id}">
-                    <div class="content">
-                        <div class="header">
-                            ${commitment.title || 'Untitled Commitment'}
-                            ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
-                        </div>
-                        <div class="meta">
-                            Due: ${dueDate.toLocaleDateString()}
-                            ${commitment.item?.project_name ? `<span class="ui label">${commitment.item.project_name}</span>` : ''}
-                        </div>
-                        <div class="description">${commitment.item?.description || ''}</div>
-                        <div class="extra">
-                            <div class="ui checkbox">
-                                <input type="checkbox" ${commitment.completed ? 'checked' : ''} data-id="${commitment.id}">
-                                <label>Complete</label>
-            </div>
-                            <button class="ui tiny button view-checkins" data-id="${commitment.id}">
-                                <i class="list icon"></i> Checkins
-                            </button>
-            </div>
-                        <div class="checkins-list" id="checkins-${commitment.id}" style="display: none;">
-                            <!-- Checkins will be loaded here -->
-            </div>
-            </div>
-        </div>
-            `;
-        });
+// Function to update the date navigation display
+function updateDateNavigation(tab, startDate, endDate) {
+    console.log('Updating date navigation for tab:', tab);
+    console.log('Date range:', { startDate: formatDate(startDate), endDate: formatDate(endDate) });
+    
+    const dateDisplay = document.getElementById('date-display');
+    if (!dateDisplay) {
+        console.error('Date display element not found');
+        return;
     }
 
-    container.innerHTML = html;
-    initializeCommitmentControls(container);
+    let displayText;
+    switch(tab) {
+        case 'day':
+            displayText = startDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            break;
+        case 'week':
+            displayText = `Week of ${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+            break;
+        case 'month':
+            displayText = startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            break;
+        case 'season':
+            displayText = `Season ${startDate.toLocaleDateString('en-US', { month: 'long' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+            break;
+        case 'year':
+            displayText = startDate.getFullYear().toString();
+            break;
+        case 'custom':
+            displayText = `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+            break;
+        default:
+            displayText = '';
+    }
+    
+    dateDisplay.textContent = displayText;
+    console.log('Updated date display:', displayText);
 }
 
 // Function to load report data
@@ -1103,938 +927,10 @@ function displayYearlyReport(data) {
     document.getElementById('yearly-gains').value = data.gains || '';
     document.getElementById('yearly-gratitudes').value = data.gratitudes || '';
 }
-
-// Function to show error message
-function showError(message) {
-    const container = document.querySelector('.ui.container');
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'ui negative message';
-    errorDiv.innerHTML = `
-        <i class="close icon"></i>
-        <div class="header">Error</div>
-        <p>${message}</p>
-    `;
-    container.insertBefore(errorDiv, container.firstChild);
-    
-    setTimeout(() => {
-        errorDiv.remove();
-    }, 5000);
-}
-
-// Function to show success message
-function showSuccess(message) {
-    const container = document.querySelector('.ui.container');
-    const successDiv = document.createElement('div');
-    successDiv.className = 'ui positive message';
-    successDiv.innerHTML = `
-        <i class="close icon"></i>
-        <div class="header">Success</div>
-        <p>${message}</p>
-    `;
-    container.insertBefore(successDiv, container.firstChild);
-    
-    setTimeout(() => {
-        successDiv.remove();
-    }, 5000);
-}
-
-// Initialize commitment controls
-function initializeCommitmentControls(container) {
-    container.querySelectorAll('.ui.checkbox').forEach(checkbox => {
-        $(checkbox).checkbox({
-            onChange: function() {
-                const commitmentId = this.querySelector('input').getAttribute('data-id');
-                const completed = this.querySelector('input').checked;
-                updateCommitmentCompletion(commitmentId, completed);
-            }
-        });
-    });
-    
-    container.querySelectorAll('.view-checkins').forEach(button => {
-        button.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            toggleCheckinsList(id);
-        });
-    });
-}
-
-// Update commitment completion status
-function updateCommitmentCompletion(commitmentId, completed) {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    fetch(`${API_URL}/commitments/${commitmentId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ completed: completed })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to update commitment');
-        }
-        
-        const commitmentItem = document.querySelector(`.item[data-id="${commitmentId}"]`);
-        if (commitmentItem) {
-            const header = commitmentItem.querySelector('.header');
-            
-            if (completed) {
-                if (!header.querySelector('.ui.green.label')) {
-                    header.innerHTML += ' <span class="ui green label">Completed</span>';
-                }
-            } else {
-                const label = header.querySelector('.ui.green.label');
-                if (label) {
-                    label.remove();
-                }
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error updating commitment:', error);
-        showError('Failed to update commitment');
-        
-        const checkbox = document.querySelector(`input[data-id="${commitmentId}"]`);
-        if (checkbox) {
-            checkbox.checked = !completed;
-        }
-    });
-}
-
-// Toggle checkins list
-function toggleCheckinsList(commitmentId) {
-    const list = document.getElementById(`checkins-${commitmentId}`);
-    if (list.style.display === 'none') {
-        loadCheckins(commitmentId);
-        list.style.display = 'block';
-    } else {
-        list.style.display = 'none';
-    }
-}
-
-// Load checkins for a commitment
-function loadCheckins(commitmentId) {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    const list = document.getElementById(`checkins-${commitmentId}`);
-    list.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading checkins...</div></div>';
-    
-    fetch(`${API_URL}/commitments/${commitmentId}/checkins`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to load checkins');
-        }
-        return response.json();
-    })
-    .then(checkins => {
-        displayCheckins(commitmentId, checkins);
-    })
-    .catch(error => {
-        console.error('Error loading checkins:', error);
-        list.innerHTML = '<div class="ui negative message">Failed to load checkins</div>';
-    });
-}
-
-// Display checkins
-function displayCheckins(commitmentId, checkins) {
-    const list = document.getElementById(`checkins-${commitmentId}`);
-    
-    if (!checkins || checkins.length === 0) {
-        list.innerHTML = '<div class="ui info message">No checkins yet.</div>';
-        return;
-    }
-    
-    let html = '<div class="ui list">';
-    checkins.forEach(checkin => {
-        const timestamp = new Date(checkin.timestamp);
-        html += `
-                        <div class="item">
-            <i class="clock icon"></i>
-                            <div class="content">
-                                <div class="header">
-                    ${timestamp.toLocaleString()}
-                    <span class="ui label">RPE: ${checkin.rpe}</span>
-                    ${checkin.progress ? `<span class="ui label">Progress: ${checkin.progress}%</span>` : ''}
-                    ${checkin.mood ? `<span class="ui label">Mood: ${checkin.mood}</span>` : ''}
-                    ${checkin.energy ? `<span class="ui label">Energy: ${checkin.energy}</span>` : ''}
-                </div>
-                <div class="description">${checkin.comment || ''}</div>
-                                    </div>
-        </div>`;
-    });
-    html += '</div>';
-    
-    list.innerHTML = html;
-}
-
-// Add event listeners for save buttons
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('save-daily-report').addEventListener('click', function() {
-        saveDailyReport();
-    });
-
-    document.getElementById('save-weekly-report').addEventListener('click', function() {
-        saveWeeklyReport();
-    });
-
-    document.getElementById('save-monthly-report').addEventListener('click', function() {
-        saveMonthlyReport();
-    });
-
-    document.getElementById('save-seasonal-report').addEventListener('click', function() {
-        saveSeasonalReport();
-    });
-
-    document.getElementById('save-yearly-report').addEventListener('click', function() {
-        saveYearlyReport();
-    });
-
-    // Set up the date picker for day tab
-    const datePicker = document.getElementById('date-picker');
-    datePicker.valueAsDate = new Date();
-    
-    // Add event listener for custom date inputs
-    const customStartDate = document.getElementById('custom-start-date');
-    const customEndDate = document.getElementById('custom-end-date');
-    
-    if (customStartDate && customEndDate) {
-        customStartDate.addEventListener('change', function() {
-            // Make sure end date is not before start date
-            const startDate = new Date(this.value);
-            const endDate = new Date(customEndDate.value);
-            
-            if (endDate < startDate) {
-                // If end date is before start date, set end date to start date
-                customEndDate.valueAsDate = startDate;
-            }
-            
-            // Update custom date range and reload
-            loadCustomDateRange();
-        });
-        
-        customEndDate.addEventListener('change', function() {
-            // Make sure start date is not after end date
-            const startDate = new Date(customStartDate.value);
-            const endDate = new Date(this.value);
-            
-            if (startDate > endDate) {
-                // If start date is after end date, set start date to end date
-                customStartDate.valueAsDate = endDate;
-            }
-            
-            // Update custom date range and reload
-            loadCustomDateRange();
-        });
-    }
-
-    // Set up the custom date modal
-    document.getElementById('apply-custom-date').addEventListener('click', function() {
-        const form = document.getElementById('custom-date-form');
-        const startDate = new Date(form.start_date.value);
-        const endDate = new Date(form.end_date.value);
-        
-        if (startDate > endDate) {
-            showError('Start date must be before end date');
-            return;
-        }
-        
-        $('#custom-date-modal').modal('hide');
-        
-        // Set the custom date inputs
-        document.getElementById('custom-start-date').value = formatDate(startDate);
-        document.getElementById('custom-end-date').value = formatDate(endDate);
-        
-        // Load the custom tab content
-        loadTabContent('custom');
-    });
-});
-
-// Add function to display soft committed tasks
-function displaySoftCommittedTasks(tasks) {
-    const container = document.getElementById('soft-committed-tasks');
-    if (!container) return;
-
-    let html = '';
-    if (!tasks || tasks.length === 0) {
-        html = '<div class="ui info message">No soft committed tasks for this period.</div>';
-    } else {
-        tasks.forEach(task => {
-            html += `
-                <div class="item" data-id="${task.id}">
-                    <div class="content">
-                        <div class="header">
-                            ${task.title || 'Untitled Task'}
-                            ${task.completed ? '<span class="ui green label">Completed</span>' : ''}
-                                </div>
-                                    <div class="meta">
-                            ${task.item?.project_name ? `<span class="ui label">${task.item.project_name}</span>` : ''}
-                            ${task.item?.type ? `<span class="ui label">${task.item.type}</span>` : ''}
-                                    </div>
-                        <div class="description">${task.item?.description || ''}</div>
-                        <div class="extra">
-                            <div class="ui checkbox">
-                                <input type="checkbox" ${task.completed ? 'checked' : ''} data-id="${task.id}">
-                                <label>Complete</label>
-                            </div>
-                            <button class="ui tiny button view-checkins" data-id="${task.id}">
-                                <i class="list icon"></i> Checkins
-                            </button>
-                            <button class="ui tiny red button remove-soft-task" data-id="${task.id}">
-                                <i class="trash icon"></i> Remove
-                            </button>
-                        </div>
-                        <div class="checkins-list" id="checkins-${task.id}" style="display: none;">
-                            <!-- Checkins will be loaded here -->
-                        </div>
-            </div>
-        </div>
-    `;
-        });
-    }
-    
-    container.innerHTML = html;
-    initializeCommitmentControls(container);
-}
-
-// Add event listener for adding new soft committed tasks
-document.addEventListener('DOMContentLoaded', function() {
-    // The other event listeners are already set up, so we're focusing on the add-soft-commitment-form
-    const softCommitmentForm = document.getElementById('add-soft-commitment-form');
-    
-    if (softCommitmentForm) {
-        softCommitmentForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const title = document.querySelector('input[name="title"]').value.trim();
-            const description = document.querySelector('textarea[name="description"]').value.trim();
-            
-            if (!title) {
-                showError('Please enter a task title');
-                return;
-            }
-
-            const token = getAuthToken();
-            if (!token) {
-                window.location.href = '/login';
-                return;
-            }
-
-            const activeTab = $('.menu .item.active').data('tab');
-            let startDate, endDate;
-
-            // Calculate date range based on tab
-            switch(activeTab) {
-                case 'week':
-                    startDate = new Date(currentWeekStart);
-                    endDate = new Date(currentWeekStart);
-                    endDate.setDate(endDate.getDate() + 6);
-                    break;
-                case 'month':
-                    startDate = new Date(currentMonthStart);
-                    endDate = new Date(currentMonthStart);
-                    endDate.setMonth(endDate.getMonth() + 1);
-                    endDate.setDate(0); // Last day of the month
-                    break;
-                case 'season':
-                    startDate = new Date(currentSeasonStart);
-                    endDate = new Date(currentSeasonStart);
-                    endDate.setMonth(endDate.getMonth() + 3);
-                    endDate.setDate(0); // Last day of the season
-                    break;
-                case 'year':
-                    startDate = new Date(currentYearStart);
-                    endDate = new Date(currentYearStart);
-                    endDate.setFullYear(endDate.getFullYear() + 1);
-                    endDate.setDate(0); // Last day of the year
-                    break;
-                default:
-                    return;
-            }
-
-            fetch(`${API_URL}/commitments/soft/${activeTab}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    title: title,
-                    description: description,
-                    start_date: formatDate(startDate),
-                    end_date: formatDate(endDate)
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Failed to add soft committed task');
-                }
-                return response.json();
-            })
-            .then(task => {
-                document.querySelector('input[name="title"]').value = '';
-                document.querySelector('textarea[name="description"]').value = '';
-                loadTabContent(activeTab);
-                showSuccess('Task added successfully');
-            })
-            .catch(error => {
-                console.error('Error adding soft committed task:', error);
-                showError('Failed to add task');
-            });
-        });
-    }
-
-    // Add event delegation for remove soft task buttons
-    const softCommittedTasks = document.getElementById('soft-committed-tasks');
-    if (softCommittedTasks) {
-        softCommittedTasks.addEventListener('click', function(e) {
-            if (e.target.closest('.remove-soft-task')) {
-                const button = e.target.closest('.remove-soft-task');
-                const taskId = button.getAttribute('data-id');
-                removeSoftTask(taskId);
-            }
-        });
-    }
-});
-
-// Add function to remove soft committed task
-function removeSoftTask(taskId) {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    fetch(`${API_URL}/commitments/soft/${taskId}`, {
-        method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to remove task');
-        }
-        const activeTab = $('.menu .item.active').data('tab');
-        loadTabContent(activeTab);
-        showSuccess('Task removed successfully');
-    })
-    .catch(error => {
-        console.error('Error removing task:', error);
-        showError('Failed to remove task');
-    });
-}
-
-function saveReportData(tab, startDate, endDate) {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    // Get data based on tab
-    let data = {};
-    switch(tab) {
-        case 'day':
-            data = {
-                sleep_hours: document.getElementById('sleep-hours').value,
-                mood: document.getElementById('mood-score').value,
-                food_notes: document.getElementById('food-notes').value,
-                rpe: document.getElementById('rpe-score').value,
-                gains: document.getElementById('gains-notes').value,
-                gratitudes: document.getElementById('gratitudes-notes').value,
-                date: formatDate(startDate)
-            };
-            break;
-        case 'week':
-            data = {
-                rpe: document.getElementById('weekly-rpe').value,
-                gains: document.getElementById('weekly-gains').value,
-                gratitudes: document.getElementById('weekly-gratitudes').value,
-                start_date: formatDate(startDate),
-                end_date: formatDate(endDate)
-            };
-            break;
-        case 'month':
-            data = {
-                theme: document.getElementById('monthly-theme').value,
-                goals: document.getElementById('monthly-goals').value,
-                why: document.getElementById('monthly-why').value,
-                rpe: document.getElementById('monthly-rpe').value,
-                gains: document.getElementById('monthly-gains').value,
-                gratitudes: document.getElementById('monthly-gratitudes').value,
-                start_date: formatDate(startDate),
-                end_date: formatDate(endDate)
-            };
-            break;
-        case 'season':
-            data = {
-                theme: document.getElementById('seasonal-theme').value,
-                goals: document.getElementById('seasonal-goals').value,
-                why: document.getElementById('seasonal-why').value,
-                rpe: document.getElementById('seasonal-rpe').value,
-                gains: document.getElementById('seasonal-gains').value,
-                gratitudes: document.getElementById('seasonal-gratitudes').value,
-                start_date: formatDate(startDate),
-                end_date: formatDate(endDate)
-            };
-            break;
-        case 'year':
-            data = {
-                theme: document.getElementById('yearly-theme').value,
-                goals: document.getElementById('yearly-goals').value,
-                why: document.getElementById('yearly-why').value,
-                rpe: document.getElementById('yearly-rpe').value,
-                gains: document.getElementById('yearly-gains').value,
-                gratitudes: document.getElementById('yearly-gratitudes').value,
-                start_date: formatDate(startDate),
-                end_date: formatDate(endDate)
-            };
-            break;
-    }
-
-    // Save report data
-    let url;
-    if (tab === 'day') {
-        url = `${API_URL}/reports/day/${formatDate(startDate)}`;
-    } else {
-        url = `${API_URL}/reports/${tab}/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
-    }
-
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save report data');
-        }
-        return response.json();
-    })
-    .then(() => {
-        showSuccess('Report saved successfully');
-        // Reload the report data to show the updated values
-        loadReportData(tab, startDate, endDate);
-    })
-    .catch(error => {
-        console.error('Error saving report data:', error);
-        showError('Failed to save report data');
-    });
-}
-
-// Update the date navigation to show the current date range
-function updateDateNavigation(tab, startDate, endDate) {
-    // Show the current tab and date range in a nice format
-    const dateRangeDisplay = document.createElement('div');
-    dateRangeDisplay.className = 'ui header';
-    dateRangeDisplay.style.textAlign = 'center';
-    
-    let dateText = '';
-    
-    switch(tab) {
-        case 'day':
-            dateText = startDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            break;
-        case 'week':
-            dateText = `Week of ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`;
-            break;
-        case 'month':
-            dateText = startDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
-            break;
-        case 'season':
-            const seasonNames = ['Winter', 'Spring', 'Summer', 'Fall'];
-            const seasonIndex = Math.floor(startDate.getMonth() / 3);
-            dateText = `${seasonNames[seasonIndex]} ${startDate.getFullYear()}`;
-            break;
-        case 'year':
-            dateText = startDate.getFullYear().toString();
-            break;
-        case 'custom':
-            dateText = `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`;
-            break;
-    }
-    
-    dateRangeDisplay.textContent = dateText;
-    
-    // Replace any existing display
-    const oldDisplay = document.querySelector('#date-navigation .ui.header');
-    if (oldDisplay) {
-        oldDisplay.remove();
-    }
-    
-    // Add the new display
-    const centerColumn = document.querySelector('#date-navigation .eight.wide.column');
-    centerColumn.prepend(dateRangeDisplay);
-    
-    // Update the date picker to match the current date
-    document.getElementById('date-picker').valueAsDate = startDate;
-}
-
-// Function to load custom date range
-function loadCustomDateRange() {
-    const startDateInput = document.getElementById('custom-start-date');
-    const endDateInput = document.getElementById('custom-end-date');
-    
-    if (!startDateInput.value || !endDateInput.value) {
-        return;
-    }
-    
-    const startDate = new Date(startDateInput.value);
-    const endDate = new Date(endDateInput.value);
-    
-    // Update the date navigation display
-    updateDateNavigation('custom', startDate, endDate);
-    
-    // Load data for this date range
-    loadCommitments(startDate, endDate);
-}
-
-// Function to load commitments for a date range
-function loadCommitments(startDate, endDate) {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    // Show loading state
-    document.getElementById('commitments-list').innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
-    
-    // Load commitments for the date range
-    fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to load commitments');
-        }
-        return response.json();
-    })
-    .then(commitments => {
-        displayCommitments(commitments);
-    })
-    .catch(error => {
-        console.error('Error loading commitments:', error);
-        showError('Failed to load commitments');
-    });
-}
-
-// Function to save daily report
-function saveDailyReport() {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    const date = formatDate(currentDay);
-    
-    const data = {
-        sleep_hours: document.getElementById('sleep-hours').value,
-        mood: document.getElementById('mood-score').value,
-        food_notes: document.getElementById('food-notes').value,
-        rpe: document.getElementById('rpe-score').value,
-        gains: document.getElementById('gains-notes').value,
-        gratitudes: document.getElementById('gratitudes-notes').value,
-        date: date
-    };
-
-    fetch(`${API_URL}/reports/day/${date}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save report');
-        }
-        return response.json();
-    })
-    .then(() => {
-        showSuccess('Daily report saved successfully');
-        // Reload the data to show the updated values
-        loadReportData('day', currentDay, currentDay);
-    })
-    .catch(error => {
-        console.error('Error saving report:', error);
-        showError('Failed to save report');
-    });
-}
-
-// Function to save weekly report
-function saveWeeklyReport() {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    // Get the current week's date range
-    const startDate = new Date(currentWeekStart);
-    const endDate = new Date(currentWeekStart);
-    endDate.setDate(endDate.getDate() + 6);
-    
-    const startStr = formatDate(startDate);
-    const endStr = formatDate(endDate);
-    
-    const data = {
-        rpe: document.getElementById('weekly-rpe').value,
-        gains: document.getElementById('weekly-gains').value,
-        gratitudes: document.getElementById('weekly-gratitudes').value,
-        start_date: startStr,
-        end_date: endStr
-    };
-
-    fetch(`${API_URL}/reports/week/range?start=${startStr}&end=${endStr}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save weekly report');
-        }
-        return response.json();
-    })
-    .then(() => {
-        showSuccess('Weekly report saved successfully');
-        // Reload the weekly report data to reflect changes
-        loadReportData('week', startDate, endDate);
-    })
-    .catch(error => {
-        console.error('Error saving weekly report:', error);
-        showError('Failed to save weekly report');
-    });
-}
-
-// Function to save monthly report
-function saveMonthlyReport() {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    // Get the current month's date range
-    const startDate = new Date(currentMonthStart);
-    const endDate = new Date(currentMonthStart);
-    endDate.setMonth(endDate.getMonth() + 1);
-    endDate.setDate(0); // Last day of the month
-    
-    const startStr = formatDate(startDate);
-    const endStr = formatDate(endDate);
-    
-    const data = {
-        theme: document.getElementById('monthly-theme').value,
-        goals: document.getElementById('monthly-goals').value,
-        why: document.getElementById('monthly-why').value,
-        rpe: document.getElementById('monthly-rpe').value,
-        gains: document.getElementById('monthly-gains').value,
-        gratitudes: document.getElementById('monthly-gratitudes').value,
-        start_date: startStr,
-        end_date: endStr
-    };
-
-    fetch(`${API_URL}/reports/month/range?start=${startStr}&end=${endStr}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save monthly report');
-        }
-        return response.json();
-    })
-    .then(() => {
-        showSuccess('Monthly report saved successfully');
-        // Reload the monthly report data to reflect changes
-        loadReportData('month', startDate, endDate);
-    })
-    .catch(error => {
-        console.error('Error saving monthly report:', error);
-        showError('Failed to save monthly report');
-    });
-}
-
-// Function to save seasonal report
-function saveSeasonalReport() {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    // Get the current season's date range
-    const startDate = new Date(currentSeasonStart);
-    const endDate = new Date(startDate);
-    endDate.setMonth(startDate.getMonth() + 3);
-    endDate.setDate(0); // Last day of the third month
-    
-    const startStr = formatDate(startDate);
-    const endStr = formatDate(endDate);
-    
-    const data = {
-        theme: document.getElementById('seasonal-theme').value,
-        goals: document.getElementById('seasonal-goals').value,
-        why: document.getElementById('seasonal-why').value,
-        rpe: document.getElementById('seasonal-rpe').value,
-        gains: document.getElementById('seasonal-gains').value,
-        gratitudes: document.getElementById('seasonal-gratitudes').value,
-        start_date: startStr,
-        end_date: endStr
-    };
-
-    fetch(`${API_URL}/reports/season/range?start=${startStr}&end=${endStr}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save seasonal report');
-        }
-        return response.json();
-    })
-    .then(() => {
-        showSuccess('Seasonal report saved successfully');
-        // Reload the seasonal report data to reflect changes
-        loadReportData('season', startDate, endDate);
-    })
-    .catch(error => {
-        console.error('Error saving seasonal report:', error);
-        showError('Failed to save seasonal report');
-    });
-}
-
-// Function to save yearly report
-function saveYearlyReport() {
-    const token = getAuthToken();
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-
-    // Get the current year's date range
-    let startDate;
-    if (currentYearStart && !isNaN(currentYearStart.getTime())) {
-        startDate = new Date(currentYearStart);
-    } else {
-        // Default to January 1st of current year if currentYearStart is not valid
-        const today = new Date();
-        startDate = new Date(today.getFullYear(), 0, 1);
-    }
-    const endDate = new Date(startDate.getFullYear(), 11, 31); // December 31st of the year
-    
-    const startStr = formatDate(startDate);
-    const endStr = formatDate(endDate);
-    
-    const data = {
-        theme: document.getElementById('yearly-theme').value,
-        goals: document.getElementById('yearly-goals').value,
-        why: document.getElementById('yearly-why').value,
-        rpe: document.getElementById('yearly-rpe').value,
-        gains: document.getElementById('yearly-gains').value,
-        gratitudes: document.getElementById('yearly-gratitudes').value,
-        start_date: startStr,
-        end_date: endStr
-    };
-
-    fetch(`${API_URL}/reports/year/range?start=${startStr}&end=${endStr}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to save yearly report');
-        }
-        return response.json();
-    })
-    .then(() => {
-        showSuccess('Yearly report saved successfully');
-        // Reload the yearly report data to reflect changes
-        loadReportData('year', startDate, endDate);
-    })
-    .catch(error => {
-        console.error('Error saving yearly report:', error);
-        showError('Failed to save yearly report');
-    });
-}
-
-// Add new function to display routines with hard commitments
-function displayRoutineCommitments(routines) {
-    const container = document.getElementById('commitments-list');
-    if (!container) return;
-
-    let html = '';
-    if (!routines || routines.length === 0) {
-        html = '<div class="ui info message">No routines with commitments for this period.</div>';
-    } else {
-        routines.forEach(routine => {
-            html += `
-                <div class="item" data-id="${routine.id}">
-                    <div class="content">
-                        <div class="header">
-                            ${routine.title || 'Untitled Routine'}
-                            ${routine.active ? '<span class="ui blue label">Active</span>' : '<span class="ui grey label">Inactive</span>'}
-                        </div>
-                        <div class="meta">
-                            ${routine.start_time ? `Time: ${routine.start_time} - ${routine.end_time}` : 'No time set'}
-                        </div>
-                        <div class="description">${routine.description || ''}</div>
-                        <div class="extra">
-                            <div class="ui checkbox">
-                                <input type="checkbox" ${routine.active ? 'checked' : ''} data-id="${routine.id}">
-                                <label>Active</label>
-                            </div>
-                            <button class="ui tiny button view-checkins" data-id="${routine.id}">
-                                <i class="list icon"></i> Checkins
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-    }
-
-    container.innerHTML = html;
-    initializeCommitmentControls(container);
-}
 </script>
+{% endblock %}
 
+{% block styles %}
 <style>
 .ui.statistics {
     margin-bottom: 1em;
@@ -2077,5 +973,4 @@ function displayRoutineCommitments(routines) {
     padding: 1em 0;
 }
 </style>
-{% endblock %}
 {% endblock %} 

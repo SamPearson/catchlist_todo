@@ -1,0 +1,305 @@
+{% macro commitments_list(id="commitments-list", empty_message="No commitments found", show_routines=false) %}
+<div class="ui segment">
+    <div class="ui grid">
+        <div class="twelve wide column">
+            <h3 class="ui header">Commitments</h3>
+        </div>
+        {% if show_routines %}
+        <div class="four wide column" style="text-align: right;">
+            <div class="ui toggle checkbox">
+                <input type="checkbox" id="view-toggle">
+                <label>Show Routines</label>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="ui divided items" id="{{ id }}">
+        <div class="ui placeholder">
+            <div class="header">
+                <div class="line"></div>
+            </div>
+            <div class="paragraph">
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+console.log('Initializing commitments list component with ID:', '{{ id }}');
+
+// Initialize the commitmentComponents object if it doesn't exist
+window.commitmentComponents = window.commitmentComponents || {};
+
+// Only create a new component instance if one doesn't already exist for this ID
+if (!window.commitmentComponents['{{ id }}']) {
+    const component = {
+        // Initialize commitment controls
+        initializeCommitmentControls: function(container) {
+            console.log('Initializing commitment controls for container:', container);
+            
+            // Initialize checkboxes
+            container.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+                $(checkbox).checkbox({
+                    onChange: function() {
+                        const commitmentId = this.querySelector('input').getAttribute('data-id');
+                        const completed = this.querySelector('input').checked;
+                        console.log('Checkbox changed:', { commitmentId, completed });
+                        component.updateCommitmentCompletion(commitmentId, completed);
+                    }
+                });
+            });
+            
+            // Add click handlers for checkins
+            container.querySelectorAll('.view-checkins').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    console.log('View checkins clicked for ID:', id);
+                    component.toggleCheckinsList(id);
+                });
+            });
+        },
+
+        // Update commitment completion status
+        updateCommitmentCompletion: function(commitmentId, completed) {
+            console.log('Updating commitment completion:', { commitmentId, completed });
+            
+            const token = getAuthToken();
+            if (!token) {
+                console.error('No auth token found');
+                window.location.href = '/login';
+                return;
+            }
+            
+            fetch(`${API_URL}/commitments/${commitmentId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ completed: completed })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update commitment');
+                }
+                console.log('Successfully updated commitment');
+                
+                const commitmentItem = document.querySelector(`.item[data-id="${commitmentId}"]`);
+                if (commitmentItem) {
+                    const header = commitmentItem.querySelector('.header');
+                    
+                    if (completed) {
+                        if (!header.querySelector('.ui.green.label')) {
+                            header.innerHTML += ' <span class="ui green label">Completed</span>';
+                        }
+                    } else {
+                        const label = header.querySelector('.ui.green.label');
+                        if (label) {
+                            label.remove();
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating commitment:', error);
+                showError('Failed to update commitment');
+                
+                const checkbox = document.querySelector(`input[data-id="${commitmentId}"]`);
+                if (checkbox) {
+                    checkbox.checked = !completed;
+                }
+            });
+        },
+
+        // Toggle checkins list
+        toggleCheckinsList: function(commitmentId) {
+            console.log('Toggling checkins list for ID:', commitmentId);
+            
+            const list = document.getElementById(`checkins-${commitmentId}`);
+            if (list.style.display === 'none') {
+                component.loadCheckins(commitmentId);
+                list.style.display = 'block';
+            } else {
+                list.style.display = 'none';
+            }
+        },
+
+        // Load checkins for a commitment
+        loadCheckins: function(commitmentId) {
+            console.log('Loading checkins for ID:', commitmentId);
+            
+            const token = getAuthToken();
+            if (!token) {
+                console.error('No auth token found');
+                window.location.href = '/login';
+                return;
+            }
+            
+            const list = document.getElementById(`checkins-${commitmentId}`);
+            list.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading checkins...</div></div>';
+            
+            fetch(`${API_URL}/commitments/${commitmentId}/checkins`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load checkins');
+                }
+                return response.json();
+            })
+            .then(checkins => {
+                console.log('Received checkins:', checkins);
+                component.displayCheckins(commitmentId, checkins);
+            })
+            .catch(error => {
+                console.error('Error loading checkins:', error);
+                list.innerHTML = '<div class="ui negative message">Failed to load checkins</div>';
+            });
+        },
+
+        // Display checkins
+        displayCheckins: function(commitmentId, checkins) {
+            console.log('Displaying checkins for ID:', commitmentId, checkins);
+            
+            const list = document.getElementById(`checkins-${commitmentId}`);
+            
+            if (!checkins || checkins.length === 0) {
+                list.innerHTML = '<div class="ui info message">No checkins yet.</div>';
+                return;
+            }
+            
+            let html = '<div class="ui list">';
+            checkins.forEach(checkin => {
+                const timestamp = new Date(checkin.timestamp);
+                html += `
+                    <div class="item">
+                        <i class="clock icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                ${timestamp.toLocaleString()}
+                                <span class="ui label">RPE: ${checkin.rpe}</span>
+                                ${checkin.progress ? `<span class="ui label">Progress: ${checkin.progress}%</span>` : ''}
+                                ${checkin.mood ? `<span class="ui label">Mood: ${checkin.mood}</span>` : ''}
+                                ${checkin.energy ? `<span class="ui label">Energy: ${checkin.energy}</span>` : ''}
+                            </div>
+                            <div class="description">${checkin.comment || ''}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            list.innerHTML = html;
+        },
+
+        // Display commitments
+        displayCommitments: function(commitments) {
+            console.log('Displaying commitments:', commitments);
+            
+            const container = document.getElementById('{{ id }}');
+            if (!container) {
+                console.error('Could not find container with ID:', '{{ id }}');
+                return;
+            }
+
+            let html = '';
+            if (!commitments || commitments.length === 0) {
+                html = '<div class="ui info message">{{ empty_message }}</div>';
+            } else {
+                commitments.forEach(commitment => {
+                    const dueDate = new Date(commitment.due_date);
+                    html += `
+                        <div class="item" data-id="${commitment.id}">
+                            <div class="content">
+                                <div class="header">
+                                    ${commitment.title || 'Untitled Commitment'}
+                                    ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                                </div>
+                                <div class="meta">
+                                    Due: ${dueDate.toLocaleDateString()}
+                                    ${commitment.item?.project_name ? `<span class="ui label">${commitment.item.project_name}</span>` : ''}
+                                </div>
+                                <div class="description">${commitment.item?.description || ''}</div>
+                                <div class="extra">
+                                    <div class="ui checkbox">
+                                        <input type="checkbox" ${commitment.completed ? 'checked' : ''} data-id="${commitment.id}">
+                                        <label>Complete</label>
+                                    </div>
+                                    <button class="ui tiny button view-checkins" data-id="${commitment.id}">
+                                        <i class="list icon"></i> Checkins
+                                    </button>
+                                </div>
+                                <div class="checkins-list" id="checkins-${commitment.id}" style="display: none;">
+                                    <!-- Checkins will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            container.innerHTML = html;
+            component.initializeCommitmentControls(container);
+        },
+
+        // Display routine commitments
+        displayRoutineCommitments: function(routines) {
+            console.log('Displaying routine commitments:', routines);
+            
+            const container = document.getElementById('{{ id }}');
+            if (!container) {
+                console.error('Could not find container with ID:', '{{ id }}');
+                return;
+            }
+
+            let html = '';
+            if (!routines || routines.length === 0) {
+                html = '<div class="ui info message">No routines with commitments for this period.</div>';
+            } else {
+                routines.forEach(routine => {
+                    html += `
+                        <div class="item" data-id="${routine.id}">
+                            <div class="content">
+                                <div class="header">
+                                    ${routine.title || 'Untitled Routine'}
+                                    ${routine.active ? '<span class="ui blue label">Active</span>' : '<span class="ui grey label">Inactive</span>'}
+                                </div>
+                                <div class="meta">
+                                    ${routine.start_time ? `Time: ${routine.start_time} - ${routine.end_time}` : 'No time set'}
+                                </div>
+                                <div class="description">${routine.description || ''}</div>
+                                <div class="extra">
+                                    <div class="ui checkbox">
+                                        <input type="checkbox" ${routine.active ? 'checked' : ''} data-id="${routine.id}">
+                                        <label>Active</label>
+                                    </div>
+                                    <button class="ui tiny button view-checkins" data-id="${routine.id}">
+                                        <i class="list icon"></i> Checkins
+                                    </button>
+                                </div>
+                                <div class="checkins-list" id="checkins-${routine.id}" style="display: none;">
+                                    <!-- Checkins will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            container.innerHTML = html;
+            component.initializeCommitmentControls(container);
+        }
+    };
+
+    // Store the component instance
+    window.commitmentComponents['{{ id }}'] = component;
+    console.log('Commitments list component initialized:', window.commitmentComponents['{{ id }}']);
+} else {
+    console.log('Commitments list component already initialized for ID:', '{{ id }}');
+}
+</script>
+{% endmacro %} 

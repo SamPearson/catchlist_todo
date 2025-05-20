@@ -450,4 +450,72 @@ def delete_soft_commitment(commitment_id):
         return jsonify({"message": "Soft commitment deleted"})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500 
+        return jsonify({"message": str(e)}), 500
+
+@commitments_bp.route('/api/commitments/current', methods=['OPTIONS'])
+def options_current_commitments():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+    return response
+
+@commitments_bp.route('/api/commitments/current', methods=['GET'])
+@jwt_required()
+def get_current_commitments():
+    """Get current commitments (due today or overdue)"""
+    user_id = get_jwt_identity()
+    today = date.today()
+    
+    # Get commitments due today or overdue
+    commitments = Commitment.query.filter(
+        Commitment.user_id == user_id,
+        Commitment.due_date <= today,
+        Commitment.completed == False
+    ).order_by(Commitment.due_date.asc()).all()
+    
+    return jsonify([commitment.as_dict() for commitment in commitments])
+
+@commitments_bp.route('/api/commitments/project-tasks', methods=['OPTIONS'])
+def options_project_tasks():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+    return response
+
+@commitments_bp.route('/api/commitments/project-tasks', methods=['GET'])
+@jwt_required()
+def get_project_tasks():
+    """Get all commitments associated with project tasks"""
+    user_id = get_jwt_identity()
+    
+    # Get commitments that are associated with project tasks
+    commitments = Commitment.query.filter(
+        Commitment.user_id == user_id,
+        Commitment.project_task_id.isnot(None)
+    ).order_by(Commitment.due_date.asc()).all()
+    
+    return jsonify([commitment.as_dict() for commitment in commitments])
+
+@commitments_bp.route('/api/commitments/catchlist-items', methods=['OPTIONS'])
+def options_catchlist_items():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+    return response
+
+@commitments_bp.route('/api/commitments/catchlist-items', methods=['GET'])
+@jwt_required()
+def get_catchlist_items():
+    """Get all commitments associated with catchlist items"""
+    user_id = get_jwt_identity()
+    
+    # Get commitments that are associated with catchlist items
+    commitments = Commitment.query.filter(
+        Commitment.user_id == user_id,
+        Commitment.catchlist_item_id.isnot(None)
+    ).order_by(Commitment.due_date.asc()).all()
+    
+    return jsonify([commitment.as_dict() for commitment in commitments]) 
