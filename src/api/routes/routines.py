@@ -5,6 +5,8 @@ from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient
 from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
+import random
+from ...config.models.tags import Tag, RoutineTag, SessionTag
 
 routines_bp = Blueprint('routines', __name__)
 
@@ -31,6 +33,13 @@ def get_routines():
             Session.start_time >= datetime.now()
         ).order_by(Session.start_time.asc()).first()
         
+        # Find the calendar tag (the one that was created during import)
+        calendar_tag = None
+        for tag_assoc in routine.tag_associations:
+            if tag_assoc.tag.name == routine.external_source_name:
+                calendar_tag = tag_assoc.tag
+                break
+        
         result.append({
             'id': routine.id,
             'uid': routine.external_uid,
@@ -39,6 +48,8 @@ def get_routines():
             'rrule': routine.rrule,
             'active': routine.active,
             'external_source': routine.external_source,
+            'external_source_name': routine.external_source_name,
+            'external_source_color': calendar_tag.color if calendar_tag else '#767676',
             'start_time': next_session.start_time.strftime('%H:%M') if next_session else None,
             'end_time': next_session.end_time.strftime('%H:%M') if next_session else None,
             'tags': [assoc.tag.as_dict() for assoc in routine.tag_associations]
@@ -148,37 +159,24 @@ def delete_routine(routine_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
+def random_color():
+    return "#" + ''.join([random.choice('0123456789ABCDEF') for _ in range(6)])
+
 @routines_bp.route('/api/routines/import', methods=['POST'])
 @jwt_required()
-def import_caldav_events():
-    current_user_id = get_current_user_id()
+def import_routines():
     data = request.get_json()
+    current_user_id = int(get_jwt_identity())
     
     if not data or not data.get('url'):
-        return jsonify({"message": "CalDAV URL is required"}), 400
-    
+        return jsonify({"success": False, "message": "CalDAV URL is required"}), 400
+        
     url = data.get('url')
     username = data.get('username')
     password = data.get('password')
+    calendar_index = data.get('calendar_index', 0)  # Default to first calendar if not specified
     start_date = data.get('start_date')
     end_date = data.get('end_date')
-    
-    # Convert string dates to datetime objects if provided
-    start_datetime = None
-    end_datetime = None
-    if start_date:
-        try:
-            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
-        except ValueError:
-            return jsonify({"success": False, "message": "Invalid start_date format. Use YYYY-MM-DD."}), 400
-    
-    if end_date:
-        try:
-            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
-            # Set to end of day
-            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
-        except ValueError:
-            return jsonify({"success": False, "message": "Invalid end_date format. Use YYYY-MM-DD."}), 400
     
     caldav_client = CalDAVClient(url, username, password)
     
@@ -186,177 +184,94 @@ def import_caldav_events():
         return jsonify({"success": False, "message": "Failed to connect to CalDAV server"}), 400
         
     calendars = caldav_client.get_calendars()
+    
     if not calendars:
         return jsonify({"success": False, "message": "No calendars found"}), 400
         
-    # Use the first calendar for simplicity
-    first_calendar = calendars[0]
-    events = caldav_client.get_events_as_dict(first_calendar, start_date=start_datetime, end_date=end_datetime)
+    if calendar_index >= len(calendars):
+        return jsonify({"success": False, "message": "Invalid calendar index"}), 400
+        
+    # Get the selected calendar
+    selected_calendar = calendars[calendar_index]
     
-    if not events:
-        return jsonify({"success": True, "message": "No events found to import", "imported_count": 0})
+    # Create a tag for this calendar
+    calendar_tag = Tag(
+        name=selected_calendar.name,
+        color=random_color(),
+        user_id=current_user_id
+    )
+    db.session.add(calendar_tag)
+    db.session.flush()  # Get the tag ID
     
-    # Group events by UID
-    events_by_uid = {}
-    for event_dict in events:
-        uid = event_dict.get('uid')
-        if not uid:
-            continue
-        if uid not in events_by_uid:
-            events_by_uid[uid] = []
-        events_by_uid[uid].append(event_dict)
+    # Get events from the selected calendar
+    events = caldav_client.get_events_as_dict(
+        calendar=selected_calendar,
+        start_date=datetime.fromisoformat(start_date) if start_date else None,
+        end_date=datetime.fromisoformat(end_date) if end_date else None
+    )
     
-    # Import events to database
     imported_count = 0
-    for uid, event_instances in events_by_uid.items():
-        # Skip if no instances
-        if not event_instances:
-            continue
-            
-        # Use the first instance to get the event details
-        first_instance = event_instances[0]
-        
-        # Skip events without required fields
-        if not first_instance.get('start') or not first_instance.get('end'):
-            print(f"Skipping event - missing start or end time: {first_instance}")
-            continue
-            
-        # Set empty summary to "Untitled Event" instead of skipping
-        if not first_instance.get('summary'):
-            first_instance['summary'] = "Untitled Event"
-            print(f"Using default title for event with empty summary: {uid}")
-        
-        # Filter instances by date range if specified
-        filtered_instances = event_instances
-        if start_datetime or end_datetime:
-            filtered_instances = []
-            for instance in event_instances:
-                event_start = instance.get('start')
-                event_end = instance.get('end')
-                
-                if not event_start or not event_end:
-                    continue
-                
-                # Fix timezone comparison issue by converting to naive datetimes for comparison
-                if event_start.tzinfo is not None:
-                    # Make naive datetime for comparison only
-                    naive_event_start = event_start.replace(tzinfo=None)
-                    naive_event_end = event_end.replace(tzinfo=None)
-                else:
-                    naive_event_start = event_start
-                    naive_event_end = event_end
-                
-                # Check if event is within the specified date range
-                if start_datetime and naive_event_end < start_datetime:
-                    continue
-                if end_datetime and naive_event_start > end_datetime:
-                    continue
-                
-                filtered_instances.append(instance)
-            
-            # Skip if no instances in the date range
-            if not filtered_instances:
-                continue
-            
-        # Check if routine already exists to avoid duplicates
-        existing_routine = Routine.query.filter_by(external_uid=uid, user_id=current_user_id).first()
-        
+    
+    for event in events:
         try:
-            # Start a new transaction for each event
-            db.session.begin_nested()
+            # Check if routine already exists
+            existing_routine = Routine.query.filter_by(
+                user_id=current_user_id,
+                external_uid=event['uid']
+            ).first()
             
             if existing_routine:
-                # If routine exists, just create new sessions for the specified timeframe
-                routine = existing_routine
-                print(f"Using existing routine: {routine.id}")
-            else:
-                # Create a new routine
-                print(f"Creating routine with data:")
-                print(f"  title: {first_instance['summary'].strip() or 'Untitled Event'}")
-                print(f"  description: {first_instance.get('description', '')}")
-                print(f"  rrule: {first_instance.get('rrule', '')}")
-                print(f"  external_uid: {uid}")
-                
-                routine = Routine(
-                    title=first_instance['summary'].strip() or 'Untitled Event',
-                    description=first_instance.get('description', ''),
-                    rrule=first_instance.get('rrule', ''),
-                    active=True,
-                    user_id=current_user_id,
-                    external_uid=uid,
-                    external_source='caldav'
-                )
-                
-                db.session.add(routine)
-                db.session.flush()
+                continue
             
-            # Create sessions for all instances in the filtered date range
-            for instance in filtered_instances:
-                try:
-                    # Check if a session already exists for this time
-                    start_time = instance['start']
-                    end_time = instance['end']
-                    
-                    # Store the timezone info if present, but use naive datetimes for DB queries
-                    tz_info = None
-                    if start_time.tzinfo:
-                        tz_info = start_time.tzinfo
-                        db_start_time = start_time.replace(tzinfo=None)
-                        db_end_time = end_time.replace(tzinfo=None)
-                    else:
-                        db_start_time = start_time
-                        db_end_time = end_time
-                    
-                    existing_session = Session.query.filter_by(
-                        routine_id=routine.id,
-                        start_time=db_start_time,
-                        end_time=db_end_time,
-                        user_id=current_user_id
-                    ).first()
-                    
-                    if existing_session:
-                        print(f"Session already exists for {start_time}")
-                        continue
-                    
-                    # Create the session
-                    session = Session(
-                        routine_id=routine.id,
-                        start_time=db_start_time,
-                        end_time=db_end_time,
-                        user_id=current_user_id
-                    )
-                    db.session.add(session)
-                    db.session.flush()  # Get the session ID
-                    
-                    # Create commitment for this session
-                    create_commitment_from_routine(routine, session, current_user_id)
-                    
-                except Exception as e:
-                    print(f"Error creating session/commitment for date {instance['start']}: {str(e)}")
-                    db.session.rollback()
-                    continue
-            
-            # Commit the nested transaction
-            db.session.commit()
+            # Create new routine
+            routine = Routine(
+                user_id=current_user_id,
+                title=event['summary'],
+                description=event.get('description', ''),
+                rrule=event.get('rrule', ''),
+                external_source='caldav',
+                external_uid=event['uid'],
+                external_source_name=selected_calendar.name  # Store the calendar name
+            )
+            db.session.add(routine)
+            db.session.flush()  # Get the routine ID
+
+            # Associate calendar tag with routine
+            routine_tag = RoutineTag(routine_id=routine.id, tag_id=calendar_tag.id)
+            db.session.add(routine_tag)
+
+            # Create the first session
+            session = Session(
+                routine_id=routine.id,
+                user_id=current_user_id,
+                start_time=event['start'],
+                end_time=event['end']
+            )
+            db.session.add(session)
+            db.session.flush()  # Get the session ID
+
+            # Associate calendar tag with session
+            session_tag = SessionTag(session_id=session.id, tag_id=calendar_tag.id)
+            db.session.add(session_tag)
+
             imported_count += 1
-            
         except Exception as e:
             print(f"Error importing event: {str(e)}")
-            # Rollback the nested transaction
-            db.session.rollback()
             continue
-            
     try:
-        # Commit the main transaction
         db.session.commit()
         return jsonify({
-            "success": True, 
-            "message": f"Successfully imported {imported_count} events", 
-            "imported_count": imported_count
+            "success": True,
+            "message": f"Successfully imported {imported_count} routines",
+            "imported_count": imported_count,
+            "calendar_tag": calendar_tag.as_dict()
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"Error saving imported events: {str(e)}"}), 500
+        return jsonify({
+            "success": False,
+            "message": f"Error importing routines: {str(e)}"
+        }), 500
 
 @routines_bp.route('/api/routines/<int:routine_id>/sessions', methods=['GET'])
 @jwt_required()

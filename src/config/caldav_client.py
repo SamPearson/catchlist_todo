@@ -1,6 +1,7 @@
 import caldav
 import icalendar
 from datetime import datetime, timedelta
+import logging
 
 
 class CalDAVClient:
@@ -13,14 +14,32 @@ class CalDAVClient:
     def connect(self):
         """Establish connection to CalDAV server"""
         try:
+            # Ensure URL ends with a slash
+            if not self.url.endswith('/'):
+                self.url += '/'
+                
+            # Create client with basic authentication
             self.client = caldav.DAVClient(
                 url=self.url,
                 username=self.username,
                 password=self.password
             )
+            
+            # Test the connection by getting the principal
+            principal = self.client.principal()
+            if not principal:
+                logging.error("Failed to get principal from CalDAV server")
+                return False
+                
             return True
+        except caldav.error.AuthorizationError as e:
+            logging.error(f"CalDAV authorization error: {str(e)}")
+            return False
+        except caldav.error.DAVError as e:
+            logging.error(f"CalDAV DAV error: {str(e)}")
+            return False
         except Exception as e:
-            print(f"CalDAV connection error: {str(e)}")
+            logging.error(f"CalDAV connection error: {str(e)}")
             return False
             
     def get_calendars(self):
@@ -32,9 +51,17 @@ class CalDAVClient:
         try:
             principal = self.client.principal()
             calendars = principal.calendars()
+            
+            # Log calendar details for debugging
+            for cal in calendars:
+                logging.info(f"Found calendar: {cal.name} at {cal.url}")
+                
             return calendars
+        except caldav.error.AuthorizationError as e:
+            logging.error(f"CalDAV authorization error while fetching calendars: {str(e)}")
+            return []
         except Exception as e:
-            print(f"Error fetching calendars: {str(e)}")
+            logging.error(f"Error fetching calendars: {str(e)}")
             return []
             
     def get_events(self, calendar=None, start_date=None, end_date=None):

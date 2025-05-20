@@ -17,6 +17,7 @@ class Routine(db.Model):
     # External calendar integration 
     external_uid = db.Column(db.String(100))  # Calendar UID for external syncing
     external_source = db.Column(db.String(50))  # e.g., 'caldav', 'google'
+    external_source_name = db.Column(db.String(100))  # Name of the source calendar
     
     # Relationships
     user = relationship('User', back_populates='routines')
@@ -40,6 +41,7 @@ class Routine(db.Model):
             "active": self.active,
             "external_uid": self.external_uid,
             "external_source": self.external_source,
+            "external_source_name": self.external_source_name,
             "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         }
 

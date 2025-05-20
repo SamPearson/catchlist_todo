@@ -1,6 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    .calendar-group {
+        margin-bottom: 1.5em;
+        border-left-width: 4px !important;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .calendar-group:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .calendar-group .ui.header {
+        margin-bottom: 1em;
+    }
+    
+    .calendar-group .ui.header .sub.header {
+        color: rgba(0,0,0,0.6);
+    }
+    
+    .calendar-group .ui.divided.items {
+        margin-top: 0;
+    }
+    
+    .calendar-group .item {
+        padding: 1em;
+        transition: background-color 0.2s ease;
+    }
+    
+    .calendar-group .item:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+</style>
+
 <div class="ui container">
     <h1 class="ui header">Routines & Recurring Events</h1>
     
@@ -27,6 +61,19 @@
                         </div>
                     </div>
                     <div class="field">
+                        <button class="ui teal button" type="submit">Test Connection</button>
+                    </div>
+                </form>
+
+                <!-- Calendar Selection Form (initially hidden) -->
+                <form class="ui form" id="calendar-selection-form" style="display: none;">
+                    <div class="field">
+                        <label>Select Calendar to Import</label>
+                        <select class="ui dropdown" id="calendar-select" required>
+                            <option value="">Select a calendar...</option>
+                        </select>
+                    </div>
+                    <div class="field">
                         <label>Timeframe</label>
                         <div class="ui grid">
                             <div class="eight wide column">
@@ -51,8 +98,7 @@
                         </div>
                     </div>
                     <div class="field">
-                        <button class="ui teal button" type="submit">Test Connection</button>
-                        <button class="ui blue button" id="import-button" disabled>Import Routines</button>
+                        <button class="ui blue button" id="import-button">Import Routines</button>
                     </div>
                 </form>
             </div>
@@ -617,8 +663,33 @@ document.getElementById('caldav-import-form').addEventListener('submit', functio
     })
     .then(data => {
         if (data.success) {
-            alert(`Connection successful! Found ${data.calendars.length} calendars and ${data.sample_events ? data.sample_events.length : 0} sample events.`);
-            document.getElementById('import-button').disabled = false;
+            // Store the connection details for later use
+            window.caldavConnection = {
+                url: formData.url,
+                username: formData.username,
+                password: formData.password
+            };
+            
+            // Populate calendar dropdown
+            const calendarSelect = document.getElementById('calendar-select');
+            calendarSelect.innerHTML = '<option value="">Select a calendar...</option>';
+            data.calendars.forEach((calendar, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = calendar;
+                calendarSelect.appendChild(option);
+            });
+            
+            // Show calendar selection form
+            document.getElementById('calendar-selection-form').style.display = 'block';
+            
+            // Initialize dropdown with Semantic UI
+            $('#calendar-select').dropdown({
+                clearable: false,
+                placeholder: 'Select a calendar...'
+            });
+            
+            alert(`Connection successful! Found ${data.calendars.length} calendars.`);
         } else {
             alert('Connection failed: ' + data.message);
         }
@@ -633,10 +704,22 @@ document.getElementById('caldav-import-form').addEventListener('submit', functio
 document.getElementById('import-button').addEventListener('click', function(e) {
     e.preventDefault();
     
+    if (!window.caldavConnection) {
+        alert('Please test the connection first');
+        return;
+    }
+    
+    const calendarIndex = document.getElementById('calendar-select').value;
+    if (!calendarIndex) {
+        alert('Please select a calendar to import from');
+        return;
+    }
+    
     const formData = {
-        url: document.querySelector('[name="url"]').value,
-        username: document.querySelector('[name="username"]').value,
-        password: document.querySelector('[name="password"]').value,
+        url: window.caldavConnection.url,
+        username: window.caldavConnection.username,
+        password: window.caldavConnection.password,
+        calendar_index: parseInt(calendarIndex),
         start_date: currentTimeframe.start.toISOString().split('T')[0],
         end_date: currentTimeframe.end.toISOString().split('T')[0]
     };
@@ -824,50 +907,88 @@ function displayRoutines(routines) {
         return;
     }
     
+    // Group routines by source calendar name
+    const groupedRoutines = routines.reduce((acc, routine) => {
+        // Use the calendar name from external_source_name, or fallback to 'Local Routines'
+        const sourceName = routine.external_source_name || 'Local Routines';
+        if (!acc[sourceName]) {
+            acc[sourceName] = {
+                routines: [],
+                color: routine.external_source_color || '#767676' // Use the calendar's color if available
+            };
+        }
+        acc[sourceName].routines.push(routine);
+        return acc;
+    }, {});
+    
     let html = '';
-    routines.forEach(routine => {
-        const timeRange = routine.start_time && routine.end_time ? 
-            `${routine.start_time} - ${routine.end_time}` : 
-            'All day';
+    
+    // Display each group
+    Object.entries(groupedRoutines).forEach(([sourceName, groupData]) => {
+        const { routines: sourceRoutines, color } = groupData;
+        
+        // Create a header for each source calendar
+        html += `
+            <div class="ui segment calendar-group" style="border-left-color: ${color}; background-color: ${color}10;">
+                <h4 class="ui header">
+                    <i class="calendar icon"></i>
+                    <div class="content">
+                        ${sourceName}
+                        <div class="sub header">${sourceRoutines.length} routine${sourceRoutines.length !== 1 ? 's' : ''}</div>
+                    </div>
+                </h4>
+                <div class="ui divided items">
+        `;
+        
+        // Add routines for this source
+        sourceRoutines.forEach(routine => {
+            const timeRange = routine.start_time && routine.end_time ? 
+                `${routine.start_time} - ${routine.end_time}` : 
+                'All day';
+            
+            html += `
+                <div class="item" data-id="${routine.id}" data-title="${routine.title}" data-rrule="${routine.rrule || ''}" data-external-uid="${routine.external_uid || ''}">
+                    <div class="content">
+                        <div class="header">
+                            ${routine.title || 'Untitled Routine'}
+                            <div class="ui toggle checkbox" style="float: right;">
+                                <input type="checkbox" class="routine-toggle" ${routine.active ? 'checked' : ''}>
+                                <label>Active</label>
+                            </div>
+                        </div>
+                        <div class="meta">
+                            ${routine.rrule ? '<span class="recurring"><i class="sync icon"></i> Recurring</span>' : ''}
+                            <span class="time">${timeRange}</span>
+                        </div>
+                        <div class="description">${routine.description || ''}</div>
+                        <div class="extra">
+                            <div class="ui labels" id="routine-tags-${routine.id}">
+                            </div>
+                            <div class="ui tiny buttons">
+                                <button class="ui blue button view-sessions">
+                                    <i class="calendar icon"></i> View Sessions
+                                </button>
+                                <button class="ui green button create-commitment">
+                                    <i class="flag icon"></i> Create Commitment
+                                </button>
+                                <button class="ui button edit-routine">
+                                    <i class="edit icon"></i> Edit
+                                </button>
+                                <button class="ui red button delete-routine">
+                                    <i class="trash icon"></i> Delete
+                                </button>
+                                <button class="ui teal button manage-tags">
+                                    <i class="tags icon"></i> Tags
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        });
         
         html += `
-        <div class="item" data-id="${routine.id}" data-title="${routine.title}" data-rrule="${routine.rrule || ''}" data-external-uid="${routine.external_uid || ''}">
-            <div class="content">
-                <div class="header">
-                    ${routine.title || 'Untitled Routine'}
-                    <div class="ui toggle checkbox" style="float: right;">
-                        <input type="checkbox" class="routine-toggle" ${routine.active ? 'checked' : ''}>
-                        <label>Active</label>
-                    </div>
                 </div>
-                <div class="meta">
-                    ${routine.rrule ? '<span class="recurring"><i class="sync icon"></i> Recurring</span>' : ''}
-                    <span class="time">${timeRange}</span>
-                </div>
-                <div class="description">${routine.description || ''}</div>
-                <div class="extra">
-                    <div class="ui labels" id="routine-tags-${routine.id}">
-                    </div>
-                    <div class="ui tiny buttons">
-                        <button class="ui blue button view-sessions">
-                            <i class="calendar icon"></i> View Sessions
-                        </button>
-                        <button class="ui green button create-commitment">
-                            <i class="flag icon"></i> Create Commitment
-                        </button>
-                        <button class="ui button edit-routine">
-                            <i class="edit icon"></i> Edit
-                        </button>
-                        <button class="ui red button delete-routine">
-                            <i class="trash icon"></i> Delete
-                        </button>
-                        <button class="ui teal button manage-tags">
-                            <i class="tags icon"></i> Tags
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>`;
+            </div>`;
     });
     
     container.innerHTML = html;
@@ -1048,6 +1169,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('next-timeframe').addEventListener('click', function() {
         adjustTimeframe('next');
+    });
+
+    // Load routines when the page loads
+    fetch(`${API_URL}/routines`, {
+        headers: {
+            'Authorization': 'Bearer ' + getAuthToken()
+        }
+    })
+    .then(response => response.json())
+    .then(routines => {
+        displayRoutines(routines);
+    })
+    .catch(error => {
+        console.error('Error loading routines:', error);
+        alert('Failed to load routines. Please refresh the page.');
     });
 });
 
@@ -1357,6 +1493,39 @@ document.addEventListener('click', function(e) {
 .item .meta .recurring {
     margin-right: 1em;
     color: #2185d0;
+}
+
+/* Calendar group styles */
+.calendar-group {
+    margin-bottom: 1.5em;
+    border-left-width: 4px !important;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.calendar-group:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.calendar-group .ui.header {
+    margin-bottom: 1em;
+}
+
+.calendar-group .ui.header .sub.header {
+    color: rgba(0,0,0,0.6);
+}
+
+.calendar-group .ui.divided.items {
+    margin-top: 0;
+}
+
+.calendar-group .item {
+    padding: 1em;
+    transition: background-color 0.2s ease;
+}
+
+.calendar-group .item:hover {
+    background-color: rgba(0,0,0,0.02);
 }
 </style>
 {% endblock %} 
