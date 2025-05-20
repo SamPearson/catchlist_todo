@@ -7,6 +7,8 @@ from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
 import random
 from ...config.models.tags import Tag, RoutineTag, SessionTag
+from dateutil import rrule
+import re
 
 routines_bp = Blueprint('routines', __name__)
 
@@ -77,31 +79,51 @@ def create_routine():
         )
         
         db.session.add(routine)
+        db.session.flush()  # Get the routine ID
+        
+        # Create sessions if timeframe is provided
+        if data.get('start_date') and data.get('end_date'):
+            start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+            end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+            
+            # If start_time and end_time are provided, use them for all sessions
+            start_time = None
+            end_time = None
+            if data.get('start_time') and data.get('end_time'):
+                start_time = datetime.strptime(data['start_time'], '%H:%M').time()
+                end_time = datetime.strptime(data['end_time'], '%H:%M').time()
+            
+            # Create sessions for each day in the timeframe
+            current_date = start_date
+            while current_date <= end_date:
+                # Create session
+                session_start = datetime.combine(current_date, start_time) if start_time else datetime.combine(current_date, datetime.min.time())
+                session_end = datetime.combine(current_date, end_time) if end_time else datetime.combine(current_date, datetime.max.time())
+                
+                session = Session(
+                    routine_id=routine.id,
+                    start_time=session_start,
+                    end_time=session_end,
+                    user_id=user_id
+                )
+                db.session.add(session)
+                db.session.flush()  # Get the session ID
+                
+                # Create commitment for the session
+                commitment = Commitment(
+                    user_id=user_id,
+                    due_date=current_date,
+                    start_time=session_start,
+                    end_time=session_end,
+                    routine_id=routine.id,
+                    session_id=session.id
+                )
+                db.session.add(commitment)
+                
+                # Move to next day
+                current_date += timedelta(days=1)
+        
         db.session.commit()
-        
-        # Create a session for today if start_time and end_time are provided
-        if data.get('start_time') and data.get('end_time'):
-            start_time = datetime.strptime(data.get('start_time'), '%H:%M')
-            end_time = datetime.strptime(data.get('end_time'), '%H:%M')
-            
-            # Set the date to today
-            today = date.today()
-            start_time = datetime.combine(today, start_time.time())
-            end_time = datetime.combine(today, end_time.time())
-            
-            session = Session(
-                routine_id=routine.id,
-                start_time=start_time,
-                end_time=end_time,
-                user_id=user_id
-            )
-            
-            db.session.add(session)
-            db.session.commit()
-            
-            # Create a commitment for the session
-            create_commitment_from_routine(routine, session, user_id)
-        
         return jsonify(routine.as_dict()), 201
     except Exception as e:
         db.session.rollback()
@@ -110,34 +132,47 @@ def create_routine():
 @routines_bp.route('/api/routines/<int:routine_id>', methods=['PUT'])
 @jwt_required()
 def update_routine(routine_id):
-    current_user_id = get_current_user_id()
+    """Update a routine"""
+    user_id = get_jwt_identity()
     data = request.get_json()
     
-    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    routine = Routine.query.filter_by(id=routine_id, user_id=user_id).first()
     if not routine:
         return jsonify({"message": "Routine not found"}), 404
     
     try:
+        # Update routine fields
         if 'title' in data:
-            routine.title = data.get('title')
+            routine.title = data['title']
         if 'description' in data:
-            routine.description = data.get('description')
+            routine.description = data['description']
         if 'rrule' in data:
-            routine.rrule = data.get('rrule')
+            routine.rrule = data['rrule']
+        if 'active' in data:
+            routine.active = data['active']
+            
+            # Update related commitments based on active status
+            if not routine.active:
+                # Deactivate all future commitments
+                future_commitments = Commitment.query.filter(
+                    Commitment.routine_id == routine.id,
+                    Commitment.due_date >= date.today()
+                ).all()
+                
+                for commitment in future_commitments:
+                    commitment.completed = True  # Mark as completed to hide from active commitments
+            else:
+                # Reactivate all future commitments
+                future_commitments = Commitment.query.filter(
+                    Commitment.routine_id == routine.id,
+                    Commitment.due_date >= date.today()
+                ).all()
+                
+                for commitment in future_commitments:
+                    commitment.completed = False  # Mark as not completed to show in active commitments
         
         db.session.commit()
-        
-        result = {
-            'id': routine.id,
-            'uid': routine.external_uid,
-            'title': routine.title,
-            'description': routine.description,
-            'rrule': routine.rrule,
-            'active': routine.active,
-            'external_source': routine.external_source
-        }
-        
-        return jsonify(result)
+        return jsonify(routine.as_dict())
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
@@ -166,112 +201,150 @@ def random_color():
 @jwt_required()
 def import_routines():
     data = request.get_json()
-    current_user_id = int(get_jwt_identity())
+    current_user_id = get_jwt_identity()
     
-    if not data or not data.get('url'):
-        return jsonify({"success": False, "message": "CalDAV URL is required"}), 400
-        
-    url = data.get('url')
-    username = data.get('username')
-    password = data.get('password')
-    calendar_index = data.get('calendar_index', 0)  # Default to first calendar if not specified
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
+    if not data.get('url') or not data.get('username') or not data.get('password'):
+        return jsonify({"message": "Missing required fields"}), 400
     
-    caldav_client = CalDAVClient(url, username, password)
-    
-    if not caldav_client.connect():
-        return jsonify({"success": False, "message": "Failed to connect to CalDAV server"}), 400
-        
-    calendars = caldav_client.get_calendars()
-    
-    if not calendars:
-        return jsonify({"success": False, "message": "No calendars found"}), 400
-        
-    if calendar_index >= len(calendars):
-        return jsonify({"success": False, "message": "Invalid calendar index"}), 400
-        
-    # Get the selected calendar
-    selected_calendar = calendars[calendar_index]
-    
-    # Create a tag for this calendar
-    calendar_tag = Tag(
-        name=selected_calendar.name,
-        color=random_color(),
-        user_id=current_user_id
-    )
-    db.session.add(calendar_tag)
-    db.session.flush()  # Get the tag ID
-    
-    # Get events from the selected calendar
-    events = caldav_client.get_events_as_dict(
-        calendar=selected_calendar,
-        start_date=datetime.fromisoformat(start_date) if start_date else None,
-        end_date=datetime.fromisoformat(end_date) if end_date else None
-    )
-    
-    imported_count = 0
-    
-    for event in events:
-        try:
-            # Check if routine already exists
-            existing_routine = Routine.query.filter_by(
-                user_id=current_user_id,
-                external_uid=event['uid']
-            ).first()
-            
-            if existing_routine:
-                continue
-            
-            # Create new routine
-            routine = Routine(
-                user_id=current_user_id,
-                title=event['summary'],
-                description=event.get('description', ''),
-                rrule=event.get('rrule', ''),
-                external_source='caldav',
-                external_uid=event['uid'],
-                external_source_name=selected_calendar.name  # Store the calendar name
-            )
-            db.session.add(routine)
-            db.session.flush()  # Get the routine ID
-
-            # Associate calendar tag with routine
-            routine_tag = RoutineTag(routine_id=routine.id, tag_id=calendar_tag.id)
-            db.session.add(routine_tag)
-
-            # Create the first session
-            session = Session(
-                routine_id=routine.id,
-                user_id=current_user_id,
-                start_time=event['start'],
-                end_time=event['end']
-            )
-            db.session.add(session)
-            db.session.flush()  # Get the session ID
-
-            # Associate calendar tag with session
-            session_tag = SessionTag(session_id=session.id, tag_id=calendar_tag.id)
-            db.session.add(session_tag)
-
-            imported_count += 1
-        except Exception as e:
-            print(f"Error importing event: {str(e)}")
-            continue
     try:
+        # Initialize CalDAV client
+        client = CalDAVClient(
+            url=data['url'],
+            username=data['username'],
+            password=data['password']
+        )
+        
+        # Get calendars
+        calendars = client.get_calendars()
+        if not calendars:
+            return jsonify({"message": "No calendars found"}), 404
+        
+        # Get selected calendar
+        calendar_index = data.get('calendar_index', 0)
+        if calendar_index >= len(calendars):
+            return jsonify({"message": "Invalid calendar index"}), 400
+        
+        selected_calendar = calendars[calendar_index]
+        
+        # Get events for the specified timeframe
+        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        events = client.get_events_as_dict(selected_calendar, start_date, end_date)
+        
+        # Create or get calendar tag
+        calendar_tag = Tag.query.filter_by(
+            user_id=current_user_id,
+            name=selected_calendar.name
+        ).first()
+        
+        if not calendar_tag:
+            # Generate a random color for the calendar
+            color = f"#{random.randint(0, 0xFFFFFF):06x}"
+            calendar_tag = Tag(
+                user_id=current_user_id,
+                name=selected_calendar.name,
+                color=color
+            )
+            db.session.add(calendar_tag)
+            db.session.flush()
+        
+        imported_count = 0
+        
+        for event in events:
+            try:
+                # Check if routine already exists
+                existing_routine = Routine.query.filter_by(
+                    user_id=current_user_id,
+                    external_uid=event['uid']
+                ).first()
+                
+                if existing_routine:
+                    continue
+                
+                # Create new routine
+                routine = Routine(
+                    user_id=current_user_id,
+                    title=event['summary'],
+                    description=event.get('description', ''),
+                    rrule=event.get('rrule', ''),
+                    external_source='caldav',
+                    external_uid=event['uid'],
+                    external_source_name=selected_calendar.name,  # Store the calendar name
+                    active=True
+                )
+                db.session.add(routine)
+                db.session.flush()  # Get the routine ID
+
+                # Associate calendar tag with routine
+                routine_tag = RoutineTag(routine_id=routine.id, tag_id=calendar_tag.id)
+                db.session.add(routine_tag)
+
+                # Parse RRULE if it exists
+                if event.get('rrule'):
+                    # Convert RRULE string to rrule object
+                    rrule_str = event['rrule']
+                    if isinstance(rrule_str, str):
+                        # Parse the RRULE string
+                        rrule_parts = dict(part.split('=') for part in rrule_str.split(';') if '=' in part)
+                        
+                        # Create rrule object
+                        rule = rrule.rrule(
+                            freq=getattr(rrule, rrule_parts.get('FREQ', 'DAILY').upper()),
+                            interval=int(rrule_parts.get('INTERVAL', 1)),
+                            dtstart=event['start'],
+                            until=end_date,
+                            byweekday=[getattr(rrule, day) for day in rrule_parts.get('BYDAY', '').split(',')] if 'BYDAY' in rrule_parts else None
+                        )
+                        
+                        # Get all occurrences within the timeframe
+                        occurrences = list(rule.between(start_date, end_date, inc=True))
+                    else:
+                        # If RRULE is not a string, just use the start date
+                        occurrences = [event['start']]
+                else:
+                    # For non-recurring events, just use the start date
+                    occurrences = [event['start']]
+
+                # Create sessions for each occurrence
+                for occurrence in occurrences:
+                    # Create session
+                    session_start = datetime.combine(occurrence.date(), event['start'].time())
+                    session_end = datetime.combine(occurrence.date(), event['end'].time())
+                    
+                    session = Session(
+                        routine_id=routine.id,
+                        start_time=session_start,
+                        end_time=session_end,
+                        user_id=current_user_id
+                    )
+                    db.session.add(session)
+                    db.session.flush()  # Get the session ID
+
+                    # Associate calendar tag with session
+                    session_tag = SessionTag(session_id=session.id, tag_id=calendar_tag.id)
+                    db.session.add(session_tag)
+
+                    # Create commitment for the session
+                    commitment = Commitment(
+                        user_id=current_user_id,
+                        due_date=occurrence.date(),
+                        start_time=session_start,
+                        end_time=session_end,
+                        routine_id=routine.id,
+                        session_id=session.id
+                    )
+                    db.session.add(commitment)
+
+                imported_count += 1
+            except Exception as e:
+                print(f"Error importing event: {str(e)}")
+                continue
+        
         db.session.commit()
-        return jsonify({
-            "success": True,
-            "message": f"Successfully imported {imported_count} routines",
-            "imported_count": imported_count,
-            "calendar_tag": calendar_tag.as_dict()
-        })
+        return jsonify({"success": True, "imported_count": imported_count})
     except Exception as e:
         db.session.rollback()
-        return jsonify({
-            "success": False,
-            "message": f"Error importing routines: {str(e)}"
-        }), 500
+        return jsonify({"message": str(e)}), 500
 
 @routines_bp.route('/api/routines/<int:routine_id>/sessions', methods=['GET'])
 @jwt_required()

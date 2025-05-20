@@ -16,7 +16,7 @@ def get_today_events():
     sessions = Session.query.join(Routine).filter(
         Session.user_id == current_user_id,
         db.func.date(Session.start_time) == today,
-        Routine.active == True
+        Routine.active == True  # Only get sessions from active routines
     ).order_by(Session.start_time.asc()).all()
     
     result = []
