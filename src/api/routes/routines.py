@@ -1,0 +1,522 @@
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from ...config.models import db, Routine, Session, Commitment
+from ..utils.helpers import get_current_user_id
+from ...config.caldav_client import CalDAVClient
+from datetime import datetime, date, timedelta
+from ..utils.commitment_utils import create_commitment_from_routine
+
+routines_bp = Blueprint('routines', __name__)
+
+# Add OPTIONS method handler for CORS preflight requests
+@routines_bp.route('/api/routines/import', methods=['OPTIONS'])
+def options_routines_import():
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
+@routines_bp.route('/api/routines', methods=['GET'])
+@jwt_required()
+def get_routines():
+    current_user_id = get_current_user_id()
+    routines = Routine.query.filter_by(user_id=current_user_id).all()
+    
+    result = []
+    for routine in routines:
+        # Get the next session for this routine
+        next_session = Session.query.filter(
+            Session.routine_id == routine.id,
+            Session.start_time >= datetime.now()
+        ).order_by(Session.start_time.asc()).first()
+        
+        result.append({
+            'id': routine.id,
+            'uid': routine.external_uid,
+            'title': routine.title,
+            'description': routine.description,
+            'rrule': routine.rrule,
+            'active': routine.active,
+            'external_source': routine.external_source,
+            'start_time': next_session.start_time.strftime('%H:%M') if next_session else None,
+            'end_time': next_session.end_time.strftime('%H:%M') if next_session else None,
+            'tags': [assoc.tag.as_dict() for assoc in routine.tag_associations]
+        })
+    
+    return jsonify(result)
+
+@routines_bp.route('/api/routines', methods=['POST'])
+@jwt_required()
+def create_routine():
+    """Create a new routine"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    if not data or not data.get('title'):
+        return jsonify({"message": "Title is required"}), 400
+    
+    try:
+        routine = Routine(
+            title=data.get('title'),
+            description=data.get('description'),
+            rrule=data.get('rrule'),
+            active=True,
+            user_id=user_id
+        )
+        
+        db.session.add(routine)
+        db.session.commit()
+        
+        # Create a session for today if start_time and end_time are provided
+        if data.get('start_time') and data.get('end_time'):
+            start_time = datetime.strptime(data.get('start_time'), '%H:%M')
+            end_time = datetime.strptime(data.get('end_time'), '%H:%M')
+            
+            # Set the date to today
+            today = date.today()
+            start_time = datetime.combine(today, start_time.time())
+            end_time = datetime.combine(today, end_time.time())
+            
+            session = Session(
+                routine_id=routine.id,
+                start_time=start_time,
+                end_time=end_time,
+                user_id=user_id
+            )
+            
+            db.session.add(session)
+            db.session.commit()
+            
+            # Create a commitment for the session
+            create_commitment_from_routine(routine, session, user_id)
+        
+        return jsonify(routine.as_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@routines_bp.route('/api/routines/<int:routine_id>', methods=['PUT'])
+@jwt_required()
+def update_routine(routine_id):
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
+    
+    try:
+        if 'title' in data:
+            routine.title = data.get('title')
+        if 'description' in data:
+            routine.description = data.get('description')
+        if 'rrule' in data:
+            routine.rrule = data.get('rrule')
+        
+        db.session.commit()
+        
+        result = {
+            'id': routine.id,
+            'uid': routine.external_uid,
+            'title': routine.title,
+            'description': routine.description,
+            'rrule': routine.rrule,
+            'active': routine.active,
+            'external_source': routine.external_source
+        }
+        
+        return jsonify(result)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@routines_bp.route('/api/routines/<int:routine_id>', methods=['DELETE'])
+@jwt_required()
+def delete_routine(routine_id):
+    current_user_id = get_current_user_id()
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
+    
+    try:
+        db.session.delete(routine)
+        db.session.commit()
+        return jsonify({"message": "Routine deleted"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@routines_bp.route('/api/routines/import', methods=['POST'])
+@jwt_required()
+def import_caldav_events():
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    if not data or not data.get('url'):
+        return jsonify({"message": "CalDAV URL is required"}), 400
+    
+    url = data.get('url')
+    username = data.get('username')
+    password = data.get('password')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    
+    # Convert string dates to datetime objects if provided
+    start_datetime = None
+    end_datetime = None
+    if start_date:
+        try:
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({"success": False, "message": "Invalid start_date format. Use YYYY-MM-DD."}), 400
+    
+    if end_date:
+        try:
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+            # Set to end of day
+            end_datetime = end_datetime.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            return jsonify({"success": False, "message": "Invalid end_date format. Use YYYY-MM-DD."}), 400
+    
+    caldav_client = CalDAVClient(url, username, password)
+    
+    if not caldav_client.connect():
+        return jsonify({"success": False, "message": "Failed to connect to CalDAV server"}), 400
+        
+    calendars = caldav_client.get_calendars()
+    if not calendars:
+        return jsonify({"success": False, "message": "No calendars found"}), 400
+        
+    # Use the first calendar for simplicity
+    first_calendar = calendars[0]
+    events = caldav_client.get_events_as_dict(first_calendar, start_date=start_datetime, end_date=end_datetime)
+    
+    if not events:
+        return jsonify({"success": True, "message": "No events found to import", "imported_count": 0})
+    
+    # Group events by UID
+    events_by_uid = {}
+    for event_dict in events:
+        uid = event_dict.get('uid')
+        if not uid:
+            continue
+        if uid not in events_by_uid:
+            events_by_uid[uid] = []
+        events_by_uid[uid].append(event_dict)
+    
+    # Import events to database
+    imported_count = 0
+    for uid, event_instances in events_by_uid.items():
+        # Skip if no instances
+        if not event_instances:
+            continue
+            
+        # Use the first instance to get the event details
+        first_instance = event_instances[0]
+        
+        # Skip events without required fields
+        if not first_instance.get('start') or not first_instance.get('end'):
+            print(f"Skipping event - missing start or end time: {first_instance}")
+            continue
+            
+        # Set empty summary to "Untitled Event" instead of skipping
+        if not first_instance.get('summary'):
+            first_instance['summary'] = "Untitled Event"
+            print(f"Using default title for event with empty summary: {uid}")
+        
+        # Filter instances by date range if specified
+        filtered_instances = event_instances
+        if start_datetime or end_datetime:
+            filtered_instances = []
+            for instance in event_instances:
+                event_start = instance.get('start')
+                event_end = instance.get('end')
+                
+                if not event_start or not event_end:
+                    continue
+                
+                # Fix timezone comparison issue by converting to naive datetimes for comparison
+                if event_start.tzinfo is not None:
+                    # Make naive datetime for comparison only
+                    naive_event_start = event_start.replace(tzinfo=None)
+                    naive_event_end = event_end.replace(tzinfo=None)
+                else:
+                    naive_event_start = event_start
+                    naive_event_end = event_end
+                
+                # Check if event is within the specified date range
+                if start_datetime and naive_event_end < start_datetime:
+                    continue
+                if end_datetime and naive_event_start > end_datetime:
+                    continue
+                
+                filtered_instances.append(instance)
+            
+            # Skip if no instances in the date range
+            if not filtered_instances:
+                continue
+            
+        # Check if routine already exists to avoid duplicates
+        existing_routine = Routine.query.filter_by(external_uid=uid, user_id=current_user_id).first()
+        
+        try:
+            # Start a new transaction for each event
+            db.session.begin_nested()
+            
+            if existing_routine:
+                # If routine exists, just create new sessions for the specified timeframe
+                routine = existing_routine
+                print(f"Using existing routine: {routine.id}")
+            else:
+                # Create a new routine
+                print(f"Creating routine with data:")
+                print(f"  title: {first_instance['summary'].strip() or 'Untitled Event'}")
+                print(f"  description: {first_instance.get('description', '')}")
+                print(f"  rrule: {first_instance.get('rrule', '')}")
+                print(f"  external_uid: {uid}")
+                
+                routine = Routine(
+                    title=first_instance['summary'].strip() or 'Untitled Event',
+                    description=first_instance.get('description', ''),
+                    rrule=first_instance.get('rrule', ''),
+                    active=True,
+                    user_id=current_user_id,
+                    external_uid=uid,
+                    external_source='caldav'
+                )
+                
+                db.session.add(routine)
+                db.session.flush()
+            
+            # Create sessions for all instances in the filtered date range
+            for instance in filtered_instances:
+                try:
+                    # Check if a session already exists for this time
+                    start_time = instance['start']
+                    end_time = instance['end']
+                    
+                    # Store the timezone info if present, but use naive datetimes for DB queries
+                    tz_info = None
+                    if start_time.tzinfo:
+                        tz_info = start_time.tzinfo
+                        db_start_time = start_time.replace(tzinfo=None)
+                        db_end_time = end_time.replace(tzinfo=None)
+                    else:
+                        db_start_time = start_time
+                        db_end_time = end_time
+                    
+                    existing_session = Session.query.filter_by(
+                        routine_id=routine.id,
+                        start_time=db_start_time,
+                        end_time=db_end_time,
+                        user_id=current_user_id
+                    ).first()
+                    
+                    if existing_session:
+                        print(f"Session already exists for {start_time}")
+                        continue
+                    
+                    # Create the session
+                    session = Session(
+                        routine_id=routine.id,
+                        start_time=db_start_time,
+                        end_time=db_end_time,
+                        user_id=current_user_id
+                    )
+                    db.session.add(session)
+                    db.session.flush()  # Get the session ID
+                    
+                    # Create commitment for this session
+                    create_commitment_from_routine(routine, session, current_user_id)
+                    
+                except Exception as e:
+                    print(f"Error creating session/commitment for date {instance['start']}: {str(e)}")
+                    db.session.rollback()
+                    continue
+            
+            # Commit the nested transaction
+            db.session.commit()
+            imported_count += 1
+            
+        except Exception as e:
+            print(f"Error importing event: {str(e)}")
+            # Rollback the nested transaction
+            db.session.rollback()
+            continue
+            
+    try:
+        # Commit the main transaction
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "message": f"Successfully imported {imported_count} events", 
+            "imported_count": imported_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Error saving imported events: {str(e)}"}), 500
+
+@routines_bp.route('/api/routines/<int:routine_id>/sessions', methods=['GET'])
+@jwt_required()
+def get_routine_sessions(routine_id):
+    current_user_id = get_current_user_id()
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
+        
+    sessions = Session.query.filter_by(routine_id=routine_id).order_by(Session.start_time.desc()).all()
+    
+    result = []
+    for session in sessions:
+        result.append({
+            'id': session.id,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat(),
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes,
+            'tags': [assoc.tag.as_dict() for assoc in session.tag_associations]
+        })
+        
+    return jsonify(result)
+
+@routines_bp.route('/api/sessions/<int:session_id>', methods=['PUT'])
+@jwt_required()
+def update_session(session_id):
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    # Find session and verify it belongs to the current user
+    session = Session.query.join(Routine).filter(
+        Session.id == session_id,
+        Routine.user_id == current_user_id
+    ).first()
+    
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
+        
+    try:
+        if 'completed' in data:
+            session.completed = data.get('completed')
+        if 'rpe' in data:
+            session.rpe = data.get('rpe')
+        if 'notes' in data:
+            session.notes = data.get('notes')
+            
+        db.session.commit()
+        
+        result = {
+            'id': session.id,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat(),
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes,
+            'tags': [assoc.tag.as_dict() for assoc in session.tag_associations]
+        }
+        
+        return jsonify(result)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@routines_bp.route('/api/routines/<int:routine_id>/toggle-active', methods=['PUT'])
+@jwt_required()
+def toggle_routine_active(routine_id):
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    if 'active' not in data:
+        return jsonify({"message": "Active state is required"}), 400
+    
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
+    
+    try:
+        routine.active = data.get('active')
+        db.session.commit()
+        
+        return jsonify({
+            'id': routine.id,
+            'title': routine.title,
+            'active': routine.active
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": str(e)}), 500
+
+@routines_bp.route('/api/routines/today', methods=['GET'])
+@jwt_required()
+def get_today_routines():
+    current_user_id = get_current_user_id()
+    today = date.today()
+    
+    # Get all sessions for today
+    sessions = Session.query.join(Routine).filter(
+        Session.user_id == current_user_id,
+        db.func.date(Session.start_time) == today
+    ).order_by(Session.start_time.asc()).all()
+    
+    result = []
+    for session in sessions:
+        routine = session.routine
+        result.append({
+            'id': session.id,
+            'routine_id': routine.id,
+            'title': routine.title,
+            'description': routine.description,
+            'start_time': session.start_time.strftime('%H:%M'),
+            'end_time': session.end_time.strftime('%H:%M'),
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes
+        })
+    
+    return jsonify(result)
+
+@routines_bp.route('/api/routines/range', methods=['GET'])
+@jwt_required()
+def get_routines_range():
+    """Get routines within a date range"""
+    current_user_id = get_current_user_id()
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    
+    if not start_date or not end_date:
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get all sessions within the date range
+    sessions = Session.query.join(Routine).filter(
+        Session.user_id == current_user_id,
+        db.func.date(Session.start_time).between(start_date, end_date),
+        Routine.active == True
+    ).order_by(Session.start_time.asc()).all()
+    
+    result = []
+    for session in sessions:
+        routine = session.routine
+        result.append({
+            'id': session.id,
+            'routine_id': routine.id,
+            'title': routine.title,
+            'start_time': session.start_time.strftime('%H:%M') if session.start_time else None,
+            'end_time': session.end_time.strftime('%H:%M') if session.end_time else None,
+            'description': routine.description,
+            'completed': session.completed,
+            'rpe': session.rpe,
+            'notes': session.notes,
+            'is_all_day': ((session.start_time.strftime('%H:%M') if session.start_time else None) == '00:00' and
+                          (session.end_time.strftime('%H:%M') if session.end_time else None) == '00:00')
+        })
+    
+    return jsonify(result) 

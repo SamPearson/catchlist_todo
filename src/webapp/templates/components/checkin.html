@@ -1,0 +1,171 @@
+{% from "components/slideout.html" import slideout %}
+
+{% macro checkin_popout(task_id='', class='') -%}
+{% call slideout(id='checkin-' + task_id, trigger_text='Log Check-in', class='checkin-slideout ' + class) %}
+    <form class="ui form checkin-form" data-task-id="{{ task_id }}">
+        <div class="field">
+            <label>Comments</label>
+            <textarea name="comment" rows="2" placeholder="What did you accomplish?"></textarea>
+        </div>
+        
+        <div class="field">
+            <label>Rate of Perceived Exertion (RPE)</label>
+            <div class="ui buttons fluid">
+                {% for i in range(1, 11) %}
+                <button type="button" class="ui button rpe-button" data-value="{{ i }}">{{ i }}</button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="rpe" value="">
+        </div>
+        
+        <button class="ui teal button submit-checkin" type="submit">Log Check-in</button>
+    </form>
+    
+    <div class="fireworks-container" style="display: none; position: relative; height: 100px;"></div>
+{% endcall %}
+
+<style>
+.rpe-button.selected {
+    background-color: #2185d0 !important;
+    color: white !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // RPE button selection
+    const rpeButtons = document.querySelectorAll('.rpe-button');
+    rpeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const form = this.closest('form');
+            const rpeInput = form.querySelector('input[name="rpe"]');
+            const value = this.getAttribute('data-value');
+            
+            // Clear selection on all buttons
+            form.querySelectorAll('.rpe-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Add selection to this button
+            this.classList.add('selected');
+            
+            // Update hidden input
+            rpeInput.value = value;
+        });
+    });
+    
+    // Form submission
+    const checkinForms = document.querySelectorAll('.checkin-form');
+    checkinForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const taskId = this.getAttribute('data-task-id');
+            const comment = this.querySelector('textarea[name="comment"]').value;
+            const rpe = this.querySelector('input[name="rpe"]').value;
+            
+            const token = getToken();
+            if (!token) {
+                showError('Authentication required. Please log in first.');
+                return;
+            }
+            
+            fetch('/api/checkins', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    task_id: taskId,
+                    comment: comment,
+                    rpe: rpe
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to log check-in');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Clear form
+                form.reset();
+                form.querySelectorAll('.rpe-button').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                
+                // Show fireworks
+                const fireworksContainer = form.parentNode.querySelector('.fireworks-container');
+                fireworksContainer.style.display = 'block';
+                
+                // Create fireworks effect
+                createFireworks(fireworksContainer);
+                
+                // Hide fireworks after animation completes
+                setTimeout(() => {
+                    fireworksContainer.style.display = 'none';
+                    fireworksContainer.innerHTML = '';
+                }, 3000);
+            })
+            .catch(error => {
+                showError(error.message);
+            });
+        });
+    });
+    
+    // Simple fireworks effect
+    function createFireworks(container) {
+        for (let i = 0; i < 30; i++) {
+            const particle = document.createElement('div');
+            particle.style.position = 'absolute';
+            particle.style.width = '5px';
+            particle.style.height = '5px';
+            particle.style.borderRadius = '50%';
+            particle.style.backgroundColor = getRandomColor();
+            
+            const startX = container.offsetWidth / 2;
+            const startY = container.offsetHeight / 2;
+            
+            particle.style.left = startX + 'px';
+            particle.style.top = startY + 'px';
+            
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 20 + Math.random() * 80;
+            const xVelocity = Math.cos(angle) * distance;
+            const yVelocity = Math.sin(angle) * distance;
+            
+            container.appendChild(particle);
+            
+            animateParticle(particle, startX, startY, xVelocity, yVelocity);
+        }
+    }
+    
+    function animateParticle(particle, startX, startY, xVelocity, yVelocity) {
+        let x = startX;
+        let y = startY;
+        let opacity = 1;
+        
+        const interval = setInterval(() => {
+            x += xVelocity * 0.05;
+            y += yVelocity * 0.05;
+            yVelocity += 0.2; // gravity
+            opacity -= 0.02;
+            
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            particle.style.opacity = opacity;
+            
+            if (opacity <= 0) {
+                clearInterval(interval);
+                particle.remove();
+            }
+        }, 20);
+    }
+    
+    function getRandomColor() {
+        const colors = ['#FF5252', '#FF4081', '#E040FB', '#7C4DFF', '#536DFE', '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA', '#69F0AE', '#B2FF59', '#EEFF41', '#FFFF00', '#FFD740', '#FFAB40', '#FF6E40'];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+});
+</script>
+{%- endmacro %} 

@@ -4,15 +4,23 @@ from .db_setup import db
 from datetime import timedelta
 from dotenv import load_dotenv
 from pathlib import Path
+from flask import Flask
 
 config_dir = Path(__file__).parent
-load_dotenv(os.path.join(config_dir, '.env')) 
+load_dotenv(os.path.join(config_dir, '.env'))
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///todo.db'
+    # Always use the absolute path to the instance directory
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    INSTANCE_DIR = BASE_DIR / "instance"
+    DB_PATH = INSTANCE_DIR / "catchlist_todo.db"
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'DATABASE_URI',
+        f"sqlite:///{DB_PATH}"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Add a secure secret key for JWT
+    # Load JWT secret key from environment
     try:
         JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
         if not JWT_SECRET_KEY:
@@ -21,25 +29,23 @@ class Config:
         print("ERROR: JWT_SECRET_KEY must be set in .env file")
         print("Please create a .env file in src/config with JWT_SECRET_KEY=your_secret_key")
         raise e
-    
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=1)  # Set tokens to expire after 1 day
 
-    @classmethod
-    def get_token_expires_delta(cls):
-        """Single source of truth for token expiration"""
-        return cls.JWT_ACCESS_TOKEN_EXPIRES
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
+
+    @staticmethod
+    def get_token_expires_delta():
+        return timedelta(hours=12)
 
 
 def initialize_database(app):
-    """Check and initialize the database only if not already created."""
+    """Initialize the database with all tables if they don't exist"""
     with app.app_context():
-        inspector = inspect(db.engine)
-        required_tables = {'todo', 'user'}
-        existing_tables = set(inspector.get_table_names())
+        # Import all models to ensure they're registered with SQLAlchemy
+        from .models import db
         
-        if not required_tables.issubset(existing_tables):
-            print("Creating Database")
-            db.create_all()
-            print("Database Created")
-        else:
-            print("Database already initialized")
+        # Create tables if they don't exist
+        db.create_all()
+        
+        # Verify tables were created
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()

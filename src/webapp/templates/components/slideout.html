@@ -1,0 +1,65 @@
+{% macro slideout(id='', trigger_text='', slide_direction='right', class='') -%}
+<div class="ui segment slideout-container {% if class %}{{ class }}{% endif %}" {% if id %}id="{{ id }}"{% endif %}>
+    <div class="slideout-trigger">
+        <span>{{ trigger_text }}</span>
+        <i class="angle right icon"></i>
+    </div>
+    
+    <div class="slideout-content" style="display: none;">
+        {{ caller() if caller else '' }}
+    </div>
+</div>
+
+<style>
+.slideout-container {
+    position: relative;
+    overflow: hidden;
+}
+.slideout-trigger {
+    cursor: pointer;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.slideout-content {
+    padding: 15px;
+    {% if slide_direction == 'right' %}
+    transform: translateX(100%);
+    {% elif slide_direction == 'left' %}
+    transform: translateX(-100%);
+    {% elif slide_direction == 'up' %}
+    transform: translateY(-100%);
+    {% elif slide_direction == 'down' %}
+    transform: translateY(100%);
+    {% endif %}
+    transition: transform 0.3s ease-in-out;
+}
+.slideout-content.active {
+    transform: translateX(0) translateY(0);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('{{ id }}');
+    if (container) {
+        const trigger = container.querySelector('.slideout-trigger');
+        const content = container.querySelector('.slideout-content');
+        const icon = trigger.querySelector('i');
+        
+        trigger.addEventListener('click', function() {
+            content.style.display = content.style.display === 'none' ? 'block' : 'none';
+            content.classList.toggle('active');
+            
+            // Rotate icon
+            if (icon.classList.contains('right')) {
+                icon.classList.replace('right', 'down');
+            } else {
+                icon.classList.replace('down', 'right');
+            }
+        });
+    }
+});
+</script>
+{%- endmacro %} 

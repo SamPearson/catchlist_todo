@@ -2,8 +2,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from .db_config import Config
-from .db_setup import db
+from ..db_config import Config
+from ..db_setup import db
 
 
 class User(UserMixin, db.Model):
@@ -11,9 +11,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    todos = db.relationship('Todo', backref='user', lazy=True,
-                            cascade="all, delete-orphan")
-
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -33,19 +31,4 @@ class BlacklistedToken(db.Model):
         # Your JWT expiration time + a small buffer
         expiration = datetime.utcnow() - Config.get_token_expires_delta()
         cls.query.filter(cls.created_at < expiration).delete()
-        db.session.commit()
-
-
-class Todo(db.Model):
-    __tablename__ = 'todo'
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100))
-    complete = db.Column(db.Boolean)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    def as_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "complete": self.complete
-        }
+        db.session.commit() 
