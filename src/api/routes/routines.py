@@ -176,14 +176,6 @@ def import_routines():
         }), 400
     
     try:
-        # Get timeframe range
-        timeframe = data.get('timeframe', 'year')
-        date_range = get_timeframe_range(
-            timeframe,
-            data.get('start_date'),
-            data.get('end_date')
-        )
-        
         # Initialize CalDAV client
         client = CalDAVClient(
             url=data['url'],
@@ -240,11 +232,7 @@ def import_routines():
                 db.session.flush()
             
             # Get events from calendar
-            events = client.get_events(
-                calendar.url,
-                start_date=date_range.start,
-                end_date=date_range.end
-            )
+            events = client.get_events(calendar.url)
             
             for event in events:
                 # Skip non-recurring events
@@ -268,13 +256,13 @@ def import_routines():
                 routine = Routine(
                     title=event.summary,
                     description=event.description,
-                    rrule=event.rrule,  # Now properly formatted as iCalendar string
+                    rrule=event.rrule,
                     active=True,
                     user_id=user_id,
-                    calendar_id=calendar_obj.id,  # Set the calendar ID
+                    calendar_id=calendar_obj.id,
                     external_uid=event.uid,
                     external_source='caldav',
-                    external_source_name=calendar.name  # Set the calendar name
+                    external_source_name=calendar.name
                 )
                 db.session.add(routine)
                 db.session.flush()
