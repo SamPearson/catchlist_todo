@@ -21,6 +21,7 @@ class TimeBlock(db.Model):
     end_date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
     updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
+    report_generated = db.Column(db.Boolean, default=False)  # Track if report has been generated
     
     # Relationships
     user = relationship('User', backref='time_blocks')
@@ -39,6 +40,7 @@ class TimeBlock(db.Model):
         self.block_type = block_type
         if theme:
             self.theme = theme
+        self.report_generated = False  # Initialize report_generated to False
     
     def as_dict(self) -> Dict:
         """Convert the time block to a dictionary"""
@@ -50,7 +52,8 @@ class TimeBlock(db.Model):
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'end_date': self.end_date.isoformat() if self.end_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'report_generated': self.report_generated
         }
     
     @property

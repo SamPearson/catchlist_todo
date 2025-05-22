@@ -27,8 +27,11 @@ def create_commitment():
         return jsonify({"message": "Due date is required for hard commitments"}), 400
     
     # Parse the date string directly as YYYY-MM-DD
-    year, month, day = map(int, data['due_date'].split('-'))
-    due_date = date(year, month, day)
+    try:
+        year, month, day = map(int, data['due_date'].split('-'))
+        due_date = date(year, month, day)
+    except (ValueError, TypeError) as e:
+        return jsonify({"message": f"Invalid date format: {str(e)}"}), 400
     
     # Create commitment
     commitment = Commitment(
@@ -68,7 +71,7 @@ def get_today_commitments():
 @commitments_bp.route('/api/commitments/<int:commitment_id>', methods=['PUT'])
 @jwt_required()
 def update_commitment(commitment_id):
-    """Update a commitment's completion status"""
+    """Update a commitment's completion status and other fields"""
     user_id = get_jwt_identity()
     data = request.get_json()
     
@@ -83,6 +86,16 @@ def update_commitment(commitment_id):
         
         # Generate reports after updating commitment
         ReportGenerator.generate_missing_reports(user_id, db.session)
+    
+    if 'due_date' in data:
+        try:
+            year, month, day = map(int, data['due_date'].split('-'))
+            commitment.due_date = date(year, month, day)
+        except (ValueError, TypeError) as e:
+            return jsonify({"message": f"Invalid date format: {str(e)}"}), 400
+    
+    if 'notes' in data:
+        commitment.notes = data['notes']
     
     db.session.commit()
     return jsonify(commitment.as_dict())
@@ -292,6 +305,7 @@ def get_commitments_range():
     user_id = get_jwt_identity()
     start_date = request.args.get('start')
     end_date = request.args.get('end')
+    commitment_type = request.args.get('type')
     
     if not start_date or not end_date:
         return jsonify({"message": "Start date and end date are required"}), 400
@@ -302,12 +316,26 @@ def get_commitments_range():
     except ValueError:
         return jsonify({"message": "Invalid date format. Use YYYY-MM-DD"}), 400
     
-    # Get all commitments within the date range
-    commitments = Commitment.query.filter(
+    # Base query for commitments within the date range
+    query = Commitment.query.filter(
         Commitment.user_id == user_id,
         Commitment.due_date.between(start_date, end_date)
-    ).order_by(Commitment.due_date.asc()).all()
+    )
     
+    # Filter by type if provided
+    if commitment_type:
+        if commitment_type == 'routine':
+            query = query.filter(Commitment.routine_id.isnot(None))
+        elif commitment_type == 'project':
+            query = query.filter(or_(
+                Commitment.project_id.isnot(None),
+                Commitment.project_task_id.isnot(None)
+            ))
+        elif commitment_type == 'catchlist':
+            query = query.filter(Commitment.catchlist_item_id.isnot(None))
+    
+    # Execute query and return results
+    commitments = query.order_by(Commitment.due_date.asc()).all()
     return jsonify([commitment.as_dict() for commitment in commitments])
 
 # Add OPTIONS method handler for soft commitments

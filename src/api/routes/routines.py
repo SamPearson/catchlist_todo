@@ -1,25 +1,344 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import db, Routine, Session, Commitment
+from ...config.models import db, Routine, Session, Commitment, Calendar
 from ..utils.helpers import get_current_user_id
-from ...config.caldav_client import CalDAVClient
+from ...config.caldav_client import CalDAVClient, CalDAVError, CalDAVConnectionError
 from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
 import random
 from ...config.models.tags import Tag, RoutineTag, SessionTag
 from dateutil import rrule
 import re
+from typing import Dict, List, Optional
+from dataclasses import dataclass
+import logging
+import pytz
 
 routines_bp = Blueprint('routines', __name__)
 
-# Add OPTIONS method handler for CORS preflight requests
-@routines_bp.route('/api/routines/import', methods=['OPTIONS'])
-def options_routines_import():
-    response = jsonify({'status': 'ok'})
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
-    return response
+logger = logging.getLogger(__name__)
+
+@dataclass
+class TimeframeRange:
+    start: datetime
+    end: datetime
+
+def get_timeframe_range(timeframe: str, start_date: Optional[str] = None, 
+                       end_date: Optional[str] = None) -> TimeframeRange:
+    """Calculate the date range for a given timeframe"""
+    now = datetime.now()
+    
+    if timeframe == 'custom' and start_date and end_date:
+        return TimeframeRange(
+            start=datetime.fromisoformat(start_date),
+            end=datetime.fromisoformat(end_date)
+        )
+    
+    if timeframe == 'day':
+        return TimeframeRange(
+            start=now.replace(hour=0, minute=0, second=0, microsecond=0),
+            end=now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        )
+    
+    if timeframe == 'week':
+        # Get start of week (Monday)
+        start = now - timedelta(days=now.weekday())
+        return TimeframeRange(
+            start=start.replace(hour=0, minute=0, second=0, microsecond=0),
+            end=(start + timedelta(days=6)).replace(hour=23, minute=59, second=59, microsecond=999999)
+        )
+    
+    if timeframe == 'month':
+        return TimeframeRange(
+            start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
+            end=(now.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        )
+    
+    if timeframe == 'season':
+        # Define seasons
+        seasons = [
+            (3, 5),   # Spring (Mar-May)
+            (6, 8),   # Summer (Jun-Aug)
+            (9, 11),  # Fall (Sep-Nov)
+            (12, 2)   # Winter (Dec-Feb)
+        ]
+        
+        current_month = now.month
+        current_season = next(
+            (start, end) for start, end in seasons 
+            if start <= current_month <= end
+        )
+        
+        if current_month >= current_season[0]:
+            year = now.year
+        else:
+            year = now.year - 1
+            
+        start = datetime(year, current_season[0], 1)
+        if current_season[1] == 2:
+            end = datetime(year + 1, 3, 1) - timedelta(days=1)
+        else:
+            end = datetime(year, current_season[1] + 1, 1) - timedelta(days=1)
+            
+        return TimeframeRange(start=start, end=end)
+    
+    if timeframe == 'year':
+        return TimeframeRange(
+            start=now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0),
+            end=now.replace(month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
+        )
+    
+    # Default to one year
+    return TimeframeRange(
+        start=now,
+        end=now + timedelta(days=365)
+    )
+
+@routines_bp.route('/api/caldav/test-connection', methods=['POST'])
+@jwt_required()
+def test_caldav_connection():
+    """Test CalDAV connection and return available calendars"""
+    data = request.get_json()
+    
+    if not data or not data.get('url') or not data.get('username') or not data.get('password'):
+        return jsonify({
+            "success": False,
+            "message": "Missing required fields"
+        }), 400
+    
+    try:
+        client = CalDAVClient(
+            url=data['url'],
+            username=data['username'],
+            password=data['password']
+        )
+        
+        if not client.connect():
+            return jsonify({
+                "success": False,
+                "message": "Failed to connect to CalDAV server"
+            }), 400
+        
+        calendars = client.get_calendars()
+        logger.debug(f"Retrieved {len(calendars)} calendars")
+        
+        # Convert calendars to a list of dictionaries
+        calendar_list = []
+        for cal in calendars:
+            try:
+                calendar_list.append({
+                    "name": str(cal.name),
+                    "color": str(cal.color),
+                    "url": str(cal.url),
+                    "uid": str(cal.uid)
+                })
+            except Exception as e:
+                logger.error(f"Error processing calendar: {str(e)}")
+                continue
+        
+        logger.debug(f"Successfully processed {len(calendar_list)} calendars")
+        
+        return jsonify({
+            "success": True,
+            "calendars": calendar_list
+        })
+        
+    except CalDAVConnectionError as e:
+        logger.error(f"CalDAV connection error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 400
+    except CalDAVError as e:
+        logger.error(f"CalDAV error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in test_caldav_connection: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
+
+@routines_bp.route('/api/routines/import', methods=['POST'])
+@jwt_required()
+def import_routines():
+    """Import routines from CalDAV calendars"""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    if not data or not data.get('url') or not data.get('username') or not data.get('password'):
+        return jsonify({
+            "success": False,
+            "message": "Missing required fields"
+        }), 400
+    
+    try:
+        # Get timeframe range
+        timeframe = data.get('timeframe', 'year')
+        date_range = get_timeframe_range(
+            timeframe,
+            data.get('start_date'),
+            data.get('end_date')
+        )
+        
+        # Initialize CalDAV client
+        client = CalDAVClient(
+            url=data['url'],
+            username=data['username'],
+            password=data['password']
+        )
+        
+        if not client.connect():
+            return jsonify({
+                "success": False,
+                "message": "Failed to connect to CalDAV server"
+            }), 400
+        
+        # Get list of calendars
+        calendars = client.get_calendars()
+        
+        # Filter to only selected calendars
+        selected_indices = data.get('calendar_indices', [])
+        selected_calendars = [calendars[i] for i in selected_indices if i < len(calendars)]
+        
+        imported_count = 0
+        
+        for calendar in selected_calendars:
+            # Create or get calendar object
+            calendar_obj = Calendar.query.filter_by(
+                user_id=user_id,
+                external_uid=calendar.uid
+            ).first()
+            
+            if not calendar_obj:
+                calendar_obj = Calendar(
+                    name=calendar.name,
+                    color=calendar.color,
+                    user_id=user_id,
+                    external_uid=calendar.uid,
+                    external_source='caldav'
+                )
+                db.session.add(calendar_obj)
+                db.session.flush()
+            
+            # Create or get calendar tag
+            calendar_tag = Tag.query.filter_by(
+                user_id=user_id,
+                name=calendar.name
+            ).first()
+            
+            if not calendar_tag:
+                calendar_tag = Tag(
+                    name=calendar.name,
+                    color=calendar.color,
+                    user_id=user_id
+                )
+                db.session.add(calendar_tag)
+                db.session.flush()
+            
+            # Get events from calendar
+            events = client.get_events(
+                calendar.url,
+                start_date=date_range.start,
+                end_date=date_range.end
+            )
+            
+            for event in events:
+                # Skip non-recurring events
+                if not event.rrule:
+                    continue
+                
+                # Check if routine already exists
+                existing_routine = Routine.query.filter_by(
+                    user_id=user_id,
+                    external_uid=event.uid
+                ).first()
+                
+                if existing_routine:
+                    logger.debug(f"Skipping existing routine: {event.summary}")
+                    continue
+                
+                logger.debug(f"Creating routine from event: {event.summary}")
+                logger.debug(f"RRULE: {event.rrule}")
+                
+                # Create routine with proper calendar association
+                routine = Routine(
+                    title=event.summary,
+                    description=event.description,
+                    rrule=event.rrule,  # Now properly formatted as iCalendar string
+                    active=True,
+                    user_id=user_id,
+                    calendar_id=calendar_obj.id,  # Set the calendar ID
+                    external_uid=event.uid,
+                    external_source='caldav',
+                    external_source_name=calendar.name  # Set the calendar name
+                )
+                db.session.add(routine)
+                db.session.flush()
+                
+                # Create initial session from the event
+                session = Session(
+                    routine_id=routine.id,
+                    start_time=event.start,
+                    end_time=event.end,
+                    user_id=user_id
+                )
+                db.session.add(session)
+                db.session.flush()
+                
+                # Create initial commitment for the session
+                commitment = Commitment(
+                    user_id=user_id,
+                    session_id=session.id,
+                    routine_id=routine.id,
+                    due_date=event.start.date(),
+                    start_time=event.start,
+                    end_time=event.end,
+                    title=event.summary,
+                    description=event.description
+                )
+                db.session.add(commitment)
+                
+                # Associate routine with calendar tag
+                routine_tag = RoutineTag(
+                    routine_id=routine.id,
+                    tag_id=calendar_tag.id
+                )
+                db.session.add(routine_tag)
+                
+                imported_count += 1
+        
+        db.session.commit()
+        logger.info(f"Successfully imported {imported_count} routines")
+        return jsonify({
+            "success": True,
+            "imported_count": imported_count
+        })
+        
+    except CalDAVConnectionError as e:
+        db.session.rollback()
+        logger.error(f"CalDAV connection error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 400
+    except CalDAVError as e:
+        db.session.rollback()
+        logger.error(f"CalDAV error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Unexpected error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Unexpected error: {str(e)}"
+        }), 500
 
 @routines_bp.route('/api/routines', methods=['GET'])
 @jwt_required()
@@ -35,12 +354,15 @@ def get_routines():
             Session.start_time >= datetime.now()
         ).order_by(Session.start_time.asc()).first()
         
-        # Find the calendar tag (the one that was created during import)
-        calendar_tag = None
-        for tag_assoc in routine.tag_associations:
-            if tag_assoc.tag.name == routine.external_source_name:
-                calendar_tag = tag_assoc.tag
-                break
+        # Get the calendar information
+        calendar = routine.calendar
+        calendar_info = None
+        if calendar:
+            calendar_info = {
+                'id': calendar.id,
+                'name': calendar.name,
+                'color': calendar.color
+            }
         
         result.append({
             'id': routine.id,
@@ -51,7 +373,7 @@ def get_routines():
             'active': routine.active,
             'external_source': routine.external_source,
             'external_source_name': routine.external_source_name,
-            'external_source_color': calendar_tag.color if calendar_tag else '#767676',
+            'calendar': calendar_info,
             'start_time': next_session.start_time.strftime('%H:%M') if next_session else None,
             'end_time': next_session.end_time.strftime('%H:%M') if next_session else None,
             'tags': [assoc.tag.as_dict() for assoc in routine.tag_associations]
@@ -196,155 +518,6 @@ def delete_routine(routine_id):
 
 def random_color():
     return "#" + ''.join([random.choice('0123456789ABCDEF') for _ in range(6)])
-
-@routines_bp.route('/api/routines/import', methods=['POST'])
-@jwt_required()
-def import_routines():
-    data = request.get_json()
-    current_user_id = get_jwt_identity()
-    
-    if not data.get('url') or not data.get('username') or not data.get('password'):
-        return jsonify({"message": "Missing required fields"}), 400
-    
-    try:
-        # Initialize CalDAV client
-        client = CalDAVClient(
-            url=data['url'],
-            username=data['username'],
-            password=data['password']
-        )
-        
-        # Get calendars
-        calendars = client.get_calendars()
-        if not calendars:
-            return jsonify({"message": "No calendars found"}), 404
-        
-        # Get selected calendar
-        calendar_index = data.get('calendar_index', 0)
-        if calendar_index >= len(calendars):
-            return jsonify({"message": "Invalid calendar index"}), 400
-        
-        selected_calendar = calendars[calendar_index]
-        
-        # Get events for the specified timeframe
-        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
-        events = client.get_events_as_dict(selected_calendar, start_date, end_date)
-        
-        # Create or get calendar tag
-        calendar_tag = Tag.query.filter_by(
-            user_id=current_user_id,
-            name=selected_calendar.name
-        ).first()
-        
-        if not calendar_tag:
-            # Generate a random color for the calendar
-            color = f"#{random.randint(0, 0xFFFFFF):06x}"
-            calendar_tag = Tag(
-                user_id=current_user_id,
-                name=selected_calendar.name,
-                color=color
-            )
-            db.session.add(calendar_tag)
-            db.session.flush()
-        
-        imported_count = 0
-        
-        for event in events:
-            try:
-                # Check if routine already exists
-                existing_routine = Routine.query.filter_by(
-                    user_id=current_user_id,
-                    external_uid=event['uid']
-                ).first()
-                
-                if existing_routine:
-                    continue
-                
-                # Create new routine
-                routine = Routine(
-                    user_id=current_user_id,
-                    title=event['summary'],
-                    description=event.get('description', ''),
-                    rrule=event.get('rrule', ''),
-                    external_source='caldav',
-                    external_uid=event['uid'],
-                    external_source_name=selected_calendar.name,  # Store the calendar name
-                    active=True
-                )
-                db.session.add(routine)
-                db.session.flush()  # Get the routine ID
-
-                # Associate calendar tag with routine
-                routine_tag = RoutineTag(routine_id=routine.id, tag_id=calendar_tag.id)
-                db.session.add(routine_tag)
-
-                # Parse RRULE if it exists
-                if event.get('rrule'):
-                    # Convert RRULE string to rrule object
-                    rrule_str = event['rrule']
-                    if isinstance(rrule_str, str):
-                        # Parse the RRULE string
-                        rrule_parts = dict(part.split('=') for part in rrule_str.split(';') if '=' in part)
-                        
-                        # Create rrule object
-                        rule = rrule.rrule(
-                            freq=getattr(rrule, rrule_parts.get('FREQ', 'DAILY').upper()),
-                            interval=int(rrule_parts.get('INTERVAL', 1)),
-                            dtstart=event['start'],
-                            until=end_date,
-                            byweekday=[getattr(rrule, day) for day in rrule_parts.get('BYDAY', '').split(',')] if 'BYDAY' in rrule_parts else None
-                        )
-                        
-                        # Get all occurrences within the timeframe
-                        occurrences = list(rule.between(start_date, end_date, inc=True))
-                    else:
-                        # If RRULE is not a string, just use the start date
-                        occurrences = [event['start']]
-                else:
-                    # For non-recurring events, just use the start date
-                    occurrences = [event['start']]
-
-                # Create sessions for each occurrence
-                for occurrence in occurrences:
-                    # Create session
-                    session_start = datetime.combine(occurrence.date(), event['start'].time())
-                    session_end = datetime.combine(occurrence.date(), event['end'].time())
-                    
-                    session = Session(
-                        routine_id=routine.id,
-                        start_time=session_start,
-                        end_time=session_end,
-                        user_id=current_user_id
-                    )
-                    db.session.add(session)
-                    db.session.flush()  # Get the session ID
-
-                    # Associate calendar tag with session
-                    session_tag = SessionTag(session_id=session.id, tag_id=calendar_tag.id)
-                    db.session.add(session_tag)
-
-                    # Create commitment for the session
-                    commitment = Commitment(
-                        user_id=current_user_id,
-                        due_date=occurrence.date(),
-                        start_time=session_start,
-                        end_time=session_end,
-                        routine_id=routine.id,
-                        session_id=session.id
-                    )
-                    db.session.add(commitment)
-
-                imported_count += 1
-            except Exception as e:
-                print(f"Error importing event: {str(e)}")
-                continue
-        
-        db.session.commit()
-        return jsonify({"success": True, "imported_count": imported_count})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
 
 @routines_bp.route('/api/routines/<int:routine_id>/sessions', methods=['GET'])
 @jwt_required()
@@ -507,4 +680,104 @@ def get_routines_range():
                           (session.end_time.strftime('%H:%M') if session.end_time else None) == '00:00')
         })
     
-    return jsonify(result) 
+    return jsonify(result)
+
+@routines_bp.route('/api/routines/<int:routine_id>/create-sessions', methods=['POST'])
+@jwt_required()
+def create_routine_sessions(routine_id):
+    """Create sessions for a routine within a specified timeframe"""
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    # Verify routine exists and belongs to user
+    routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+    if not routine:
+        return jsonify({"message": "Routine not found"}), 404
+    
+    if not data or not data.get('start_date') or not data.get('end_date'):
+        return jsonify({"message": "Start date and end date are required"}), 400
+    
+    try:
+        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        
+        # Parse RRULE
+        if not routine.rrule:
+            return jsonify({"message": "Routine has no recurrence rule"}), 400
+            
+        # Ensure dates are timezone-aware
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.max.time())
+        
+        if start_dt.tzinfo is None:
+            start_dt = pytz.UTC.localize(start_dt)
+        if end_dt.tzinfo is None:
+            end_dt = pytz.UTC.localize(end_dt)
+        
+        # Parse RRULE with timezone-aware start time
+        rule = rrule.rrulestr(routine.rrule, dtstart=start_dt)
+        
+        # Get the original event's duration from the first session if it exists
+        original_duration = None
+        first_session = Session.query.filter_by(routine_id=routine.id).order_by(Session.start_time.asc()).first()
+        if first_session and first_session.start_time and first_session.end_time:
+            original_duration = first_session.end_time - first_session.start_time
+        
+        # Generate sessions
+        session_count = 0
+        commitment_count = 0
+        for dt in rule.between(start_dt, end_dt):
+            # Ensure dt is timezone-aware
+            if dt.tzinfo is None:
+                dt = pytz.UTC.localize(dt)
+            
+            # Use original duration if available, otherwise default to 1 hour
+            duration = original_duration if original_duration else timedelta(hours=1)
+            end_time = dt + duration
+            
+            # Check if session already exists
+            existing_session = Session.query.filter_by(
+                routine_id=routine.id,
+                start_time=dt
+            ).first()
+            
+            if existing_session:
+                continue
+            
+            # Create session
+            session = Session(
+                routine_id=routine.id,
+                start_time=dt,
+                end_time=end_time,
+                user_id=current_user_id
+            )
+            db.session.add(session)
+            db.session.flush()  # Get the session ID
+            session_count += 1
+            
+            # Create commitment for the session
+            commitment = Commitment(
+                user_id=current_user_id,
+                due_date=dt.date(),
+                start_time=dt,
+                end_time=end_time,
+                routine_id=routine.id,
+                session_id=session.id,
+                title=routine.title,  # Use routine title as commitment title
+                description=routine.description  # Use routine description as commitment description
+            )
+            db.session.add(commitment)
+            commitment_count += 1
+        
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "message": f"Created {session_count} sessions and {commitment_count} commitments",
+            "session_count": session_count,
+            "commitment_count": commitment_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating sessions: {str(e)}")
+        return jsonify({"message": str(e)}), 500 

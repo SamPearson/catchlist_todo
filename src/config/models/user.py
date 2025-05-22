@@ -19,10 +19,11 @@ class User(UserMixin, db.Model):
     soft_commitments = relationship("SoftCommitment", back_populates="user", lazy=True)
     projects = relationship("Project", back_populates="user", lazy=True)
     catchlist_items = relationship("CatchlistItem", back_populates="user", lazy=True)
-    routines = relationship("Routine", back_populates="user", lazy=True)
-    sessions = relationship("Session", back_populates="user", lazy=True)
+    routines = relationship("Routine", back_populates="user", cascade='all, delete-orphan')
+    sessions = relationship("Session", back_populates="user", cascade='all, delete-orphan')
     checkins = relationship("Checkin", back_populates="user", lazy=True)
     tags = relationship("Tag", back_populates="user", lazy=True)
+    calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
     
     # Relationships will be defined as backref from their respective models
     # to avoid circular imports

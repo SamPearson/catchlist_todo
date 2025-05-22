@@ -2,155 +2,298 @@ import caldav
 import icalendar
 from datetime import datetime, timedelta
 import logging
+from dateutil import parser
+import pytz
+from typing import List, Dict, Optional, Union
+from dataclasses import dataclass
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
+
+@dataclass
+class CalendarInfo:
+    name: str
+    color: str
+    url: str
+    uid: str
+
+    def __post_init__(self):
+        # Ensure URL is a string
+        if hasattr(self.url, 'url'):
+            self.url = str(self.url.url)
+        else:
+            self.url = str(self.url)
+
+@dataclass
+class EventInfo:
+    summary: str
+    description: Optional[str]
+    start: datetime
+    end: datetime
+    rrule: Optional[str]
+    uid: str
+    recurrence_id: Optional[str]
+
+class CalDAVError(Exception):
+    """Base exception for CalDAV related errors"""
+    pass
+
+class CalDAVConnectionError(CalDAVError):
+    """Raised when connection to CalDAV server fails"""
+    pass
 
 class CalDAVClient:
-    def __init__(self, url, username=None, password=None):
-        self.url = url
+    def __init__(self, url: str, username: str, password: str):
+        """Initialize CalDAV client with connection details"""
+        self.url = url.rstrip('/') + '/'  # Ensure URL ends with slash
         self.username = username
         self.password = password
         self.client = None
-        
-    def connect(self):
+        logger.debug(f"Initializing CalDAV client for URL: {self.url}")
+
+    def connect(self) -> bool:
         """Establish connection to CalDAV server"""
         try:
-            # Ensure URL ends with a slash
-            if not self.url.endswith('/'):
-                self.url += '/'
-                
-            # Create client with basic authentication
             self.client = caldav.DAVClient(
                 url=self.url,
                 username=self.username,
                 password=self.password
             )
             
-            # Test the connection by getting the principal
+            # Test connection by getting principal
             principal = self.client.principal()
             if not principal:
-                logging.error("Failed to get principal from CalDAV server")
-                return False
+                raise CalDAVConnectionError("Failed to get principal from CalDAV server")
                 
+            logger.debug("Successfully connected to CalDAV server")
             return True
-        except caldav.error.AuthorizationError as e:
-            logging.error(f"CalDAV authorization error: {str(e)}")
-            return False
-        except caldav.error.DAVError as e:
-            logging.error(f"CalDAV DAV error: {str(e)}")
-            return False
-        except Exception as e:
-            logging.error(f"CalDAV connection error: {str(e)}")
-            return False
             
+        except caldav.error.AuthorizationError as e:
+            raise CalDAVConnectionError(f"Authorization failed: {str(e)}")
+        except caldav.error.DAVError as e:
+            raise CalDAVConnectionError(f"DAV error: {str(e)}")
+        except Exception as e:
+            raise CalDAVConnectionError(f"Connection error: {str(e)}")
+
     def get_calendars(self):
         """Get list of available calendars"""
-        if not self.client:
-            if not self.connect():
-                return []
-                
         try:
+            # Get principal URL
             principal = self.client.principal()
-            calendars = principal.calendars()
+            logger.debug(f"Found principal URL: {principal.url}")
             
-            # Log calendar details for debugging
-            for cal in calendars:
-                logging.info(f"Found calendar: {cal.name} at {cal.url}")
-                
-            return calendars
-        except caldav.error.AuthorizationError as e:
-            logging.error(f"CalDAV authorization error while fetching calendars: {str(e)}")
-            return []
+            # Get calendar home
+            calendar_home = principal.calendar_home_set
+            logger.debug(f"Found calendar home: {calendar_home.url}")
+            
+            # Get all calendars
+            calendars = calendar_home.calendars()
+            logger.debug(f"Found {len(calendars)} calendars")
+            
+            result = []
+            for calendar in calendars:
+                try:
+                    # Get calendar properties
+                    name = calendar.name
+                    if not name:
+                        name = "Unnamed Calendar"
+                    
+                    # Get color (default to a neutral gray if not available)
+                    color = "#767676"  # Default color
+                    
+                    # Get UID from URL
+                    uid = calendar.url.split('/')[-2] if calendar.url.endswith('/') else calendar.url.split('/')[-1]
+                    
+                    result.append(CalendarInfo(
+                        name=name,
+                        color=color,
+                        url=calendar.url,
+                        uid=uid
+                    ))
+                    logger.debug(f"Processed calendar: {name} ({uid})")
+                except Exception as e:
+                    logger.error(f"Error processing calendar {calendar.url}: {str(e)}")
+                    continue
+            
+            return result
+            
         except Exception as e:
-            logging.error(f"Error fetching calendars: {str(e)}")
-            return []
-            
-    def get_events(self, calendar=None, start_date=None, end_date=None):
-        """Get events from a specific calendar within date range"""
-        if not calendar:
-            calendars = self.get_calendars()
-            if not calendars:
-                return []
-            calendar = calendars[0]  # Use first calendar by default
-            
-        if not start_date:
-            start_date = datetime.now() - timedelta(days=30)
-        if not end_date:
-            end_date = datetime.now() + timedelta(days=90)
+            logger.error(f"Error getting calendars: {str(e)}", exc_info=True)
+            raise CalDAVError(f"Failed to get calendars: {str(e)}")
+
+    def get_events(self, calendar_url: str, start_date: Optional[datetime] = None, 
+                  end_date: Optional[datetime] = None) -> List[EventInfo]:
+        """Get events from a specific calendar"""
+        if not self.client:
+            raise CalDAVError("Not connected to CalDAV server")
             
         try:
-            events = calendar.date_search(start=start_date, end=end_date)
-            return events
+            calendar = self.client.calendar(url=calendar_url)
+            
+            # Set default date range if not provided
+            if not start_date:
+                start_date = datetime.now()
+            if not end_date:
+                end_date = start_date + timedelta(days=365)
+                
+            logger.debug(f"Searching for events between {start_date} and {end_date}")
+            
+            # Use search instead of date_search as per deprecation notice
+            events = calendar.search(
+                start=start_date,
+                end=end_date,
+                event=True
+            )
+            logger.debug(f"Found {len(events)} events")
+            
+            event_list = []
+            for event in events:
+                try:
+                    event_info = self._parse_event(event)
+                    if event_info:
+                        logger.debug(f"Successfully parsed event: {event_info.summary} (RRULE: {event_info.rrule})")
+                        event_list.append(event_info)
+                    else:
+                        logger.debug("Event parsed but returned None")
+                except Exception as e:
+                    logger.warning(f"Error parsing event: {str(e)}")
+                    continue
+            
+            return event_list
+            
         except Exception as e:
-            print(f"Error fetching events: {str(e)}")
-            return []
+            logger.error(f"Failed to get events: {str(e)}")
+            raise CalDAVError(f"Failed to get events: {str(e)}")
+
+    def _parse_event(self, event: caldav.CalendarObjectResource) -> Optional[EventInfo]:
+        """Parse a single event into EventInfo object"""
+        try:
+            # Get raw event data
+            raw_data = event.data
             
-    def get_events_as_dict(self, calendar=None, start_date=None, end_date=None):
-        """
-        Get events from calendar and convert to dictionary format
-        
-        Args:
-            calendar: Calendar object to fetch events from
-            start_date: Start date for date range search (datetime object)
-            end_date: End date for date range search (datetime object)
+            # Handle different raw data formats
+            if isinstance(raw_data, dict):
+                for key in ['data', 'raw', 'ical', 'content']:
+                    if key in raw_data:
+                        raw_data = raw_data[key]
+                        break
+                else:
+                    raw_data = str(raw_data)
             
-        Returns:
-            List of event dictionaries
-        """
-        events = self.get_events(calendar, start_date, end_date)
-        result = []
-        
-        for event in events:
-            try:
-                event_data = event.data
-                ical = icalendar.Calendar.from_ical(event_data)
-                
-                for component in ical.walk():
-                    if component.name == "VEVENT":
-                        dtstart = component.get('dtstart')
-                        dtend = component.get('dtend')
+            if isinstance(raw_data, dict):
+                raw_data = str(raw_data)
+            
+            # Parse with icalendar
+            cal = icalendar.Calendar.from_ical(raw_data)
+            
+            # Find first VEVENT component
+            for component in cal.walk():
+                if component.name == "VEVENT":
+                    # Get basic event details
+                    summary = str(component.get('summary', ''))
+                    uid = str(component.get('uid'))
+                    
+                    # Check for recurring event
+                    rrule = component.get('rrule')
+                    recurrence_id = component.get('recurrence-id')
+                    
+                    # Log event details for debugging
+                    logger.debug(f"Processing event: {summary}")
+                    logger.debug(f"RRULE: {rrule}")
+                    logger.debug(f"Recurrence ID: {recurrence_id}")
+                    
+                    # Skip non-recurring events
+                    if not rrule and not recurrence_id and 'RRULE' not in raw_data.upper():
+                        logger.debug(f"Skipping non-recurring event: {summary}")
+                        continue
+                    
+                    # Get remaining details
+                    description = str(component.get('description', ''))
+                    start = component.get('dtstart').dt
+                    end = component.get('dtend').dt
+                    
+                    # Handle timezone conversion
+                    if isinstance(start, datetime):
+                        if start.tzinfo is None:
+                            # If no timezone info, assume it's in local time
+                            local_tz = pytz.timezone('America/New_York')  # Default to EST
+                            start = local_tz.localize(start)
+                        # Store in UTC but preserve original timezone info
+                        start_utc = start.astimezone(pytz.UTC)
+                        start = start_utc
                         
-                        # Skip if no start/end
-                        if not dtstart or not dtend:
-                            continue
-                            
-                        start_dt = dtstart.dt
-                        end_dt = dtend.dt
-                        
-                        # Convert to datetime if date
-                        if not isinstance(start_dt, datetime):
-                            start_dt = datetime.combine(start_dt, datetime.min.time())
-                        if not isinstance(end_dt, datetime):
-                            end_dt = datetime.combine(end_dt, datetime.min.time())
-                        
-                        # If there's a recurring rule, expand it
-                        rrule = component.get('rrule')
-                        if rrule:
-                            # Use the base event
-                            result.append({
-                                'uid': str(component.get('uid')),
-                                'summary': str(component.get('summary', '')),
-                                'description': str(component.get('description', '')),
-                                'location': str(component.get('location', '')),
-                                'start': start_dt,
-                                'end': end_dt,
-                                'rrule': str(rrule)
-                            })
-                            
-                            # TODO: Expand recurring events based on the rrule
-                            # This is a simplistic approach - for a complete solution
-                            # we would need to use dateutil.rrule to expand all instances
+                    if isinstance(end, datetime):
+                        if end.tzinfo is None:
+                            # If no timezone info, assume it's in local time
+                            local_tz = pytz.timezone('America/New_York')  # Default to EST
+                            end = local_tz.localize(end)
+                        # Store in UTC but preserve original timezone info
+                        end_utc = end.astimezone(pytz.UTC)
+                        end = end_utc
+                    
+                    # Format recurrence_id
+                    if recurrence_id:
+                        if hasattr(recurrence_id, 'dt'):
+                            recurrence_id = recurrence_id.dt
+                            if isinstance(recurrence_id, datetime):
+                                if recurrence_id.tzinfo is None:
+                                    recurrence_id = pytz.UTC.localize(recurrence_id)
+                                else:
+                                    recurrence_id = recurrence_id.astimezone(pytz.UTC)
+                                recurrence_id = recurrence_id.isoformat()
+                            else:
+                                recurrence_id = str(recurrence_id)
                         else:
-                            # Non-recurring event
-                            result.append({
-                                'uid': str(component.get('uid')),
-                                'summary': str(component.get('summary', '')),
-                                'description': str(component.get('description', '')),
-                                'location': str(component.get('location', '')),
-                                'start': start_dt,
-                                'end': end_dt
-                            })
-            except Exception as e:
-                print(f"Error parsing event: {str(e)}")
-                continue
-                
-        return result
+                            recurrence_id = str(recurrence_id)
+                    
+                    # Format rrule to proper iCalendar format
+                    if rrule:
+                        # Convert vRecur to proper iCalendar format
+                        rrule_str = f"FREQ={rrule['FREQ'][0]}"
+                        if 'INTERVAL' in rrule:
+                            rrule_str += f";INTERVAL={rrule['INTERVAL'][0]}"
+                        if 'COUNT' in rrule:
+                            rrule_str += f";COUNT={rrule['COUNT'][0]}"
+                        if 'UNTIL' in rrule:
+                            until = rrule['UNTIL'][0]
+                            if isinstance(until, datetime):
+                                if until.tzinfo is None:
+                                    until = pytz.UTC.localize(until)
+                                else:
+                                    until = until.astimezone(pytz.UTC)
+                                rrule_str += f";UNTIL={until.strftime('%Y%m%dT%H%M%SZ')}"
+                            else:
+                                rrule_str += f";UNTIL={until}"
+                        if 'BYDAY' in rrule:
+                            rrule_str += f";BYDAY={','.join(rrule['BYDAY'])}"
+                        if 'BYMONTHDAY' in rrule:
+                            rrule_str += f";BYMONTHDAY={','.join(map(str, rrule['BYMONTHDAY']))}"
+                        if 'BYMONTH' in rrule:
+                            rrule_str += f";BYMONTH={','.join(map(str, rrule['BYMONTH']))}"
+                        if 'BYSETPOS' in rrule:
+                            rrule_str += f";BYSETPOS={','.join(map(str, rrule['BYSETPOS']))}"
+                        if 'WKST' in rrule:
+                            rrule_str += f";WKST={rrule['WKST'][0]}"
+                        logger.debug(f"Formatted RRULE: {rrule_str}")
+                        rrule = rrule_str
+                    
+                    return EventInfo(
+                        summary=summary,
+                        description=description,
+                        start=start,
+                        end=end,
+                        rrule=rrule,
+                        uid=uid,
+                        recurrence_id=recurrence_id
+                    )
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Error parsing event: {str(e)}")
+            return None

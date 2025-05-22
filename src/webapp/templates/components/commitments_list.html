@@ -1,18 +1,5 @@
-{% macro commitments_list(id="commitments-list", empty_message="No commitments found", show_routines=false) %}
+{% macro commitments_list(id="commitments-list", empty_message="No commitments found", show_routines=false, type="") %}
 <div class="ui segment">
-    <div class="ui grid">
-        <div class="twelve wide column">
-            <h3 class="ui header">Commitments</h3>
-        </div>
-        {% if show_routines %}
-        <div class="four wide column" style="text-align: right;">
-            <div class="ui toggle checkbox">
-                <input type="checkbox" id="view-toggle">
-                <label>Show Routines</label>
-            </div>
-        </div>
-        {% endif %}
-    </div>
     <div class="ui divided items" id="{{ id }}">
         <div class="ui placeholder">
             <div class="header">
@@ -25,6 +12,107 @@
         </div>
     </div>
 </div>
+
+<!-- Tag Management Modal -->
+{% include "components/tag_management_modal.html" %}
+
+<!-- Checkin Management Component -->
+{% from "components/checkin_management.html" import checkin_management %}
+{{ checkin_management() }}
+
+<style>
+.commitment-group {
+    margin-bottom: 1.5em;
+    border-left-width: 4px !important;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    padding: 0.5em 0;  /* Add vertical padding to the group */
+}
+
+.commitment-group:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.commitment-group .ui.header {
+    margin-bottom: 1em;
+}
+
+.commitment-group .ui.header .sub.header {
+    color: rgba(0,0,0,0.6);
+}
+
+.commitment-group .ui.divided.items {
+    margin-top: 0;
+    padding: 0.5em 0;  /* Add vertical padding to the items container */
+}
+
+.commitment-group .item {
+    padding: 1em;
+    transition: background-color 0.2s ease;
+    margin: 0.5em 0;  /* Add vertical margin to each item */
+}
+
+.commitment-group .item:hover {
+    background-color: rgba(0,0,0,0.02);
+}
+
+/* Completed section styles */
+.completed-section {
+    opacity: 0.8;
+    background-color: #f8f9fa;
+    padding: 1em 0;  /* Add vertical padding to the completed section */
+}
+
+.completed-section .commitment-group {
+    opacity: 0.9;
+}
+
+.completed-section .commitment-group .item {
+    opacity: 0.9;
+}
+
+.completed-section .commitment-group .header {
+    color: rgba(0,0,0,0.6);
+}
+
+.completed-section .commitment-group .meta {
+    color: rgba(0,0,0,0.5);
+}
+
+.completed-section .commitment-group .description {
+    color: rgba(0,0,0,0.6);
+}
+
+/* Toggle switch styles */
+.ui.toggle.checkbox {
+    min-width: 100px;
+}
+
+.ui.toggle.checkbox input:checked ~ label:before {
+    background-color: #21ba45 !important;
+}
+
+.ui.toggle.checkbox input:checked ~ label:after {
+    background-color: #ffffff !important;
+}
+
+.ui.toggle.checkbox label {
+    padding-left: 4.5em;
+}
+
+.ui.toggle.checkbox label:before {
+    width: 3.5em;
+    height: 1.5em;
+    background-color: rgba(0,0,0,0.15);
+}
+
+.ui.toggle.checkbox label:after {
+    width: 1.5em;
+    height: 1.5em;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
+}
+</style>
 
 <script>
 console.log('Initializing commitments list component with ID:', '{{ id }}');
@@ -39,13 +127,26 @@ if (!window.commitmentComponents['{{ id }}']) {
         initializeCommitmentControls: function(container) {
             console.log('Initializing commitment controls for container:', container);
             
-            // Initialize checkboxes
-            container.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+            // Initialize toggle switches
+            const toggles = container.querySelectorAll('.ui.toggle.checkbox');
+            console.log('Found toggle switches:', toggles.length);
+            
+            toggles.forEach(checkbox => {
+                console.log('Initializing toggle switch:', checkbox);
+                const input = checkbox.querySelector('input');
+                if (!input) {
+                    console.error('No input element found in toggle switch');
+                    return;
+                }
+                
+                const commitmentId = input.getAttribute('data-id');
+                console.log('Initializing toggle for commitment:', commitmentId);
+                
                 $(checkbox).checkbox({
                     onChange: function() {
-                        const commitmentId = this.querySelector('input').getAttribute('data-id');
-                        const completed = this.querySelector('input').checked;
-                        console.log('Checkbox changed:', { commitmentId, completed });
+                        console.log('Toggle switch changed for commitment:', commitmentId);
+                        const completed = input.checked;
+                        console.log('New completion state:', completed);
                         component.updateCommitmentCompletion(commitmentId, completed);
                     }
                 });
@@ -55,8 +156,9 @@ if (!window.commitmentComponents['{{ id }}']) {
             container.querySelectorAll('.view-checkins').forEach(button => {
                 button.addEventListener('click', function() {
                     const id = this.getAttribute('data-id');
-                    console.log('View checkins clicked for ID:', id);
-                    component.toggleCheckinsList(id);
+                    const type = this.getAttribute('data-type');
+                    console.log('View checkins clicked for ID:', id, 'Type:', type);
+                    showQuickCheckinManagement(this);
                 });
             });
         },
@@ -64,136 +166,87 @@ if (!window.commitmentComponents['{{ id }}']) {
         // Update commitment completion status
         updateCommitmentCompletion: function(commitmentId, completed) {
             console.log('Updating commitment completion:', { commitmentId, completed });
-            
             const token = getAuthToken();
             if (!token) {
                 console.error('No auth token found');
-                window.location.href = '/login';
                 return;
             }
             
+            console.log('Making API request to update commitment');
             fetch(`${API_URL}/commitments/${commitmentId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ completed: completed })
+                body: JSON.stringify({ completed })
             })
             .then(response => {
+                console.log('API response:', response);
                 if (!response.ok) {
                     throw new Error('Failed to update commitment');
                 }
-                console.log('Successfully updated commitment');
-                
-                const commitmentItem = document.querySelector(`.item[data-id="${commitmentId}"]`);
-                if (commitmentItem) {
-                    const header = commitmentItem.querySelector('.header');
-                    
-                    if (completed) {
-                        if (!header.querySelector('.ui.green.label')) {
-                            header.innerHTML += ' <span class="ui green label">Completed</span>';
-                        }
-                    } else {
-                        const label = header.querySelector('.ui.green.label');
-                        if (label) {
-                            label.remove();
-                        }
-                    }
+                return response.json();
+            })
+            .then(data => {
+                console.log('API response data:', data);
+                // Reload the entire tab content to reflect the new state
+                const activeTab = $('.menu .item.active').data('tab');
+                console.log('Active tab:', activeTab);
+                if (activeTab && typeof window.loadTabContent === 'function') {
+                    console.log('Calling loadTabContent');
+                    window.loadTabContent(activeTab);
+                } else {
+                    console.error('loadTabContent function not found');
                 }
             })
             .catch(error => {
                 console.error('Error updating commitment:', error);
-                showError('Failed to update commitment');
-                
-                const checkbox = document.querySelector(`input[data-id="${commitmentId}"]`);
-                if (checkbox) {
-                    checkbox.checked = !completed;
-                }
+                alert('Failed to update commitment. Please try again.');
             });
         },
 
-        // Toggle checkins list
-        toggleCheckinsList: function(commitmentId) {
-            console.log('Toggling checkins list for ID:', commitmentId);
-            
-            const list = document.getElementById(`checkins-${commitmentId}`);
-            if (list.style.display === 'none') {
-                component.loadCheckins(commitmentId);
-                list.style.display = 'block';
-            } else {
-                list.style.display = 'none';
-            }
-        },
-
-        // Load checkins for a commitment
-        loadCheckins: function(commitmentId) {
-            console.log('Loading checkins for ID:', commitmentId);
-            
+        // Update commitment due date
+        updateCommitmentDate: function(commitmentId, dueDate) {
+            console.log('Updating commitment date:', { commitmentId, dueDate });
             const token = getAuthToken();
             if (!token) {
                 console.error('No auth token found');
-                window.location.href = '/login';
                 return;
             }
             
-            const list = document.getElementById(`checkins-${commitmentId}`);
-            list.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading checkins...</div></div>';
-            
-            fetch(`${API_URL}/commitments/${commitmentId}/checkins`, {
+            console.log('Making API request to update commitment date');
+            fetch(`${API_URL}/commitments/${commitmentId}`, {
+                method: 'PUT',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                }
+                },
+                body: JSON.stringify({ due_date: dueDate })
             })
             .then(response => {
+                console.log('API response:', response);
                 if (!response.ok) {
-                    throw new Error('Failed to load checkins');
+                    throw new Error('Failed to update commitment date');
                 }
                 return response.json();
             })
-            .then(checkins => {
-                console.log('Received checkins:', checkins);
-                component.displayCheckins(commitmentId, checkins);
+            .then(data => {
+                console.log('API response data:', data);
+                // Reload the entire tab content to reflect the new state
+                const activeTab = $('.menu .item.active').data('tab');
+                console.log('Active tab:', activeTab);
+                if (activeTab && typeof window.loadTabContent === 'function') {
+                    console.log('Calling loadTabContent');
+                    window.loadTabContent(activeTab);
+                } else {
+                    console.error('loadTabContent function not found');
+                }
             })
             .catch(error => {
-                console.error('Error loading checkins:', error);
-                list.innerHTML = '<div class="ui negative message">Failed to load checkins</div>';
+                console.error('Error updating commitment date:', error);
+                alert('Failed to update commitment date. Please try again.');
             });
-        },
-
-        // Display checkins
-        displayCheckins: function(commitmentId, checkins) {
-            console.log('Displaying checkins for ID:', commitmentId, checkins);
-            
-            const list = document.getElementById(`checkins-${commitmentId}`);
-            
-            if (!checkins || checkins.length === 0) {
-                list.innerHTML = '<div class="ui info message">No checkins yet.</div>';
-                return;
-            }
-            
-            let html = '<div class="ui list">';
-            checkins.forEach(checkin => {
-                const timestamp = new Date(checkin.timestamp);
-                html += `
-                    <div class="item">
-                        <i class="clock icon"></i>
-                        <div class="content">
-                            <div class="header">
-                                ${timestamp.toLocaleString()}
-                                <span class="ui label">RPE: ${checkin.rpe}</span>
-                                ${checkin.progress ? `<span class="ui label">Progress: ${checkin.progress}%</span>` : ''}
-                                ${checkin.mood ? `<span class="ui label">Mood: ${checkin.mood}</span>` : ''}
-                                ${checkin.energy ? `<span class="ui label">Energy: ${checkin.energy}</span>` : ''}
-                            </div>
-                            <div class="description">${checkin.comment || ''}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            list.innerHTML = html;
         },
 
         // Display commitments
@@ -206,100 +259,158 @@ if (!window.commitmentComponents['{{ id }}']) {
                 return;
             }
 
+            // Helper function to format time
+            const formatTime = (timeStr) => {
+                if (!timeStr) return '';
+                try {
+                    const date = new Date(timeStr);
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } catch (e) {
+                    console.error('Error formatting time:', e);
+                    return timeStr;
+                }
+            };
+
             let html = '';
             if (!commitments || commitments.length === 0) {
                 html = '<div class="ui info message">{{ empty_message }}</div>';
             } else {
-                commitments.forEach(commitment => {
-                    const dueDate = new Date(commitment.due_date);
-                    html += `
-                        <div class="item" data-id="${commitment.id}">
-                            <div class="content">
-                                <div class="header">
-                                    ${commitment.title || 'Untitled Commitment'}
-                                    ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
-                                </div>
-                                <div class="meta">
-                                    Due: ${dueDate.toLocaleDateString()}
-                                    ${commitment.item?.project_name ? `<span class="ui label">${commitment.item.project_name}</span>` : ''}
-                                </div>
-                                <div class="description">${commitment.item?.description || ''}</div>
-                                <div class="extra">
-                                    <div class="ui checkbox">
-                                        <input type="checkbox" ${commitment.completed ? 'checked' : ''} data-id="${commitment.id}">
-                                        <label>Complete</label>
-                                    </div>
-                                    <button class="ui tiny button view-checkins" data-id="${commitment.id}">
-                                        <i class="list icon"></i> Checkins
-                                    </button>
-                                </div>
-                                <div class="checkins-list" id="checkins-${commitment.id}" style="display: none;">
-                                    <!-- Checkins will be loaded here -->
+                // Split commitments into active and completed
+                const activeCommitments = commitments.filter(c => !c.completed);
+                const completedCommitments = commitments.filter(c => c.completed);
+
+                // Helper function to render commitment groups
+                const renderCommitmentGroups = (commitments, isCompleted = false) => {
+                    if (commitments.length === 0) return '';
+                    
+                    // Sort commitments by start time if they have one
+                    commitments.sort((a, b) => {
+                        if (a.start_time && b.start_time) {
+                            return a.start_time.localeCompare(b.start_time);
+                        }
+                        return 0;
+                    });
+                    
+                    // Group commitments by their primary tag color
+                    const groupedCommitments = commitments.reduce((acc, commitment) => {
+                        // Get the primary tag color, either from the routine's tags or the calendar's color
+                        let primaryTag = null;
+                        let groupKey = '#767676'; // Default color
+                        
+                        if (commitment.item?.tags?.length > 0) {
+                            primaryTag = commitment.item.tags[0];
+                            groupKey = primaryTag.color;
+                        } else if (commitment.item?.calendar?.color) {
+                            groupKey = commitment.item.calendar.color;
+                        }
+                        
+                        if (!acc[groupKey]) {
+                            acc[groupKey] = {
+                                commitments: [],
+                                color: groupKey
+                            };
+                        }
+                        acc[groupKey].commitments.push(commitment);
+                        return acc;
+                    }, {});
+                    
+                    let groupHtml = '';
+                    
+                    // Sort groups by the earliest start time in each group
+                    const sortedGroups = Object.entries(groupedCommitments).sort(([_, a], [__, b]) => {
+                        const aTime = a.commitments[0]?.start_time || '';
+                        const bTime = b.commitments[0]?.start_time || '';
+                        return aTime.localeCompare(bTime);
+                    });
+                    
+                    sortedGroups.forEach(([color, groupData]) => {
+                        const { commitments: groupCommitments, color: groupColor } = groupData;
+                        
+                        groupHtml += `
+                            <div class="commitment-group" style="border-left-color: ${groupColor}; background-color: ${groupColor}10;">
+                                <div class="ui divided items">
+                                    ${groupCommitments.map(commitment => {
+                                        const timeDisplay = commitment.start_time ? 
+                                            `<span class="time">${formatTime(commitment.start_time)}${commitment.end_time ? ` - ${formatTime(commitment.end_time)}` : ''}</span>` : '';
+                                        
+                                        return `
+                                            <div class="item" data-id="${commitment.id}" data-type="${commitment.type || ''}" style="border-left: 4px solid ${groupColor}; padding: 1em; margin: 0.5em 0;">
+                                                <div class="content">
+                                                    <div class="header" style="margin-bottom: 0.5em;">
+                                                        ${commitment.title || 'Untitled'}
+                                                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                                                    </div>
+                                                    <div class="meta" style="margin-bottom: 0.5em;">
+                                                        ${timeDisplay}
+                                                    </div>
+                                                    <div class="description" style="margin-bottom: 1em;">${commitment.description || ''}</div>
+                                                    <div class="extra">
+                                                        <div class="ui labels" style="margin-bottom: 0.5em;">
+                                                            ${commitment.item?.tags?.map(tag => `
+                                                                <div class="ui label" style="background-color: ${tag.color}30; color: ${tag.color}; border: 1px solid ${tag.color}60; margin-right: 0.5em;">
+                                                                    ${tag.name}
+                                                                </div>
+                                                            `).join('') || ''}
+                                                        </div>
+                                                        <button class="ui tiny button view-checkins" data-id="${commitment.id}" data-type="commitment">
+                                                            <i class="calendar check icon"></i> Checkins
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
                                 </div>
                             </div>
-                        </div>
-                    `;
-                });
+                        `;
+                    });
+                    
+                    return groupHtml;
+                };
+                
+                // Render active and completed sections
+                html = `
+                    <div class="active-section">
+                        ${renderCommitmentGroups(activeCommitments)}
+                    </div>
+                    <div class="completed-section">
+                        <h4 class="ui header">Completed</h4>
+                        ${renderCommitmentGroups(completedCommitments, true)}
+                    </div>
+                `;
             }
-
-            container.innerHTML = html;
-            component.initializeCommitmentControls(container);
-        },
-
-        // Display routine commitments
-        displayRoutineCommitments: function(routines) {
-            console.log('Displaying routine commitments:', routines);
             
-            const container = document.getElementById('{{ id }}');
-            if (!container) {
-                console.error('Could not find container with ID:', '{{ id }}');
-                return;
-            }
-
-            let html = '';
-            if (!routines || routines.length === 0) {
-                html = '<div class="ui info message">No routines with commitments for this period.</div>';
-            } else {
-                routines.forEach(routine => {
-                    html += `
-                        <div class="item" data-id="${routine.id}">
-                            <div class="content">
-                                <div class="header">
-                                    ${routine.title || 'Untitled Routine'}
-                                    ${routine.active ? '<span class="ui blue label">Active</span>' : '<span class="ui grey label">Inactive</span>'}
-                                </div>
-                                <div class="meta">
-                                    ${routine.start_time ? `Time: ${routine.start_time} - ${routine.end_time}` : 'No time set'}
-                                </div>
-                                <div class="description">${routine.description || ''}</div>
-                                <div class="extra">
-                                    <div class="ui checkbox">
-                                        <input type="checkbox" ${routine.active ? 'checked' : ''} data-id="${routine.id}">
-                                        <label>Active</label>
-                                    </div>
-                                    <button class="ui tiny button view-checkins" data-id="${routine.id}">
-                                        <i class="list icon"></i> Checkins
-                                    </button>
-                                </div>
-                                <div class="checkins-list" id="checkins-${routine.id}" style="display: none;">
-                                    <!-- Checkins will be loaded here -->
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-
             container.innerHTML = html;
-            component.initializeCommitmentControls(container);
+            
+            // Initialize commitment controls
+            this.initializeCommitmentControls(container);
+            
+            // Initialize date pickers
+            container.querySelectorAll('.due-date').forEach(element => {
+                element.addEventListener('click', function() {
+                    const datePicker = this.querySelector('.date-picker');
+                    datePicker.style.display = 'inline-block';
+                    datePicker.focus();
+                });
+            });
+            
+            container.querySelectorAll('.date-picker').forEach(element => {
+                element.addEventListener('change', function() {
+                    const commitmentId = this.getAttribute('data-id');
+                    const dueDate = this.value;
+                    component.updateCommitmentDate(commitmentId, dueDate);
+                });
+                
+                element.addEventListener('blur', function() {
+                    this.style.display = 'none';
+                });
+            });
         }
     };
 
     // Store the component instance
     window.commitmentComponents['{{ id }}'] = component;
     console.log('Commitments list component initialized:', window.commitmentComponents['{{ id }}']);
-} else {
-    console.log('Commitments list component already initialized for ID:', '{{ id }}');
 }
 </script>
 {% endmacro %} 

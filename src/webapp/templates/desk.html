@@ -32,40 +32,338 @@
         </div>
     </div>
     
+    <!-- Daily Report Form -->
+    <div class="ui segment" id="daily-report-form">
+        <div class="ui styled fluid accordion">
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Daily Report
+            </div>
+            <div class="content">
+                <div class="ui form">
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Sleep (hours)</label>
+                            <input type="number" id="sleep-hours" min="0" max="24" step="0.5">
+                        </div>
+                        <div class="field">
+                            <label>Mood (1-10)</label>
+                            <input type="number" id="mood-score" min="1" max="10">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Food</label>
+                        <textarea id="food-notes" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>RPE (Rate of Perceived Exertion)</label>
+                        <input type="number" id="rpe-score" min="1" max="10">
+                    </div>
+                    <div class="field">
+                        <label>Gains</label>
+                        <textarea id="gains-notes" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Gratitudes</label>
+                        <textarea id="gratitudes-notes" rows="2"></textarea>
+                    </div>
+                    <button class="ui primary button" id="save-daily-report">Save Daily Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weekly Report Form -->
+    <div class="ui segment" id="weekly-report-form" style="display: none;">
+        <div class="ui styled fluid accordion">
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Weekly Report
+            </div>
+            <div class="content">
+                <div class="ui form">
+                    <div class="field">
+                        <label>Weekly Aim</label>
+                        <textarea id="weekly-aim" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Weekly Notes</label>
+                        <textarea id="weekly-notes" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>RPE (Rate of Perceived Exertion)</label>
+                        <input type="number" id="weekly-rpe" min="1" max="10">
+                    </div>
+                    <div class="field">
+                        <label>Gains</label>
+                        <textarea id="weekly-gains" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Gratitudes</label>
+                        <textarea id="weekly-gratitudes" rows="2"></textarea>
+                    </div>
+                    <button class="ui primary button" id="save-weekly-report">Save Weekly Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Monthly Report Form -->
+    <div class="ui segment" id="monthly-report-form" style="display: none;">
+        <div class="ui styled fluid accordion">
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Monthly Report
+            </div>
+            <div class="content">
+                <div class="ui form">
+                    <div class="field">
+                        <label>Month Theme</label>
+                        <input type="text" id="month-theme">
+                    </div>
+                    <div class="field">
+                        <label>Goals</label>
+                        <textarea id="month-goals" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Goals Rationale</label>
+                        <textarea id="month-goals-rationale" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>RPE (Rate of Perceived Exertion)</label>
+                        <input type="number" id="month-rpe" min="1" max="10">
+                    </div>
+                    <div class="field">
+                        <label>Gains</label>
+                        <textarea id="month-gains" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Gratitudes</label>
+                        <textarea id="month-gratitudes" rows="2"></textarea>
+                    </div>
+                    <button class="ui primary button" id="save-monthly-report">Save Monthly Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Seasonal Report Form -->
+    <div class="ui segment" id="seasonal-report-form" style="display: none;">
+        <div class="ui styled fluid accordion">
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Seasonal Report
+            </div>
+            <div class="content">
+                <div class="ui form">
+                    <div class="field">
+                        <label>Season Theme</label>
+                        <input type="text" id="season-theme">
+                    </div>
+                    <div class="field">
+                        <label>Goals</label>
+                        <textarea id="season-goals" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Goals Rationale</label>
+                        <textarea id="season-goals-rationale" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>RPE (Rate of Perceived Exertion)</label>
+                        <input type="number" id="season-rpe" min="1" max="10">
+                    </div>
+                    <div class="field">
+                        <label>Gains</label>
+                        <textarea id="season-gains" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Gratitudes</label>
+                        <textarea id="season-gratitudes" rows="2"></textarea>
+                    </div>
+                    <button class="ui primary button" id="save-seasonal-report">Save Seasonal Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Yearly Report Form -->
+    <div class="ui segment" id="yearly-report-form" style="display: none;">
+        <div class="ui styled fluid accordion">
+            <div class="title">
+                <i class="dropdown icon"></i>
+                Yearly Report
+            </div>
+            <div class="content">
+                <div class="ui form">
+                    <div class="field">
+                        <label>Year Theme</label>
+                        <input type="text" id="year-theme">
+                    </div>
+                    <div class="field">
+                        <label>Goals</label>
+                        <textarea id="year-goals" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Goals Rationale</label>
+                        <textarea id="year-goals-rationale" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>RPE (Rate of Perceived Exertion)</label>
+                        <input type="number" id="year-rpe" min="1" max="10">
+                    </div>
+                    <div class="field">
+                        <label>Gains</label>
+                        <textarea id="year-gains" rows="2"></textarea>
+                    </div>
+                    <div class="field">
+                        <label>Gratitudes</label>
+                        <textarea id="year-gratitudes" rows="2"></textarea>
+                    </div>
+                    <button class="ui primary button" id="save-yearly-report">Save Yearly Report</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Tab Content -->
     <div class="ui bottom attached tab segment active" data-tab="day">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="day-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="day-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="day-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="day-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="week">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="week-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="week-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="week-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="week-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="month">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="month-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="month-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="month-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="month-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="season">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="season-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="season-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="season-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="season-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="year">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="year-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="year-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="year-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="year-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="custom">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="custom-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="custom-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="custom-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="custom-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="demo">
-        {% from "components/commitments_list.html" import commitments_list %}
-        {{ commitments_list(id="demo-commitments", show_routines=true) }}
+        <div class="ui segments">
+            <div class="ui segment">
+                <h3 class="ui header">Routines</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="demo-routines", show_routines=true, type="routine") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Project Work</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="demo-projects", show_routines=false, type="project") }}
+            </div>
+            <div class="ui segment">
+                <h3 class="ui header">Catchlist Items</h3>
+                {% from "components/commitments_list.html" import commitments_list %}
+                {{ commitments_list(id="demo-catchlist", show_routines=false, type="catchlist") }}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -108,8 +406,31 @@ $(document).ready(function() {
         onVisible: function(tabPath) {
             updateDatePicker(tabPath);
             loadTabContent(tabPath);
+            
+            // Show/hide appropriate report form
+            const reportForms = {
+                'day': 'daily-report-form',
+                'week': 'weekly-report-form',
+                'month': 'monthly-report-form',
+                'season': 'seasonal-report-form',
+                'year': 'yearly-report-form'
+            };
+            
+            // Hide all report forms
+            Object.values(reportForms).forEach(formId => {
+                document.getElementById(formId).style.display = 'none';
+            });
+            
+            // Show the appropriate form
+            const activeForm = reportForms[tabPath];
+            if (activeForm) {
+                document.getElementById(activeForm).style.display = 'block';
+            }
         }
     });
+
+    // Initialize accordion
+    $('.ui.accordion').accordion();
 
     // Initialize date picker with today's date
     const datePicker = document.getElementById('date-picker');
@@ -330,39 +651,150 @@ function loadTabContent(tab) {
     // Update the date navigation display
     updateDateNavigation(tab, startDate, endDate);
     
-    // Get the correct commitments list container for the current tab
-    const commitmentsListId = `${tab}-commitments`;
-    const commitmentsList = document.getElementById(commitmentsListId);
-    if (commitmentsList) {
-        commitmentsList.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
+    // Load daily report data if on day tab
+    if (tab === 'day') {
+        fetch(`${API_URL}/reports/daily-summary/${formatDate(startDate)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data) {
+                document.getElementById('sleep-hours').value = data.sleep_hours || '';
+                document.getElementById('mood-score').value = data.mood || '';
+                document.getElementById('food-notes').value = data.food_notes || '';
+                document.getElementById('rpe-score').value = data.rpe || '';
+                document.getElementById('gains-notes').value = data.gains || '';
+                document.getElementById('gratitudes-notes').value = data.gratitudes || '';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading daily report:', error);
+        });
     }
     
-    // Load commitments for the date range
-    const commitmentsUrl = `${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
+    // Load routines
+    const routinesList = document.getElementById(`${tab}-routines`);
+    if (routinesList) {
+        routinesList.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading routines...</div></div>';
+        fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}&type=routine`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => response.json())
+        .then(commitments => {
+            if (window.commitmentComponents && window.commitmentComponents[`${tab}-routines`]) {
+                window.commitmentComponents[`${tab}-routines`].displayCommitments(commitments);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading routines:', error);
+            routinesList.innerHTML = '<div class="ui negative message">Failed to load routines</div>';
+        });
+    }
     
-    fetch(commitmentsUrl, {
+    // Load project work
+    const projectsList = document.getElementById(`${tab}-projects`);
+    if (projectsList) {
+        projectsList.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading project work...</div></div>';
+        fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}&type=project`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => response.json())
+        .then(commitments => {
+            if (window.commitmentComponents && window.commitmentComponents[`${tab}-projects`]) {
+                window.commitmentComponents[`${tab}-projects`].displayCommitments(commitments);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading project work:', error);
+            projectsList.innerHTML = '<div class="ui negative message">Failed to load project work</div>';
+        });
+    }
+    
+    // Load catchlist items
+    const catchlistList = document.getElementById(`${tab}-catchlist`);
+    if (catchlistList) {
+        catchlistList.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading catchlist items...</div></div>';
+        fetch(`${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}&type=catchlist`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => response.json())
+        .then(commitments => {
+            if (window.commitmentComponents && window.commitmentComponents[`${tab}-catchlist`]) {
+                window.commitmentComponents[`${tab}-catchlist`].displayCommitments(commitments);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading catchlist items:', error);
+            catchlistList.innerHTML = '<div class="ui negative message">Failed to load catchlist items</div>';
+        });
+    }
+}
+
+// Add event listener for saving daily report
+document.getElementById('save-daily-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const activeTab = $('.menu .item.active').data('tab');
+    if (activeTab !== 'day') {
+        return;
+    }
+
+    const reportData = {
+        sleep_hours: document.getElementById('sleep-hours').value,
+        mood: document.getElementById('mood-score').value,
+        food_notes: document.getElementById('food-notes').value,
+        rpe: document.getElementById('rpe-score').value,
+        gains: document.getElementById('gains-notes').value,
+        gratitudes: document.getElementById('gratitudes-notes').value
+    };
+
+    fetch(`${API_URL}/reports/daily-summary/${formatDate(currentDay)}`, {
+        method: 'POST',
         headers: {
-            'Authorization': `Bearer ${token}`
-        }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Failed to load commitments');
-        }
-        return response.json();
-    })
-    .then(commitments => {
-        if (window.commitmentComponents && window.commitmentComponents[commitmentsListId]) {
-            window.commitmentComponents[commitmentsListId].displayCommitments(commitments);
-        } else {
-            commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments: Component not initialized</div>';
-        }
+    .then(response => response.json())
+    .then(data => {
+        // Show success message
+        const message = document.createElement('div');
+        message.className = 'ui positive message';
+        message.innerHTML = '<i class="close icon"></i><div class="header">Success</div><p>Daily report saved successfully.</p>';
+        document.querySelector('.ui.accordion').parentNode.insertBefore(message, document.querySelector('.ui.accordion'));
+        
+        // Add close functionality to message
+        message.querySelector('.close.icon').addEventListener('click', function() {
+            message.remove();
+        });
+        
+        // Remove message after 3 seconds
+        setTimeout(() => {
+            message.remove();
+        }, 3000);
     })
     .catch(error => {
-        console.error('Error loading commitments:', error);
-        commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+        console.error('Error saving daily report:', error);
+        // Show error message
+        const message = document.createElement('div');
+        message.className = 'ui negative message';
+        message.innerHTML = '<i class="close icon"></i><div class="header">Error</div><p>Failed to save daily report.</p>';
+        document.querySelector('.ui.accordion').parentNode.insertBefore(message, document.querySelector('.ui.accordion'));
+        
+        // Add close functionality to message
+        message.querySelector('.close.icon').addEventListener('click', function() {
+            message.remove();
+        });
     });
-}
+});
+
+// Make loadTabContent available globally
+window.loadTabContent = loadTabContent;
 </script>
 {% endblock %}
 
@@ -407,6 +839,32 @@ function loadTabContent(tab) {
 
 .ui.tab.segment {
     padding: 1em 0;
+}
+
+.ui.segments {
+    margin: 0;
+}
+
+.ui.segments .segment {
+    margin: 0;
+    border-radius: 0;
+}
+
+.ui.segments .segment:first-child {
+    border-radius: 0.28571429rem 0.28571429rem 0 0;
+}
+
+.ui.segments .segment:last-child {
+    border-radius: 0 0 0.28571429rem 0.28571429rem;
+}
+
+.ui.segments .segment:not(:last-child) {
+    border-bottom: 1px solid rgba(34, 36, 38, 0.1);
+}
+
+.ui.segments .segment h3.ui.header {
+    margin-top: 0;
+    margin-bottom: 1em;
 }
 </style>
 {% endblock %} 

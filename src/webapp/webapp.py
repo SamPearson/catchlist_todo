@@ -73,7 +73,15 @@ def login():
         api_response = response.json()
         # Create a response with the token cookie
         resp = make_response(jsonify(api_response))
-        resp.set_cookie('auth_token', api_response.get('access_token', ''), httponly=False, path='/')
+        resp.set_cookie(
+            'auth_token',
+            api_response.get('access_token', ''),
+            httponly=False,  # We need this to be false so JavaScript can read it
+            secure=True,     # Only send cookie over HTTPS
+            samesite='Lax',  # Protect against CSRF
+            path='/',        # Make cookie available across the site
+            max_age=3600    # Cookie expires in 1 hour
+        )
         return resp, response.status_code
     
     return jsonify(response.json()), response.status_code
@@ -184,20 +192,7 @@ def projects():
     if not token:
         return redirect(url_for('login'))
     
-    try:
-        headers = {'Authorization': f'Bearer {token}'}
-        response = requests.get(f"{API_URL}/projects", headers=headers)
-        
-        if response.status_code == 200:
-            projects = response.json()
-        else:
-            projects = []
-            
-        return render_template("projects.html", projects=projects, API_URL=API_URL)
-    except Exception as e:
-        logger.error(f"Error fetching projects: {str(e)}")
-        projects = []
-        return render_template("projects.html", projects=projects, API_URL=API_URL)
+    return render_template("projects.html", API_URL=API_URL)
 
 
 @app.route('/routines')
@@ -206,20 +201,7 @@ def routines():
     if not token:
         return redirect(url_for('login'))
     
-    try:
-        headers = {'Authorization': f'Bearer {token}'}
-        response = requests.get(f"{API_URL}/routines", headers=headers)
-        
-        if response.status_code == 200:
-            routines = response.json()
-        else:
-            routines = []
-            
-        return render_template("routines.html", routines=routines, API_URL=API_URL)
-    except Exception as e:
-        logger.error(f"Error fetching routines: {str(e)}")
-        routines = []
-        return render_template("routines.html", routines=routines, API_URL=API_URL)
+    return render_template("routines.html", API_URL=API_URL)
 
 
 @app.route('/demo')

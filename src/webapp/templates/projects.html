@@ -50,118 +50,7 @@
     
     {% call display_box(id="projects-list-box", title="My Projects") %}
         <div class="ui segments" id="project-list">
-            {% for project in projects %}
-            <div class="ui segment" data-id="{{ project.id }}">
-                <div class="ui top attached segment">
-                    <h3 class="ui header">{{ project.title }}</h3>
-                    <div class="ui list">
-                        <div class="item">
-                            <i class="trophy icon"></i>
-                            <div class="content">
-                                <div class="header">Win Condition</div>
-                                <div class="description">{{ project.win_condition }}</div>
-                            </div>
-                        </div>
-                        <div class="item">
-                            <i class="compass icon"></i>
-                            <div class="content">
-                                <div class="header">Reason</div>
-                                <div class="description">{{ project.reason }}</div>
-                            </div>
-                        </div>
-                        <div class="item">
-                            <i class="arrow right icon"></i>
-                            <div class="content">
-                                <div class="header">Next Step</div>
-                                <div class="description">{{ project.next_step }}</div>
-                            </div>
-                        </div>
-                        <div class="item">
-                            <i class="file text icon"></i>
-                            <div class="content">
-                                <div class="header">Description</div>
-                                <div class="description">{{ project.description }}</div>
-                            </div>
-                        </div>
-                        <div class="item">
-                            <i class="tags icon"></i>
-                            <div class="content">
-                                <div class="header">Tags</div>
-                                <div class="description">
-                                    <div class="ui labels">
-                                        {% if project.tags %}
-                                            {% for tag in project.tags %}
-                                                <div class="ui label" style="background-color: {{ tag.color }}; color: white;">
-                                                    {{ tag.name }}
-                                                </div>
-                                            {% endfor %}
-                                        {% else %}
-                                            <span class="ui text">No tags</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="ui buttons">
-                        <button class="ui blue tiny button edit-project">Edit</button>
-                        <button class="ui teal tiny button manage-project-commitments">
-                            <i class="calendar icon"></i> Manage Commitments
-                        </button>
-                        <button class="ui tiny button manage-tags" data-id="{{ project.id }}" data-type="project">
-                            <i class="tags icon"></i> Manage Tags
-                        </button>
-                        <button class="ui red tiny button delete-project">Delete</button>
-                    </div>
-                </div>
-                
-                <div class="ui attached segment">
-                    <h4 class="ui header">Subtasks</h4>
-                    <div class="ui list subtasks-list">
-                        {% for subtask in project.subtasks %}
-                        <div class="item" data-id="{{ subtask.id }}">
-                            <div class="ui checkbox">
-                                <input type="checkbox" {% if subtask.complete %}checked{% endif %}>
-                                <label>{{ subtask.title }}</label>
-                            </div>
-                            <div class="ui labels" style="margin-left: 15px;">
-                                {% if subtask.tags %}
-                                    {% for tag in subtask.tags %}
-                                        <div class="ui label" style="background-color: {{ tag.color }}; color: white;">
-                                            {{ tag.name }}
-                                        </div>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                            <div class="ui buttons" style="margin-left: 15px;">
-                                <button class="ui tiny button {% if subtask.has_commitment %}green disabled{% endif %} commit-to-today">
-                                    {% if subtask.has_commitment %}Committed for Today{% else %}Commit to Today{% endif %}
-                                </button>
-                                <button class="ui tiny button view-commitments">
-                                    <i class="calendar icon"></i> Commits
-                                </button>
-                                <button class="ui tiny button manage-tags" data-id="{{ subtask.id }}" data-type="project_task">
-                                    <i class="tags icon"></i> Manage Tags
-                                </button>
-                                <button class="ui red tiny button delete-subtask">Delete</button>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    
-                    <div class="ui form add-subtask-form">
-                        <div class="fields">
-                            <div class="twelve wide field">
-                                <input type="text" placeholder="Add new subtask...">
-                            </div>
-                            <div class="four wide field">
-                                <button class="ui teal button add-subtask-button">Add</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+            <!-- Projects will be loaded here dynamically -->
         </div>
     {% endcall %}
 </div>
@@ -267,30 +156,10 @@
     </div>
 </div>
 
-<!-- Add Tag Management Modal -->
-<div class="ui modal" id="tag-management-modal">
-    <i class="close icon"></i>
-    <div class="header">Manage Tags</div>
-    <div class="content">
-        <div class="ui segment">
-            <h4 class="ui header">Current Tags</h4>
-            <div id="current-tags-list" class="ui labels">
-                <!-- Current tags will be loaded here -->
-            </div>
-        </div>
-        
-        <div class="ui segment">
-            <h4 class="ui header">Available Tags</h4>
-            <div id="available-tags-list" class="ui labels">
-                <!-- Available tags will be loaded here -->
-            </div>
-        </div>
-    </div>
-    <div class="actions">
-        <div class="ui button cancel">Close</div>
-    </div>
-</div>
+<!-- Tag Management Modal -->
+{% include "components/tag_management_modal.html" %}
 
+<script src="/static/js/auth.js"></script>
 <script>
 // Define global API_URL variable
 const API_URL = '{{ API_URL }}';
@@ -303,19 +172,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize commitment modals
     setupCommitmentsModal();
     setupProjectCommitmentsModal();
+    
+    // Load projects
+    loadProjects();
 });
-
-// Function to get auth token from cookies
-function getAuthToken() {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.startsWith('auth_token=')) {
-            return cookie.substring('auth_token='.length, cookie.length);
-        }
-    }
-    return '';
-}
 
 // API interactions
 document.getElementById('add-project-form').addEventListener('submit', function(e) {
@@ -329,12 +189,9 @@ document.getElementById('add-project-form').addEventListener('submit', function(
         description: this.description.value
     };
     
-    fetch('{{ API_URL }}/projects', {
+    fetch(`${API_URL}/projects`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getAuthToken()
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(formData)
     })
     .then(response => {
@@ -417,12 +274,9 @@ document.querySelectorAll('.edit-project').forEach(btn => {
                 description: this.description.value
             };
             
-            fetch(`{{ API_URL }}/projects/${projectId}`, {
+            fetch(`${API_URL}/projects/${projectId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -450,11 +304,9 @@ document.querySelectorAll('.delete-project').forEach(btn => {
             const projectElement = this.closest('[data-id]');
             const projectId = projectElement.getAttribute('data-id');
             
-            fetch(`{{ API_URL }}/projects/${projectId}`, {
+            fetch(`${API_URL}/projects/${projectId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': 'Bearer ' + getAuthToken()
-                }
+                headers: getAuthHeaders()
             })
             .then(response => {
                 if (!response.ok) {
@@ -488,10 +340,7 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
         
         fetch(`${API_URL}/projects/${projectId}/subtasks`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 title: subtaskTitle
             })
@@ -541,7 +390,7 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
         })
         .catch(error => {
             console.error('Error adding subtask:', error);
-            alert('Error adding subtask. Please try again.');
+            showError('Failed to add subtask. Please try again.');
         });
     });
 });
@@ -558,10 +407,7 @@ function attachSubtaskEventListeners(subtaskElement) {
             
             fetch(`${API_URL}/subtasks/${subtaskId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     complete: this.checked
                 })
@@ -594,10 +440,7 @@ function attachSubtaskEventListeners(subtaskElement) {
             
             fetch(`${API_URL}/commitments`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     project_task_id: subtaskId,
                     due_date: localDate
@@ -612,10 +455,11 @@ function attachSubtaskEventListeners(subtaskElement) {
             .then(data => {
                 this.classList.add('green', 'disabled');
                 this.textContent = 'Committed for Today';
+                showCustomMessage('Task committed for today', 'positive');
             })
             .catch(error => {
                 console.error('Error creating commitment:', error);
-                alert('Error creating commitment. Please try again.');
+                showError('Error creating commitment. Please try again.');
             });
         });
     }
@@ -638,9 +482,7 @@ function attachSubtaskEventListeners(subtaskElement) {
                 
                 fetch(`${API_URL}/subtasks/${subtaskId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Authorization': 'Bearer ' + getAuthToken()
-                    }
+                    headers: getAuthHeaders()
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -654,7 +496,7 @@ function attachSubtaskEventListeners(subtaskElement) {
                 })
                 .catch(error => {
                     console.error('Error deleting subtask:', error);
-                    alert('Error deleting subtask. Please try again.');
+                    showError('Error deleting subtask. Please try again.');
                 });
             }
         });
@@ -678,6 +520,84 @@ document.querySelectorAll('.subtasks-list .item').forEach(subtaskElement => {
 
 // Function to reattach event listeners after DOM changes
 function attachEventListeners() {
+    // Attach event listeners for manage tags buttons
+    document.querySelectorAll('.manage-tags').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-id');
+            const itemType = this.getAttribute('data-type');
+            showTagManagementModal(itemId, itemType);
+        });
+    });
+    
+    // Attach event listeners for add subtask buttons
+    document.querySelectorAll('.add-subtask-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const projectElement = this.closest('[data-id]');
+            const projectId = projectElement.getAttribute('data-id');
+            const inputElement = this.closest('.add-subtask-form').querySelector('input');
+            const subtaskTitle = inputElement.value.trim();
+            
+            if (!subtaskTitle) {
+                return;
+            }
+            
+            fetch(`${API_URL}/projects/${projectId}/subtasks`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    title: subtaskTitle
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Add new subtask to DOM
+                const subtasksList = projectElement.querySelector('.subtasks-list');
+                
+                const newSubtaskElement = document.createElement('div');
+                newSubtaskElement.className = 'item';
+                newSubtaskElement.setAttribute('data-id', data.id);
+                newSubtaskElement.innerHTML = `
+                    <div class="ui checkbox">
+                        <input type="checkbox">
+                        <label>${data.title}</label>
+                    </div>
+                    <div class="ui labels" style="margin-left: 15px;">
+                    </div>
+                    <div class="ui buttons" style="margin-left: 15px;">
+                        <button class="ui tiny button commit-to-today">Commit to Today</button>
+                        <button class="ui tiny button view-commitments">
+                            <i class="calendar icon"></i> Commits
+                        </button>
+                        <button class="ui tiny button manage-tags" data-id="${data.id}" data-type="project_task">
+                            <i class="tags icon"></i> Manage Tags
+                        </button>
+                        <button class="ui red tiny button delete-subtask">Delete</button>
+                    </div>
+                `;
+                
+                subtasksList.appendChild(newSubtaskElement);
+                
+                // Clear input
+                inputElement.value = '';
+                
+                // Initialize checkbox
+                $(newSubtaskElement.querySelector('.ui.checkbox')).checkbox();
+                
+                // Attach event listeners to new subtask
+                attachSubtaskEventListeners(newSubtaskElement);
+            })
+            .catch(error => {
+                console.error('Error adding subtask:', error);
+                showError('Failed to add subtask. Please try again.');
+            });
+        });
+    });
+    
     // Reattach edit project button listeners
     document.querySelectorAll('.edit-project').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -711,6 +631,16 @@ function setupCommitmentsModal() {
     // Initialize dropdown
     $('#time-period').dropdown();
     
+    // Initialize the modal
+    $('#commitments-modal').modal({
+        closable: true,
+        onShow: function() {
+            // Reset form when modal is shown
+            document.getElementById('commitment-form').reset();
+            document.getElementById('due-date').valueAsDate = new Date();
+        }
+    });
+    
     // Get the save button element
     const saveButton = document.getElementById('save-commitment');
     
@@ -742,8 +672,8 @@ function showCommitmentsModal(itemId, itemType) {
 
 // Function to load current commitments
 function loadCurrentCommitments(itemId, itemType) {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -758,9 +688,7 @@ function loadCurrentCommitments(itemId, itemType) {
     }
     
     fetch(`${API_URL}/commitments?${params.toString()}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -826,8 +754,8 @@ function displayCurrentCommitments(commitments) {
 
 // Function to save commitment
 function saveCommitment() {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -886,8 +814,8 @@ function saveCommitment() {
         fetch(`${API_URL}/commitments/soft/${timePeriod}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                ...headers,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(data)
         })
@@ -931,8 +859,8 @@ function saveCommitment() {
         fetch(`${API_URL}/commitments`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                ...headers,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(data)
         })
@@ -978,8 +906,8 @@ function saveCommitment() {
 
 // Function to delete commitment
 function deleteCommitment(commitmentId) {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -995,9 +923,7 @@ function deleteCommitment(commitmentId) {
     
     fetch(endpoint, {
         method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1048,8 +974,8 @@ function initializeCommitmentControls(container) {
 
 // Function to update commitment completion status
 function updateCommitmentCompletion(commitmentId, completed) {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -1057,8 +983,8 @@ function updateCommitmentCompletion(commitmentId, completed) {
     fetch(`${API_URL}/commitments/${commitmentId}`, {
         method: 'PUT',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            ...headers,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({ completed: completed })
     })
@@ -1170,8 +1096,8 @@ function showProjectCommitmentsModal(projectId) {
 
 // Load project commitments
 function loadProjectCommitments(projectId) {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -1184,9 +1110,7 @@ function loadProjectCommitments(projectId) {
     params.append('project_id', projectId);
     
     fetch(`${API_URL}/commitments/soft?${params.toString()}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1271,8 +1195,8 @@ function initializeProjectCommitmentControls(container) {
 
 // Save project commitment
 function saveProjectCommitment() {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -1324,8 +1248,8 @@ function saveProjectCommitment() {
     fetch(`${API_URL}/commitments/soft/${timePeriod}`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            ...headers,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
     })
@@ -1358,17 +1282,15 @@ function saveProjectCommitment() {
 
 // Delete project commitment
 function deleteProjectCommitment(commitmentId) {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
     
     fetch(`${API_URL}/commitments/soft/${commitmentId}`, {
         method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1386,8 +1308,8 @@ function deleteProjectCommitment(commitmentId) {
 
 // Update the tag management modal JavaScript
 function showTagManagementModal(itemId, itemType) {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -1407,7 +1329,7 @@ function showTagManagementModal(itemId, itemType) {
 }
 
 function loadCurrentTags(itemId, itemType) {
-    const token = getAuthToken();
+    const headers = getAuthHeaders();
     const container = document.getElementById('current-tags-list');
     container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading tags...</div></div>';
     
@@ -1415,9 +1337,7 @@ function loadCurrentTags(itemId, itemType) {
     const endpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
     
     fetch(endpoint, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1458,7 +1378,7 @@ function loadCurrentTags(itemId, itemType) {
 }
 
 function loadAvailableTags(itemId, itemType) {
-    const token = getAuthToken();
+    const headers = getAuthHeaders();
     const container = document.getElementById('available-tags-list');
     container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading available tags...</div></div>';
     
@@ -1466,9 +1386,7 @@ function loadAvailableTags(itemId, itemType) {
     const currentEndpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
     
     fetch(currentEndpoint, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1482,9 +1400,7 @@ function loadAvailableTags(itemId, itemType) {
         
         // Then get all tags
         return fetch(`${API_URL}/tags`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: headers
         })
         .then(response => {
             if (!response.ok) {
@@ -1528,17 +1444,18 @@ function loadAvailableTags(itemId, itemType) {
 }
 
 function applyTag(itemId, itemType, tagId) {
-    const token = getAuthToken();
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
     
     // Use the correct endpoint for applying tags
     const endpoint = `${API_URL}/tags/apply/${itemType}/${itemId}/${tagId}`;
     
     fetch(endpoint, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1559,9 +1476,7 @@ function applyTag(itemId, itemType, tagId) {
                 if (tagsContainer) {
                     // Get the updated tags
                     fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
+                        headers: headers
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -1587,16 +1502,18 @@ function applyTag(itemId, itemType, tagId) {
 }
 
 function removeTag(itemId, itemType, tagId) {
-    const token = getAuthToken();
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
     
     // Use the correct endpoint for removing tags
     const endpoint = `${API_URL}/tags/remove/${itemType}/${itemId}/${tagId}`;
     
     fetch(endpoint, {
         method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -1617,9 +1534,7 @@ function removeTag(itemId, itemType, tagId) {
                 if (tagsContainer) {
                     // Get the updated tags
                     fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
+                        headers: headers
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -1644,27 +1559,16 @@ function removeTag(itemId, itemType, tagId) {
     });
 }
 
-// Add event listeners for manage tags buttons
-document.querySelectorAll('.manage-tags').forEach(button => {
-    button.addEventListener('click', function() {
-        const itemId = this.getAttribute('data-id');
-        const itemType = this.getAttribute('data-type');
-        showTagManagementModal(itemId, itemType);
-    });
-});
-
-// Update the loadProjects function to properly handle tags for new items
+// Update the loadProjects function to call attachEventListeners after loading
 function loadProjects() {
-    const token = getAuthToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         window.location.href = '/login';
         return;
     }
     
     fetch(`${API_URL}/projects`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
+        headers: headers
     })
     .then(response => response.json())
     .then(projects => {
@@ -1788,9 +1692,19 @@ function loadProjects() {
             
             projectElement.innerHTML = headerHtml + subtasksHtml;
             projectList.appendChild(projectElement);
+            
+            // Initialize checkboxes for this project's subtasks
+            projectElement.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+                $(checkbox).checkbox();
+            });
+            
+            // Attach event listeners to all subtasks in this project
+            projectElement.querySelectorAll('.subtasks-list .item').forEach(subtaskElement => {
+                attachSubtaskEventListeners(subtaskElement);
+            });
         });
         
-        // Attach event listeners
+        // Attach event listeners for project-level buttons
         attachEventListeners();
     })
     .catch(error => {

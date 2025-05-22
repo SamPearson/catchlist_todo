@@ -8,30 +8,6 @@
     
     {% include "components/time_period_nav.html" %}
     
-    <!-- Date Navigation -->
-    <div class="ui segment" id="date-navigation">
-        <div class="ui grid">
-            <div class="four wide column">
-                <button class="ui icon button" id="prev-date">
-                    <i class="chevron left icon"></i>
-                </button>
-            </div>
-            <div class="eight wide column center aligned">
-                <h3 id="date-display" class="ui header"></h3>
-            </div>
-            <div class="four wide column right aligned">
-                <button class="ui icon button" id="next-date">
-                    <i class="chevron right icon"></i>
-                </button>
-            </div>
-        </div>
-        <div class="ui grid">
-            <div class="sixteen wide column center aligned">
-                <input type="date" id="date-picker" class="ui input">
-            </div>
-        </div>
-    </div>
-    
     {% include "components/date_navigation.html" %}
     
     <!-- Tab Content -->
@@ -513,24 +489,34 @@ function loadTabContent(tab) {
         })
         .then(response => {
             console.log('Commitments response status:', response.status);
+            if (response.status === 401) {
+                console.error('Authentication failed');
+                window.location.href = '/login';
+                return;
+            }
             if (!response.ok) {
                 throw new Error('Failed to load commitments');
             }
             return response.json();
         })
         .then(commitments => {
+            if (!commitments) return; // Skip if we redirected to login
             console.log('Received commitments:', commitments);
             if (window.commitmentComponents && window.commitmentComponents['commitments-list']) {
                 console.log('Found commitments component, displaying commitments');
                 window.commitmentComponents['commitments-list'].displayCommitments(commitments);
             } else {
                 console.error('Commitments component not initialized');
-                commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments: Component not initialized</div>';
+                if (commitmentsList) {
+                    commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments: Component not initialized</div>';
+                }
             }
         })
         .catch(error => {
             console.error('Error loading commitments:', error);
-            commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+            if (commitmentsList) {
+                commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+            }
         });
         
         // Load report data for the time period
@@ -540,6 +526,7 @@ function loadTabContent(tab) {
         }
     } catch (error) {
         console.error('Error in loadTabContent:', error);
+        showError('Failed to load tab content');
     }
 }
 
@@ -550,7 +537,7 @@ function updateDateNavigation(tab, startDate, endDate) {
     
     const dateDisplay = document.getElementById('date-display');
     if (!dateDisplay) {
-        console.error('Date display element not found');
+        console.warn('Date display element not found - this is expected for some tabs');
         return;
     }
 
@@ -596,7 +583,9 @@ function loadReportData(tab, startDate, endDate) {
     // Use different URLs for loading vs saving
     let url;
     if (tab === 'day') {
-        url = `${API_URL}/reports/day/${formatDate(startDate)}`;
+        url = `${API_URL}/reports/daily-summary/${formatDate(startDate)}`;
+    } else if (tab === 'week') {
+        url = `${API_URL}/reports/weekly-report/${formatDate(endDate)}`;
     } else {
         url = `${API_URL}/reports/${tab}/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
     }
@@ -607,12 +596,18 @@ function loadReportData(tab, startDate, endDate) {
         }
     })
     .then(response => {
+        if (response.status === 401) {
+            console.error('Authentication failed');
+            window.location.href = '/login';
+            return;
+        }
         if (!response.ok && response.status !== 404) {
             throw new Error('Failed to load report data');
         }
         return response.status === 404 ? null : response.json();
     })
     .then(data => {
+        if (!data) return; // Skip if we redirected to login
         if (data) {
             switch(tab) {
                 case 'day':
@@ -644,48 +639,96 @@ function loadReportData(tab, startDate, endDate) {
 
 // Function to show loading state for report fields
 function showReportLoading(tab) {
-    switch(tab) {
-        case 'day':
-            document.getElementById('sleep-hours').value = '';
-            document.getElementById('mood-score').value = '';
-            document.getElementById('food-notes').value = '';
-            document.getElementById('rpe-score').value = '';
-            document.getElementById('gains-notes').value = '';
-            document.getElementById('gratitudes-notes').value = '';
-            break;
-        case 'week':
-            document.getElementById('weekly-metrics-table').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-            document.getElementById('weekly-rpe').value = '';
-            document.getElementById('weekly-gains').value = '';
-            document.getElementById('weekly-gratitudes').value = '';
-            break;
-        case 'month':
-            document.getElementById('monthly-theme').value = '';
-            document.getElementById('monthly-goals').value = '';
-            document.getElementById('monthly-why').value = '';
-            document.getElementById('monthly-metrics-table').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-            document.getElementById('monthly-rpe').value = '';
-            document.getElementById('monthly-gains').value = '';
-            document.getElementById('monthly-gratitudes').value = '';
-            break;
-        case 'season':
-            document.getElementById('seasonal-theme').value = '';
-            document.getElementById('seasonal-goals').value = '';
-            document.getElementById('seasonal-why').value = '';
-            document.getElementById('seasonal-metrics-table').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-            document.getElementById('seasonal-rpe').value = '';
-            document.getElementById('seasonal-gains').value = '';
-            document.getElementById('seasonal-gratitudes').value = '';
-            break;
-        case 'year':
-            document.getElementById('yearly-theme').value = '';
-            document.getElementById('yearly-goals').value = '';
-            document.getElementById('yearly-why').value = '';
-            document.getElementById('yearly-metrics-table').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-            document.getElementById('yearly-rpe').value = '';
-            document.getElementById('yearly-gains').value = '';
-            document.getElementById('yearly-gratitudes').value = '';
-            break;
+    console.log('Showing loading state for tab:', tab);
+    try {
+        switch(tab) {
+            case 'day':
+                const dayFields = {
+                    'sleep-hours': '',
+                    'mood-score': '',
+                    'food-notes': '',
+                    'rpe-score': '',
+                    'gains-notes': '',
+                    'gratitudes-notes': ''
+                };
+                Object.entries(dayFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                break;
+            case 'week':
+                const weeklyMetricsTable = document.getElementById('weekly-metrics-table');
+                if (weeklyMetricsTable) {
+                    weeklyMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                const weeklyFields = {
+                    'weekly-rpe': '',
+                    'weekly-gains': '',
+                    'weekly-gratitudes': ''
+                };
+                Object.entries(weeklyFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                break;
+            case 'month':
+                const monthlyFields = {
+                    'monthly-theme': '',
+                    'monthly-goals': '',
+                    'monthly-why': '',
+                    'monthly-rpe': '',
+                    'monthly-gains': '',
+                    'monthly-gratitudes': ''
+                };
+                Object.entries(monthlyFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                const monthlyMetricsTable = document.getElementById('monthly-metrics-table');
+                if (monthlyMetricsTable) {
+                    monthlyMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                break;
+            case 'season':
+                const seasonalFields = {
+                    'seasonal-theme': '',
+                    'seasonal-goals': '',
+                    'seasonal-why': '',
+                    'seasonal-rpe': '',
+                    'seasonal-gains': '',
+                    'seasonal-gratitudes': ''
+                };
+                Object.entries(seasonalFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                const seasonalMetricsTable = document.getElementById('seasonal-metrics-table');
+                if (seasonalMetricsTable) {
+                    seasonalMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                break;
+            case 'year':
+                const yearlyFields = {
+                    'yearly-theme': '',
+                    'yearly-goals': '',
+                    'yearly-why': '',
+                    'yearly-rpe': '',
+                    'yearly-gains': '',
+                    'yearly-gratitudes': ''
+                };
+                Object.entries(yearlyFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                const yearlyMetricsTable = document.getElementById('yearly-metrics-table');
+                if (yearlyMetricsTable) {
+                    yearlyMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                break;
+        }
+        console.log('Loading state shown successfully');
+    } catch (error) {
+        console.error('Error showing loading state:', error);
     }
 }
 
@@ -827,9 +870,9 @@ function displayWeeklyReport(data) {
 function displayMonthlyReport(data) {
     if (!data) return;
     
-    document.getElementById('monthly-theme').value = data.theme || '';
+    document.getElementById('monthly-theme').value = data.month_theme || '';
     document.getElementById('monthly-goals').value = data.goals || '';
-    document.getElementById('monthly-why').value = data.why || '';
+    document.getElementById('monthly-why').value = data.goals_rationale || '';
     
     const tableBody = document.getElementById('monthly-metrics-table');
     let html = '';
@@ -861,9 +904,9 @@ function displayMonthlyReport(data) {
 function displaySeasonalReport(data) {
     if (!data) return;
     
-    document.getElementById('seasonal-theme').value = data.theme || '';
+    document.getElementById('seasonal-theme').value = data.season_theme || '';
     document.getElementById('seasonal-goals').value = data.goals || '';
-    document.getElementById('seasonal-why').value = data.why || '';
+    document.getElementById('seasonal-why').value = data.goals_rationale || '';
     
     const tableBody = document.getElementById('seasonal-metrics-table');
     let html = '';
@@ -895,12 +938,10 @@ function displaySeasonalReport(data) {
 function displayYearlyReport(data) {
     if (!data) return;
     
-    // Display theme, goals, and why
-    document.getElementById('yearly-theme').value = data.theme || '';
+    document.getElementById('yearly-theme').value = data.year_theme || '';
     document.getElementById('yearly-goals').value = data.goals || '';
-    document.getElementById('yearly-why').value = data.why || '';
+    document.getElementById('yearly-why').value = data.goals_rationale || '';
     
-    // Display seasonal metrics table
     const tableBody = document.getElementById('yearly-metrics-table');
     let html = '';
     
@@ -922,10 +963,309 @@ function displayYearlyReport(data) {
     
     tableBody.innerHTML = html;
     
-    // Display yearly summary
     document.getElementById('yearly-rpe').value = data.rpe || '';
     document.getElementById('yearly-gains').value = data.gains || '';
     document.getElementById('yearly-gratitudes').value = data.gratitudes || '';
+}
+
+// Add event listeners for saving reports
+document.getElementById('save-weekly-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        end_date: formatDate(new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000)),
+        rpe: document.getElementById('weekly-rpe').value,
+        gains: document.getElementById('weekly-gains').value,
+        gratitudes: document.getElementById('weekly-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/weekly-report`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Weekly report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving weekly report:', error);
+        showError('Failed to save weekly report');
+    });
+});
+
+document.getElementById('save-monthly-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        month_theme: document.getElementById('monthly-theme').value,
+        goals: document.getElementById('monthly-goals').value,
+        goals_rationale: document.getElementById('monthly-why').value,
+        rpe: document.getElementById('monthly-rpe').value,
+        gains: document.getElementById('monthly-gains').value,
+        gratitudes: document.getElementById('monthly-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/month/range?start=${formatDate(currentMonthStart)}&end=${formatDate(new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 0))}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Monthly report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving monthly report:', error);
+        showError('Failed to save monthly report');
+    });
+});
+
+document.getElementById('save-seasonal-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        season_theme: document.getElementById('seasonal-theme').value,
+        goals: document.getElementById('seasonal-goals').value,
+        goals_rationale: document.getElementById('seasonal-why').value,
+        rpe: document.getElementById('seasonal-rpe').value,
+        gains: document.getElementById('seasonal-gains').value,
+        gratitudes: document.getElementById('seasonal-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/season/range?start=${formatDate(currentSeasonStart)}&end=${formatDate(new Date(currentSeasonStart.getFullYear(), currentSeasonStart.getMonth() + 3, 0))}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Seasonal report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving seasonal report:', error);
+        showError('Failed to save seasonal report');
+    });
+});
+
+document.getElementById('save-yearly-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        year_theme: document.getElementById('yearly-theme').value,
+        goals: document.getElementById('yearly-goals').value,
+        goals_rationale: document.getElementById('yearly-why').value,
+        rpe: document.getElementById('yearly-rpe').value,
+        gains: document.getElementById('yearly-gains').value,
+        gratitudes: document.getElementById('yearly-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/year/range?start=${formatDate(currentYearStart)}&end=${formatDate(new Date(currentYearStart.getFullYear(), 11, 31))}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Yearly report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving yearly report:', error);
+        showError('Failed to save yearly report');
+    });
+});
+
+// Function to show success message
+function showSuccess(message) {
+    const container = document.querySelector('.ui.container');
+    if (!container) {
+        console.error('Container element not found');
+        return;
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'ui positive message';
+    messageDiv.innerHTML = `
+        <i class="close icon"></i>
+        <div class="header">Success</div>
+        <p>${message}</p>
+    `;
+    
+    // Find the first segment to insert before
+    const firstSegment = container.querySelector('.ui.segment');
+    if (firstSegment) {
+        container.insertBefore(messageDiv, firstSegment);
+    } else {
+        container.appendChild(messageDiv);
+    }
+    
+    // Add close functionality
+    messageDiv.querySelector('.close.icon').addEventListener('click', function() {
+        messageDiv.remove();
+    });
+    
+    // Remove message after 3 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
+
+// Function to show error message
+function showError(message) {
+    const container = document.querySelector('.ui.container');
+    if (!container) {
+        console.error('Container element not found');
+        return;
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'ui negative message';
+    messageDiv.innerHTML = `
+        <i class="close icon"></i>
+        <div class="header">Error</div>
+        <p>${message}</p>
+    `;
+    
+    // Find the first segment to insert before
+    const firstSegment = container.querySelector('.ui.segment');
+    if (firstSegment) {
+        container.insertBefore(messageDiv, firstSegment);
+    } else {
+        container.appendChild(messageDiv);
+    }
+    
+    // Add close functionality
+    messageDiv.querySelector('.close.icon').addEventListener('click', function() {
+        messageDiv.remove();
+    });
+}
+
+// Function to navigate between dates
+function navigateDate(direction) {
+    console.log('Navigating date:', direction);
+    const activeTab = $('.menu .item.active').data('tab');
+    console.log('Active tab:', activeTab);
+    
+    try {
+        switch(activeTab) {
+            case 'day':
+                const newDay = new Date(currentDay);
+                newDay.setDate(newDay.getDate() + (direction === 'next' ? 1 : -1));
+                currentDay = newDay;
+                break;
+            case 'week':
+                const newWeek = new Date(currentWeekStart);
+                newWeek.setDate(newWeek.getDate() + (direction === 'next' ? 7 : -7));
+                currentWeekStart = newWeek;
+                break;
+            case 'month':
+                const newMonth = new Date(currentMonthStart);
+                newMonth.setMonth(newMonth.getMonth() + (direction === 'next' ? 1 : -1));
+                currentMonthStart = newMonth;
+                break;
+            case 'season':
+                const newSeason = new Date(currentSeasonStart);
+                newSeason.setMonth(newSeason.getMonth() + (direction === 'next' ? 3 : -3));
+                currentSeasonStart = newSeason;
+                break;
+            case 'year':
+                const newYear = new Date(currentYearStart);
+                newYear.setFullYear(newYear.getFullYear() + (direction === 'next' ? 1 : -1));
+                currentYearStart = newYear;
+                break;
+        }
+        
+        // Update date picker value
+        const datePicker = document.getElementById('date-picker');
+        if (datePicker) {
+            switch(activeTab) {
+                case 'day':
+                    datePicker.valueAsDate = new Date(currentDay);
+                    break;
+                case 'week':
+                    datePicker.valueAsDate = new Date(currentWeekStart);
+                    break;
+                case 'month':
+                    datePicker.valueAsDate = new Date(currentMonthStart);
+                    break;
+                case 'season':
+                    datePicker.valueAsDate = new Date(currentSeasonStart);
+                    break;
+                case 'year':
+                    datePicker.valueAsDate = new Date(currentYearStart);
+                    break;
+            }
+        }
+        
+        // Reload the content for the current tab
+        loadTabContent(activeTab);
+    } catch (error) {
+        console.error('Error in navigateDate:', error);
+    }
+}
+
+// Function to update the date picker based on the active tab
+function updateDatePicker(tab) {
+    console.log('Updating date picker for tab:', tab);
+    const datePicker = document.getElementById('date-picker');
+    if (!datePicker) {
+        console.error('Date picker element not found');
+        return;
+    }
+    
+    try {
+        switch(tab) {
+            case 'day':
+                datePicker.valueAsDate = new Date(currentDay);
+                break;
+            case 'week':
+                datePicker.valueAsDate = new Date(currentWeekStart);
+                break;
+            case 'month':
+                datePicker.valueAsDate = new Date(currentMonthStart);
+                break;
+            case 'season':
+                datePicker.valueAsDate = new Date(currentSeasonStart);
+                break;
+            case 'year':
+                datePicker.valueAsDate = new Date(currentYearStart);
+                break;
+            case 'custom':
+                // For custom tab, we don't update the date picker
+                break;
+        }
+        console.log('Date picker updated successfully');
+    } catch (error) {
+        console.error('Error updating date picker:', error);
+    }
 }
 </script>
 {% endblock %}

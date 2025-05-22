@@ -122,4 +122,23 @@ def index():
 @commitments.route('/commitments/today')
 @jwt_required()
 def today():
-    return render_template('commitments/today.html') 
+    return render_template('commitments/today.html')
+
+@commitments.route('/api/commitments/<int:commitment_id>', methods=['PUT'])
+@jwt_required()
+def update_commitment(commitment_id):
+    """Update a regular commitment"""
+    commitment = Commitment.query.filter_by(
+        id=commitment_id,
+        user_id=get_jwt_identity()
+    ).first_or_404()
+    
+    data = request.get_json()
+    
+    if 'completed' in data:
+        commitment.completed = data['completed']
+        commitment.completed_at = datetime.now() if data['completed'] else None
+        
+    db.session.commit()
+    
+    return jsonify(commitment.as_dict()) 

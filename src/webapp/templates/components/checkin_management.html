@@ -1,0 +1,442 @@
+<!-- Checkin Management Component -->
+{% macro checkin_management() %}
+
+<!-- Quick Checkin Management Popup -->
+<div class="ui popup" id="quick-checkin-management">
+    <div class="ui segment">
+        <div class="ui form">
+            <!-- Quick Add Checkin -->
+            <div class="field">
+                <label>Quick Add Checkin</label>
+                <div class="ui action input">
+                    <input type="text" id="quick-checkin-comment" placeholder="Add a quick note (optional)">
+                    <button class="ui teal button" id="quick-add-checkin">
+                        <i class="plus icon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- RPE Slider -->
+            <div class="field">
+                <label>RPE (Rate of Perceived Exertion)</label>
+                <div class="ui range" id="quick-rpe-slider">
+                    <input type="range" min="1" max="10" value="5">
+                    <div class="ui label">5</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Checkins -->
+        <div class="ui divider"></div>
+        <div id="quick-recent-checkins" class="ui list">
+            <!-- Recent checkins will be loaded here -->
+        </div>
+        
+        <div class="ui divider"></div>
+        <button class="ui fluid button" id="open-full-checkin-manager">
+            <i class="list icon"></i>
+            Open Full Checkin Manager
+        </button>
+    </div>
+</div>
+
+<!-- Full Checkin Management Modal -->
+<div class="ui modal" id="checkin-management-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Checkins</div>
+    <div class="content">
+        <!-- Add New Checkin Section -->
+        <div class="ui segment">
+            <h4 class="ui header">
+                <i class="plus icon"></i>
+                <div class="content">
+                    Add New Checkin
+                    <div class="sub header">Record your progress and metrics</div>
+                </div>
+            </h4>
+            <form id="add-checkin-form" class="ui form">
+                <div class="field">
+                    <label>Comment (Optional)</label>
+                    <textarea id="checkin-comment" rows="2" placeholder="Add a note about your progress..."></textarea>
+                </div>
+                
+                <div class="three fields">
+                    <div class="field">
+                        <label>RPE (1-10)</label>
+                        <div class="ui range" id="rpe-slider">
+                            <input type="range" min="1" max="10" value="5">
+                            <div class="ui label">5</div>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <label>Progress (%)</label>
+                        <div class="ui range" id="progress-slider">
+                            <input type="range" min="0" max="100" value="0">
+                            <div class="ui label">0%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="field">
+                        <label>Mood (1-10)</label>
+                        <div class="ui range" id="mood-slider">
+                            <input type="range" min="1" max="10" value="5">
+                            <div class="ui label">5</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label>Energy Level (1-10)</label>
+                    <div class="ui range" id="energy-slider">
+                        <input type="range" min="1" max="10" value="5">
+                        <div class="ui label">5</div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="ui primary button">
+                    <i class="plus icon"></i>
+                    Add Checkin
+                </button>
+            </form>
+        </div>
+        
+        <!-- Checkin History Section -->
+        <div class="ui segment">
+            <h4 class="ui header">
+                <i class="history icon"></i>
+                <div class="content">
+                    Checkin History
+                    <div class="sub header">View and manage your checkin history</div>
+                </div>
+            </h4>
+            <div id="checkin-history" class="ui list">
+                <!-- Checkin history will be loaded here -->
+            </div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button cancel">Close</div>
+    </div>
+</div>
+
+<style>
+/* Quick Checkin Management Styles */
+#quick-checkin-management {
+    min-width: 300px;
+    max-width: 400px;
+}
+
+#quick-checkin-management .ui.range {
+    margin: 0.5em 0;
+}
+
+#quick-checkin-management .ui.label {
+    margin-left: 0.5em;
+}
+
+#quick-checkin-management .ui.divider {
+    margin: 0.5em 0;
+}
+
+#quick-checkin-management .ui.button {
+    margin-top: 0.5em;
+}
+
+/* Full Checkin Management Styles */
+#checkin-management-modal .ui.range {
+    margin: 0.5em 0;
+}
+
+#checkin-management-modal .ui.label {
+    margin-left: 0.5em;
+}
+
+#checkin-management-modal .ui.segment {
+    margin: 1em 0;
+}
+
+#checkin-management-modal .ui.header {
+    margin-bottom: 1em;
+}
+
+#checkin-management-modal .ui.list {
+    margin-top: 1em;
+}
+
+#checkin-management-modal .ui.list .item {
+    padding: 0.5em 0;
+}
+
+#checkin-management-modal .ui.list .item .header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+}
+
+#checkin-management-modal .ui.list .item .meta {
+    color: rgba(0, 0, 0, 0.6);
+    font-size: 0.9em;
+}
+
+/* Common Styles */
+.ui.range {
+    display: flex;
+    align-items: center;
+}
+
+.ui.range input[type="range"] {
+    flex: 1;
+    margin-right: 0.5em;
+}
+
+.ui.range .ui.label {
+    min-width: 2.5em;
+    text-align: center;
+}
+</style>
+
+<script>
+// Initialize checkin management functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize range sliders
+    initializeRangeSliders();
+    
+    // Handle quick checkin form submission
+    document.getElementById('quick-add-checkin').addEventListener('click', function() {
+        const comment = document.getElementById('quick-checkin-comment').value;
+        const rpe = document.querySelector('#quick-rpe-slider input').value;
+        
+        const entityId = document.getElementById('quick-checkin-management').dataset.entityId;
+        if (!entityId) {
+            console.error('No entity ID found');
+            return;
+        }
+        
+        addCheckin({
+            comment: comment || null,
+            rpe: parseInt(rpe)
+        }, entityId);
+    });
+    
+    // Handle full checkin form submission
+    document.getElementById('add-checkin-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            comment: document.getElementById('checkin-comment').value || null,
+            rpe: parseInt(document.querySelector('#rpe-slider input').value),
+            progress: parseInt(document.querySelector('#progress-slider input').value),
+            mood: parseInt(document.querySelector('#mood-slider input').value),
+            energy: parseInt(document.querySelector('#energy-slider input').value)
+        };
+        
+        const entityId = document.getElementById('checkin-management-modal').dataset.entityId;
+        if (!entityId) {
+            console.error('No entity ID found');
+            return;
+        }
+        
+        addCheckin(formData, entityId);
+    });
+    
+    // Handle opening full checkin manager
+    document.getElementById('open-full-checkin-manager').addEventListener('click', function() {
+        $('.ui.popup').popup('hide');
+        const entityId = document.getElementById('quick-checkin-management').dataset.entityId;
+        if (!entityId) {
+            console.error('No entity ID found');
+            return;
+        }
+        showFullCheckinManager(entityId);
+    });
+});
+
+function initializeRangeSliders() {
+    // Initialize all range sliders
+    document.querySelectorAll('.ui.range input[type="range"]').forEach(slider => {
+        const label = slider.nextElementSibling;
+        
+        slider.addEventListener('input', function() {
+            label.textContent = this.value + (this.id.includes('progress') ? '%' : '');
+        });
+    });
+}
+
+function loadRecentCheckins(entityId) {
+    const token = getAuthToken();
+    if (!token) return;
+    
+    const container = document.getElementById('quick-recent-checkins');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading checkins...</div></div>';
+    
+    fetch(`${API_URL}/commitments/${entityId}/checkins`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(checkins => {
+        if (checkins.length === 0) {
+            container.innerHTML = '<div class="ui text">No checkins yet</div>';
+            return;
+        }
+        
+        let html = '';
+        checkins.slice(0, 3).forEach(checkin => {
+            const timestamp = new Date(checkin.timestamp);
+            html += `
+                <div class="item">
+                    <i class="clock icon"></i>
+                    <div class="content">
+                        <div class="header">
+                            ${timestamp.toLocaleString()}
+                            <span class="ui label">RPE: ${checkin.rpe}</span>
+                            ${checkin.progress ? `<span class="ui label">Progress: ${checkin.progress}%</span>` : ''}
+                        </div>
+                        <div class="description">${checkin.comment || ''}</div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    })
+    .catch(error => {
+        console.error('Error loading checkins:', error);
+        container.innerHTML = '<div class="ui red text">Error loading checkins</div>';
+    });
+}
+
+function addCheckin(data, entityId) {
+    const token = getAuthToken();
+    if (!token) return;
+    
+    fetch(`${API_URL}/commitments/${entityId}/checkins`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        // Clear form
+        document.getElementById('quick-checkin-comment').value = '';
+        document.getElementById('checkin-comment').value = '';
+        
+        // Reload checkins
+        loadRecentCheckins(entityId);
+        
+        // Show success message
+        showSuccess('Checkin added successfully');
+    })
+    .catch(error => {
+        console.error('Error adding checkin:', error);
+        showError('Failed to add checkin');
+    });
+}
+
+function showFullCheckinManager(entityId) {
+    const modal = document.getElementById('checkin-management-modal');
+    modal.dataset.entityId = entityId;
+    
+    // Load full checkin history
+    loadFullCheckinHistory(entityId);
+    
+    // Show modal
+    $('#checkin-management-modal').modal('show');
+}
+
+function loadFullCheckinHistory(entityId) {
+    const token = getAuthToken();
+    if (!token) return;
+    
+    const container = document.getElementById('checkin-history');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading checkin history...</div></div>';
+    
+    fetch(`${API_URL}/commitments/${entityId}/checkins`, {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(checkins => {
+        if (checkins.length === 0) {
+            container.innerHTML = '<div class="ui text">No checkins yet</div>';
+            return;
+        }
+        
+        let html = '';
+        checkins.forEach(checkin => {
+            const timestamp = new Date(checkin.timestamp);
+            html += `
+                <div class="item">
+                    <i class="clock icon"></i>
+                    <div class="content">
+                        <div class="header">
+                            ${timestamp.toLocaleString()}
+                            <span class="ui label">RPE: ${checkin.rpe}</span>
+                            ${checkin.progress ? `<span class="ui label">Progress: ${checkin.progress}%</span>` : ''}
+                            ${checkin.mood ? `<span class="ui label">Mood: ${checkin.mood}</span>` : ''}
+                            ${checkin.energy ? `<span class="ui label">Energy: ${checkin.energy}</span>` : ''}
+                        </div>
+                        <div class="description">${checkin.comment || ''}</div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    })
+    .catch(error => {
+        console.error('Error loading checkin history:', error);
+        container.innerHTML = '<div class="ui red text">Error loading checkin history</div>';
+    });
+}
+
+function showQuickCheckinManagement(element) {
+    // Get the parent commitment item
+    const commitmentItem = element.closest('.item');
+    if (!commitmentItem) {
+        console.error('Could not find parent commitment item');
+        return;
+    }
+    
+    const entityId = commitmentItem.getAttribute('data-id');
+    if (!entityId) {
+        console.error('No entity ID found on commitment item');
+        return;
+    }
+    
+    // Set entity info in the popup
+    const popup = document.getElementById('quick-checkin-management');
+    popup.dataset.entityId = entityId;
+    
+    // Destroy any existing popup
+    $(element).popup('destroy');
+    
+    // Show popup
+    $(element).popup({
+        popup: '#quick-checkin-management',
+        position: 'bottom center',
+        on: 'click',
+        onShow: function() {
+            // Focus the input
+            document.getElementById('quick-checkin-comment').focus();
+            // Load recent checkins
+            loadRecentCheckins(entityId);
+        }
+    }).popup('show');
+}
+
+function showError(message) {
+    // Show error message using your preferred notification system
+    console.error(message);
+}
+
+function showSuccess(message) {
+    // Show success message using your preferred notification system
+    console.log(message);
+}
+</script>
+{% endmacro %} 
