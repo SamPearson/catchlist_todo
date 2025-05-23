@@ -5,6 +5,11 @@ from ...config.caldav_client import CalDAVClient
 from datetime import datetime, timedelta
 from dateutil import rrule
 from dateutil.parser import parse
+import random
+
+def generate_random_color():
+    """Generate a random hex color code"""
+    return f"#{random.randint(0, 0xFFFFFF):06x}"
 
 routines_bp = Blueprint('routines', __name__)
 
@@ -127,7 +132,7 @@ def import_routines():
                 if not calendar_tag:
                     calendar_tag = Tag(
                         name=calendar['name'],
-                        color=calendar.get('color', '#767676'),
+                        color=generate_random_color(),
                         user_id=get_jwt_identity()
                     )
                     db.session.add(calendar_tag)

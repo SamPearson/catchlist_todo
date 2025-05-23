@@ -38,6 +38,7 @@ class EventInfo:
     rrule: Optional[str]
     uid: str
     recurrence_id: Optional[str]
+    timezone: str  # Timezone from VTIMEZONE component
 
 class CalDAVError(Exception):
     """Base exception for CalDAV related errors"""
@@ -191,6 +192,14 @@ class CalDAVClient:
             # Parse with icalendar
             cal = icalendar.Calendar.from_ical(raw_data)
             
+            # Get timezone from VTIMEZONE component
+            timezone = 'America/Chicago'  # Default timezone
+            for component in cal.walk():
+                if component.name == "VTIMEZONE":
+                    timezone = str(component.get('TZID', 'America/Chicago'))
+                    logger.debug(f"Found timezone in VTIMEZONE component: {timezone}")
+                    break
+            
             # Find first VEVENT component
             for component in cal.walk():
                 if component.name == "VEVENT":
@@ -214,27 +223,42 @@ class CalDAVClient:
                     
                     # Get remaining details
                     description = str(component.get('description', ''))
-                    start = component.get('dtstart').dt
-                    end = component.get('dtend').dt
                     
-                    # Handle timezone conversion
+                    # Handle start time with timezone
+                    start = component.get('dtstart').dt
+                    logger.debug(f"Raw start time: {start}")
+                    logger.debug(f"Start time timezone info: {start.tzinfo if isinstance(start, datetime) else 'N/A'}")
+                    
                     if isinstance(start, datetime):
                         if start.tzinfo is None:
-                            # If no timezone info, assume it's in local time
-                            local_tz = pytz.timezone('America/New_York')  # Default to EST
-                            start = local_tz.localize(start)
-                        # Store in UTC but preserve original timezone info
-                        start_utc = start.astimezone(pytz.UTC)
-                        start = start_utc
-                        
+                            # If no timezone info, use the timezone from VTIMEZONE
+                            try:
+                                tz = pytz.timezone(timezone)
+                                start = tz.localize(start)
+                                logger.debug(f"Localized start time: {start}")
+                            except pytz.exceptions.UnknownTimeZoneError:
+                                logger.warning(f"Unknown timezone {timezone}, using UTC")
+                                start = pytz.UTC.localize(start)
+                        # Store in original timezone instead of converting to UTC
+                        logger.debug(f"Start time in original timezone: {start}")
+                    
+                    # Handle end time with timezone
+                    end = component.get('dtend').dt
+                    logger.debug(f"Raw end time: {end}")
+                    logger.debug(f"End time timezone info: {end.tzinfo if isinstance(end, datetime) else 'N/A'}")
+                    
                     if isinstance(end, datetime):
                         if end.tzinfo is None:
-                            # If no timezone info, assume it's in local time
-                            local_tz = pytz.timezone('America/New_York')  # Default to EST
-                            end = local_tz.localize(end)
-                        # Store in UTC but preserve original timezone info
-                        end_utc = end.astimezone(pytz.UTC)
-                        end = end_utc
+                            # If no timezone info, use the timezone from VTIMEZONE
+                            try:
+                                tz = pytz.timezone(timezone)
+                                end = tz.localize(end)
+                                logger.debug(f"Localized end time: {end}")
+                            except pytz.exceptions.UnknownTimeZoneError:
+                                logger.warning(f"Unknown timezone {timezone}, using UTC")
+                                end = pytz.UTC.localize(end)
+                        # Store in original timezone instead of converting to UTC
+                        logger.debug(f"End time in original timezone: {end}")
                     
                     # Format recurrence_id
                     if recurrence_id:
@@ -289,7 +313,8 @@ class CalDAVClient:
                         end=end,
                         rrule=rrule,
                         uid=uid,
-                        recurrence_id=recurrence_id
+                        recurrence_id=recurrence_id,
+                        timezone=timezone
                     )
             
             return None

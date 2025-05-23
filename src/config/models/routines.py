@@ -22,6 +22,7 @@ class Routine(db.Model):
     external_uid = db.Column(db.String(100))  # Calendar UID for external syncing
     external_source = db.Column(db.String(50))  # e.g., 'caldav', 'google'
     external_source_name = db.Column(db.String(100))  # Name of the source calendar
+    timezone = db.Column(db.String(50))  # Timezone for the routine (e.g., 'America/Chicago')
     
     # Relationships
     user = relationship('User', back_populates='routines')
@@ -46,6 +47,7 @@ class Routine(db.Model):
             "external_uid": self.external_uid,
             "external_source": self.external_source,
             "external_source_name": self.external_source_name,
+            "timezone": self.timezone,
             "calendar": self.calendar.as_dict() if self.calendar else None,
             "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         }
@@ -63,6 +65,7 @@ class Session(db.Model):
     end_time = db.Column(db.DateTime, nullable=False)
     completed = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    timezone = db.Column(db.String(50))  # Timezone for the session (e.g., 'America/Chicago')
     
     # Relationships
     user = relationship('User', back_populates='sessions')
@@ -92,7 +95,8 @@ class Session(db.Model):
             "completed": self.completed,
             "notes": self.notes,
             "rpe": self.rpe,
-            "duration_minutes": self.duration_minutes
+            "duration_minutes": self.duration_minutes,
+            "timezone": self.timezone
         }
         
         # Add tags if they exist

@@ -420,8 +420,32 @@ function handleViewSessions() {
     modal.modal('show');
 }
 
-function loadSessions(routineId, startDate, endDate) {
-    fetch(`${API_URL}/routines/${routineId}/sessions?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}`, {
+function formatSessionTime(timeStr) {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    // Ensure we're using the local timezone
+    return date.toLocaleTimeString([], { 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        hour12: true,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+}
+
+function formatSessionDate(timeStr) {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    // Ensure we're using the local timezone
+    return date.toLocaleDateString([], { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
+}
+
+function loadSessions(routineId, startDate, endDate, statusFilter = 'all') {
+    fetch(`${API_URL}/routines/${routineId}/sessions?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}&status=${statusFilter}`, {
         method: 'GET',
         headers: {
             'Authorization': 'Bearer ' + getAuthToken()
@@ -445,9 +469,14 @@ function loadSessions(routineId, startDate, endDate) {
             sessions.forEach(session => {
                 const tr = document.createElement('tr');
                 tr.dataset.id = session.id;
+                
+                // Parse the ISO timestamps
+                const startTime = new Date(session.start_time);
+                const endTime = new Date(session.end_time);
+                
                 tr.innerHTML = `
-                    <td>${new Date(session.start_time).toLocaleDateString()}</td>
-                    <td>${new Date(session.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(session.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                    <td>${formatSessionDate(session.start_time)}</td>
+                    <td>${formatSessionTime(session.start_time)} - ${formatSessionTime(session.end_time)}</td>
                     <td>
                         <select class="ui dropdown session-status">
                             <option value="pending" ${!session.completed ? 'selected' : ''}>Pending</option>
@@ -891,7 +920,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
     })
     .then(routines => {
-        console.log('Received routines:', routines);
+        console.log('Raw API response:', routines);
         if (!Array.isArray(routines)) {
             console.error('Expected array of routines, got:', typeof routines);
             throw new Error('Invalid response format');
@@ -912,7 +941,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Display events in the list
 function displayRoutines(routines) {
     console.log('Displaying routines:', routines);
     const container = document.getElementById('routines-list');
@@ -930,15 +958,35 @@ function displayRoutines(routines) {
     
     // Group routines by calendar
     const groupedRoutines = routines.reduce((acc, routine) => {
-        const calendar = routine.calendar || { name: 'Local Routines', color: '#767676' };
-        if (!acc[calendar.name]) {
-            acc[calendar.name] = {
+        // Determine calendar name and color
+        let calendarName, calendarColor, calendarId;
+        
+        if (routine.calendar) {
+            // If we have a calendar object, use its properties
+            calendarName = routine.calendar.name;
+            // Get color from the first tag if available, otherwise use calendar color
+            calendarColor = routine.tags && routine.tags.length > 0 ? routine.tags[0].color : routine.calendar.color;
+            calendarId = routine.calendar.id;
+        } else if (routine.external_source_name) {
+            // If we have an external source name, use that
+            calendarName = routine.external_source_name;
+            calendarColor = routine.tags && routine.tags.length > 0 ? routine.tags[0].color : '#767676';
+            calendarId = 'external-' + routine.external_source_name;
+        } else {
+            // Fallback to Local Routines
+            calendarName = 'Local Routines';
+            calendarColor = routine.tags && routine.tags.length > 0 ? routine.tags[0].color : '#767676';
+            calendarId = 'local';
+        }
+        
+        if (!acc[calendarName]) {
+            acc[calendarName] = {
                 routines: [],
-                color: calendar.color,
-                id: calendar.id
+                color: calendarColor,
+                id: calendarId
             };
         }
-        acc[calendar.name].routines.push(routine);
+        acc[calendarName].routines.push(routine);
         return acc;
     }, {});
     
@@ -959,12 +1007,12 @@ function displayRoutines(routines) {
                         <div class="sub header">${calendarRoutines.length} routine${calendarRoutines.length !== 1 ? 's' : ''}</div>
                     </div>
                     <div class="right floated content">
-                        <button class="ui icon button toggle-calendar" data-calendar-id="${id || 'local'}">
+                        <button class="ui icon button toggle-calendar" data-calendar-id="${id}">
                             <i class="chevron down icon"></i>
                         </button>
                     </div>
                 </h4>
-                <div class="ui divided items calendar-routines" data-calendar-id="${id || 'local'}">
+                <div class="ui divided items calendar-routines" data-calendar-id="${id}">
         `;
         
         // Add routines for this calendar
@@ -1315,78 +1363,6 @@ document.getElementById('apply-filter-btn').addEventListener('click', function()
     
     loadSessions(routineId, startDate, endDate, statusFilter);
 });
-
-function loadSessions(routineId, startDate, endDate, statusFilter = 'all') {
-    fetch(`${API_URL}/routines/${routineId}/sessions?start=${startDate.toISOString().split('T')[0]}&end=${endDate.toISOString().split('T')[0]}&status=${statusFilter}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(sessions => {
-        const tbody = document.getElementById('sessions-table-body');
-        tbody.innerHTML = '';
-        
-        if (sessions.length === 0) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = '<td colspan="7" class="center aligned">No sessions found in this date range</td>';
-            tbody.appendChild(tr);
-        } else {
-            sessions.forEach(session => {
-                const tr = document.createElement('tr');
-                tr.dataset.id = session.id;
-                tr.innerHTML = `
-                    <td>${new Date(session.start_time).toLocaleDateString()}</td>
-                    <td>${new Date(session.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${new Date(session.end_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
-                    <td>
-                        <select class="ui dropdown session-status">
-                            <option value="pending" ${!session.completed ? 'selected' : ''}>Pending</option>
-                            <option value="completed" ${session.completed ? 'selected' : ''}>Completed</option>
-                            <option value="missed">Missed</option>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="number" min="1" max="10" class="session-rpe" value="${session.rpe || ''}">
-                    </td>
-                    <td>
-                        <input type="text" class="session-notes" value="${session.notes || ''}">
-                    </td>
-                    <td>
-                        <div class="ui labels">
-                            ${(session.tags || []).map(tag => `
-                                <div class="ui label" style="background-color: ${tag.color}; color: white;">
-                                    ${tag.name}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </td>
-                    <td>
-                        <div class="ui tiny buttons">
-                            <button class="ui tiny green button save-session">Save</button>
-                            <button class="ui tiny teal button manage-session-tags">
-                                <i class="tags icon"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            
-            // Initialize dropdowns
-            $('.ui.dropdown').dropdown();
-        }
-    })
-    .catch(error => {
-        console.error('Error loading sessions:', error);
-        alert('Failed to load sessions. Please try again.');
-    });
-}
 </script>
 
 <style>
