@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import db, Routine, Session, Commitment, Calendar
+from ...config.models import db, Routine, Session, Commitment, Calendar, Checkin
 from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient, CalDAVError, CalDAVConnectionError
 from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
+from ..utils.report_generator import ReportGenerator
 import random
 from ...config.models.tags import Tag, RoutineTag, SessionTag
 from dateutil import rrule
@@ -16,7 +17,31 @@ import pytz
 
 routines_bp = Blueprint('routines', __name__)
 
+# Configure logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Create a formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Create a console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+def log_routine_operation(operation: str, routine_id: int, user_id: int, **kwargs):
+    """Helper function for consistent routine operation logging"""
+    log_msg = f"[Routine {operation}] routine_id={routine_id} user_id={user_id}"
+    if kwargs:
+        log_msg += " " + " ".join(f"{k}={v}" for k, v in kwargs.items())
+    logger.info(log_msg)
+
+def log_session_creation(routine_id: int, session_count: int, **kwargs):
+    """Helper function for consistent session creation logging"""
+    log_msg = f"[Session Creation] routine_id={routine_id} sessions_created={session_count}"
+    if kwargs:
+        log_msg += " " + " ".join(f"{k}={v}" for k, v in kwargs.items())
+    logger.info(log_msg)
 
 @dataclass
 class TimeframeRange:
@@ -271,6 +296,12 @@ def import_routines():
                     timezone=timezone
                 )
                 
+                # If it's a weekly event without BYDAY, add the day of week from the event
+                if event.rrule == 'FREQ=WEEKLY':
+                    day_of_week = event.start.weekday()
+                    routine.rrule = f'FREQ=WEEKLY;BYDAY={["MO","TU","WE","TH","FR","SA","SU"][day_of_week]}'
+                    logger.debug(f"[Import] Setting BYDAY for weekly event {event.summary} to day {day_of_week}")
+                
                 db.session.add(routine)
                 db.session.flush()
                 
@@ -368,6 +399,7 @@ def get_routines():
             'external_source': routine.external_source,
             'external_source_name': routine.external_source_name,
             'calendar': calendar_info,
+            'timezone': routine.timezone or 'UTC',  # Include timezone with UTC fallback
             'start_time': next_session.start_time.strftime('%H:%M') if next_session else None,
             'end_time': next_session.end_time.strftime('%H:%M') if next_session else None,
             'tags': [assoc.tag.as_dict() for assoc in routine.tag_associations]
@@ -538,45 +570,54 @@ def get_routine_sessions(routine_id):
         
     return jsonify(result)
 
-@routines_bp.route('/api/sessions/<int:session_id>', methods=['PUT'])
+@routines_bp.route('/api/sessions/<int:session_id>', methods=['GET', 'PUT'])
 @jwt_required()
-def update_session(session_id):
-    current_user_id = get_current_user_id()
-    data = request.get_json()
-    
-    # Find session and verify it belongs to the current user
-    session = Session.query.join(Routine).filter(
-        Session.id == session_id,
-        Routine.user_id == current_user_id
-    ).first()
+def get_or_update_session(session_id):
+    """Get or update a session's details"""
+    user_id = get_jwt_identity()
+    session = Session.query.filter_by(id=session_id, user_id=user_id).first()
     
     if not session:
-        return jsonify({"message": "Session not found"}), 404
-        
-    try:
-        if 'completed' in data:
-            session.completed = data.get('completed')
-        if 'rpe' in data:
-            session.rpe = data.get('rpe')
-        if 'notes' in data:
-            session.notes = data.get('notes')
-            
-        db.session.commit()
-        
-        result = {
-            'id': session.id,
-            'start_time': session.start_time.isoformat(),
-            'end_time': session.end_time.isoformat(),
-            'completed': session.completed,
-            'rpe': session.rpe,
-            'notes': session.notes,
-            'tags': [assoc.tag.as_dict() for assoc in session.tag_associations]
-        }
-        
-        return jsonify(result)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "message": "Session not found"
+        }), 404
+    
+    if request.method == 'GET':
+        return jsonify({
+            "success": True,
+            "session": {
+                "id": session.id,
+                "routine_id": session.routine_id,
+                "commitment_id": session.commitment_id,
+                "scheduled_at": session.scheduled_at.isoformat(),
+                "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+                "status": session.status
+            }
+        })
+    
+    # PUT request handling
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "No data provided"
+        }), 400
+    
+    if 'status' in data:
+        session.status = data['status']
+        if data['status'] == 'completed':
+            session.completed_at = datetime.now()
+    
+    if 'scheduled_at' in data:
+        session.scheduled_at = datetime.fromisoformat(data['scheduled_at'])
+    
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "Session updated successfully"
+    })
 
 @routines_bp.route('/api/routines/<int:routine_id>/toggle-active', methods=['PUT'])
 @jwt_required()
@@ -720,8 +761,14 @@ def create_routine_sessions(routine_id):
         start_dt = tz.localize(start_dt)
         end_dt = tz.localize(end_dt)
         
+        # Convert to UTC for storage
+        start_dt_utc = start_dt.astimezone(pytz.UTC)
+        end_dt_utc = end_dt.astimezone(pytz.UTC)
+        
         logger.debug(f"New session start time (localized): {start_dt}")
         logger.debug(f"New session end time (localized): {end_dt}")
+        logger.debug(f"New session start time (UTC): {start_dt_utc}")
+        logger.debug(f"New session end time (UTC): {end_dt_utc}")
         
         # Parse RRULE
         if not routine.rrule:
@@ -733,6 +780,7 @@ def create_routine_sessions(routine_id):
         # Generate sessions
         session_count = 0
         commitment_count = 0
+        created_sessions = []  # Add this to track created sessions
         for dt in rule.between(start_dt, end_dt):
             # Ensure dt is timezone-aware
             if dt.tzinfo is None:
@@ -742,10 +790,14 @@ def create_routine_sessions(routine_id):
             duration = first_session.end_time - first_session.start_time
             end_time = dt + duration
             
+            # Convert to UTC for storage
+            dt_utc = dt.astimezone(pytz.UTC)
+            end_time_utc = end_time.astimezone(pytz.UTC)
+            
             # Check if session already exists
             existing_session = Session.query.filter_by(
                 routine_id=routine.id,
-                start_time=dt
+                start_time=dt_utc
             ).first()
             
             if existing_session:
@@ -754,8 +806,8 @@ def create_routine_sessions(routine_id):
             # Create session
             session = Session(
                 routine_id=routine.id,
-                start_time=dt,
-                end_time=end_time,
+                start_time=dt_utc,
+                end_time=end_time_utc,
                 user_id=current_user_id,
                 timezone=timezone
             )
@@ -767,8 +819,8 @@ def create_routine_sessions(routine_id):
             commitment = Commitment(
                 user_id=current_user_id,
                 due_date=dt.date(),
-                start_time=dt,
-                end_time=end_time,
+                start_time=dt_utc,
+                end_time=end_time_utc,
                 routine_id=routine.id,
                 session_id=session.id,
                 title=routine.title,
@@ -776,13 +828,26 @@ def create_routine_sessions(routine_id):
             )
             db.session.add(commitment)
             commitment_count += 1
+            
+            # Add session details to our tracking list
+            created_sessions.append({
+                'id': session.id,
+                'start_time': dt_utc.isoformat(),
+                'end_time': end_time_utc.isoformat(),
+                'timezone': timezone,
+                'routine_title': routine.title,
+                'rrule': routine.rrule
+            })
         
         db.session.commit()
         return jsonify({
             "success": True,
             "message": f"Created {session_count} sessions and {commitment_count} commitments",
             "session_count": session_count,
-            "commitment_count": commitment_count
+            "commitment_count": commitment_count,
+            "created_sessions": created_sessions,
+            "routine_title": routine.title,
+            "rrule": routine.rrule
         })
         
     except Exception as e:
@@ -791,4 +856,267 @@ def create_routine_sessions(routine_id):
         return jsonify({
             "success": False,
             "message": f"Error creating sessions: {str(e)}"
-        }), 500 
+        }), 500
+
+@routines_bp.route('/api/routines/batch-create-sessions', methods=['POST'])
+@jwt_required()
+def batch_create_routine_sessions():
+    """Create sessions for multiple routines within a specified timeframe"""
+    current_user_id = get_current_user_id()
+    data = request.get_json()
+    
+    logger.info(f"[Batch Session Creation] Starting for user_id={current_user_id}")
+    
+    if not data or not data.get('routine_ids') or not data.get('start_date') or not data.get('end_date'):
+        logger.error("[Batch Session Creation] Missing required fields")
+        return jsonify({"message": "Routine IDs, start date and end date are required"}), 400
+    
+    try:
+        # Parse dates
+        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
+        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        
+        logger.info(f"[Batch Session Creation] Date range: {start_date} to {end_date}")
+        
+        total_sessions = 0
+        total_commitments = 0
+        results = []
+        
+        # Process each routine
+        for routine_id in data['routine_ids']:
+            logger.info(f"[Batch Session Creation] Processing routine_id={routine_id}")
+            
+            # Verify routine exists and belongs to user
+            routine = Routine.query.filter_by(id=routine_id, user_id=current_user_id).first()
+            if not routine:
+                logger.warning(f"[Batch Session Creation] Routine not found: routine_id={routine_id}")
+                results.append({
+                    'routine_id': routine_id,
+                    'success': False,
+                    'message': 'Routine not found'
+                })
+                continue
+            
+            # Get the routine's timezone
+            timezone = routine.timezone or 'America/Chicago'
+            tz = pytz.timezone(timezone)
+            logger.debug(f"[Batch Session Creation] Using timezone for routine {routine_id}: {timezone}")
+            
+            # Get the first session to use as a template
+            first_session = Session.query.filter_by(routine_id=routine_id).order_by(Session.start_time).first()
+            if not first_session:
+                logger.warning(f"[Batch Session Creation] No template session found for routine_id={routine_id}")
+                results.append({
+                    'routine_id': routine_id,
+                    'success': False,
+                    'message': 'No existing session found for this routine'
+                })
+                continue
+            
+            # Get the time components from the first session in UTC
+            start_time = first_session.start_time.time()
+            end_time = first_session.end_time.time()
+            logger.debug(f"[Batch Session Creation] Template session times - start: {start_time}, end: {end_time}")
+            
+            # Create timezone-aware datetime objects for the start and end times
+            start_dt = datetime.combine(start_date, start_time)
+            end_dt = datetime.combine(end_date, end_time)
+            
+            # Localize the datetimes to the routine's timezone
+            start_dt = tz.localize(start_dt)
+            end_dt = tz.localize(end_dt)
+            
+            # Parse RRULE
+            if not routine.rrule:
+                logger.warning(f"[Batch Session Creation] No RRULE found for routine_id={routine_id}")
+                results.append({
+                    'routine_id': routine_id,
+                    'success': False,
+                    'message': 'Routine has no recurrence rule'
+                })
+                continue
+            
+            # Parse RRULE with timezone-aware start time
+            rule = rrule.rrulestr(routine.rrule, dtstart=start_dt)
+            logger.debug(f"[Batch Session Creation] Parsed RRULE for routine_id={routine_id}: {routine.rrule}")
+            
+            # Generate sessions
+            session_count = 0
+            commitment_count = 0
+            created_sessions = []
+            
+            for dt in rule.between(start_dt, end_dt):
+                # Ensure dt is timezone-aware
+                if dt.tzinfo is None:
+                    dt = tz.localize(dt)
+                
+                # Calculate end time using the duration from the first session
+                duration = first_session.end_time - first_session.start_time
+                end_time = dt + duration
+                
+                # Convert to UTC for storage
+                dt_utc = dt.astimezone(pytz.UTC)
+                end_time_utc = end_time.astimezone(pytz.UTC)
+                
+                # Check if session already exists
+                existing_session = Session.query.filter_by(
+                    routine_id=routine.id,
+                    start_time=dt_utc
+                ).first()
+                
+                if existing_session:
+                    logger.debug(f"[Batch Session Creation] Skipping existing session at {dt} for routine_id={routine_id}")
+                    continue
+                
+                # Create session
+                session = Session(
+                    routine_id=routine.id,
+                    start_time=dt_utc,
+                    end_time=end_time_utc,
+                    user_id=current_user_id,
+                    timezone=timezone
+                )
+                db.session.add(session)
+                db.session.flush()
+                session_count += 1
+                
+                # Create commitment for the session
+                commitment = Commitment(
+                    user_id=current_user_id,
+                    due_date=dt.date(),
+                    start_time=dt_utc,
+                    end_time=end_time_utc,
+                    routine_id=routine.id,
+                    session_id=session.id,
+                    title=routine.title,
+                    description=routine.description
+                )
+                db.session.add(commitment)
+                commitment_count += 1
+                
+                created_sessions.append({
+                    'id': session.id,
+                    'start_time': dt_utc.isoformat(),
+                    'end_time': end_time_utc.isoformat(),
+                    'timezone': timezone,
+                    'routine_title': routine.title,
+                    'rrule': routine.rrule,
+                    'day_of_week': dt.strftime('%A')
+                })
+            
+            total_sessions += session_count
+            total_commitments += commitment_count
+            
+            log_session_creation(
+                routine_id=routine_id,
+                session_count=session_count,
+                commitment_count=commitment_count,
+                timezone=timezone
+            )
+            
+            results.append({
+                'routine_id': routine_id,
+                'success': True,
+                'sessions_created': session_count,
+                'commitments_created': commitment_count,
+                'created_sessions': created_sessions,
+                'routine_title': routine.title,
+                'rrule': routine.rrule
+            })
+        
+        db.session.commit()
+        logger.info(f"[Batch Session Creation] Completed - Total sessions: {total_sessions}, Total commitments: {total_commitments}")
+        
+        return jsonify({
+            "success": True,
+            "message": f"Created {total_sessions} sessions and {total_commitments} commitments",
+            "total_sessions": total_sessions,
+            "total_commitments": total_commitments,
+            "results": results,
+            "timeframe": {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat()
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"[Batch Session Creation] Error: {str(e)}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": f"Error creating sessions: {str(e)}"
+        }), 500
+
+@routines_bp.route('/api/sessions/<int:session_id>/checkins', methods=['GET', 'POST'])
+@jwt_required()
+def get_or_add_session_checkin(session_id):
+    """Get or add checkins for a session"""
+    user_id = get_jwt_identity()
+    session = Session.query.filter_by(id=session_id, user_id=user_id).first()
+    
+    if not session:
+        return jsonify({
+            "success": False,
+            "message": "Session not found"
+        }), 404
+    
+    if request.method == 'GET':
+        checkins = Checkin.query.filter_by(
+            entity_type='session',
+            entity_id=session_id
+        ).order_by(Checkin.timestamp.desc()).all()
+        
+        return jsonify({
+            "success": True,
+            "checkins": [{
+                "id": checkin.id,
+                "timestamp": checkin.timestamp.isoformat(),
+                "comment": checkin.comment,
+                "rpe": checkin.rpe,
+                "progress": checkin.progress,
+                "mood": checkin.mood,
+                "energy": checkin.energy,
+                "gains": checkin.gains,
+                "gratitudes": checkin.gratitudes
+            } for checkin in checkins]
+        })
+    
+    # POST request handling
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "No data provided"
+        }), 400
+    
+    checkin = Checkin(
+        entity_type='session',
+        entity_id=session_id,
+        user_id=user_id,
+        comment=data.get('comment'),
+        rpe=data.get('rpe'),
+        progress=data.get('progress'),
+        mood=data.get('mood'),
+        energy=data.get('energy'),
+        gains=data.get('gains'),
+        gratitudes=data.get('gratitudes')
+    )
+    
+    db.session.add(checkin)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "Checkin added successfully",
+        "checkin": {
+            "id": checkin.id,
+            "timestamp": checkin.timestamp.isoformat(),
+            "comment": checkin.comment,
+            "rpe": checkin.rpe,
+            "progress": checkin.progress,
+            "mood": checkin.mood,
+            "energy": checkin.energy,
+            "gains": checkin.gains,
+            "gratitudes": checkin.gratitudes
+        }
+    }) 

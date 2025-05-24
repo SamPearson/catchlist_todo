@@ -108,6 +108,9 @@ def import_routines():
                     db.session.add(calendar_obj)
                     db.session.flush()
                 
+                # Get timezone from event or use UTC as fallback
+                timezone = event.get('timezone', 'UTC')
+                
                 # Create routine
                 routine = Routine(
                     title=event['summary'],
@@ -118,9 +121,21 @@ def import_routines():
                     calendar_id=calendar_obj.id,
                     external_uid=event['uid'],
                     external_source='caldav',
-                    external_source_name=calendar['name']
+                    external_source_name=calendar['name'],
+                    timezone=timezone
                 )
                 db.session.add(routine)
+                db.session.flush()
+                
+                # Create initial session from the event
+                session = Session(
+                    routine_id=routine.id,
+                    start_time=event['start'],
+                    end_time=event['end'],
+                    user_id=get_jwt_identity(),
+                    timezone=timezone
+                )
+                db.session.add(session)
                 db.session.flush()
                 
                 # Create or get calendar tag
@@ -144,23 +159,6 @@ def import_routines():
                     tag_id=calendar_tag.id
                 )
                 db.session.add(routine_tag)
-                
-                # Create sessions for the next year
-                start_date = datetime.now()
-                end_date = start_date + timedelta(days=365)
-                
-                # Parse RRULE
-                rule = rrule.rrulestr(event['rrule'], dtstart=event['start'])
-                
-                # Generate sessions
-                for dt in rule.between(start_date, end_date):
-                    session = Session(
-                        routine_id=routine.id,
-                        start_time=dt,
-                        end_time=dt + (event['end'] - event['start']),
-                        user_id=get_jwt_identity()
-                    )
-                    db.session.add(session)
                 
                 imported_count += 1
         

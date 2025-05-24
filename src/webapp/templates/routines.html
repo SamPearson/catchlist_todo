@@ -311,6 +311,16 @@
                     </div>
                 </div>
                 <div class="field">
+                    <label>Timezone</label>
+                    <select class="ui dropdown" name="timezone">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                    </select>
+                </div>
+                <div class="field">
                     <label>Recurring Rule (RRULE)</label>
                     <input type="text" name="rrule" placeholder="FREQ=WEEKLY;BYDAY=MO,WE,FR">
                 </div>
@@ -319,6 +329,51 @@
         <div class="actions">
             <button class="ui deny button">Cancel</button>
             <button class="ui positive button" id="save-routine-edit">Save</button>
+        </div>
+    </div>
+
+    <!-- Calendar Sessions Management Modal -->
+    <div class="ui modal" id="manage-calendar-sessions-modal">
+        <i class="close icon"></i>
+        <div class="header">Manage Calendar Sessions</div>
+        <div class="content">
+            <div class="ui form">
+                <div class="field">
+                    <label>Create New Sessions</label>
+                    <div class="fields">
+                        <div class="four wide field">
+                            <label>Timeframe</label>
+                            <select class="ui dropdown" id="calendar-session-timeframe">
+                                <option value="week">Week</option>
+                                <option value="month">Month</option>
+                                <option value="season">Season</option>
+                                <option value="year">Year</option>
+                            </select>
+                        </div>
+                        <div class="four wide field">
+                            <label>Start Date</label>
+                            <input type="date" id="calendar-sessions-start-date">
+                        </div>
+                        <div class="four wide field">
+                            <label>End Date</label>
+                            <input type="date" id="calendar-sessions-end-date">
+                        </div>
+                        <div class="four wide field">
+                            <label>&nbsp;</label>
+                            <button class="ui blue button" id="create-calendar-sessions-btn">
+                                <i class="plus icon"></i> Create Sessions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ui divider"></div>
+            
+            <h4 class="ui header">Routines in Calendar</h4>
+            <div class="ui divided items" id="calendar-routines-list">
+                <!-- Will be populated dynamically -->
+            </div>
         </div>
     </div>
 </div>
@@ -420,27 +475,27 @@ function handleViewSessions() {
     modal.modal('show');
 }
 
-function formatSessionTime(timeStr) {
+function formatSessionTime(timeStr, timezone) {
     if (!timeStr) return '';
     const date = new Date(timeStr);
-    // Ensure we're using the local timezone
+    // Use the stored timezone instead of browser's local timezone
     return date.toLocaleTimeString([], { 
         hour: 'numeric', 
         minute: '2-digit', 
         hour12: true,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timeZone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
     });
 }
 
-function formatSessionDate(timeStr) {
+function formatSessionDate(timeStr, timezone) {
     if (!timeStr) return '';
     const date = new Date(timeStr);
-    // Ensure we're using the local timezone
+    // Use the stored timezone instead of browser's local timezone
     return date.toLocaleDateString([], { 
         weekday: 'short', 
         month: 'short', 
         day: 'numeric',
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timeZone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
     });
 }
 
@@ -470,13 +525,9 @@ function loadSessions(routineId, startDate, endDate, statusFilter = 'all') {
                 const tr = document.createElement('tr');
                 tr.dataset.id = session.id;
                 
-                // Parse the ISO timestamps
-                const startTime = new Date(session.start_time);
-                const endTime = new Date(session.end_time);
-                
                 tr.innerHTML = `
-                    <td>${formatSessionDate(session.start_time)}</td>
-                    <td>${formatSessionTime(session.start_time)} - ${formatSessionTime(session.end_time)}</td>
+                    <td>${formatSessionDate(session.start_time, session.timezone)}</td>
+                    <td>${formatSessionTime(session.start_time, session.timezone)} - ${formatSessionTime(session.end_time, session.timezone)}</td>
                     <td>
                         <select class="ui dropdown session-status">
                             <option value="pending" ${!session.completed ? 'selected' : ''}>Pending</option>
@@ -566,6 +617,7 @@ function handleEditRoutine() {
         form.querySelector('[name="description"]').value = routine.description || '';
         form.querySelector('[name="start_time"]').value = routine.start_time || '';
         form.querySelector('[name="end_time"]').value = routine.end_time || '';
+        form.querySelector('[name="timezone"]').value = routine.timezone || 'UTC';
         form.querySelector('[name="rrule"]').value = routine.rrule || '';
         
         // Show modal
@@ -587,6 +639,7 @@ document.getElementById('save-routine-edit').addEventListener('click', function(
         description: form.querySelector('[name="description"]').value,
         start_time: form.querySelector('[name="start_time"]').value,
         end_time: form.querySelector('[name="end_time"]').value,
+        timezone: form.querySelector('[name="timezone"]').value,
         rrule: form.querySelector('[name="rrule"]').value
     };
     
@@ -1007,6 +1060,9 @@ function displayRoutines(routines) {
                         <div class="sub header">${calendarRoutines.length} routine${calendarRoutines.length !== 1 ? 's' : ''}</div>
                     </div>
                     <div class="right floated content">
+                        <button class="ui blue button manage-calendar-sessions" data-calendar-id="${id}">
+                            <i class="calendar icon"></i> Manage All Sessions
+                        </button>
                         <button class="ui icon button toggle-calendar" data-calendar-id="${id}">
                             <i class="chevron down icon"></i>
                         </button>
@@ -1133,6 +1189,29 @@ function initializeEventListeners() {
                 routinesContainer.style.display = 'none';
                 icon.className = 'chevron right icon';
             }
+        });
+    });
+
+    // Add calendar sessions management functionality
+    document.querySelectorAll('.manage-calendar-sessions').forEach(button => {
+        button.addEventListener('click', function() {
+            const calendarId = this.dataset.calendarId;
+            const modal = $('#manage-calendar-sessions-modal');
+            modal[0].dataset.calendarId = calendarId;
+            
+            // Set default date range to current month
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            
+            $('#calendar-sessions-start-date').val(firstDay.toISOString().split('T')[0]);
+            $('#calendar-sessions-end-date').val(lastDay.toISOString().split('T')[0]);
+            
+            // Load routines for this calendar
+            loadCalendarRoutines(calendarId);
+            
+            // Show modal
+            modal.modal('show');
         });
     });
 }
@@ -1362,6 +1441,95 @@ document.getElementById('apply-filter-btn').addEventListener('click', function()
     }
     
     loadSessions(routineId, startDate, endDate, statusFilter);
+});
+
+// Add these new functions for calendar sessions management
+function loadCalendarRoutines(calendarId) {
+    const container = document.getElementById('calendar-routines-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading routines...</div></div>';
+    
+    // Get all routines for this calendar
+    const routines = Array.from(document.querySelectorAll(`.calendar-routines[data-calendar-id="${calendarId}"] .item`));
+    
+    if (routines.length === 0) {
+        container.innerHTML = '<div class="ui text">No routines found in this calendar</div>';
+        return;
+    }
+    
+    let html = '';
+    routines.forEach(routine => {
+        const routineId = routine.dataset.id;
+        const title = routine.dataset.title;
+        const timeRange = routine.querySelector('.time').textContent;
+        
+        html += `
+            <div class="item" data-id="${routineId}">
+                <div class="content">
+                    <div class="header">${title}</div>
+                    <div class="meta">${timeRange}</div>
+                    <div class="description">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="routine-select" checked>
+                            <label>Include in batch session creation</label>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    });
+    
+    container.innerHTML = html;
+    $('.ui.checkbox').checkbox();
+}
+
+// Add event listener for creating calendar sessions
+document.getElementById('create-calendar-sessions-btn').addEventListener('click', function() {
+    const modal = document.getElementById('manage-calendar-sessions-modal');
+    const calendarId = modal.dataset.calendarId;
+    const timeframe = document.getElementById('calendar-session-timeframe').value;
+    const startDate = new Date(document.getElementById('calendar-sessions-start-date').value);
+    const endDate = new Date(document.getElementById('calendar-sessions-end-date').value);
+    
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+    
+    // Get selected routines
+    const selectedRoutines = Array.from(document.querySelectorAll('#calendar-routines-list .routine-select:checked'))
+        .map(checkbox => checkbox.closest('.item').dataset.id);
+    
+    if (selectedRoutines.length === 0) {
+        alert('Please select at least one routine');
+        return;
+    }
+    
+    // Create sessions for all selected routines
+    fetch(`${API_URL}/routines/batch-create-sessions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + getAuthToken()
+        },
+        body: JSON.stringify({
+            routine_ids: selectedRoutines,
+            timeframe: timeframe,
+            start_date: startDate.toISOString().split('T')[0],
+            end_date: endDate.toISOString().split('T')[0]
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully created sessions for ${data.created_count} routines`);
+            $('#manage-calendar-sessions-modal').modal('hide');
+        } else {
+            alert(data.message || 'Failed to create sessions');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating calendar sessions:', error);
+        alert('Failed to create sessions. Please try again.');
+    });
 });
 </script>
 

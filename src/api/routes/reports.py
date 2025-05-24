@@ -1360,4 +1360,129 @@ def handle_year_range_report():
             'rpe': year_block.rpe,
             'gains': year_block.gains,
             'gratitudes': year_block.gratitudes
-        }) 
+        })
+
+@reports_bp.route('/api/checkins', methods=['GET', 'POST'])
+@jwt_required()
+def handle_checkins():
+    """Unified endpoint for handling checkins for any entity type"""
+    user_id = get_jwt_identity()
+    
+    if request.method == 'GET':
+        entity_type = request.args.get('entity_type')
+        entity_id = request.args.get('entity_id')
+        
+        if not entity_type or not entity_id:
+            return jsonify({
+                "success": False,
+                "message": "entity_type and entity_id are required"
+            }), 400
+        
+        # Verify the entity exists and belongs to the user
+        if entity_type == 'session':
+            entity = Session.query.filter_by(id=entity_id, user_id=user_id).first()
+        elif entity_type == 'commitment':
+            entity = Commitment.query.filter_by(id=entity_id, user_id=user_id).first()
+        elif entity_type == 'catchlist_item':
+            entity = CatchlistItem.query.filter_by(id=entity_id, user_id=user_id).first()
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Unsupported entity type: {entity_type}"
+            }), 400
+        
+        if not entity:
+            return jsonify({
+                "success": False,
+                "message": f"{entity_type.capitalize()} not found"
+            }), 404
+        
+        # Get checkins for the entity
+        checkins = Checkin.query.filter_by(
+            entity_type=entity_type,
+            entity_id=entity_id
+        ).order_by(Checkin.timestamp.desc()).all()
+        
+        return jsonify({
+            "success": True,
+            "checkins": [{
+                "id": checkin.id,
+                "timestamp": checkin.timestamp.isoformat(),
+                "comment": checkin.comment,
+                "rpe": checkin.rpe,
+                "progress": checkin.progress,
+                "mood": checkin.mood,
+                "energy": checkin.energy,
+                "gains": checkin.gains,
+                "gratitudes": checkin.gratitudes
+            } for checkin in checkins]
+        })
+    
+    # POST request handling
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "No data provided"
+        }), 400
+    
+    entity_type = data.get('entity_type')
+    entity_id = data.get('entity_id')
+    
+    if not entity_type or not entity_id:
+        return jsonify({
+            "success": False,
+            "message": "entity_type and entity_id are required"
+        }), 400
+    
+    # Verify the entity exists and belongs to the user
+    if entity_type == 'session':
+        entity = Session.query.filter_by(id=entity_id, user_id=user_id).first()
+    elif entity_type == 'commitment':
+        entity = Commitment.query.filter_by(id=entity_id, user_id=user_id).first()
+    elif entity_type == 'catchlist_item':
+        entity = CatchlistItem.query.filter_by(id=entity_id, user_id=user_id).first()
+    else:
+        return jsonify({
+            "success": False,
+            "message": f"Unsupported entity type: {entity_type}"
+        }), 400
+    
+    if not entity:
+        return jsonify({
+            "success": False,
+            "message": f"{entity_type.capitalize()} not found"
+        }), 404
+    
+    # Create the checkin
+    checkin = Checkin(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        user_id=user_id,
+        comment=data.get('comment'),
+        rpe=data.get('rpe'),
+        progress=data.get('progress'),
+        mood=data.get('mood'),
+        energy=data.get('energy'),
+        gains=data.get('gains'),
+        gratitudes=data.get('gratitudes')
+    )
+    
+    db.session.add(checkin)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "Checkin added successfully",
+        "checkin": {
+            "id": checkin.id,
+            "timestamp": checkin.timestamp.isoformat(),
+            "comment": checkin.comment,
+            "rpe": checkin.rpe,
+            "progress": checkin.progress,
+            "mood": checkin.mood,
+            "energy": checkin.energy,
+            "gains": checkin.gains,
+            "gratitudes": checkin.gratitudes
+        }
+    }) 

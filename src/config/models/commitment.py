@@ -111,7 +111,11 @@ class Commitment(db.Model):
             "checkins": [checkin.as_dict() for checkin in self.checkins],
             "is_soft_commitment": self.is_soft_commitment,
             "time_period": self.time_period,
-            "project_id": self.project_id
+            "project_id": self.project_id,
+            "project_task_id": self.project_task_id,
+            "catchlist_item_id": self.catchlist_item_id,
+            "routine_id": self.routine_id,
+            "session_id": self.session_id
         }
 
 class SoftCommitment(db.Model):

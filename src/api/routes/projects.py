@@ -9,7 +9,7 @@ from dateutil.parser import parse as parse_date
 projects_bp = Blueprint('projects', __name__)
 
 # Add OPTIONS method handler for CORS preflight requests
-@projects_bp.route('/api/projects/tasks/today', methods=['OPTIONS'])
+@projects_bp.route('/projects/tasks/today', methods=['OPTIONS'])
 def options_today_tasks():
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -17,7 +17,7 @@ def options_today_tasks():
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
 
-@projects_bp.route('/api/projects/tasks/today', methods=['GET'])
+@projects_bp.route('/projects/tasks/today', methods=['GET'])
 @jwt_required()
 def get_today_tasks():
     """Get all project tasks due today for the current user"""
@@ -52,7 +52,7 @@ def get_today_tasks():
     
     return jsonify(result)
 
-@projects_bp.route('/api/projects', methods=['GET'])
+@projects_bp.route('/projects', methods=['GET'])
 @jwt_required()
 def get_projects():
     current_user_id = get_current_user_id()
@@ -88,7 +88,7 @@ def get_projects():
     
     return jsonify(result)
 
-@projects_bp.route('/api/projects', methods=['POST'])
+@projects_bp.route('/projects', methods=['POST'])
 @jwt_required()
 def create_project():
     current_user_id = get_current_user_id()
@@ -122,7 +122,7 @@ def create_project():
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/projects/<int:project_id>', methods=['PUT'])
+@projects_bp.route('/projects/<int:project_id>', methods=['PUT'])
 @jwt_required()
 def update_project(project_id):
     current_user_id = get_current_user_id()
@@ -153,7 +153,7 @@ def update_project(project_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/projects/<int:project_id>', methods=['DELETE'])
+@projects_bp.route('/projects/<int:project_id>', methods=['DELETE'])
 @jwt_required()
 def delete_project(project_id):
     current_user_id = get_current_user_id()
@@ -170,7 +170,7 @@ def delete_project(project_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/projects/<int:project_id>/subtasks', methods=['POST'])
+@projects_bp.route('/projects/<int:project_id>/subtasks', methods=['POST'])
 @jwt_required()
 def create_subtask(project_id):
     current_user_id = get_current_user_id()
@@ -209,7 +209,7 @@ def create_subtask(project_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/subtasks/<int:subtask_id>', methods=['OPTIONS'])
+@projects_bp.route('/subtasks/<int:subtask_id>', methods=['OPTIONS'])
 def options_subtask(subtask_id):
     response = jsonify({'status': 'ok'})
     response.headers.add('Access-Control-Allow-Origin', '*')
@@ -217,7 +217,7 @@ def options_subtask(subtask_id):
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     return response
 
-@projects_bp.route('/api/subtasks/<int:subtask_id>', methods=['PUT'])
+@projects_bp.route('/subtasks/<int:subtask_id>', methods=['PUT'])
 @jwt_required()
 def update_subtask(subtask_id):
     current_user_id = get_current_user_id()
@@ -295,7 +295,7 @@ def update_subtask(subtask_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/subtasks/<int:subtask_id>', methods=['DELETE'])
+@projects_bp.route('/subtasks/<int:subtask_id>', methods=['DELETE'])
 @jwt_required()
 def delete_subtask(subtask_id):
     current_user_id = get_current_user_id()
@@ -316,7 +316,7 @@ def delete_subtask(subtask_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/projects/subtasks/fix-dates', methods=['POST'])
+@projects_bp.route('/projects/subtasks/fix-dates', methods=['POST'])
 @jwt_required()
 def fix_subtask_dates():
     current_user_id = get_current_user_id()
@@ -350,7 +350,15 @@ def fix_subtask_dates():
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@projects_bp.route('/api/subtasks/<int:subtask_id>/checkins', methods=['GET'])
+@projects_bp.route('/subtasks/<int:subtask_id>/checkins', methods=['OPTIONS'])
+def options_subtask_checkins(subtask_id):
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    return response
+
+@projects_bp.route('/subtasks/<int:subtask_id>/checkins', methods=['GET'])
 @jwt_required()
 def get_subtask_checkins(subtask_id):
     current_user_id = get_current_user_id()
@@ -364,36 +372,32 @@ def get_subtask_checkins(subtask_id):
     if not subtask:
         return jsonify({"message": "Subtask not found"}), 404
     
-    # Get all commitments for this subtask
-    commitments = Commitment.query.filter_by(
-        project_task_id=subtask_id,
+    # Get all checkins for this subtask directly
+    checkins = Checkin.query.filter_by(
+        entity_type='project_task',
+        entity_id=subtask_id,
         user_id=current_user_id
-    ).all()
-    
-    commitment_ids = [c.id for c in commitments]
-    
-    # Get all checkins for these commitments
-    checkins = Checkin.query.filter(
-        Checkin.commitment_id.in_(commitment_ids)
-    ).order_by(Checkin.created_at.desc()).all()
+    ).order_by(Checkin.timestamp.desc()).all()
     
     result = [{
         'id': checkin.id,
-        'note': checkin.note,
-        'created_at': checkin.created_at.isoformat(),
-        'commitment_id': checkin.commitment_id
+        'comment': checkin.comment,
+        'timestamp': checkin.timestamp.isoformat(),
+        'rpe': checkin.rpe,
+        'progress': checkin.progress,
+        'mood': checkin.mood,
+        'energy': checkin.energy,
+        'gains': checkin.gains,
+        'gratitudes': checkin.gratitudes
     } for checkin in checkins]
     
     return jsonify(result)
 
-@projects_bp.route('/api/subtasks/<int:subtask_id>/checkins', methods=['POST'])
+@projects_bp.route('/subtasks/<int:subtask_id>/checkins', methods=['POST'])
 @jwt_required()
 def add_subtask_checkin(subtask_id):
     current_user_id = get_current_user_id()
     data = request.get_json()
-    
-    if not data or not data.get('note'):
-        return jsonify({"message": "Checkin note is required"}), 400
     
     # Check if user owns the project that contains this subtask
     subtask = ProjectTask.query.join(Project).filter(
@@ -404,37 +408,40 @@ def add_subtask_checkin(subtask_id):
     if not subtask:
         return jsonify({"message": "Subtask not found"}), 404
     
-    # Find or create a commitment for today
-    today = date.today()
-    commitment = Commitment.query.filter_by(
-        project_task_id=subtask_id,
-        due_date=today,
-        user_id=current_user_id
-    ).first()
-    
-    if not commitment:
-        commitment = Commitment(
-            user_id=current_user_id,
-            project_task_id=subtask_id,
-            due_date=today
-        )
-        db.session.add(commitment)
-        db.session.flush()  # Get the commitment ID
-    
     try:
         # Create the checkin
         checkin = Checkin(
-            commitment_id=commitment.id,
-            note=data['note']
+            user_id=current_user_id,
+            entity_type='project_task',
+            entity_id=subtask_id,
+            comment=data.get('comment', ''),
+            rpe=data.get('rpe'),
+            progress=data.get('progress'),
+            mood=data.get('mood'),
+            energy=data.get('energy'),
+            gains=data.get('gains'),
+            gratitudes=data.get('gratitudes')
         )
         db.session.add(checkin)
+        
+        # If mark_complete is True, mark the subtask as complete
+        if data.get('mark_complete'):
+            subtask.complete = True
+            subtask.completed_at = datetime.utcnow()
+        
         db.session.commit()
         
         return jsonify({
+            'success': True,
             'id': checkin.id,
-            'note': checkin.note,
-            'created_at': checkin.created_at.isoformat(),
-            'commitment_id': checkin.commitment_id
+            'comment': checkin.comment,
+            'timestamp': checkin.timestamp.isoformat(),
+            'rpe': checkin.rpe,
+            'progress': checkin.progress,
+            'mood': checkin.mood,
+            'energy': checkin.energy,
+            'gains': checkin.gains,
+            'gratitudes': checkin.gratitudes
         }), 201
     except Exception as e:
         db.session.rollback()

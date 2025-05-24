@@ -7,6 +7,7 @@
     <h1 class="ui header">Desk</h1>
     
     {% include "components/time_period_nav.html" %}
+    {% include "components/checkin_management.html" %}
     
     <!-- Date Navigation -->
     <div class="ui segment" id="date-navigation">
@@ -404,7 +405,6 @@ $(document).ready(function() {
         context: 'parent',
         autoTabActivation: true,
         onVisible: function(tabPath) {
-            updateDatePicker(tabPath);
             loadTabContent(tabPath);
             
             // Show/hide appropriate report form
@@ -432,56 +432,33 @@ $(document).ready(function() {
     // Initialize accordion
     $('.ui.accordion').accordion();
 
-    // Initialize date picker with today's date
+    // Initialize date picker and global date variables
+    const today = new Date();
+    
+    // Set current day to today
+    currentDay = new Date(today);
+    
+    // Set week start to the start of the current week
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    currentWeekStart = weekStart;
+    
+    // Set month start to the start of the current month
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    currentMonthStart = monthStart;
+    
+    // Set season start to the start of the current season
+    const seasonStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
+    currentSeasonStart = seasonStart;
+    
+    // Set year start to the start of the current year
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    currentYearStart = yearStart;
+
+    // Initialize date picker with the same date object
     const datePicker = document.getElementById('date-picker');
     if (datePicker) {
-        const today = new Date();
-        datePicker.valueAsDate = today;
-        
-        // Set current day to today
-        currentDay = new Date(today);
-        
-        // Set week start to the start of the current week
-        const weekStart = new Date(today);
-        weekStart.setDate(today.getDate() - today.getDay());
-        currentWeekStart = weekStart;
-        
-        // Set month start to the start of the current month
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        currentMonthStart = monthStart;
-        
-        // Set season start to the start of the current season
-        const seasonStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1);
-        currentSeasonStart = seasonStart;
-        
-        // Set year start to the start of the current year
-        const yearStart = new Date(today.getFullYear(), 0, 1);
-        currentYearStart = yearStart;
-        
-        datePicker.addEventListener('change', function() {
-            const activeTab = $('.menu .item.active').data('tab');
-            const selectedDate = new Date(this.value);
-            
-            switch(activeTab) {
-                case 'day':
-                    currentDay = selectedDate;
-                    break;
-                case 'week':
-                    currentWeekStart = new Date(selectedDate.setDate(selectedDate.getDate() - selectedDate.getDay()));
-                    break;
-                case 'month':
-                    currentMonthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-                    break;
-                case 'season':
-                    currentSeasonStart = new Date(selectedDate.getFullYear(), Math.floor(selectedDate.getMonth() / 3) * 3, 1);
-                    break;
-                case 'year':
-                    currentYearStart = new Date(selectedDate.getFullYear(), 0, 1);
-                    break;
-            }
-            
-            loadTabContent(activeTab);
-        });
+        datePicker.valueAsDate = currentDay;
     }
 
     // Initialize navigation buttons
@@ -542,22 +519,43 @@ function updateDatePicker(tab) {
     const datePicker = document.getElementById('date-picker');
     if (!datePicker) return;
     
+    let dateToUse;
     switch(tab) {
         case 'day':
-            datePicker.valueAsDate = currentDay;
+            dateToUse = currentDay;
+            console.log('DatePicker - currentDay:', currentDay);
             break;
         case 'week':
-            datePicker.valueAsDate = currentWeekStart;
+            dateToUse = currentWeekStart;
+            console.log('DatePicker - currentWeekStart:', currentWeekStart);
             break;
         case 'month':
-            datePicker.valueAsDate = currentMonthStart;
+            dateToUse = currentMonthStart;
+            console.log('DatePicker - currentMonthStart:', currentMonthStart);
             break;
         case 'season':
-            datePicker.valueAsDate = currentSeasonStart;
+            dateToUse = currentSeasonStart;
+            console.log('DatePicker - currentSeasonStart:', currentSeasonStart);
             break;
         case 'year':
-            datePicker.valueAsDate = currentYearStart;
+            dateToUse = currentYearStart;
+            console.log('DatePicker - currentYearStart:', currentYearStart);
             break;
+        case 'custom':
+            const startDateInput = document.getElementById('custom-start-date');
+            if (startDateInput && startDateInput.value) {
+                dateToUse = new Date(startDateInput.value);
+                console.log('DatePicker - custom from input:', dateToUse);
+            } else {
+                dateToUse = currentDay;
+                console.log('DatePicker - custom fallback to currentDay:', currentDay);
+            }
+            break;
+    }
+    
+    if (dateToUse) {
+        console.log('DatePicker - setting value to:', dateToUse);
+        datePicker.valueAsDate = dateToUse;
     }
 }
 
@@ -565,6 +563,9 @@ function updateDatePicker(tab) {
 function updateDateNavigation(tab, startDate, endDate) {
     const dateDisplay = document.getElementById('date-display');
     if (!dateDisplay) return;
+
+    console.log('DateDisplay - startDate:', startDate);
+    console.log('DateDisplay - endDate:', endDate);
 
     let displayText;
     switch(tab) {
@@ -588,6 +589,7 @@ function updateDateNavigation(tab, startDate, endDate) {
             break;
     }
     
+    console.log('DateDisplay - setting text to:', displayText);
     dateDisplay.textContent = displayText;
 }
 
@@ -604,28 +606,28 @@ function loadTabContent(tab) {
     // Calculate date range based on tab
     switch(tab) {
         case 'day':
-            startDate = new Date(currentDay);
-            endDate = new Date(currentDay);
+            startDate = currentDay;
+            endDate = currentDay;
             break;
         case 'week':
-            startDate = new Date(currentWeekStart);
+            startDate = currentWeekStart;
             endDate = new Date(currentWeekStart);
             endDate.setDate(endDate.getDate() + 6);
             break;
         case 'month':
-            startDate = new Date(currentMonthStart);
+            startDate = currentMonthStart;
             endDate = new Date(currentMonthStart);
             endDate.setMonth(endDate.getMonth() + 1);
             endDate.setDate(0);
             break;
         case 'season':
-            startDate = new Date(currentSeasonStart);
+            startDate = currentSeasonStart;
             endDate = new Date(currentSeasonStart);
             endDate.setMonth(endDate.getMonth() + 3);
             endDate.setDate(0);
             break;
         case 'year':
-            startDate = new Date(currentYearStart);
+            startDate = currentYearStart;
             endDate = new Date(startDate.getFullYear(), 11, 31);
             break;
         case 'custom':
@@ -635,7 +637,7 @@ function loadTabContent(tab) {
             if (!startDateInput || !endDateInput) return;
             
             if (!startDateInput.value) {
-                startDate = new Date(currentDay);
+                startDate = currentDay;
                 endDate = new Date(currentDay);
                 endDate.setDate(endDate.getDate() + 6);
                 
@@ -648,8 +650,9 @@ function loadTabContent(tab) {
             break;
     }
     
-    // Update the date navigation display
+    // Update the date navigation display and date picker
     updateDateNavigation(tab, startDate, endDate);
+    updateDatePicker(tab);
     
     // Load daily report data if on day tab
     if (tab === 'day') {
@@ -795,6 +798,184 @@ document.getElementById('save-daily-report').addEventListener('click', function(
 
 // Make loadTabContent available globally
 window.loadTabContent = loadTabContent;
+
+// Add this to your existing JavaScript
+function initializeCommitmentComponents() {
+    // Initialize each commitment list
+    const commitmentLists = document.querySelectorAll('[id$="-routines"], [id$="-projects"], [id$="-catchlist"]');
+    commitmentLists.forEach(list => {
+        const type = list.id.split('-')[1]; // 'routines', 'projects', or 'catchlist'
+        const entityType = type === 'routines' ? 'session' : 
+                          type === 'projects' ? 'project_task' : 
+                          type === 'catchlist' ? 'catchlist_item' : 'commitment';
+        
+        // Add event delegation for checkin buttons
+        list.addEventListener('click', function(e) {
+            const checkinButton = e.target.closest('.add-checkin');
+            if (checkinButton) {
+                e.preventDefault();
+                e.stopPropagation();
+                const entityId = checkinButton.dataset.id;
+                showFullCheckinManager(entityId, entityType);
+            }
+        });
+    });
+}
+
+// Initialize Semantic UI components
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals
+    $('.ui.modal').modal({
+        closable: true,
+        dimmerSettings: {
+            closable: false
+        }
+    });
+    
+    // Initialize commitment components
+    initializeCommitmentComponents();
+});
+
+function showFullCheckinManager(entityId, entityType) {
+    // Set the entity ID and type in the modal
+    const modal = document.getElementById('checkin-management-modal');
+    if (!modal) {
+        console.error('Checkin management modal not found');
+        return;
+    }
+    
+    // If we're dealing with a commitment directly, use its ID and type
+    if (entityType === 'commitment') {
+        modal.dataset.entityId = entityId;
+        modal.dataset.entityType = 'commitment';
+        
+        // Clear form fields if they exist
+        const formFields = {
+            'checkin-comment': '',
+            'checkin-rpe': '5',
+            'checkin-progress': '0',
+            'checkin-mood': '5',
+            'checkin-energy': '5',
+            'checkin-gains': '',
+            'checkin-gratitudes': ''
+        };
+        
+        Object.entries(formFields).forEach(([id, defaultValue]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = defaultValue;
+            }
+        });
+        
+        // Initialize range sliders if they exist
+        const sliders = modal.querySelectorAll('.ui.range input[type="range"]');
+        sliders.forEach(slider => {
+            const label = slider.nextElementSibling;
+            if (label) {
+                label.textContent = slider.value + (slider.id.includes('progress') ? '%' : '');
+            }
+        });
+        
+        // Load checkin history
+        loadCheckins(entityId, 'commitment', 'checkin-history');
+    } else {
+        // For other entity types, we need to find the associated commitment first
+        const token = getAuthToken();
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
+
+        // Build the query parameters based on the entity type
+        const params = new URLSearchParams();
+        
+        // Add date range parameters (use a wide range to ensure we find the commitment)
+        const startDate = new Date();
+        startDate.setFullYear(startDate.getFullYear() - 1); // Look back 1 year
+        const endDate = new Date();
+        endDate.setFullYear(endDate.getFullYear() + 1); // Look ahead 1 year
+        
+        params.append('start', formatDate(startDate));
+        params.append('end', formatDate(endDate));
+        
+        switch (entityType) {
+            case 'project_task':
+                params.append('project_task_id', entityId);
+                break;
+            case 'session':
+                params.append('session_id', entityId);
+                break;
+            case 'catchlist_item':
+                params.append('catchlist_item_id', entityId);
+                break;
+        }
+        params.append('user_id', getCurrentUserId());
+
+        // Fetch the commitments using the range endpoint
+        fetch(`${API_URL}/commitments/range?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(commitments => {
+            if (!commitments || commitments.length === 0) {
+                throw new Error(`No commitments found for ${entityType} with ID ${entityId}`);
+            }
+            // Use the first commitment's ID
+            modal.dataset.entityId = commitments[0].id;
+            modal.dataset.entityType = 'commitment';
+            
+            // Clear form fields if they exist
+            const formFields = {
+                'checkin-comment': '',
+                'checkin-rpe': '5',
+                'checkin-progress': '0',
+                'checkin-mood': '5',
+                'checkin-energy': '5',
+                'checkin-gains': '',
+                'checkin-gratitudes': ''
+            };
+            
+            Object.entries(formFields).forEach(([id, defaultValue]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.value = defaultValue;
+                }
+            });
+            
+            // Initialize range sliders if they exist
+            const sliders = modal.querySelectorAll('.ui.range input[type="range"]');
+            sliders.forEach(slider => {
+                const label = slider.nextElementSibling;
+                if (label) {
+                    label.textContent = slider.value + (slider.id.includes('progress') ? '%' : '');
+                }
+            });
+            
+            // Now load the checkins
+            loadCheckins(commitments[0].id, 'commitment', 'checkin-history');
+        })
+        .catch(error => {
+            console.error('Error finding commitment:', error);
+            const container = document.getElementById('checkin-history');
+            if (container) {
+                container.innerHTML = `
+                    <div class="ui negative message">
+                        <div class="header">Error</div>
+                        <p>${error.message || 'Could not find associated commitment.'}</p>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    // Show modal
+    $('#checkin-management-modal').modal('show');
+}
 </script>
 {% endblock %}
 
@@ -865,6 +1046,24 @@ window.loadTabContent = loadTabContent;
 .ui.segments .segment h3.ui.header {
     margin-top: 0;
     margin-bottom: 1em;
+}
+
+/* Add these new styles */
+.ui.button.add-checkin {
+    background-color: #2185d0;
+    color: white;
+}
+
+.ui.button.add-checkin:hover {
+    background-color: #1678c2;
+}
+
+.ui.card .ui.buttons {
+    margin-top: 0.5em;
+}
+
+.ui.card .ui.buttons .button {
+    margin: 0 0.25em;
 }
 </style>
 {% endblock %} 

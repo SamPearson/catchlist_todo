@@ -19,7 +19,7 @@ def create_commitment_from_task(task, user_id):
         due_date=task.due_date,
         start_time=task.start_time,
         project_task_id=task.id,
-        item_type='project_task'
+        is_soft_commitment=False
     )
     
     db.session.add(commitment)

@@ -23,7 +23,6 @@
 <style>
 .commitment-group {
     margin-bottom: 1.5em;
-    border-left-width: 4px !important;
     border-radius: 4px;
     transition: all 0.2s ease;
     padding: 0.5em 0;  /* Add vertical padding to the group */
@@ -48,12 +47,32 @@
 
 .commitment-group .item {
     padding: 1em;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     margin: 0.5em 0;  /* Add vertical margin to each item */
+    border-radius: 4px;
+    border: none !important;
+    position: relative;
+}
+
+.commitment-group .item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+}
+
+.commitment-group .item .content {
+    position: relative;
+    z-index: 1;
+    padding-left: 1.5em;  /* Increased padding between border and content */
 }
 
 .commitment-group .item:hover {
-    background-color: rgba(0,0,0,0.02);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Completed section styles */
@@ -111,6 +130,70 @@
     height: 1.5em;
     background-color: #ffffff;
     box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
+}
+
+/* Tag label styles */
+.ui.label {
+    margin-right: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Commitment item content styles */
+.item .content {
+    position: relative;
+    z-index: 1;
+}
+
+.item .content .header {
+    color: rgba(0,0,0,0.85);
+}
+
+.item .content .meta {
+    color: rgba(0,0,0,0.6);
+}
+
+.item .content .description {
+    color: rgba(0,0,0,0.7);
+}
+
+/* Completed item styles */
+.commitment-group .item.completed {
+    opacity: 0.7;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.commitment-group .item.completed:hover {
+    opacity: 0.8;
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.commitment-group .item.completed .header {
+    text-decoration: line-through;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.commitment-group .item.completed .meta,
+.commitment-group .item.completed .description {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.commitment-group .item.completed .ui.label {
+    opacity: 0.7;
+}
+
+/* Override the background color for completed items while preserving the border color */
+.commitment-group .item.completed[style*="background-color"] {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.commitment-group .item.completed:hover[style*="background-color"] {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Ensure the border color is preserved */
+.commitment-group .item.completed .content[style*="border-left"] {
+    border-left-width: 4px !important;
+    border-left-style: solid !important;
 }
 </style>
 
@@ -279,132 +362,102 @@ if (!window.commitmentComponents['{{ id }}']) {
                 const activeCommitments = commitments.filter(c => !c.completed);
                 const completedCommitments = commitments.filter(c => c.completed);
 
-                // Helper function to render commitment groups
-                const renderCommitmentGroups = (commitments, isCompleted = false) => {
-                    if (commitments.length === 0) return '';
-                    
-                    // Sort commitments by start time if they have one
-                    commitments.sort((a, b) => {
-                        if (a.start_time && b.start_time) {
-                            return a.start_time.localeCompare(b.start_time);
-                        }
-                        return 0;
-                    });
-                    
-                    // Group commitments by their primary tag color
-                    const groupedCommitments = commitments.reduce((acc, commitment) => {
-                        // Get the primary tag color, either from the routine's tags or the calendar's color
-                        let primaryTag = null;
-                        let groupKey = '#767676'; // Default color
+                // Sort commitments by start time
+                activeCommitments.sort((a, b) => {
+                    if (a.start_time && b.start_time) {
+                        return a.start_time.localeCompare(b.start_time);
+                    }
+                    return 0;
+                });
+
+                completedCommitments.sort((a, b) => {
+                    if (a.start_time && b.start_time) {
+                        return a.start_time.localeCompare(b.start_time);
+                    }
+                    return 0;
+                });
+
+                // Render active commitments
+                if (activeCommitments.length > 0) {
+                    html += '<div class="ui divided items">';
+                    activeCommitments.forEach(commitment => {
+                        const tagDisplay = commitment.item?.tags?.map(tag => 
+                            `<span class="ui label" style="background-color: ${tag.color}15; color: ${tag.color}">${tag.name}</span>`
+                        ).join('') || '';
                         
-                        if (commitment.item?.tags?.length > 0) {
-                            primaryTag = commitment.item.tags[0];
-                            groupKey = primaryTag.color;
-                        } else if (commitment.item?.calendar?.color) {
-                            groupKey = commitment.item.calendar.color;
-                        }
+                        const timeDisplay = commitment.item?.scheduled_time ? 
+                            `<span class="ui label"><i class="clock icon"></i> ${new Date(commitment.item.scheduled_time).toLocaleTimeString()}</span>` : '';
                         
-                        if (!acc[groupKey]) {
-                            acc[groupKey] = {
-                                commitments: [],
-                                color: groupKey
-                            };
-                        }
-                        acc[groupKey].commitments.push(commitment);
-                        return acc;
-                    }, {});
-                    
-                    let groupHtml = '';
-                    
-                    // Sort groups by the earliest start time in each group
-                    const sortedGroups = Object.entries(groupedCommitments).sort(([_, a], [__, b]) => {
-                        const aTime = a.commitments[0]?.start_time || '';
-                        const bTime = b.commitments[0]?.start_time || '';
-                        return aTime.localeCompare(bTime);
-                    });
-                    
-                    sortedGroups.forEach(([color, groupData]) => {
-                        const { commitments: groupCommitments, color: groupColor } = groupData;
-                        
-                        groupHtml += `
-                            <div class="commitment-group" style="border-left-color: ${groupColor}; background-color: ${groupColor}10;">
-                                <div class="ui divided items">
-                                    ${groupCommitments.map(commitment => {
-                                        const timeDisplay = commitment.start_time ? 
-                                            `<span class="time">${formatTime(commitment.start_time)}${commitment.end_time ? ` - ${formatTime(commitment.end_time)}` : ''}</span>` : '';
-                                        
-                                        return `
-                                            <div class="item" data-id="${commitment.id}" data-type="${commitment.type || ''}" style="border-left: 4px solid ${groupColor}; padding: 1em; margin: 0.5em 0;">
-                                                <div class="content">
-                                                    <div class="header" style="margin-bottom: 0.5em;">
-                                                        ${commitment.title || 'Untitled'}
-                                                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
-                                                    </div>
-                                                    <div class="meta" style="margin-bottom: 0.5em;">
-                                                        ${timeDisplay}
-                                                    </div>
-                                                    <div class="description" style="margin-bottom: 1em;">${commitment.description || ''}</div>
-                                                    <div class="extra">
-                                                        <div class="ui labels" style="margin-bottom: 0.5em;">
-                                                            ${commitment.item?.tags?.map(tag => `
-                                                                <div class="ui label" style="background-color: ${tag.color}30; color: ${tag.color}; border: 1px solid ${tag.color}60; margin-right: 0.5em;">
-                                                                    ${tag.name}
-                                                                </div>
-                                                            `).join('') || ''}
-                                                        </div>
-                                                        <button class="ui tiny button view-checkins" data-id="${commitment.id}" data-type="commitment">
-                                                            <i class="calendar check icon"></i> Checkins
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        `;
-                                    }).join('')}
+                        html += `
+                            <div class="item ${commitment.completed ? 'completed' : ''}" data-id="${commitment.id}" style="background-color: ${commitment.item?.tags?.[0]?.color || '#767676'}15;">
+                                <div class="content" style="border-left: 4px solid ${commitment.item?.tags?.[0]?.color || '#767676'};">
+                                    <div class="header">
+                                        ${commitment.item_type === 'catchlist_item' ? commitment.item?.content : commitment.item?.title || 'Untitled'}
+                                        ${tagDisplay}
+                                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                                    </div>
+                                    <div class="meta">
+                                        ${timeDisplay}
+                                    </div>
+                                    <div class="description">
+                                        ${commitment.item?.description || ''}
+                                    </div>
+                                    <div class="extra">
+                                        <div class="ui buttons">
+                                            <button class="ui tiny button add-checkin" data-id="${commitment.id}" data-type="${commitment.item?.type || 'session'}">
+                                                <i class="plus icon"></i> Add Checkin
+                                            </button>
+                                            <button class="ui tiny red button delete-commitment" data-id="${commitment.id}">
+                                                <i class="trash icon"></i> Delete
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         `;
                     });
-                    
-                    return groupHtml;
-                };
-                
-                // Render active and completed sections
-                html = `
-                    <div class="active-section">
-                        ${renderCommitmentGroups(activeCommitments)}
-                    </div>
-                    <div class="completed-section">
-                        <h4 class="ui header">Completed</h4>
-                        ${renderCommitmentGroups(completedCommitments, true)}
-                    </div>
-                `;
+                    html += '</div>';
+                }
+
+                // Render completed commitments
+                if (completedCommitments.length > 0) {
+                    html += '<div class="ui divider"></div>';
+                    html += '<h4 class="ui header">Completed</h4>';
+                    html += '<div class="ui divided items">';
+                    completedCommitments.forEach(commitment => {
+                        const tagDisplay = commitment.item?.tags?.map(tag => 
+                            `<span class="ui label" style="background-color: ${tag.color}15; color: ${tag.color}">${tag.name}</span>`
+                        ).join('') || '';
+                        
+                        const timeDisplay = commitment.item?.scheduled_time ? 
+                            `<span class="ui label"><i class="clock icon"></i> ${new Date(commitment.item.scheduled_time).toLocaleTimeString()}</span>` : '';
+                        
+                        html += `
+                            <div class="item ${commitment.completed ? 'completed' : ''}" data-id="${commitment.id}" style="background-color: ${commitment.item?.tags?.[0]?.color || '#767676'}15;">
+                                <div class="content" style="border-left: 4px solid ${commitment.item?.tags?.[0]?.color || '#767676'};">
+                                    <div class="header">
+                                        ${commitment.item_type === 'catchlist_item' ? commitment.item?.content : commitment.item?.title || 'Untitled'}
+                                        ${tagDisplay}
+                                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                                    </div>
+                                    <div class="meta">
+                                        ${timeDisplay}
+                                    </div>
+                                    <div class="description">
+                                        ${commitment.item?.description || ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                }
             }
             
             container.innerHTML = html;
             
             // Initialize commitment controls
             this.initializeCommitmentControls(container);
-            
-            // Initialize date pickers
-            container.querySelectorAll('.due-date').forEach(element => {
-                element.addEventListener('click', function() {
-                    const datePicker = this.querySelector('.date-picker');
-                    datePicker.style.display = 'inline-block';
-                    datePicker.focus();
-                });
-            });
-            
-            container.querySelectorAll('.date-picker').forEach(element => {
-                element.addEventListener('change', function() {
-                    const commitmentId = this.getAttribute('data-id');
-                    const dueDate = this.value;
-                    component.updateCommitmentDate(commitmentId, dueDate);
-                });
-                
-                element.addEventListener('blur', function() {
-                    this.style.display = 'none';
-                });
-            });
         }
     };
 

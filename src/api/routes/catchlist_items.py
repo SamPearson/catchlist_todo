@@ -179,63 +179,6 @@ def toggle_today(item_id):
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
-@catchlist_items_bp.route('/api/catchlist-items/<int:item_id>/mark-done', methods=['POST'])
-@jwt_required()
-def mark_item_done(item_id):
-    current_user_id = get_current_user_id()
-    
-    item = CatchlistItem.query.filter_by(id=item_id, user_id=current_user_id).first()
-    if not item:
-        return jsonify({"message": "Item not found"}), 404
-    
-    # Find or create a commitment for today
-    today = date.today()
-    commitment = Commitment.query.filter_by(
-        catchlist_item_id=item.id,
-        due_date=today
-    ).first()
-    
-    if not commitment:
-        commitment = Commitment(
-            user_id=current_user_id,
-            catchlist_item_id=item.id,
-            due_date=today
-        )
-        db.session.add(commitment)
-    
-    # Mark commitment as completed
-    commitment.completed = True
-    commitment.completed_at = datetime.now()
-    
-    # Create a checkin for this completion
-    checkin = Checkin(
-        user_id=current_user_id,
-        entity_type='commitment',
-        entity_id=commitment.id,
-        content='Completed',
-        completed=True
-    )
-    db.session.add(checkin)
-    
-    try:
-        db.session.commit()
-        
-        # Return points earned (we'll simulate this for now)
-        points = 10  # Default points
-        
-        return jsonify({
-            'id': item.id,
-            'content': item.content,
-            'created_at': item.created_at.isoformat(),
-            'updated_at': item.updated_at.isoformat(),
-            'status': item.status,
-            'is_completed': True,
-            'points': points  # Added for UI notification
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
-
 @catchlist_items_bp.route('/api/catchlist-items/<int:item_id>', methods=['DELETE'])
 @jwt_required()
 def delete_catchlist_item(item_id):

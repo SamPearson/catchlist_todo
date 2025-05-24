@@ -17,7 +17,7 @@ app = create_app()
 
 # Register all blueprints
 app.register_blueprint(auth.auth_bp)
-app.register_blueprint(projects.projects_bp)
+app.register_blueprint(projects.projects_bp, url_prefix='/api')
 app.register_blueprint(routines.routines_bp)
 app.register_blueprint(commitments.commitments_bp)
 app.register_blueprint(reports.reports_bp)

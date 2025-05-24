@@ -214,9 +214,6 @@ function displayItems(items) {
                         ${tagsHtml}
                     </div>
                     <div class="ui buttons">
-                        <button class="ui tiny teal button mark-done" ${item.is_completed ? 'disabled' : ''}>
-                            Mark as Done
-                        </button>
                         <button class="ui tiny button upgrade-to-project">
                             Convert to Project
                         </button>
@@ -321,52 +318,6 @@ function initializeEventListeners() {
 }
 
 function attachItemEventListeners() {
-    // Mark as Done button
-    document.querySelectorAll('.mark-done').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const item = this.closest('.item');
-            const itemId = item.dataset.id;
-            
-            const headers = getAuthHeaders();
-            if (!headers) {
-                showError('Authentication required. Please log in first.');
-                return;
-            }
-            
-            fetch(`${API_URL}/catchlist-items/${itemId}/mark-done`, {
-                method: 'POST',
-                headers: headers
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw {
-                            status: response.status,
-                            statusText: response.statusText,
-                            message: errorData.message || 'Unknown error',
-                            data: errorData
-                        };
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Show success message with points
-                showCustomMessage(`Item marked as done! +${data.points} points`, 'positive');
-                
-                // Reload to update UI
-                loadCatchlistItems();
-            })
-            .catch(error => {
-                console.error('Full error:', error);
-                const errorMessage = error.message ? 
-                    `Error (${error.status}): ${error.message}` : 
-                    'Failed to mark item as done';
-                showError(errorMessage);
-            });
-        });
-    });
-    
     // Convert to project button
     document.querySelectorAll('.upgrade-to-project').forEach(btn => {
         btn.addEventListener('click', function() {

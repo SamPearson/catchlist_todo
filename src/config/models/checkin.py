@@ -27,6 +27,8 @@ class Checkin(db.Model):
     progress = db.Column(db.Integer)  # Optional progress percentage
     mood = db.Column(db.Integer)  # Optional mood rating
     energy = db.Column(db.Integer)  # Optional energy level
+    gains = db.Column(db.Text)  # Optional gains/achievements
+    gratitudes = db.Column(db.Text)  # Optional gratitudes
     
     # Relationships
     user = relationship("User", back_populates="checkins")
@@ -41,6 +43,8 @@ class Checkin(db.Model):
             "progress": self.progress,
             "mood": self.mood,
             "energy": self.energy,
+            "gains": self.gains,
+            "gratitudes": self.gratitudes,
             "entity_type": self.entity_type,
             "entity_id": self.entity_id,
             "time_block_id": self.time_block_id

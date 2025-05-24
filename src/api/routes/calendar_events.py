@@ -173,30 +173,6 @@ def import_caldav_events():
             )
             
             db.session.add(new_routine)
-            db.session.flush()  # Get the routine ID
-            
-            # Create a session for this event
-            session = Session(
-                routine_id=new_routine.id,
-                start_time=event_dict['start'],
-                end_time=event_dict['end'],
-                user_id=current_user_id
-            )
-            
-            db.session.add(session)
-            db.session.flush()  # Get the session ID
-            
-            # Create a commitment for this session
-            commitment = Commitment(
-                user_id=current_user_id,
-                session_id=session.id,
-                routine_id=new_routine.id,
-                due_date=event_dict['start'].date(),
-                start_time=event_dict['start'],
-                end_time=event_dict['end']
-            )
-            
-            db.session.add(commitment)
             imported_count += 1
             
         except Exception as e:

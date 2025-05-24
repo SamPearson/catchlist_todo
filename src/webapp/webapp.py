@@ -26,7 +26,7 @@ app = Flask(__name__,
 app.config.from_object(Config)
 
 # Configure JWT
-app.config['JWT_SECRET_KEY'] = 'your-secret-key'  # Change this in production
+app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
 app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
 jwt = JWTManager(app)
 
@@ -77,7 +77,7 @@ def login():
             'auth_token',
             api_response.get('access_token', ''),
             httponly=False,  # We need this to be false so JavaScript can read it
-            secure=True,     # Only send cookie over HTTPS
+            secure=os.getenv('FLASK_ENV') == 'production',  # Only require HTTPS in production
             samesite='Lax',  # Protect against CSRF
             path='/',        # Make cookie available across the site
             max_age=3600    # Cookie expires in 1 hour

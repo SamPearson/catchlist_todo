@@ -13,8 +13,6 @@ class CatchlistItem(db.Model):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     status = Column(String(20), default='active')  # active, completed, archived, someday
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
-    completed = Column(Boolean, default=False)
-    completed_at = Column(DateTime, nullable=True)
     
     # Relationships
     user = relationship('User', back_populates='catchlist_items')
@@ -33,7 +31,5 @@ class CatchlistItem(db.Model):
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "completed": self.completed,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         } 
