@@ -74,6 +74,13 @@
         </div>
     </div>
     
+    <!-- KABOOM Button -->
+    <div class="ui segment">
+        <button class="ui massive fluid button" id="kaboom-button" style="background: linear-gradient(45deg, #446756, #80b59c); color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">
+            KABOOM!
+        </button>
+    </div>
+    
     <!-- Weekly Report Form -->
     <div class="ui segment" id="weekly-report-form" style="display: none;">
         <div class="ui styled fluid accordion">
@@ -370,6 +377,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script>
 // Define global API_URL variable
 const API_URL = '{{ API_URL }}';
@@ -516,7 +524,7 @@ function navigateDate(direction) {
 
 // Function to update the date picker based on the active tab
 function updateDatePicker(tab) {
-    const datePicker = document.getElementById('date-picker');
+    const datePicker = document.getElementById('date-display');
     if (!datePicker) return;
     
     let dateToUse;
@@ -555,7 +563,7 @@ function updateDatePicker(tab) {
     
     if (dateToUse) {
         console.log('DatePicker - setting value to:', dateToUse);
-        datePicker.valueAsDate = dateToUse;
+        datePicker.textContent = dateToUse.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 }
 
@@ -834,6 +842,62 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize commitment components
     initializeCommitmentComponents();
+
+    // Initialize KABOOM button
+    const kaboomButton = document.getElementById('kaboom-button');
+    if (kaboomButton) {
+        kaboomButton.addEventListener('click', function() {
+            // Create fireworks effect
+            const duration = 3 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                
+                // Launch fireworks from multiple points
+                confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+                });
+                confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+                });
+            }, 250);
+
+            // Show toast notification
+            const message = document.createElement('div');
+            message.className = 'ui positive message';
+            message.innerHTML = '<i class="close icon"></i><div class="header">KABOOM!</div><p>You just made something awesome happen! 🎆</p>';
+            
+            // Insert the message at the top of the container
+            const container = document.querySelector('.ui.container');
+            container.insertBefore(message, container.firstChild);
+            
+            // Add close functionality to message
+            message.querySelector('.close.icon').addEventListener('click', function() {
+                message.remove();
+            });
+            
+            // Remove message after 3 seconds
+            setTimeout(() => {
+                message.remove();
+            }, 3000);
+        });
+    }
 });
 
 function showFullCheckinManager(entityId, entityType) {
@@ -1064,6 +1128,25 @@ function showFullCheckinManager(entityId, entityType) {
 
 .ui.card .ui.buttons .button {
     margin: 0 0.25em;
+}
+
+/* Add these new styles */
+#kaboom-button {
+    transition: all 0.2s ease-in-out !important;
+    background: linear-gradient(45deg, #ff6b6b, #ff8e8e) !important;
+    color: white !important;
+    font-weight: bold !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2) !important;
+}
+
+#kaboom-button:hover {
+    transform: scale(1.02) !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+}
+
+#kaboom-button:active {
+    transform: scale(0.98) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
 }
 </style>
 {% endblock %} 
