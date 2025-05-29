@@ -5,7 +5,7 @@ from flask_jwt_extended import (
     jwt_required,
     get_jwt
 )
-from ...config.db_models import db, User, BlacklistedToken
+from ...config.models import db, User, BlacklistedToken
 
 auth_bp = Blueprint('auth', __name__)
 

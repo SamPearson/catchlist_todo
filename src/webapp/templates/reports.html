@@ -1,615 +1,1316 @@
 {% extends "base.html" %}
 
-{% block head %}
-<!-- Add Semantic UI Calendar CSS and JS -->
-<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/semantic-ui-calendar@0.0.8/dist/calendar.min.css">
-<script src="https://cdn.jsdelivr.net/npm/semantic-ui-calendar@0.0.8/dist/calendar.min.js"></script>
-{% endblock %}
+{% block title %}Reports{% endblock %}
 
 {% block content %}
 <div class="ui container">
-    <h1 class="ui header">Weekly Report</h1>
+    <h1 class="ui header">Reports</h1>
     
-    <div class="ui tiny buttons">
-        <button class="ui left labeled icon button" id="prev-week-btn">
-            <i class="left arrow icon"></i>
-            Previous Week
-        </button>
-        <button class="ui right labeled icon button" id="next-week-btn">
-            Next Week
-            <i class="right arrow icon"></i>
-        </button>
-    </div>
+    {% include "components/time_period_nav.html" %}
     
-    <div class="ui calendar right floated" id="weekly-report-calendar">
-        <div class="ui input left icon">
-            <i class="calendar icon"></i>
-            <input type="text" placeholder="Select Date" id="report-end-date">
-        </div>
-        <button class="ui blue button" id="view-weekly-report">
-            <i class="search icon"></i> View
-        </button>
-    </div>
+    {% include "components/date_navigation.html" %}
     
-    <div class="ui clearing divider"></div>
-    
-    <div id="weekly-report-content">
-        <div class="ui active dimmer">
-            <div class="ui loader"></div>
-        </div>
-    </div>
-    
-    <!-- View Comments Report button (always visible) -->
-    <div class="ui center aligned container" style="margin-top: 2em;">
-        <button class="ui teal button" id="view-comments-report">
-            <i class="comments icon"></i> View Comments Report
-        </button>
-    </div>
-</div>
+    <!-- Tab Content -->
+    <div class="ui bottom attached tab segment active" data-tab="day">
+        {% include "components/daily_report_form.html" %}
 
-<!-- Comments Report Modal -->
-<div class="ui modal" id="comments-report-modal">
-    <i class="close icon"></i>
-    <div class="header">Comments Report</div>
-    <div class="content" id="comments-report-content">
-        <!-- Comments will be loaded here -->
-    </div>
-</div>
-
-<!-- Day Details Modal -->
-<div class="ui modal" id="day-details-modal">
-    <i class="close icon"></i>
-    <div class="header" id="day-details-header">Day Details</div>
-    <div class="content" id="day-details-content">
-        <div class="ui placeholder">
-            <div class="header">
-                <div class="line"></div>
+        <!-- Daily Activity Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Daily Activity</h3>
+            
+            <!-- Sessions -->
+            <div class="ui segment">
+                <h4 class="ui header">Sessions</h4>
+                <div id="daily-sessions"></div>
             </div>
-            <div class="paragraph">
-                <div class="line"></div>
-                <div class="line"></div>
+            
+            <!-- Completed Tasks -->
+            <div class="ui segment">
+                <h4 class="ui header">Completed Tasks</h4>
+                <div id="daily-tasks"></div>
+            </div>
+            
+            <!-- Completed Catchlist Items -->
+            <div class="ui segment">
+                <h4 class="ui header">Completed Catchlist Items</h4>
+                <div id="daily-catchlist"></div>
             </div>
         </div>
     </div>
-</div>
+    
+    <div class="ui bottom attached tab segment" data-tab="week">
+        <!-- Weekly Report Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Weekly Report</h3>
+            <div class="ui form">
+                <div class="field">
+                    <label>Daily Metrics</label>
+                    {% include "components/metrics_table.html" with context %}
+                </div>
+                <div class="field">
+                    <label>Weekly RPE</label>
+                    <input type="number" id="weekly-rpe" min="1" max="10">
+                </div>
+                <div class="field">
+                    <label>Weekly Gains</label>
+                    <textarea id="weekly-gains" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Weekly Gratitudes</label>
+                    <textarea id="weekly-gratitudes" rows="2"></textarea>
+                </div>
+                <button class="ui primary button" id="save-weekly-report">Save Weekly Report</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui bottom attached tab segment" data-tab="month">
+        <!-- Monthly Report Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Monthly Report</h3>
+            <div class="ui form">
+                <div class="field">
+                    <label>Theme</label>
+                    <input type="text" id="monthly-theme">
+                </div>
+                <div class="field">
+                    <label>Goals</label>
+                    <textarea id="monthly-goals" rows="3"></textarea>
+                </div>
+                <div class="field">
+                    <label>Why</label>
+                    <textarea id="monthly-why" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Weekly Metrics</label>
+                    {% include "components/metrics_table.html" with context %}
+                </div>
+                <div class="field">
+                    <label>Monthly RPE</label>
+                    <input type="number" id="monthly-rpe" min="1" max="10">
+                </div>
+                <div class="field">
+                    <label>Monthly Gains</label>
+                    <textarea id="monthly-gains" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Monthly Gratitudes</label>
+                    <textarea id="monthly-gratitudes" rows="2"></textarea>
+                </div>
+                <button class="ui primary button" id="save-monthly-report">Save Monthly Report</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui bottom attached tab segment" data-tab="season">
+        <!-- Seasonal Report Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Seasonal Report</h3>
+            <div class="ui form">
+                <div class="field">
+                    <label>Theme</label>
+                    <input type="text" id="seasonal-theme">
+                </div>
+                <div class="field">
+                    <label>Goals</label>
+                    <textarea id="seasonal-goals" rows="3"></textarea>
+                </div>
+                <div class="field">
+                    <label>Why</label>
+                    <textarea id="seasonal-why" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Monthly Metrics</label>
+                    <table class="ui celled table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Sleep Avg</th>
+                                <th>Food Notes</th>
+                                <th>RPE Avg</th>
+                                <th>Mood Avg</th>
+                            </tr>
+                        </thead>
+                        <tbody id="seasonal-metrics-table">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="field">
+                    <label>Seasonal RPE</label>
+                    <input type="number" id="seasonal-rpe" min="1" max="10">
+                </div>
+                <div class="field">
+                    <label>Seasonal Gains</label>
+                    <textarea id="seasonal-gains" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Seasonal Gratitudes</label>
+                    <textarea id="seasonal-gratitudes" rows="2"></textarea>
+                </div>
+                <button class="ui primary button" id="save-seasonal-report">Save Seasonal Report</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui bottom attached tab segment" data-tab="year">
+        <!-- Yearly Report Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Yearly Report</h3>
+            <div class="ui form">
+                <div class="field">
+                    <label>Theme</label>
+                    <input type="text" id="yearly-theme">
+                </div>
+                <div class="field">
+                    <label>Goals</label>
+                    <textarea id="yearly-goals" rows="3"></textarea>
+                </div>
+                <div class="field">
+                    <label>Why</label>
+                    <textarea id="yearly-why" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Seasonal Metrics</label>
+                    <table class="ui celled table">
+                        <thead>
+                            <tr>
+                                <th>Season</th>
+                                <th>Sleep Avg</th>
+                                <th>Food Notes</th>
+                                <th>RPE Avg</th>
+                                <th>Mood Avg</th>
+                            </tr>
+                        </thead>
+                        <tbody id="yearly-metrics-table">
+                            <!-- Will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="field">
+                    <label>Yearly RPE</label>
+                    <input type="number" id="yearly-rpe" min="1" max="10">
+                </div>
+                <div class="field">
+                    <label>Yearly Gains</label>
+                    <textarea id="yearly-gains" rows="2"></textarea>
+                </div>
+                <div class="field">
+                    <label>Yearly Gratitudes</label>
+                    <textarea id="yearly-gratitudes" rows="2"></textarea>
+                </div>
+                <button class="ui primary button" id="save-yearly-report">Save Yearly Report</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui bottom attached tab segment" data-tab="custom">
+        <!-- Custom Date Range Section -->
+        <div class="ui segment">
+            <h3 class="ui header">Custom Date Range</h3>
+            <div class="ui form">
+                <div class="two fields">
+                    <div class="field">
+                        <label>Start Date</label>
+                        <input type="date" id="custom-start-date" required>
+                    </div>
+                    <div class="field">
+                        <label>End Date</label>
+                        <input type="date" id="custom-end-date" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="ui bottom attached tab segment" data-tab="demo"></div>
+    
+    <!-- Content Sections -->
+    {% from "components/commitments_list.html" import commitments_list %}
+    {{ commitments_list(id="commitments-list", show_routines=true) }}
 
-<script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+    <!-- Soft Committed Tasks Section -->
+    <div id="soft-committed-section" class="ui segment" style="display: none;">
+        <h3 class="ui header">
+            <i class="tasks icon"></i>
+            <div class="content">
+                Soft Committed Tasks
+                <div class="sub header">Tasks you plan to complete within this time period</div>
+            </div>
+        </h3>
+        
+        {{ commitments_list(id="soft-committed-tasks", empty_message="No soft committed tasks") }}
+        
+        <form id="add-soft-commitment-form" class="ui form">
+            <div class="two fields">
+                <div class="field">
+                    <label>Title</label>
+                    <input type="text" name="title" placeholder="What do you plan to do?">
+                </div>
+                <div class="field">
+                    <label>Description (optional)</label>
+                    <textarea name="description" rows="1" placeholder="Add more details..."></textarea>
+                </div>
+            </div>
+            <button type="submit" class="ui primary button">
+                <i class="plus icon"></i>
+                Add Soft Commitment
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-// Set the API URL for comments.js
-setApiUrl('{{ API_URL }}');
+console.log('Script block starting...');
+
+// Define global API_URL variable
+const API_URL = '{{ API_URL }}';
+console.log('API_URL:', API_URL);
+
+// Define global variables for current date ranges
+let currentDay = new Date();
+let currentWeekStart = new Date();
+let currentMonthStart = new Date();
+let currentSeasonStart = new Date();
+let currentYearStart = new Date();
+console.log('Date variables initialized');
 
 // Function to get auth token from cookies
 function getAuthToken() {
+    console.log('Getting auth token...');
     const cookies = document.cookie.split(';');
     for (let i = 0; i < cookies.length; i++) {
         const cookie = cookies[i].trim();
         if (cookie.startsWith('auth_token=')) {
-            return cookie.substring('auth_token='.length, cookie.length);
+            const token = cookie.substring('auth_token='.length, cookie.length);
+            console.log('Auth token found');
+            return token;
         }
     }
+    console.log('No auth token found');
     return '';
 }
 
-// Current report end date
-let currentReportEndDate = null;
+// Format dates for API calls
+function formatDate(date) {
+    console.log('Formatting date:', date);
+    return date.toISOString().split('T')[0];
+}
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize semantic UI components
-    $('.ui.dropdown').dropdown();
-    $('#weekly-report-calendar').calendar({
-        type: 'date'
-    });
+// Initialize tabs
+$(document).ready(function() {
+    console.log('Document ready, starting initialization...');
     
-    // Set up weekly report button
-    document.getElementById('view-weekly-report').addEventListener('click', function() {
-        const endDate = document.getElementById('report-end-date').value;
-        loadWeeklyReport(endDate);
-    });
-    
-    // Set up comments report button
-    document.getElementById('view-comments-report').addEventListener('click', function() {
-        loadCommentsReport(7); // Default to 7 days
-    });
-    
-    // Set up weekly report navigation buttons
-    document.getElementById('prev-week-btn').addEventListener('click', function() {
-        navigateWeek(-1);
-    });
-    
-    document.getElementById('next-week-btn').addEventListener('click', function() {
-        navigateWeek(1);
-    });
-    
-    // Load report initially
-    loadWeeklyReport();
+    try {
+        console.log('Initializing Semantic UI tabs...');
+        // Initialize Semantic UI tabs
+        $('.menu .item').tab({
+            context: 'parent',
+            autoTabActivation: true,
+            onVisible: function(tabPath) {
+                console.log('Tab changed to:', tabPath);
+                try {
+                    // Show/hide view toggle based on selected tab
+                    if (tabPath === 'day') {
+                        $('#view-toggle-container').hide();
+                    } else {
+                        $('#view-toggle-container').show();
+                    }
+                    updateDatePicker(tabPath);
+                    loadTabContent(tabPath);
+                } catch (error) {
+                    console.error('Error in tab onVisible callback:', error);
+                }
+            }
+        });
+        console.log('Semantic UI tabs initialized');
+
+        // Force initial tab load
+        const initialTab = $('.menu .item.active').data('tab');
+        console.log('Initial tab:', initialTab);
+        if (initialTab) {
+            console.log('Loading initial tab content');
+            loadTabContent(initialTab);
+        } else {
+            console.error('No initial tab found');
+        }
+        
+        // Initialize date picker with today's date
+        const datePicker = document.getElementById('date-picker');
+        if (datePicker) {
+            const today = new Date();
+            datePicker.valueAsDate = today;
+            currentDay = today;
+            currentWeekStart = new Date(today.setDate(today.getDate() - today.getDay())); // Start of week
+            currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); // Start of month
+            currentSeasonStart = new Date(today.getFullYear(), Math.floor(today.getMonth() / 3) * 3, 1); // Start of season
+            currentYearStart = new Date(today.getFullYear(), 0, 1); // Start of year
+            
+            datePicker.addEventListener('change', function() {
+                console.log('Date picker changed');
+                const activeTab = $('.menu .item.active').data('tab');
+                console.log('Active tab:', activeTab);
+                const selectedDate = new Date(this.value);
+                console.log('Selected date:', selectedDate);
+                
+                try {
+                    switch(activeTab) {
+                        case 'day':
+                            currentDay = selectedDate;
+                            break;
+                        case 'week':
+                            currentWeekStart = new Date(selectedDate.setDate(selectedDate.getDate() - selectedDate.getDay()));
+                            break;
+                        case 'month':
+                            currentMonthStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                            break;
+                        case 'season':
+                            currentSeasonStart = new Date(selectedDate.getFullYear(), Math.floor(selectedDate.getMonth() / 3) * 3, 1);
+                            break;
+                        case 'year':
+                            currentYearStart = new Date(selectedDate.getFullYear(), 0, 1);
+                            break;
+                    }
+                    
+                    loadTabContent(activeTab);
+                } catch (error) {
+                    console.error('Error in date picker change handler:', error);
+                }
+            });
+            console.log('Date picker initialized');
+        } else {
+            console.error('Date picker element not found');
+        }
+
+        // Initialize navigation buttons
+        $('#prev-date').on('click', function() {
+            console.log('Previous date clicked');
+            navigateDate('prev');
+        });
+        
+        $('#next-date').on('click', function() {
+            console.log('Next date clicked');
+            navigateDate('next');
+        });
+        
+        console.log('Navigation buttons initialized');
+        console.log('Initialization complete');
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
 });
 
-// Navigate to previous or next week
-function navigateWeek(direction) {
-    if (!currentReportEndDate) {
-        // If no current date, use today
-        currentReportEndDate = new Date();
-    } else {
-        // Convert string date to Date object if needed
-        currentReportEndDate = typeof currentReportEndDate === 'string' 
-            ? new Date(currentReportEndDate) 
-            : currentReportEndDate;
-    }
+// Function to load content for a specific tab
+function loadTabContent(tab) {
+    console.log('loadTabContent called with tab:', tab);
     
-    // Move forward or backward by 7 days
-    const newDate = new Date(currentReportEndDate);
-    newDate.setDate(newDate.getDate() + (direction * 7));
-    
-    // Ensure the end date is always a Saturday (day before Sunday)
-    const dayOfWeek = newDate.getDay();
-    if (dayOfWeek !== 6) { // 6 is Saturday
-        // Adjust to the nearest Saturday
-        const daysToSaturday = dayOfWeek === 0 ? -1 : 6 - dayOfWeek;
-        newDate.setDate(newDate.getDate() + daysToSaturday);
-    }
-    
-    // Format date for API
-    const formattedDate = formatDateForAPI(newDate);
-    
-    // Load the report for the new week
-    loadWeeklyReport(formattedDate);
-}
-
-// Format date as YYYY-MM-DD for API
-function formatDateForAPI(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-// Load weekly report
-function loadWeeklyReport(endDate) {
-    // Show loading state
-    document.getElementById('weekly-report-content').innerHTML = `
-        <div class="ui active dimmer">
-            <div class="ui loader"></div>
-        </div>
-    `;
-    
-    // If no end date provided, use the current date and adjust to the nearest Saturday
-    if (!endDate) {
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        if (dayOfWeek !== 6) { // 6 is Saturday
-            const daysToSaturday = dayOfWeek === 0 ? -1 : 6 - dayOfWeek;
-            today.setDate(today.getDate() + daysToSaturday);
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token found');
+            window.location.href = '/login';
+            return;
         }
-        endDate = formatDateForAPI(today);
-    }
-    
-    // Save the current report date
-    currentReportEndDate = endDate;
-    
-    const url = `{{ API_URL }}/reports/weekly?end_date=${endDate}`;
-    
-    fetch(url, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
+        
+        let startDate, endDate;
+        
+        // Calculate date range based on tab
+        console.log('Calculating date range for tab:', tab);
+        switch(tab) {
+            case 'day':
+                startDate = new Date(currentDay);
+                endDate = new Date(currentDay);
+                break;
+            case 'week':
+                startDate = new Date(currentWeekStart);
+                endDate = new Date(currentWeekStart);
+                endDate.setDate(endDate.getDate() + 6);
+                break;
+            case 'month':
+                startDate = new Date(currentMonthStart);
+                endDate = new Date(currentMonthStart);
+                endDate.setMonth(endDate.getMonth() + 1);
+                endDate.setDate(0);
+                break;
+            case 'season':
+                startDate = new Date(currentSeasonStart);
+                endDate = new Date(currentSeasonStart);
+                endDate.setMonth(endDate.getMonth() + 3);
+                endDate.setDate(0);
+                break;
+            case 'year':
+                startDate = new Date(currentYearStart);
+                endDate = new Date(startDate.getFullYear(), 11, 31);
+                break;
+            case 'custom':
+                const startDateInput = document.getElementById('custom-start-date');
+                const endDateInput = document.getElementById('custom-end-date');
+                
+                if (!startDateInput || !endDateInput) {
+                    console.error('Custom date inputs not found');
+                    return;
+                }
+                
+                if (!startDateInput.value) {
+                    startDate = new Date(currentDay);
+                    endDate = new Date(currentDay);
+                    endDate.setDate(endDate.getDate() + 6);
+                    
+                    startDateInput.value = formatDate(startDate);
+                    endDateInput.value = formatDate(endDate);
+                } else {
+                    startDate = new Date(startDateInput.value);
+                    endDate = new Date(endDateInput.value);
+                }
+                break;
         }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+        
+        console.log('Date range calculated:', { startDate: formatDate(startDate), endDate: formatDate(endDate) });
+        
+        // Update the date navigation display
+        updateDateNavigation(tab, startDate, endDate);
+        
+        // Show loading state for commitments
+        const commitmentsList = document.getElementById('commitments-list');
+        if (commitmentsList) {
+            console.log('Found commitments list container');
+            commitmentsList.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
         }
-        return response.json();
-    })
-    .then(report => {
-        displayWeeklyReport(report);
         
-        // Update the "Next Week" button - disable if we're at the current week
-        const today = new Date();
-        const reportEndDate = new Date(report.period.end_date);
-        const nextWeekBtn = document.getElementById('next-week-btn');
+        // Load commitments for the date range
+        const commitmentsUrl = `${API_URL}/commitments/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
+        console.log('Fetching commitments from:', commitmentsUrl);
         
-        if (reportEndDate >= today) {
-            nextWeekBtn.classList.add('disabled');
-        } else {
-            nextWeekBtn.classList.remove('disabled');
-        }
-    })
-    .catch(error => {
-        console.error('Error loading weekly report:', error);
-        document.getElementById('weekly-report-content').innerHTML = `
-            <div class="ui negative message">
-                <div class="header">Error Loading Report</div>
-                <p>Could not load weekly report. Please try again later.</p>
-            </div>
-        `;
-    });
-}
-
-// Display weekly report
-function displayWeeklyReport(report) {
-    const content = document.getElementById('weekly-report-content');
-    
-    // Format the report period - ensure we display Sunday to Saturday
-    const startDate = new Date(report.period.start_date);
-    const endDate = new Date(report.period.end_date);
-    
-    // Verify that startDate is a Sunday and endDate is a Saturday
-    const isStartSunday = startDate.getDay() === 0;
-    const isEndSaturday = endDate.getDay() === 6;
-    
-    // Format dates in a user-friendly way (e.g., "May 3, 2023")
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedStartDate = startDate.toLocaleDateString(undefined, options);
-    const formattedEndDate = endDate.toLocaleDateString(undefined, options);
-    
-    let html = `
-        <div class="ui segment">
-            <h3>Week of ${formattedStartDate} to ${formattedEndDate}</h3>
-            ${!isStartSunday || !isEndSaturday ? 
-                `<div class="ui warning message">Note: This report may not cover a complete Sunday-to-Saturday week.</div>` : ''}
-            
-            <div class="ui statistics">
-                <div class="statistic">
-                    <div class="value">${report.checkins.total}</div>
-                    <div class="label">Total Check-ins</div>
-                </div>
-                <div class="statistic">
-                    <div class="value">${report.completed_tasks.total}</div>
-                    <div class="label">Completed Tasks</div>
-                </div>
-                <div class="statistic">
-                    <div class="value">${report.completed_catchlist.total}</div>
-                    <div class="label">Completed Catchlist</div>
-                </div>
-                <div class="statistic">
-                    <div class="value">${report.average_rpe || 'N/A'}</div>
-                    <div class="label">Avg RPE</div>
-                </div>
-            </div>
-        </div>
-        
-        <h4 class="ui header">Projects</h4>
-        <div class="ui list">
-    `;
-    
-    // Add projects
-    report.projects.forEach(project => {
-        html += `
-            <div class="item">
-                <div class="content">
-                    <div class="header">${project.title}</div>
-                    <div class="description">
-                        <div class="ui indicating progress" data-percent="${project.completion_percentage}">
-                            <div class="bar" style="width:${project.completion_percentage}%"></div>
-                            <div class="label">${project.completed_subtasks} of ${project.total_subtasks} tasks (${project.completion_percentage}%)</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    html += `
-        </div>
-        
-        <h4 class="ui header">Daily Activity</h4>
-        <table class="ui celled table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Check-ins</th>
-                    <th>Tasks</th>
-                    <th>Catchlist</th>
-                    <th>Avg RPE</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    // Add daily stats
-    Object.keys(report.daily_stats).sort().forEach(date => {
-        const stats = report.daily_stats[date];
-        const displayDate = new Date(date).toLocaleDateString();
-        
-        html += `
-            <tr>
-                <td>${displayDate}</td>
-                <td>${(stats.checkins || 0) > 0 ? 
-                    `<a href="#" class="day-detail-link" data-date="${date}" data-category="checkins">${stats.checkins}</a>` : 
-                    '0'}</td>
-                <td>${(stats.completed_tasks || 0) > 0 ? 
-                    `<a href="#" class="day-detail-link" data-date="${date}" data-category="tasks">${stats.completed_tasks}</a>` : 
-                    '0'}</td>
-                <td>${(stats.completed_catchlist || 0) > 0 ? 
-                    `<a href="#" class="day-detail-link" data-date="${date}" data-category="catchlist">${stats.completed_catchlist}</a>` : 
-                    '0'}</td>
-                <td>${stats.average_rpe || 'N/A'}</td>
-            </tr>
-        `;
-    });
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    content.innerHTML = html;
-    
-    // Initialize progress bars
-    $('.ui.progress').progress();
-    
-    // Add click handlers for day detail links
-    document.querySelectorAll('.day-detail-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const date = this.getAttribute('data-date');
-            const category = this.getAttribute('data-category');
-            loadDayDetails(date, category);
+        fetch(commitmentsUrl, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            console.log('Commitments response status:', response.status);
+            if (response.status === 401) {
+                console.error('Authentication failed');
+                window.location.href = '/login';
+                return;
+            }
+            if (!response.ok) {
+                throw new Error('Failed to load commitments');
+            }
+            return response.json();
+        })
+        .then(commitments => {
+            if (!commitments) return; // Skip if we redirected to login
+            console.log('Received commitments:', commitments);
+            if (window.commitmentComponents && window.commitmentComponents['commitments-list']) {
+                console.log('Found commitments component, displaying commitments');
+                window.commitmentComponents['commitments-list'].displayCommitments(commitments);
+            } else {
+                console.error('Commitments component not initialized');
+                if (commitmentsList) {
+                    commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments: Component not initialized</div>';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading commitments:', error);
+            if (commitmentsList) {
+                commitmentsList.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+            }
         });
-    });
-}
-
-// Load day details
-function loadDayDetails(date, category) {
-    // Show loading state
-    const content = document.getElementById('day-details-content');
-    content.innerHTML = `
-        <div class="ui active dimmer">
-            <div class="ui loader"></div>
-        </div>
-    `;
-    
-    // Set header based on category
-    const headerElement = document.getElementById('day-details-header');
-    const displayDate = new Date(date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    let categoryName;
-    
-    switch(category) {
-        case 'checkins':
-            categoryName = 'Check-ins';
-            break;
-        case 'tasks':
-            categoryName = 'Completed Tasks';
-            break;
-        case 'catchlist':
-            categoryName = 'Completed Catchlist Items';
-            break;
+        
+        // Load report data for the time period
+        if (['day', 'week', 'month', 'season', 'year'].includes(tab)) {
+            console.log('Loading report data for tab:', tab);
+            loadReportData(tab, startDate, endDate);
+        }
+    } catch (error) {
+        console.error('Error in loadTabContent:', error);
+        showError('Failed to load tab content');
     }
-    
-    headerElement.textContent = `${categoryName} for ${displayDate}`;
-    
-    // Show the modal
-    $('#day-details-modal').modal('show');
-    
-    // Fetch the data from API
-    fetch(`{{ API_URL }}/reports/day-details?date=${date}&category=${category}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        displayDayDetails(data);
-    })
-    .catch(error => {
-        console.error('Error loading day details:', error);
-        content.innerHTML = `
-            <div class="ui negative message">
-                <div class="header">Error Loading Details</div>
-                <p>Could not load details. Please try again later.</p>
-            </div>
-        `;
-    });
 }
 
-// Display day details
-function displayDayDetails(data) {
-    const content = document.getElementById('day-details-content');
+// Function to update the date navigation display
+function updateDateNavigation(tab, startDate, endDate) {
+    console.log('Updating date navigation for tab:', tab);
+    console.log('Date range:', { startDate: formatDate(startDate), endDate: formatDate(endDate) });
     
-    if (data.items.length === 0) {
-        content.innerHTML = `
-            <div class="ui message">
-                <div class="header">No items found</div>
-                <p>No details available for this day and category.</p>
-            </div>
-        `;
+    const dateDisplay = document.getElementById('date-display');
+    if (!dateDisplay) {
+        console.warn('Date display element not found - this is expected for some tabs');
         return;
     }
+
+    let displayText;
+    switch(tab) {
+        case 'day':
+            displayText = startDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            break;
+        case 'week':
+            displayText = `Week of ${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+            break;
+        case 'month':
+            displayText = startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            break;
+        case 'season':
+            displayText = `Season ${startDate.toLocaleDateString('en-US', { month: 'long' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+            break;
+        case 'year':
+            displayText = startDate.getFullYear().toString();
+            break;
+        case 'custom':
+            displayText = `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+            break;
+        default:
+            displayText = '';
+    }
     
-    let html = '<div class="ui relaxed divided items">';
-    
-    // Display each item
-    data.items.forEach(item => {
-        html += `
-            <div class="item">
-                <div class="content">
-                    <div class="header">${item.title}</div>
-        `;
-        
-        // Display category-specific details
-        if (data.category === 'checkins') {
-            html += `
-                <div class="description">
-                    <div class="ui label">
-                        <i class="check circle icon"></i>
-                        ${item.details.check_in_count} check-in${item.details.check_in_count > 1 ? 's' : ''}
-                    </div>
-                    ${item.details.rpe ? `
-                    <div class="ui label">
-                        <i class="heartbeat icon"></i>
-                        RPE: ${item.details.rpe}/10
-                    </div>
-                    ` : ''}
-                    <p class="description-text">
-                        <i class="calendar icon"></i> Date: ${item.details.execution_date}
-                    </p>
-                    ${item.details.notes ? `
-                    <div class="ui segment">
-                        <i class="sticky note icon"></i> Notes: ${item.details.notes}
-                    </div>
-                    ` : ''}
-                </div>
-            `;
-        } else if (data.category === 'tasks') {
-            html += `
-                <div class="description">
-                    <p><i class="folder icon"></i> Project: ${item.details.project_title}</p>
-                    <p><i class="calendar check icon"></i> Completed at: ${item.details.completed_at}</p>
-                    ${item.details.notes ? `<p><i class="sticky note icon"></i> ${item.details.notes}</p>` : ''}
-                </div>
-            `;
-        } else if (data.category === 'catchlist') {
-            html += `
-                <div class="description">
-                    <p><i class="calendar check icon"></i> Completed at: ${item.details.completed_at}</p>
-                    <p><i class="tag icon"></i> Status: ${item.details.status}</p>
-                    ${item.details.notes ? `<p><i class="sticky note icon"></i> ${item.details.notes}</p>` : ''}
-                </div>
-            `;
+    dateDisplay.textContent = displayText;
+    console.log('Updated date display:', displayText);
+}
+
+// Function to load report data
+function loadReportData(tab, startDate, endDate) {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    // Show loading indicators for the report fields
+    showReportLoading(tab);
+
+    // Use different URLs for loading vs saving
+    let url;
+    if (tab === 'day') {
+        url = `${API_URL}/reports/daily-summary/${formatDate(startDate)}`;
+    } else if (tab === 'week') {
+        url = `${API_URL}/reports/weekly-report/${formatDate(endDate)}`;
+    } else {
+        url = `${API_URL}/reports/${tab}/range?start=${formatDate(startDate)}&end=${formatDate(endDate)}`;
+    }
+
+    fetch(url, {
+        headers: {
+            'Authorization': `Bearer ${token}`
         }
-        
-        // Display comments if any
-        if (item.comments && item.comments.length > 0) {
-            html += `
-                <div class="extra">
-                    <div class="ui comments">
-                        <h4 class="ui dividing header">Comments (${item.comments.length})</h4>
-            `;
-            
-            item.comments.forEach(comment => {
+    })
+    .then(response => {
+        if (response.status === 401) {
+            console.error('Authentication failed');
+            window.location.href = '/login';
+            return;
+        }
+        if (!response.ok && response.status !== 404) {
+            throw new Error('Failed to load report data');
+        }
+        return response.status === 404 ? null : response.json();
+    })
+    .then(data => {
+        if (!data) return; // Skip if we redirected to login
+        if (data) {
+            switch(tab) {
+                case 'day':
+                    displayDailyReport(data);
+                    break;
+                case 'week':
+                    displayWeeklyReport(data);
+                    break;
+                case 'month':
+                    displayMonthlyReport(data);
+                    break;
+                case 'season':
+                    displaySeasonalReport(data);
+                    break;
+                case 'year':
+                    displayYearlyReport(data);
+                    break;
+            }
+        } else {
+            // Handle case where no data exists yet
+            resetReportFields(tab);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading report data:', error);
+        showError('Failed to load report data');
+    });
+}
+
+// Function to show loading state for report fields
+function showReportLoading(tab) {
+    console.log('Showing loading state for tab:', tab);
+    try {
+        switch(tab) {
+            case 'day':
+                const dayFields = {
+                    'sleep-hours': '',
+                    'mood-score': '',
+                    'food-notes': '',
+                    'rpe-score': '',
+                    'gains-notes': '',
+                    'gratitudes-notes': ''
+                };
+                Object.entries(dayFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                break;
+            case 'week':
+                const weeklyMetricsTable = document.getElementById('weekly-metrics-table');
+                if (weeklyMetricsTable) {
+                    weeklyMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                const weeklyFields = {
+                    'weekly-rpe': '',
+                    'weekly-gains': '',
+                    'weekly-gratitudes': ''
+                };
+                Object.entries(weeklyFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                break;
+            case 'month':
+                const monthlyFields = {
+                    'monthly-theme': '',
+                    'monthly-goals': '',
+                    'monthly-why': '',
+                    'monthly-rpe': '',
+                    'monthly-gains': '',
+                    'monthly-gratitudes': ''
+                };
+                Object.entries(monthlyFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                const monthlyMetricsTable = document.getElementById('monthly-metrics-table');
+                if (monthlyMetricsTable) {
+                    monthlyMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                break;
+            case 'season':
+                const seasonalFields = {
+                    'seasonal-theme': '',
+                    'seasonal-goals': '',
+                    'seasonal-why': '',
+                    'seasonal-rpe': '',
+                    'seasonal-gains': '',
+                    'seasonal-gratitudes': ''
+                };
+                Object.entries(seasonalFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                const seasonalMetricsTable = document.getElementById('seasonal-metrics-table');
+                if (seasonalMetricsTable) {
+                    seasonalMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                break;
+            case 'year':
+                const yearlyFields = {
+                    'yearly-theme': '',
+                    'yearly-goals': '',
+                    'yearly-why': '',
+                    'yearly-rpe': '',
+                    'yearly-gains': '',
+                    'yearly-gratitudes': ''
+                };
+                Object.entries(yearlyFields).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) element.value = value;
+                });
+                const yearlyMetricsTable = document.getElementById('yearly-metrics-table');
+                if (yearlyMetricsTable) {
+                    yearlyMetricsTable.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+                }
+                break;
+        }
+        console.log('Loading state shown successfully');
+    } catch (error) {
+        console.error('Error showing loading state:', error);
+    }
+}
+
+// Function to reset report fields when no data is available
+function resetReportFields(tab) {
+    switch(tab) {
+        case 'day':
+            document.getElementById('sleep-hours').value = '';
+            document.getElementById('mood-score').value = '';
+            document.getElementById('food-notes').value = '';
+            document.getElementById('rpe-score').value = '';
+            document.getElementById('gains-notes').value = '';
+            document.getElementById('gratitudes-notes').value = '';
+            document.getElementById('daily-sessions').innerHTML = '<p>No sessions recorded for this day.</p>';
+            document.getElementById('daily-tasks').innerHTML = '<p>No tasks completed on this day.</p>';
+            document.getElementById('daily-catchlist').innerHTML = '<p>No catchlist items completed on this day.</p>';
+            break;
+        case 'week':
+            document.getElementById('weekly-metrics-table').innerHTML = '<tr><td colspan="5">No data available for this week</td></tr>';
+            document.getElementById('weekly-rpe').value = '';
+            document.getElementById('weekly-gains').value = '';
+            document.getElementById('weekly-gratitudes').value = '';
+            break;
+        case 'month':
+            document.getElementById('monthly-metrics-table').innerHTML = '<tr><td colspan="5">No data available for this month</td></tr>';
+            break;
+        case 'season':
+            document.getElementById('seasonal-metrics-table').innerHTML = '<tr><td colspan="5">No data available for this season</td></tr>';
+            break;
+        case 'year':
+            document.getElementById('yearly-metrics-table').innerHTML = '<tr><td colspan="5">No data available for this year</td></tr>';
+            break;
+    }
+}
+
+// Function to display daily report data
+function displayDailyReport(data) {
+    if (!data) return;
+    
+    // Set values in the form
+    document.getElementById('sleep-hours').value = data.sleep_hours || data.day_block?.sleep_hours || '';
+    document.getElementById('mood-score').value = data.mood || data.day_block?.mood || '';
+    document.getElementById('food-notes').value = data.food_notes || data.day_block?.food_notes || '';
+    document.getElementById('rpe-score').value = data.rpe || data.day_block?.rpe || '';
+    document.getElementById('gains-notes').value = data.gains || data.day_block?.gains || '';
+    document.getElementById('gratitudes-notes').value = data.gratitudes || data.day_block?.gratitudes || '';
+    
+    // Display sessions
+    const sessionsContainer = document.getElementById('daily-sessions');
+    if (sessionsContainer) {
+        let html = '';
+        if (data.sessions && data.sessions.length > 0) {
+            data.sessions.forEach(session => {
                 html += `
-                    <div class="comment">
-                        <div class="content">
-                            <div class="metadata">
-                                <div class="date">${comment.created_at}</div>
-                                ${comment.rpe ? `<span class="ui mini label">RPE: ${comment.rpe}/10</span>` : ''}
-                            </div>
-                            <div class="text">${comment.content}</div>
-                        </div>
+                    <div class="ui segment">
+                        <h4 class="ui header">${session.title}</h4>
+                        <p>Time: ${session.start_time || '00:00'} - ${session.end_time || '23:59'}</p>
+                        <p>RPE: ${session.rpe || '-'}</p>
+                        ${session.notes ? `<p>Notes: ${session.notes}</p>` : ''}
                     </div>
                 `;
             });
-            
-            html += `
-                    </div>
-                </div>
-            `;
+        } else {
+            html = '<p>No sessions recorded for this day.</p>';
         }
-        
-        html += `
-                </div>
-            </div>
-        `;
-    });
-    
-    html += '</div>';
-    content.innerHTML = html;
-}
-
-// Load comments report
-function loadCommentsReport(days = 7) {
-    fetch(`{{ API_URL }}/reports/comments?days=${days}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + getAuthToken()
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(comments => {
-        displayCommentsReport(comments, days);
-    })
-    .catch(error => {
-        console.error('Error loading comments report:', error);
-        alert('Could not load comments report. Please try again later.');
-    });
-}
-
-// Display comments report
-function displayCommentsReport(comments, days) {
-    // Get the modal content
-    const content = document.getElementById('comments-report-content');
-    
-    // Create title based on days
-    let title;
-    if (days == 7) {
-        title = "Last 7 Days";
-    } else if (days == 14) {
-        title = "Last 14 Days";
-    } else if (days == 30) {
-        title = "Last 30 Days";
-    } else {
-        title = `Last ${days} Days`;
+        sessionsContainer.innerHTML = html;
     }
     
-    if (comments.length === 0) {
-        content.innerHTML = `
-            <div class="ui message">
-                <div class="header">No Comments</div>
-                <p>You haven't added any comments in the ${title.toLowerCase()}.</p>
-            </div>
-        `;
-    } else {
-        content.innerHTML = `
-            <div class="ui comments">
-                <h3 class="ui dividing header">Comments for ${title}</h3>
-        `;
-        
-        comments.forEach(comment => {
-            let entityInfo = '';
-            let entityType = '';
-            
-            if (comment.entity_type === 'event_execution') {
-                entityType = 'Event';
-            } else if (comment.entity_type === 'project_subtask') {
-                entityType = 'Task';
-            } else if (comment.entity_type === 'catchlist_entry') {
-                entityType = 'Catchlist Item';
-            }
-            
-            if (comment.entity_details) {
-                if (comment.entity_type === 'event_execution') {
-                    entityInfo = `${comment.entity_details.summary} (${comment.entity_details.execution_date})`;
-                } else if (comment.entity_type === 'project_subtask') {
-                    entityInfo = `${comment.entity_details.title} (${comment.entity_details.project_title})`;
-                } else if (comment.entity_type === 'catchlist_entry') {
-                    entityInfo = comment.entity_details.content;
-                }
-            }
-            
-            content.innerHTML += `
-                <div class="comment">
-                    <div class="content">
-                        <div class="author">You</div>
-                        <div class="metadata">
-                            <div class="date">${comment.created_at}</div>
-                            ${comment.rpe ? `<span class="ui mini label">RPE: ${comment.rpe}/10</span>` : ''}
-                            <span class="ui mini label">${entityType}</span>
-                        </div>
-                        <div class="text">${comment.content}</div>
-                        <div class="metadata">
-                            <span class="entity-info">${entityInfo}</span>
-                        </div>
+    // Display completed tasks
+    const tasksContainer = document.getElementById('daily-tasks');
+    if (tasksContainer) {
+        let html = '';
+        if (data.completed_tasks && data.completed_tasks.length > 0) {
+            data.completed_tasks.forEach(task => {
+                html += `
+                    <div class="ui segment">
+                        <h4 class="ui header">${task.title}</h4>
+                        <p>Completed at: ${task.completed_at ? new Date(task.completed_at).toLocaleString() : 'N/A'}</p>
                     </div>
-                </div>
+                `;
+            });
+        } else {
+            html = '<p>No tasks completed on this day.</p>';
+        }
+        tasksContainer.innerHTML = html;
+    }
+    
+    // Display completed catchlist items
+    const catchlistContainer = document.getElementById('daily-catchlist');
+    if (catchlistContainer) {
+        let html = '';
+        if (data.completed_catchlist && data.completed_catchlist.length > 0) {
+            data.completed_catchlist.forEach(item => {
+                html += `
+                    <div class="ui segment">
+                        <p>${item.content}</p>
+                        <p>Completed at: ${item.completed_at ? new Date(item.completed_at).toLocaleString() : 'N/A'}</p>
+                    </div>
+                `;
+            });
+        } else {
+            html = '<p>No catchlist items completed on this day.</p>';
+        }
+        catchlistContainer.innerHTML = html;
+    }
+}
+
+// Function to display weekly report data
+function displayWeeklyReport(data) {
+    if (!data) return;
+    
+    const tableBody = document.getElementById('weekly-metrics-table');
+    let html = '';
+    
+    if (data.daily_metrics && data.daily_metrics.length > 0) {
+        data.daily_metrics.forEach(metric => {
+            html += `
+                <tr>
+                    <td>${new Date(metric.date).toLocaleDateString()}</td>
+                    <td>${metric.sleep || '-'}</td>
+                    <td>${metric.food || '-'}</td>
+                    <td>${metric.rpe || '-'}</td>
+                    <td>${metric.mood || '-'}</td>
+                </tr>
             `;
         });
-        
-        content.innerHTML += `</div>`;
+    } else {
+        html = '<tr><td colspan="5">No data available</td></tr>';
     }
     
-    // Show the modal
-    $('#comments-report-modal').modal('show');
+    tableBody.innerHTML = html;
+    
+    document.getElementById('weekly-rpe').value = data.rpe || '';
+    document.getElementById('weekly-gains').value = data.gains || '';
+    document.getElementById('weekly-gratitudes').value = data.gratitudes || '';
+}
+
+// Function to display monthly report data
+function displayMonthlyReport(data) {
+    if (!data) return;
+    
+    document.getElementById('monthly-theme').value = data.month_theme || '';
+    document.getElementById('monthly-goals').value = data.goals || '';
+    document.getElementById('monthly-why').value = data.goals_rationale || '';
+    
+    const tableBody = document.getElementById('monthly-metrics-table');
+    let html = '';
+    
+    if (data.weekly_metrics && data.weekly_metrics.length > 0) {
+        data.weekly_metrics.forEach(metric => {
+            html += `
+                <tr>
+                    <td>Week ${metric.week_number}</td>
+                    <td>${metric.sleep_avg || '-'}</td>
+                    <td>${metric.food_notes || '-'}</td>
+                    <td>${metric.rpe_avg || '-'}</td>
+                    <td>${metric.mood_avg || '-'}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html = '<tr><td colspan="5">No data available</td></tr>';
+    }
+    
+    tableBody.innerHTML = html;
+    
+    document.getElementById('monthly-rpe').value = data.rpe || '';
+    document.getElementById('monthly-gains').value = data.gains || '';
+    document.getElementById('monthly-gratitudes').value = data.gratitudes || '';
+}
+
+// Function to display seasonal report data
+function displaySeasonalReport(data) {
+    if (!data) return;
+    
+    document.getElementById('seasonal-theme').value = data.season_theme || '';
+    document.getElementById('seasonal-goals').value = data.goals || '';
+    document.getElementById('seasonal-why').value = data.goals_rationale || '';
+    
+    const tableBody = document.getElementById('seasonal-metrics-table');
+    let html = '';
+    
+    if (data.monthly_metrics && data.monthly_metrics.length > 0) {
+        data.monthly_metrics.forEach(metric => {
+            html += `
+                <tr>
+                    <td>${metric.month}</td>
+                    <td>${metric.sleep_avg || '-'}</td>
+                    <td>${metric.food_notes || '-'}</td>
+                    <td>${metric.rpe_avg || '-'}</td>
+                    <td>${metric.mood_avg || '-'}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html = '<tr><td colspan="5">No data available</td></tr>';
+    }
+    
+    tableBody.innerHTML = html;
+    
+    document.getElementById('seasonal-rpe').value = data.rpe || '';
+    document.getElementById('seasonal-gains').value = data.gains || '';
+    document.getElementById('seasonal-gratitudes').value = data.gratitudes || '';
+}
+
+// Function to display yearly report data
+function displayYearlyReport(data) {
+    if (!data) return;
+    
+    document.getElementById('yearly-theme').value = data.year_theme || '';
+    document.getElementById('yearly-goals').value = data.goals || '';
+    document.getElementById('yearly-why').value = data.goals_rationale || '';
+    
+    const tableBody = document.getElementById('yearly-metrics-table');
+    let html = '';
+    
+    if (data.seasonal_metrics && data.seasonal_metrics.length > 0) {
+        data.seasonal_metrics.forEach(metric => {
+            html += `
+                <tr>
+                    <td>${metric.season}</td>
+                    <td>${metric.sleep_avg || '-'}</td>
+                    <td>${metric.food_notes || '-'}</td>
+                    <td>${metric.rpe_avg || '-'}</td>
+                    <td>${metric.mood_avg || '-'}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html = '<tr><td colspan="5">No data available</td></tr>';
+    }
+    
+    tableBody.innerHTML = html;
+    
+    document.getElementById('yearly-rpe').value = data.rpe || '';
+    document.getElementById('yearly-gains').value = data.gains || '';
+    document.getElementById('yearly-gratitudes').value = data.gratitudes || '';
+}
+
+// Add event listeners for saving reports
+document.getElementById('save-weekly-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        end_date: formatDate(new Date(currentWeekStart.getTime() + 6 * 24 * 60 * 60 * 1000)),
+        rpe: document.getElementById('weekly-rpe').value,
+        gains: document.getElementById('weekly-gains').value,
+        gratitudes: document.getElementById('weekly-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/weekly-report`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Weekly report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving weekly report:', error);
+        showError('Failed to save weekly report');
+    });
+});
+
+document.getElementById('save-monthly-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        month_theme: document.getElementById('monthly-theme').value,
+        goals: document.getElementById('monthly-goals').value,
+        goals_rationale: document.getElementById('monthly-why').value,
+        rpe: document.getElementById('monthly-rpe').value,
+        gains: document.getElementById('monthly-gains').value,
+        gratitudes: document.getElementById('monthly-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/month/range?start=${formatDate(currentMonthStart)}&end=${formatDate(new Date(currentMonthStart.getFullYear(), currentMonthStart.getMonth() + 1, 0))}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Monthly report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving monthly report:', error);
+        showError('Failed to save monthly report');
+    });
+});
+
+document.getElementById('save-seasonal-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        season_theme: document.getElementById('seasonal-theme').value,
+        goals: document.getElementById('seasonal-goals').value,
+        goals_rationale: document.getElementById('seasonal-why').value,
+        rpe: document.getElementById('seasonal-rpe').value,
+        gains: document.getElementById('seasonal-gains').value,
+        gratitudes: document.getElementById('seasonal-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/season/range?start=${formatDate(currentSeasonStart)}&end=${formatDate(new Date(currentSeasonStart.getFullYear(), currentSeasonStart.getMonth() + 3, 0))}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Seasonal report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving seasonal report:', error);
+        showError('Failed to save seasonal report');
+    });
+});
+
+document.getElementById('save-yearly-report').addEventListener('click', function() {
+    const token = getAuthToken();
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const reportData = {
+        year_theme: document.getElementById('yearly-theme').value,
+        goals: document.getElementById('yearly-goals').value,
+        goals_rationale: document.getElementById('yearly-why').value,
+        rpe: document.getElementById('yearly-rpe').value,
+        gains: document.getElementById('yearly-gains').value,
+        gratitudes: document.getElementById('yearly-gratitudes').value
+    };
+
+    fetch(`${API_URL}/reports/year/range?start=${formatDate(currentYearStart)}&end=${formatDate(new Date(currentYearStart.getFullYear(), 11, 31))}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(reportData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSuccess('Yearly report saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving yearly report:', error);
+        showError('Failed to save yearly report');
+    });
+});
+
+// Function to show success message
+function showSuccess(message) {
+    const container = document.querySelector('.ui.container');
+    if (!container) {
+        console.error('Container element not found');
+        return;
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'ui positive message';
+    messageDiv.innerHTML = `
+        <i class="close icon"></i>
+        <div class="header">Success</div>
+        <p>${message}</p>
+    `;
+    
+    // Find the first segment to insert before
+    const firstSegment = container.querySelector('.ui.segment');
+    if (firstSegment) {
+        container.insertBefore(messageDiv, firstSegment);
+    } else {
+        container.appendChild(messageDiv);
+    }
+    
+    // Add close functionality
+    messageDiv.querySelector('.close.icon').addEventListener('click', function() {
+        messageDiv.remove();
+    });
+    
+    // Remove message after 3 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
+
+// Function to show error message
+function showError(message) {
+    const container = document.querySelector('.ui.container');
+    if (!container) {
+        console.error('Container element not found');
+        return;
+    }
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'ui negative message';
+    messageDiv.innerHTML = `
+        <i class="close icon"></i>
+        <div class="header">Error</div>
+        <p>${message}</p>
+    `;
+    
+    // Find the first segment to insert before
+    const firstSegment = container.querySelector('.ui.segment');
+    if (firstSegment) {
+        container.insertBefore(messageDiv, firstSegment);
+    } else {
+        container.appendChild(messageDiv);
+    }
+    
+    // Add close functionality
+    messageDiv.querySelector('.close.icon').addEventListener('click', function() {
+        messageDiv.remove();
+    });
+}
+
+// Function to navigate between dates
+function navigateDate(direction) {
+    console.log('Navigating date:', direction);
+    const activeTab = $('.menu .item.active').data('tab');
+    console.log('Active tab:', activeTab);
+    
+    try {
+        switch(activeTab) {
+            case 'day':
+                const newDay = new Date(currentDay);
+                newDay.setDate(newDay.getDate() + (direction === 'next' ? 1 : -1));
+                currentDay = newDay;
+                break;
+            case 'week':
+                const newWeek = new Date(currentWeekStart);
+                newWeek.setDate(newWeek.getDate() + (direction === 'next' ? 7 : -7));
+                currentWeekStart = newWeek;
+                break;
+            case 'month':
+                const newMonth = new Date(currentMonthStart);
+                newMonth.setMonth(newMonth.getMonth() + (direction === 'next' ? 1 : -1));
+                currentMonthStart = newMonth;
+                break;
+            case 'season':
+                const newSeason = new Date(currentSeasonStart);
+                newSeason.setMonth(newSeason.getMonth() + (direction === 'next' ? 3 : -3));
+                currentSeasonStart = newSeason;
+                break;
+            case 'year':
+                const newYear = new Date(currentYearStart);
+                newYear.setFullYear(newYear.getFullYear() + (direction === 'next' ? 1 : -1));
+                currentYearStart = newYear;
+                break;
+        }
+        
+        // Update date picker value
+        const datePicker = document.getElementById('date-picker');
+        if (datePicker) {
+            switch(activeTab) {
+                case 'day':
+                    datePicker.valueAsDate = new Date(currentDay);
+                    break;
+                case 'week':
+                    datePicker.valueAsDate = new Date(currentWeekStart);
+                    break;
+                case 'month':
+                    datePicker.valueAsDate = new Date(currentMonthStart);
+                    break;
+                case 'season':
+                    datePicker.valueAsDate = new Date(currentSeasonStart);
+                    break;
+                case 'year':
+                    datePicker.valueAsDate = new Date(currentYearStart);
+                    break;
+            }
+        }
+        
+        // Reload the content for the current tab
+        loadTabContent(activeTab);
+    } catch (error) {
+        console.error('Error in navigateDate:', error);
+    }
+}
+
+// Function to update the date picker based on the active tab
+function updateDatePicker(tab) {
+    console.log('Updating date picker for tab:', tab);
+    const datePicker = document.getElementById('date-picker');
+    if (!datePicker) {
+        console.error('Date picker element not found');
+        return;
+    }
+    
+    try {
+        switch(tab) {
+            case 'day':
+                datePicker.valueAsDate = new Date(currentDay);
+                break;
+            case 'week':
+                datePicker.valueAsDate = new Date(currentWeekStart);
+                break;
+            case 'month':
+                datePicker.valueAsDate = new Date(currentMonthStart);
+                break;
+            case 'season':
+                datePicker.valueAsDate = new Date(currentSeasonStart);
+                break;
+            case 'year':
+                datePicker.valueAsDate = new Date(currentYearStart);
+                break;
+            case 'custom':
+                // For custom tab, we don't update the date picker
+                break;
+        }
+        console.log('Date picker updated successfully');
+    } catch (error) {
+        console.error('Error updating date picker:', error);
+    }
 }
 </script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.ui.statistics {
+    margin-bottom: 1em;
+    display: flex;
+    justify-content: center;
+}
+
+#date-navigation {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.ui.modal .header .ui.buttons {
+    margin-top: -5px;
+}
+
+.ui.segment h4 {
+    margin-bottom: 1em;
+}
+
+.checkins-list {
+    margin-top: 1em;
+    padding-top: 1em;
+    border-top: 1px solid rgba(34, 36, 38, 0.1);
+}
+
+.ui.slider {
+    margin: 1em 0;
+}
+
+.ui.slider .ui.label {
+    margin-left: 1em;
+}
+
+.ui.tabular.menu {
+    margin-bottom: 1em;
+}
+
+.ui.tab.segment {
+    padding: 1em 0;
+}
+</style>
 {% endblock %} 

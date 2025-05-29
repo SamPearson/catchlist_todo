@@ -1,0 +1,73 @@
+{% macro add_box(id='add-box', placeholder='Add new item...', submit_text='Add', class='') -%}
+<div class="ui segment {% if class %}{{ class }}{% endif %}" id="{{ id }}">
+    <form class="ui form add-form">
+        <div class="field">
+            <div class="ui fluid action input">
+                <input type="text" name="content" placeholder="{{ placeholder }}" required>
+                <button class="ui teal button" type="submit">{{ submit_text }}</button>
+            </div>
+        </div>
+        
+        <div class="advanced-fields" style="display: none; margin-top: 10px;">
+            {{ caller() if caller else '' }}
+        </div>
+        
+        {% if caller %}
+        <div class="ui basic mini button toggle-advanced" style="margin-top: 5px;">
+            <i class="caret down icon"></i> Advanced Options
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addBox = document.getElementById('{{ id }}');
+    if (addBox) {
+        const form = addBox.querySelector('.add-form');
+        const advancedFields = addBox.querySelector('.advanced-fields');
+        const toggleButton = addBox.querySelector('.toggle-advanced');
+        
+        if (toggleButton) {
+            toggleButton.addEventListener('click', function() {
+                $(advancedFields).slideToggle();
+                const icon = this.querySelector('i');
+                icon.classList.toggle('down');
+                icon.classList.toggle('up');
+            });
+        }
+        
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Create FormData object
+            const formData = new FormData(this);
+            
+            // Convert FormData to object
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            
+            // Emit a custom event with the form data
+            const event = new CustomEvent('itemAdd', {
+                detail: { formData: data }
+            });
+            document.dispatchEvent(event);
+            
+            // Reset the form
+            this.reset();
+            
+            // Hide advanced fields if they were shown
+            if (advancedFields) {
+                advancedFields.style.display = 'none';
+                if (toggleButton && toggleButton.querySelector('i')) {
+                    toggleButton.querySelector('i').classList.remove('up');
+                    toggleButton.querySelector('i').classList.add('down');
+                }
+            }
+        });
+    }
+});
+</script>
+{%- endmacro %} 

@@ -1,10 +1,15 @@
 {% extends "base.html" %}
+{% from "components/display_box.html" import display_box %}
+{% from "components/slideout.html" import slideout %}
+{% from "components/search_box.html" import search_box %}
+{% from "components/add_box.html" import add_box %}
+{% from "components/list_box.html" import list_box %}
 
 {% block content %}
 <div class="ui container">
     <h1 class="ui header">My Projects</h1>
     
-    <div class="ui segment">
+    {% call display_box(id="projects-create-box", title="Create New Project", collapsible=true) %}
         <form class="ui form" id="add-project-form">
             <div class="field">
                 <label>Project Title</label>
@@ -12,101 +17,165 @@
             </div>
             <div class="field">
                 <label>Win Condition</label>
-                <textarea name="win_condition" placeholder="What does success look like?"></textarea>
+                <input type="text" name="win_condition" placeholder="What does success look like?">
             </div>
             <div class="field">
                 <label>Reason</label>
-                <textarea name="reason" placeholder="Why is this project important?"></textarea>
+                <input type="text" name="reason" placeholder="Why is this project important?">
             </div>
             <div class="field">
                 <label>Next Step</label>
-                <textarea name="next_step" placeholder="What's the next action to take?"></textarea>
+                <input type="text" name="next_step" placeholder="What's the next action to take?">
+            </div>
+            <div class="field">
+                <label>Description</label>
+                <textarea name="description" rows="3" placeholder="Describe this project in more detail..."></textarea>
             </div>
             <button class="ui teal button" type="submit">Create Project</button>
         </form>
-    </div>
-
-    <div class="ui segments" id="project-list">
-        {% for project in projects %}
-        <div class="ui segment" data-id="{{ project.id }}">
-            <div class="ui top attached segment">
-                <h3 class="ui header">{{ project.title }}</h3>
-                <div class="ui list">
-                    <div class="item">
-                        <i class="trophy icon"></i>
-                        <div class="content">
-                            <div class="header">Win Condition</div>
-                            <div class="description">{{ project.win_condition }}</div>
-                        </div>
-                    </div>
-                    <div class="item">
-                        <i class="compass icon"></i>
-                        <div class="content">
-                            <div class="header">Reason</div>
-                            <div class="description">{{ project.reason }}</div>
-                        </div>
-                    </div>
-                    <div class="item">
-                        <i class="arrow right icon"></i>
-                        <div class="content">
-                            <div class="header">Next Step</div>
-                            <div class="description">{{ project.next_step }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="ui buttons">
-                    <button class="ui blue tiny button edit-project">Edit</button>
-                    <button class="ui red tiny button delete-project">Delete</button>
-                </div>
+    {% endcall %}
+    
+    {% call display_box(id="projects-search-box", title="Search Projects", collapsible=true) %}
+        {% call search_box(id="project-search", placeholder="Search projects...") %}
+            <div class="field">
+                <label>Status</label>
+                <select class="ui dropdown" id="project-status-filter">
+                    <option value="all">All Projects</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                </select>
             </div>
-            
-            <div class="ui attached segment">
-                <h4 class="ui header">Subtasks</h4>
-                <div class="ui list subtasks-list">
-                    {% for subtask in project.subtasks %}
-                    <div class="item" data-id="{{ subtask.id }}">
-                        <div class="ui checkbox">
-                            <input type="checkbox" {% if subtask.complete %}checked{% endif %}>
-                            <label>{{ subtask.title }}</label>
-                        </div>
-                        <div class="ui buttons" style="margin-left: 15px;">
-                            <button class="ui tiny button {% if subtask.on_daily_todo %}green{% endif %} add-to-today">
-                                {% if subtask.on_daily_todo %}On Today's List{% else %}Add to Today{% endif %}
-                            </button>
-                            <button class="ui red tiny button delete-subtask">Delete</button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-                <div class="ui form add-subtask-form">
-                    <div class="fields">
-                        <div class="twelve wide field">
-                            <input type="text" placeholder="Add new subtask...">
-                        </div>
-                        <div class="four wide field">
-                            <button class="ui teal button add-subtask-button">Add</button>
-                        </div>
-                    </div>
-                </div>
+        {% endcall %}
+    {% endcall %}
+    
+    {% call display_box(id="projects-list-box", title="My Projects") %}
+        <div class="ui segments" id="project-list">
+            <!-- Projects will be loaded here dynamically -->
+        </div>
+    {% endcall %}
+</div>
+
+<!-- Commitments Modal -->
+<div class="ui modal" id="commitments-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Commitments</div>
+    <div class="content">
+        <div class="ui segment">
+            <h4 class="ui header">Current Commitments</h4>
+            <div class="ui divided items" id="current-commitments-list">
+                <!-- Current commitments will be loaded here -->
             </div>
         </div>
-        {% endfor %}
+        
+        <div class="ui segment">
+            <h4 class="ui header">Add New Commitment</h4>
+            <form class="ui form" id="commitment-form">
+                <input type="hidden" id="item-id">
+                <input type="hidden" id="item-type" value="project_task">
+                
+                <div class="ui top attached tabular menu">
+                    <a class="item active" data-tab="hard">Hard Commitment</a>
+                    <a class="item" data-tab="soft">Soft Commitment</a>
+                </div>
+                
+                <div class="ui bottom attached tab segment active" data-tab="hard">
+                    <div class="field">
+                        <label>Due Date</label>
+                        <input type="date" id="due-date" required>
+                    </div>
+                    <div class="field">
+                        <div class="ui toggle checkbox">
+                            <input type="checkbox" id="add-to-today">
+                            <label>Add to Today's List</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ui bottom attached tab segment" data-tab="soft">
+                    <div class="field">
+                        <label>Time Period</label>
+                        <select id="time-period" class="ui dropdown">
+                            <option value="week">Week</option>
+                            <option value="month">Month</option>
+                            <option value="season">Season</option>
+                            <option value="year">Year</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label>Notes (Optional)</label>
+                    <textarea id="commitment-notes" rows="2"></textarea>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button cancel">Cancel</div>
+        <div class="ui primary button" id="save-commitment">Save Commitment</div>
     </div>
 </div>
 
+<!-- Project Commitments Modal (Soft commitments only) -->
+<div class="ui modal" id="project-commitments-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Project Commitments</div>
+    <div class="content">
+        <div class="ui segment">
+            <h4 class="ui header">Current Commitments</h4>
+            <div class="ui divided items" id="project-commitments-list">
+                <!-- Current commitments will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h4 class="ui header">Add New Commitment</h4>
+            <form class="ui form" id="project-commitment-form">
+                <input type="hidden" id="project-id">
+                
+                <div class="field">
+                    <label>Time Period</label>
+                    <select id="project-time-period" class="ui dropdown">
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="season">Season</option>
+                        <option value="year">Year</option>
+                    </select>
+                </div>
+                
+                <div class="field">
+                    <label>Notes (Optional)</label>
+                    <textarea id="project-commitment-notes" rows="2"></textarea>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="ui button cancel">Cancel</div>
+        <div class="ui primary button" id="save-project-commitment">Save Commitment</div>
+    </div>
+</div>
+
+<!-- Tag Management Modal -->
+{% include "components/tag_management_modal.html" %}
+
+<script src="/static/js/auth.js"></script>
 <script>
-// Function to get auth token from cookies
-function getAuthToken() {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.startsWith('auth_token=')) {
-            return cookie.substring('auth_token='.length, cookie.length);
-        }
-    }
-    return '';
-}
+// Define global API_URL variable
+const API_URL = '{{ API_URL }}';
+
+// Load projects when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize existing functionality
+    attachEventListeners();
+    
+    // Initialize commitment modals
+    setupCommitmentsModal();
+    setupProjectCommitmentsModal();
+    
+    // Load projects
+    loadProjects();
+});
 
 // API interactions
 document.getElementById('add-project-form').addEventListener('submit', function(e) {
@@ -116,15 +185,13 @@ document.getElementById('add-project-form').addEventListener('submit', function(
         title: this.title.value,
         win_condition: this.win_condition.value,
         reason: this.reason.value,
-        next_step: this.next_step.value
+        next_step: this.next_step.value,
+        description: this.description.value
     };
     
-    fetch('{{ API_URL }}/projects', {
+    fetch(`${API_URL}/projects`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + getAuthToken()
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(formData)
     })
     .then(response => {
@@ -155,6 +222,7 @@ document.querySelectorAll('.edit-project').forEach(btn => {
         const winConditionElement = projectElement.querySelector('.item:nth-child(1) .description');
         const reasonElement = projectElement.querySelector('.item:nth-child(2) .description');
         const nextStepElement = projectElement.querySelector('.item:nth-child(3) .description');
+        const descriptionElement = projectElement.querySelector('.item:nth-child(4) .description');
         
         // Create form for editing
         const originalContent = projectElement.querySelector('.ui.top.attached.segment').innerHTML;
@@ -167,15 +235,19 @@ document.querySelectorAll('.edit-project').forEach(btn => {
                 </div>
                 <div class="field">
                     <label>Win Condition</label>
-                    <textarea name="win_condition">${winConditionElement.textContent}</textarea>
+                    <input type="text" name="win_condition" value="${winConditionElement.textContent}">
                 </div>
                 <div class="field">
                     <label>Reason</label>
-                    <textarea name="reason">${reasonElement.textContent}</textarea>
+                    <input type="text" name="reason" value="${reasonElement.textContent}">
                 </div>
                 <div class="field">
                     <label>Next Step</label>
-                    <textarea name="next_step">${nextStepElement.textContent}</textarea>
+                    <input type="text" name="next_step" value="${nextStepElement.textContent}">
+                </div>
+                <div class="field">
+                    <label>Description</label>
+                    <textarea name="description" rows="3">${descriptionElement ? descriptionElement.textContent : ''}</textarea>
                 </div>
                 <div class="ui buttons">
                     <button class="ui green button" type="submit">Save</button>
@@ -198,15 +270,13 @@ document.querySelectorAll('.edit-project').forEach(btn => {
                 title: this.title.value,
                 win_condition: this.win_condition.value,
                 reason: this.reason.value,
-                next_step: this.next_step.value
+                next_step: this.next_step.value,
+                description: this.description.value
             };
             
-            fetch(`{{ API_URL }}/projects/${projectId}`, {
+            fetch(`${API_URL}/projects/${projectId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(formData)
             })
             .then(response => {
@@ -234,11 +304,9 @@ document.querySelectorAll('.delete-project').forEach(btn => {
             const projectElement = this.closest('[data-id]');
             const projectId = projectElement.getAttribute('data-id');
             
-            fetch(`{{ API_URL }}/projects/${projectId}`, {
+            fetch(`${API_URL}/projects/${projectId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': 'Bearer ' + getAuthToken()
-                }
+                headers: getAuthHeaders()
             })
             .then(response => {
                 if (!response.ok) {
@@ -270,12 +338,9 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
             return;
         }
         
-        fetch(`{{ API_URL }}/projects/${projectId}/subtasks`, {
+        fetch(`${API_URL}/projects/${projectId}/subtasks`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
                 title: subtaskTitle
             })
@@ -298,8 +363,16 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
                     <input type="checkbox">
                     <label>${data.title}</label>
                 </div>
+                <div class="ui labels" style="margin-left: 15px;">
+                </div>
                 <div class="ui buttons" style="margin-left: 15px;">
-                    <button class="ui tiny button add-to-today">Add to Today</button>
+                    <button class="ui tiny button commit-to-today">Commit to Today</button>
+                    <button class="ui tiny button view-commitments">
+                        <i class="calendar icon"></i> Commits
+                    </button>
+                    <button class="ui tiny button manage-tags" data-id="${data.id}" data-type="project_task">
+                        <i class="tags icon"></i> Manage Tags
+                    </button>
                     <button class="ui red tiny button delete-subtask">Delete</button>
                 </div>
             `;
@@ -309,87 +382,69 @@ document.querySelectorAll('.add-subtask-button').forEach(btn => {
             // Clear input
             inputElement.value = '';
             
+            // Initialize checkbox
+            $(newSubtaskElement.querySelector('.ui.checkbox')).checkbox();
+            
             // Attach event listeners to new subtask
             attachSubtaskEventListeners(newSubtaskElement);
         })
         .catch(error => {
             console.error('Error adding subtask:', error);
-            alert('Error adding subtask. Please try again.');
+            showError('Failed to add subtask. Please try again.');
         });
     });
 });
 
 // Function to attach event listeners to subtasks
 function attachSubtaskEventListeners(subtaskElement) {
+    if (!subtaskElement) return;
+    
     // Checkbox change event
     const checkbox = subtaskElement.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener('change', function() {
-        const subtaskId = subtaskElement.getAttribute('data-id');
-        
-        fetch(`{{ API_URL }}/subtasks/${subtaskId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify({
-                complete: this.checked
-            })
-        })
-        .catch(error => {
-            console.error('Error updating subtask:', error);
-            // Revert checkbox state on error
-            this.checked = !this.checked;
-        });
-    });
-    
-    // Add to today button
-    const addToTodayBtn = subtaskElement.querySelector('.add-to-today');
-    addToTodayBtn.addEventListener('click', function() {
-        const subtaskId = subtaskElement.getAttribute('data-id');
-        const isAlreadyOnToday = this.classList.contains('green');
-        
-        fetch(`{{ API_URL }}/subtasks/${subtaskId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify({
-                on_daily_todo: !isAlreadyOnToday
-            })
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.on_daily_todo) {
-                this.classList.add('green');
-                this.textContent = 'On Today\'s List';
-            } else {
-                this.classList.remove('green');
-                this.textContent = 'Add to Today';
-            }
-        })
-        .catch(error => {
-            console.error('Error updating subtask:', error);
-        });
-    });
-    
-    // Delete subtask button
-    const deleteSubtaskBtn = subtaskElement.querySelector('.delete-subtask');
-    deleteSubtaskBtn.addEventListener('click', function() {
-        if (confirm('Are you sure you want to delete this subtask?')) {
+    if (checkbox) {
+        checkbox.addEventListener('change', function() {
             const subtaskId = subtaskElement.getAttribute('data-id');
             
-            fetch(`{{ API_URL }}/subtasks/${subtaskId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': 'Bearer ' + getAuthToken()
-                }
+            fetch(`${API_URL}/subtasks/${subtaskId}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    complete: this.checked
+                })
+            })
+            .catch(error => {
+                console.error('Error updating subtask:', error);
+                // Revert checkbox state on error
+                this.checked = !this.checked;
+            });
+        });
+    }
+    
+    // Commit to today button
+    const commitToTodayBtn = subtaskElement.querySelector('.commit-to-today');
+    if (commitToTodayBtn) {
+        commitToTodayBtn.addEventListener('click', function() {
+            const subtaskId = subtaskElement.getAttribute('data-id');
+            const isAlreadyCommitted = this.classList.contains('green');
+            
+            if (isAlreadyCommitted) {
+                return; // Button is disabled when already committed
+            }
+            
+            // Get today's date in local timezone
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const localDate = `${year}-${month}-${day}`;
+            
+            fetch(`${API_URL}/commitments`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    project_task_id: subtaskId,
+                    due_date: localDate
+                })
             })
             .then(response => {
                 if (!response.ok) {
@@ -398,15 +453,64 @@ function attachSubtaskEventListeners(subtaskElement) {
                 return response.json();
             })
             .then(data => {
-                // Remove subtask element from DOM
-                subtaskElement.remove();
+                this.classList.add('green', 'disabled');
+                this.textContent = 'Committed for Today';
+                showCustomMessage('Task committed for today', 'positive');
             })
             .catch(error => {
-                console.error('Error deleting subtask:', error);
-                alert('Error deleting subtask. Please try again.');
+                console.error('Error creating commitment:', error);
+                showError('Error creating commitment. Please try again.');
             });
-        }
-    });
+        });
+    }
+    
+    // View commitments button
+    const viewCommitmentsBtn = subtaskElement.querySelector('.view-commitments');
+    if (viewCommitmentsBtn) {
+        viewCommitmentsBtn.addEventListener('click', function() {
+            const subtaskId = subtaskElement.getAttribute('data-id');
+            showCommitmentsModal(subtaskId, 'project_task');
+        });
+    }
+    
+    // Delete subtask button
+    const deleteSubtaskBtn = subtaskElement.querySelector('.delete-subtask');
+    if (deleteSubtaskBtn) {
+        deleteSubtaskBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete this subtask?')) {
+                const subtaskId = subtaskElement.getAttribute('data-id');
+                
+                fetch(`${API_URL}/subtasks/${subtaskId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Remove subtask element from DOM
+                    subtaskElement.remove();
+                })
+                .catch(error => {
+                    console.error('Error deleting subtask:', error);
+                    showError('Error deleting subtask. Please try again.');
+                });
+            }
+        });
+    }
+    
+    // Manage tags button
+    const manageTagsBtn = subtaskElement.querySelector('.manage-tags');
+    if (manageTagsBtn) {
+        manageTagsBtn.addEventListener('click', function() {
+            const subtaskId = subtaskElement.getAttribute('data-id');
+            const itemType = this.getAttribute('data-type');
+            showTagManagementModal(subtaskId, itemType);
+        });
+    }
 }
 
 // Attach event listeners to all existing subtasks
@@ -416,6 +520,84 @@ document.querySelectorAll('.subtasks-list .item').forEach(subtaskElement => {
 
 // Function to reattach event listeners after DOM changes
 function attachEventListeners() {
+    // Attach event listeners for manage tags buttons
+    document.querySelectorAll('.manage-tags').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-id');
+            const itemType = this.getAttribute('data-type');
+            showTagManagementModal(itemId, itemType);
+        });
+    });
+    
+    // Attach event listeners for add subtask buttons
+    document.querySelectorAll('.add-subtask-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const projectElement = this.closest('[data-id]');
+            const projectId = projectElement.getAttribute('data-id');
+            const inputElement = this.closest('.add-subtask-form').querySelector('input');
+            const subtaskTitle = inputElement.value.trim();
+            
+            if (!subtaskTitle) {
+                return;
+            }
+            
+            fetch(`${API_URL}/projects/${projectId}/subtasks`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    title: subtaskTitle
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Add new subtask to DOM
+                const subtasksList = projectElement.querySelector('.subtasks-list');
+                
+                const newSubtaskElement = document.createElement('div');
+                newSubtaskElement.className = 'item';
+                newSubtaskElement.setAttribute('data-id', data.id);
+                newSubtaskElement.innerHTML = `
+                    <div class="ui checkbox">
+                        <input type="checkbox">
+                        <label>${data.title}</label>
+                    </div>
+                    <div class="ui labels" style="margin-left: 15px;">
+                    </div>
+                    <div class="ui buttons" style="margin-left: 15px;">
+                        <button class="ui tiny button commit-to-today">Commit to Today</button>
+                        <button class="ui tiny button view-commitments">
+                            <i class="calendar icon"></i> Commits
+                        </button>
+                        <button class="ui tiny button manage-tags" data-id="${data.id}" data-type="project_task">
+                            <i class="tags icon"></i> Manage Tags
+                        </button>
+                        <button class="ui red tiny button delete-subtask">Delete</button>
+                    </div>
+                `;
+                
+                subtasksList.appendChild(newSubtaskElement);
+                
+                // Clear input
+                inputElement.value = '';
+                
+                // Initialize checkbox
+                $(newSubtaskElement.querySelector('.ui.checkbox')).checkbox();
+                
+                // Attach event listeners to new subtask
+                attachSubtaskEventListeners(newSubtaskElement);
+            })
+            .catch(error => {
+                console.error('Error adding subtask:', error);
+                showError('Failed to add subtask. Please try again.');
+            });
+        });
+    });
+    
     // Reattach edit project button listeners
     document.querySelectorAll('.edit-project').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -430,6 +612,1212 @@ function attachEventListeners() {
             // Same implementation as above
         });
     });
+    
+    // Attach project commitments button listeners
+    document.querySelectorAll('.manage-project-commitments').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const projectElement = this.closest('[data-id]');
+            const projectId = projectElement.getAttribute('data-id');
+            showProjectCommitmentsModal(projectId);
+        });
+    });
+}
+
+// Setup commitments modal
+function setupCommitmentsModal() {
+    // Initialize tabs
+    $('.menu .item').tab();
+    
+    // Initialize dropdown
+    $('#time-period').dropdown();
+    
+    // Initialize the modal
+    $('#commitments-modal').modal({
+        closable: true,
+        onShow: function() {
+            // Reset form when modal is shown
+            document.getElementById('commitment-form').reset();
+            document.getElementById('due-date').valueAsDate = new Date();
+        }
+    });
+    
+    // Get the save button element
+    const saveButton = document.getElementById('save-commitment');
+    
+    // Remove all existing event listeners
+    const newSaveButton = saveButton.cloneNode(true);
+    saveButton.parentNode.replaceChild(newSaveButton, saveButton);
+    
+    // Add a single click handler
+    newSaveButton.addEventListener('click', function() {
+        saveCommitment();
+    });
+}
+
+// Function to show commitments modal
+function showCommitmentsModal(itemId, itemType) {
+    document.getElementById('item-id').value = itemId;
+    document.getElementById('item-type').value = itemType;
+    
+    // Load current commitments
+    loadCurrentCommitments(itemId, itemType);
+    
+    // Initialize form
+    document.getElementById('commitment-form').reset();
+    document.getElementById('due-date').valueAsDate = new Date();
+    
+    // Show modal
+    $('#commitments-modal').modal('show');
+}
+
+// Function to load current commitments
+function loadCurrentCommitments(itemId, itemType) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const container = document.getElementById('current-commitments-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (itemType === 'project_task') {
+        params.append('project_task_id', itemId);
+    }
+    
+    fetch(`${API_URL}/commitments?${params.toString()}`, {
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load commitments');
+        }
+        return response.json();
+    })
+    .then(commitments => {
+        displayCurrentCommitments(commitments);
+    })
+    .catch(error => {
+        console.error('Error loading commitments:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+    });
+}
+
+// Function to display current commitments
+function displayCurrentCommitments(commitments) {
+    const container = document.getElementById('current-commitments-list');
+    
+    if (!commitments || commitments.length === 0) {
+        container.innerHTML = '<div class="ui info message">No commitments yet.</div>';
+        return;
+    }
+    
+    let html = '';
+    commitments.forEach(commitment => {
+        const dueDate = new Date(commitment.due_date);
+        const commitmentType = commitment.is_soft_commitment ? 'Soft' : 'Hard';
+        const timePeriod = commitment.is_soft_commitment ? 
+            `<span class="ui label">${commitment.time_period}</span>` : '';
+        
+        html += `
+            <div class="item" data-id="${commitment.id}" data-commitment-type="${commitment.is_soft_commitment ? 'soft' : 'hard'}">
+                <div class="content">
+                    <div class="header">
+                        ${commitmentType} Commitment
+                        ${timePeriod}
+                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                    </div>
+                    <div class="meta">
+                        Due: ${dueDate.toLocaleDateString()}
+                    </div>
+                    <div class="description">${commitment.notes || ''}</div>
+                    <div class="extra">
+                        <button class="ui tiny button add-checkin" data-id="${commitment.id}">
+                            <i class="plus icon"></i> Add Checkin
+                        </button>
+                        <button class="ui tiny red button delete-commitment" data-id="${commitment.id}">
+                            <i class="trash icon"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Initialize commitment controls
+    initializeCommitmentControls(container);
+}
+
+// Function to save commitment
+function saveCommitment() {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const itemId = document.getElementById('item-id').value;
+    const itemType = document.getElementById('item-type').value;
+    const isSoft = $('.menu .item.active').data('tab') === 'soft';
+    const notes = document.getElementById('commitment-notes').value;
+    
+    // Get the item's content/title from the task's label
+    const subtaskElement = document.querySelector(`.item[data-id="${itemId}"]`);
+    const title = subtaskElement ? subtaskElement.querySelector('label').textContent.trim() : '';
+    
+    let data = {
+        notes: notes,
+        title: title
+    };
+    
+    if (isSoft) {
+        const timePeriod = document.getElementById('time-period').value;
+        const today = new Date();
+        let startDate, endDate;
+        
+        // Calculate date range based on time period
+        switch(timePeriod) {
+            case 'week':
+                startDate = new Date(today);
+                endDate = new Date(today);
+                endDate.setDate(today.getDate() + 6);
+                break;
+            case 'month':
+                startDate = new Date(today);
+                endDate = new Date(today);
+                endDate.setMonth(today.getMonth() + 1);
+                break;
+            case 'season':
+                startDate = new Date(today);
+                endDate = new Date(today);
+                endDate.setMonth(today.getMonth() + 3);
+                break;
+            case 'year':
+                startDate = new Date(today);
+                endDate = new Date(today);
+                endDate.setFullYear(today.getFullYear() + 1);
+                break;
+        }
+        
+        data = {
+            ...data,
+            start_date: startDate.toISOString().split('T')[0],
+            end_date: endDate.toISOString().split('T')[0],
+            project_task_id: itemId
+        };
+        
+        // Create soft commitment using the specialized endpoint
+        fetch(`${API_URL}/commitments/soft/${timePeriod}`, {
+            method: 'POST',
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw {
+                        status: response.status,
+                        statusText: response.statusText,
+                        message: errorData.message || 'Failed to create soft commitment',
+                        data: errorData
+                    };
+                });
+            }
+            return response.json();
+        })
+        .then(() => {
+            $('#commitments-modal').modal('hide');
+            loadCurrentCommitments(itemId, itemType);
+            showCustomMessage('Soft commitment created successfully', 'positive');
+        })
+        .catch(error => {
+            console.error('Error creating soft commitment:', error);
+            const errorMessage = error.message ? 
+                `Error (${error.status}): ${error.message}` : 
+                'Failed to create soft commitment';
+            showError(errorMessage);
+        });
+    } else {
+        // Create hard commitment
+        const dueDate = document.getElementById('due-date').value;
+        const addToToday = document.getElementById('add-to-today').checked;
+        
+        // Create a regular hard commitment
+        data = {
+            ...data,
+            due_date: dueDate,
+            project_task_id: itemId
+        };
+        
+        fetch(`${API_URL}/commitments`, {
+            method: 'POST',
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw {
+                        status: response.status,
+                        statusText: response.statusText,
+                        message: errorData.message || 'Failed to create commitment',
+                        data: errorData
+                    };
+                });
+            }
+            return response.json();
+        })
+        .then(() => {
+            $('#commitments-modal').modal('hide');
+            loadCurrentCommitments(itemId, itemType);
+            showCustomMessage('Commitment created successfully', 'positive');
+            
+            // If "Add to Today" was checked, update the commit-to-today button
+            if (addToToday) {
+                const subtaskElement = document.querySelector(`.item[data-id="${itemId}"]`);
+                if (subtaskElement) {
+                    const commitBtn = subtaskElement.querySelector('.commit-to-today');
+                    if (commitBtn) {
+                        commitBtn.classList.add('green', 'disabled');
+                        commitBtn.textContent = 'Committed for Today';
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error creating commitment:', error);
+            const errorMessage = error.message ? 
+                `Error (${error.status}): ${error.message}` : 
+                'Failed to create commitment';
+            showError(errorMessage);
+        });
+    }
+}
+
+// Function to delete commitment
+function deleteCommitment(commitmentId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Find the commitment element and get its type from the data attribute
+    const commitmentElement = document.querySelector(`.item[data-id="${commitmentId}"]`);
+    const isSoftCommitment = commitmentElement && commitmentElement.getAttribute('data-commitment-type') === 'soft';
+    
+    // Use the appropriate endpoint based on commitment type
+    const endpoint = isSoftCommitment ? 
+        `${API_URL}/commitments/soft/${commitmentId}` : 
+        `${API_URL}/commitments/${commitmentId}`;
+    
+    fetch(endpoint, {
+        method: 'DELETE',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to delete commitment');
+        }
+        const itemId = document.getElementById('item-id').value;
+        const itemType = document.getElementById('item-type').value;
+        loadCurrentCommitments(itemId, itemType);
+        showCustomMessage('Commitment deleted successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error deleting commitment:', error);
+        showError('Failed to delete commitment');
+    });
+}
+
+// Function to initialize commitment controls (checkboxes, checkin buttons, etc.)
+function initializeCommitmentControls(container) {
+    // Initialize checkboxes
+    container.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+        $(checkbox).checkbox({
+            onChange: function() {
+                const commitmentId = this.querySelector('input').getAttribute('data-id');
+                const completed = this.querySelector('input').checked;
+                updateCommitmentCompletion(commitmentId, completed);
+            }
+        });
+    });
+    
+    // Add click handlers for checkins
+    container.querySelectorAll('.add-checkin').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            showCheckinModal(id);
+        });
+    });
+    
+    // Add click handlers for delete commitment
+    container.querySelectorAll('.delete-commitment').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            if (confirm('Are you sure you want to delete this commitment?')) {
+                deleteCommitment(id);
+            }
+        });
+    });
+}
+
+// Function to update commitment completion status
+function updateCommitmentCompletion(commitmentId, completed) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/commitments/${commitmentId}`, {
+        method: 'PUT',
+        headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ completed: completed })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update commitment');
+        }
+        
+        // Update UI
+        const commitmentItem = document.querySelector(`.item[data-id="${commitmentId}"]`);
+        if (commitmentItem) {
+            const header = commitmentItem.querySelector('.header');
+            
+            if (completed) {
+                if (!header.querySelector('.ui.green.label')) {
+                    header.innerHTML += ' <span class="ui green label">Completed</span>';
+                }
+            } else {
+                const label = header.querySelector('.ui.green.label');
+                if (label) {
+                    label.remove();
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error updating commitment:', error);
+        showError('Failed to update commitment');
+        
+        // Revert checkbox
+        const checkbox = document.querySelector(`input[data-id="${commitmentId}"]`);
+        if (checkbox) {
+            checkbox.checked = !completed;
+        }
+    });
+}
+
+// Function to show checkin modal
+function showCheckinModal(commitmentId) {
+    // For now, just show a message that checkins are not yet implemented
+    showCustomMessage('Checkins functionality will be implemented soon!', 'info');
+}
+
+// Function to show error message
+function showError(message) {
+    // Create a message element if it doesn't exist
+    let errorElement = document.querySelector('.ui.message.negative');
+    if (!errorElement) {
+        errorElement = document.createElement('div');
+        errorElement.className = 'ui message negative';
+        document.querySelector('.ui.container').prepend(errorElement);
+    }
+    
+    errorElement.textContent = message;
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        errorElement.remove();
+    }, 5000);
+}
+
+// Function to show custom message
+function showCustomMessage(message, type) {
+    // Create a message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `ui ${type} message`;
+    messageDiv.innerHTML = message;
+    
+    // Add to page
+    document.querySelector('.ui.container').prepend(messageDiv);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
+
+// Setup project commitments modal
+function setupProjectCommitmentsModal() {
+    // Initialize dropdown for project time period
+    $('#project-time-period').dropdown();
+    
+    // Get the save button element
+    const saveButton = document.getElementById('save-project-commitment');
+    
+    // Remove all existing event listeners
+    const newSaveButton = saveButton.cloneNode(true);
+    saveButton.parentNode.replaceChild(newSaveButton, saveButton);
+    
+    // Add a single click handler
+    newSaveButton.addEventListener('click', function() {
+        saveProjectCommitment();
+    });
+}
+
+// Show project commitments modal
+function showProjectCommitmentsModal(projectId) {
+    document.getElementById('project-id').value = projectId;
+    
+    // Load current commitments
+    loadProjectCommitments(projectId);
+    
+    // Initialize form
+    document.getElementById('project-commitment-form').reset();
+    
+    // Show modal
+    $('#project-commitments-modal').modal('show');
+}
+
+// Load project commitments
+function loadProjectCommitments(projectId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const container = document.getElementById('project-commitments-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    params.append('project_id', projectId);
+    
+    fetch(`${API_URL}/commitments/soft?${params.toString()}`, {
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load commitments');
+        }
+        return response.json();
+    })
+    .then(commitments => {
+        displayProjectCommitments(commitments);
+    })
+    .catch(error => {
+        console.error('Error loading project commitments:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+    });
+}
+
+// Display project commitments
+function displayProjectCommitments(commitments) {
+    const container = document.getElementById('project-commitments-list');
+    
+    if (!commitments || commitments.length === 0) {
+        container.innerHTML = '<div class="ui info message">No commitments yet for this project.</div>';
+        return;
+    }
+    
+    let html = '';
+    commitments.forEach(commitment => {
+        const startDate = commitment.start_date ? new Date(commitment.start_date) : null;
+        const endDate = commitment.end_date ? new Date(commitment.end_date) : null;
+        
+        html += `
+            <div class="item" data-id="${commitment.id}">
+                <div class="content">
+                    <div class="header">
+                        Soft Commitment
+                        <span class="ui label">${commitment.time_period}</span>
+                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                    </div>
+                    <div class="meta">
+                        Period: ${startDate ? startDate.toLocaleDateString() : 'N/A'} to ${endDate ? endDate.toLocaleDateString() : 'N/A'}
+                    </div>
+                    <div class="description">${commitment.notes || ''}</div>
+                    <div class="extra">
+                        <button class="ui tiny button add-project-checkin" data-id="${commitment.id}">
+                            <i class="plus icon"></i> Add Checkin
+                        </button>
+                        <button class="ui tiny red button delete-project-commitment" data-id="${commitment.id}">
+                            <i class="trash icon"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Initialize commitment controls
+    initializeProjectCommitmentControls(container);
+}
+
+// Initialize project commitment controls
+function initializeProjectCommitmentControls(container) {
+    // Add click handlers for checkins
+    container.querySelectorAll('.add-project-checkin').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            showCustomMessage('Checkins functionality will be implemented soon!', 'info');
+        });
+    });
+    
+    // Add click handlers for delete commitment
+    container.querySelectorAll('.delete-project-commitment').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            if (confirm('Are you sure you want to delete this commitment?')) {
+                deleteProjectCommitment(id);
+            }
+        });
+    });
+}
+
+// Save project commitment
+function saveProjectCommitment() {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const projectId = document.getElementById('project-id').value;
+    const timePeriod = document.getElementById('project-time-period').value;
+    const notes = document.getElementById('project-commitment-notes').value;
+    
+    // Get the project title
+    const projectElement = document.querySelector(`.ui.segment[data-id="${projectId}"]`);
+    const title = projectElement ? projectElement.querySelector('h3.ui.header').textContent.trim() : '';
+    
+    const today = new Date();
+    let startDate, endDate;
+    
+    // Calculate date range based on time period
+    switch(timePeriod) {
+        case 'week':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setDate(today.getDate() + 6);
+            break;
+        case 'month':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setMonth(today.getMonth() + 1);
+            break;
+        case 'season':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setMonth(today.getMonth() + 3);
+            break;
+        case 'year':
+            startDate = new Date(today);
+            endDate = new Date(today);
+            endDate.setFullYear(today.getFullYear() + 1);
+            break;
+    }
+    
+    const data = {
+        notes: notes,
+        title: title,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        project_id: projectId
+    };
+    
+    // Create soft commitment using the specialized endpoint
+    fetch(`${API_URL}/commitments/soft/${timePeriod}`, {
+        method: 'POST',
+        headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to create soft commitment',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        $('#project-commitments-modal').modal('hide');
+        loadProjectCommitments(projectId);
+        showCustomMessage('Project commitment created successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error creating project commitment:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to create project commitment';
+        showError(errorMessage);
+    });
+}
+
+// Delete project commitment
+function deleteProjectCommitment(commitmentId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/commitments/soft/${commitmentId}`, {
+        method: 'DELETE',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to delete commitment');
+        }
+        const projectId = document.getElementById('project-id').value;
+        loadProjectCommitments(projectId);
+        showCustomMessage('Project commitment deleted successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error deleting project commitment:', error);
+        showError('Failed to delete project commitment');
+    });
+}
+
+// Update the tag management modal JavaScript
+function showTagManagementModal(itemId, itemType) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Store the current item ID and type
+    document.getElementById('tag-management-modal').setAttribute('data-item-id', itemId);
+    document.getElementById('tag-management-modal').setAttribute('data-item-type', itemType);
+    
+    // Load current tags
+    loadCurrentTags(itemId, itemType);
+    
+    // Load available tags
+    loadAvailableTags(itemId, itemType);
+    
+    // Show modal
+    $('#tag-management-modal').modal('show');
+}
+
+function loadCurrentTags(itemId, itemType) {
+    const headers = getAuthHeaders();
+    const container = document.getElementById('current-tags-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading tags...</div></div>';
+    
+    // Use the correct endpoint for getting entity tags
+    const endpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
+    
+    fetch(endpoint, {
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load tags');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const tags = data.tags || [];
+        if (tags.length === 0) {
+            container.innerHTML = '<div class="ui info message">No tags applied yet.</div>';
+            return;
+        }
+        
+        let html = '';
+        tags.forEach(tag => {
+            html += `
+                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                    ${tag.name}
+                    <i class="delete icon" data-id="${tag.id}" data-name="${tag.name}"></i>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+        
+        // Add click handlers for delete icons
+        container.querySelectorAll('.delete.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const tagId = this.getAttribute('data-id');
+                removeTag(itemId, itemType, tagId);
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading tags:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load tags</div>';
+    });
+}
+
+function loadAvailableTags(itemId, itemType) {
+    const headers = getAuthHeaders();
+    const container = document.getElementById('available-tags-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading available tags...</div></div>';
+    
+    // First get current tags to filter them out
+    const currentEndpoint = `${API_URL}/tags/entity/${itemType}/${itemId}`;
+    
+    fetch(currentEndpoint, {
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load current tags');
+        }
+        return response.json();
+    })
+    .then(currentData => {
+        const currentTags = currentData.tags || [];
+        const currentTagIds = new Set(currentTags.map(tag => tag.id));
+        
+        // Then get all tags
+        return fetch(`${API_URL}/tags`, {
+            headers: headers
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load available tags');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const allTags = data.tags || [];
+            const availableTags = allTags.filter(tag => !currentTagIds.has(tag.id));
+            
+            if (availableTags.length === 0) {
+                container.innerHTML = '<div class="ui info message">No more tags available.</div>';
+                return;
+            }
+            
+            let html = '';
+            availableTags.forEach(tag => {
+                html += `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                        ${tag.name}
+                        <i class="add icon" data-id="${tag.id}" data-name="${tag.name}"></i>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            
+            // Add click handlers for add icons
+            container.querySelectorAll('.add.icon').forEach(icon => {
+                icon.addEventListener('click', function() {
+                    const tagId = this.getAttribute('data-id');
+                    applyTag(itemId, itemType, tagId);
+                });
+            });
+        });
+    })
+    .catch(error => {
+        console.error('Error loading available tags:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load available tags</div>';
+    });
+}
+
+function applyTag(itemId, itemType, tagId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Use the correct endpoint for applying tags
+    const endpoint = `${API_URL}/tags/apply/${itemType}/${itemId}/${tagId}`;
+    
+    fetch(endpoint, {
+        method: 'POST',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to apply tag');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload tags
+        loadCurrentTags(itemId, itemType);
+        loadAvailableTags(itemId, itemType);
+        
+        // If this is a project, update the project header without reloading
+        if (itemType === 'project') {
+            const projectElement = document.querySelector(`.ui.segment[data-id="${itemId}"]`);
+            if (projectElement) {
+                const tagsContainer = projectElement.querySelector('.item:nth-child(5) .ui.labels');
+                if (tagsContainer) {
+                    // Get the updated tags
+                    fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
+                        headers: headers
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const tags = data.tags || [];
+                        if (tags.length === 0) {
+                            tagsContainer.innerHTML = '<span class="ui text">No tags</span>';
+                        } else {
+                            tagsContainer.innerHTML = tags.map(tag => `
+                                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                    ${tag.name}
+                                </div>
+                            `).join('');
+                        }
+                    });
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error applying tag:', error);
+        showError('Failed to apply tag');
+    });
+}
+
+function removeTag(itemId, itemType, tagId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Use the correct endpoint for removing tags
+    const endpoint = `${API_URL}/tags/remove/${itemType}/${itemId}/${tagId}`;
+    
+    fetch(endpoint, {
+        method: 'DELETE',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to remove tag');
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Reload tags
+        loadCurrentTags(itemId, itemType);
+        loadAvailableTags(itemId, itemType);
+        
+        // If this is a project, update the project header without reloading
+        if (itemType === 'project') {
+            const projectElement = document.querySelector(`.ui.segment[data-id="${itemId}"]`);
+            if (projectElement) {
+                const tagsContainer = projectElement.querySelector('.item:nth-child(5) .ui.labels');
+                if (tagsContainer) {
+                    // Get the updated tags
+                    fetch(`${API_URL}/tags/entity/${itemType}/${itemId}`, {
+                        headers: headers
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const tags = data.tags || [];
+                        if (tags.length === 0) {
+                            tagsContainer.innerHTML = '<span class="ui text">No tags</span>';
+                        } else {
+                            tagsContainer.innerHTML = tags.map(tag => `
+                                <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                    ${tag.name}
+                                </div>
+                            `).join('');
+                        }
+                    });
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        showError('Failed to remove tag');
+    });
+}
+
+// Update the loadProjects function to call attachEventListeners after loading
+function loadProjects() {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch(`${API_URL}/projects`, {
+        headers: headers
+    })
+    .then(response => response.json())
+    .then(projects => {
+        const projectList = document.getElementById('project-list');
+        projectList.innerHTML = '';
+        
+        projects.forEach(project => {
+            const projectElement = document.createElement('div');
+            projectElement.className = 'ui segment';
+            projectElement.setAttribute('data-id', project.id);
+            
+            // Create project header
+            const headerHtml = `
+                <h3 class="ui header">${project.title}</h3>
+                <div class="ui list">
+                    <div class="item">
+                        <i class="trophy icon"></i>
+                        <div class="content">
+                            <div class="header">Win Condition</div>
+                            <div class="description">${project.win_condition}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="compass icon"></i>
+                        <div class="content">
+                            <div class="header">Reason</div>
+                            <div class="description">${project.reason}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="arrow right icon"></i>
+                        <div class="content">
+                            <div class="header">Next Step</div>
+                            <div class="description">${project.next_step}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="file text icon"></i>
+                        <div class="content">
+                            <div class="header">Description</div>
+                            <div class="description">${project.description}</div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <i class="tags icon"></i>
+                        <div class="content">
+                            <div class="header">Tags</div>
+                            <div class="description">
+                                <div class="ui labels">
+                                    ${project.tags && project.tags.length > 0 ? 
+                                        project.tags.map(tag => `
+                                            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                                ${tag.name}
+                                            </div>
+                                        `).join('') : 
+                                        '<span class="ui text">No tags</span>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui buttons">
+                    <button class="ui blue tiny button edit-project">Edit</button>
+                    <button class="ui teal tiny button manage-project-commitments">
+                        <i class="calendar icon"></i> Manage Commitments
+                    </button>
+                    <button class="ui tiny button manage-tags" data-id="${project.id}" data-type="project">
+                        <i class="tags icon"></i> Manage Tags
+                    </button>
+                    <button class="ui red tiny button delete-project">Delete</button>
+                </div>
+            `;
+            
+            // Create subtasks section
+            const subtasksHtml = `
+                <div class="ui attached segment">
+                    <h4 class="ui header">Subtasks</h4>
+                    <div class="ui list subtasks-list">
+                        ${project.subtasks ? project.subtasks.map(subtask => `
+                            <div class="item" data-id="${subtask.id}">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" ${subtask.complete ? 'checked' : ''}>
+                                    <label>${subtask.title}</label>
+                                </div>
+                                <div class="ui labels" style="margin-left: 15px;">
+                                    ${subtask.tags && subtask.tags.length > 0 ? subtask.tags.map(tag => `
+                                        <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                                            ${tag.name}
+                                        </div>
+                                    `).join('') : ''}
+                                </div>
+                                <div class="ui buttons" style="margin-left: 15px;">
+                                    <button class="ui tiny button ${subtask.has_commitment ? 'green disabled' : ''} commit-to-today">
+                                        ${subtask.has_commitment ? 'Committed for Today' : 'Commit to Today'}
+                                    </button>
+                                    <button class="ui tiny button view-commitments">
+                                        <i class="calendar icon"></i> Commits
+                                    </button>
+                                    <button class="ui tiny button manage-tags" data-id="${subtask.id}" data-type="project_task">
+                                        <i class="tags icon"></i> Manage Tags
+                                    </button>
+                                    <button class="ui red tiny button delete-subtask">Delete</button>
+                                </div>
+                            </div>
+                        `).join('') : ''}
+                    </div>
+                    
+                    <div class="ui form add-subtask-form">
+                        <div class="fields">
+                            <div class="twelve wide field">
+                                <input type="text" placeholder="Add new subtask...">
+                            </div>
+                            <div class="four wide field">
+                                <button class="ui teal button add-subtask-button">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            projectElement.innerHTML = headerHtml + subtasksHtml;
+            projectList.appendChild(projectElement);
+            
+            // Initialize checkboxes for this project's subtasks
+            projectElement.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+                $(checkbox).checkbox();
+            });
+            
+            // Attach event listeners to all subtasks in this project
+            projectElement.querySelectorAll('.subtasks-list .item').forEach(subtaskElement => {
+                attachSubtaskEventListeners(subtaskElement);
+            });
+        });
+        
+        // Attach event listeners for project-level buttons
+        attachEventListeners();
+    })
+    .catch(error => {
+        console.error('Error loading projects:', error);
+        showError('Failed to load projects');
+    });
 }
 </script>
+
+<style>
+.ui.modal .item.active {
+    background-color: #e3f2fd;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.ui.modal .item.past {
+    opacity: 0.7;
+}
+
+/* Commitments Modal Styles */
+#commitments-modal .ui.list {
+    margin: 1em 0;
+}
+
+#commitments-modal .item {
+    padding: 1em;
+    border: 1px solid rgba(34, 36, 38, 0.15);
+    border-radius: 0.28571429rem;
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+#commitments-modal .item .header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item .meta {
+    color: rgba(0, 0, 0, 0.6);
+    font-size: 0.9em;
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item .description {
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item .extra {
+    display: flex;
+    gap: 0.5em;
+}
+
+#commitments-modal .ui.radio.checkbox {
+    margin-right: 1em;
+}
+
+#commitments-modal .commitment-fields {
+    margin-top: 1em;
+    padding: 1em;
+    border: 1px solid rgba(34, 36, 38, 0.15);
+    border-radius: 0.28571429rem;
+}
+
+#commitments-modal .ui.label {
+    margin-left: 0.5em;
+}
+
+#commitments-modal .ui.green.label {
+    background-color: #21ba45;
+    color: white;
+}
+
+#commitments-modal .ui.button.add-checkin {
+    background-color: #2185d0;
+    color: white;
+}
+
+#commitments-modal .ui.button.add-checkin:hover {
+    background-color: #1678c2;
+}
+
+#commitments-modal .ui.button.delete-commitment {
+    background-color: #db2828;
+    color: white;
+}
+
+#commitments-modal .ui.button.delete-commitment:hover {
+    background-color: #d01919;
+}
+
+#commitments-modal .ui.dimmer {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+#commitments-modal .ui.text.loader {
+    color: #2185d0;
+}
+
+#commitments-modal .ui.negative.message {
+    margin: 1em 0;
+}
+
+#commitments-modal .ui.info.message {
+    margin: 1em 0;
+    background-color: #f8f9fa;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+</style>
 {% endblock %} 

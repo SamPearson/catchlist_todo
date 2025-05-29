@@ -1,51 +1,133 @@
 {% extends "base.html" %}
+{% from "components/display_box.html" import display_box %}
+{% from "components/slideout.html" import slideout %}
+{% from "components/search_box.html" import search_box %}
+{% from "components/add_box.html" import add_box %}
+{% from "components/list_box.html" import list_box %}
 
 {% block content %}
 <div class="ui container">
     <h1 class="ui header">My Catchlist</h1>
     
-    <div class="ui segment">
-        <form class="ui form" id="add-catchlist-form">
-            <div class="field">
-                <div class="ui action input">
-                    <input type="text" name="content" placeholder="Add a new idea or thought..." required>
-                    <button class="ui teal button" type="submit">Add</button>
-                </div>
+    <form class="ui form" id="add-catchlist-form">
+        <div class="field">
+            <div class="ui action input">
+                <input type="text" name="content" placeholder="Add a new idea or thought..." required>
+                <button class="ui teal button" type="submit">Add</button>
             </div>
-        </form>
-    </div>
-
-    <div class="ui segment">
-        <div class="ui toggle checkbox" style="margin-right: 20px;">
-            <input type="checkbox" id="show-someday">
-            <label>Show Someday/Maybe Items</label>
         </div>
-        <div class="ui toggle checkbox">
-            <input type="checkbox" id="show-completed">
-            <label>Show Completed Items</label>
+    </form>
+    
+    {% call display_box(id="catchlist-search-box", title="Search", collapsible=true, collapsed=true) %}
+        <div class="ui form">
+            {% call search_box(id="catchlist-search", placeholder="Search catchlist items...") %}
+                <div class="field">
+                    <div class="ui toggle checkbox" style="margin-right: 20px;">
+                        <input type="checkbox" id="show-someday">
+                        <label>Show Someday/Maybe Items</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui toggle checkbox">
+                        <input type="checkbox" id="show-completed">
+                        <label>Show Completed Items</label>
+                    </div>
+                </div>
+            {% endcall %}
+        </div>
+    {% endcall %}
+    
+    {% call display_box(id="catchlist-list-box", title="My Items") %}
+        <div class="ui message negative" id="error-message" style="display: none;">
+            <div class="error-text"></div>
+        </div>
+
+        <div class="ui divided items" id="catchlist-items">
+            <!-- Items will be loaded here dynamically -->
+        </div>
+    {% endcall %}
+</div>
+
+<!-- Add Commitments Modal -->
+<div class="ui modal" id="commitments-modal">
+    <i class="close icon"></i>
+    <div class="header">Manage Commitments</div>
+    <div class="content">
+        <div class="ui segment">
+            <h4 class="ui header">Current Commitments</h4>
+            <div class="ui divided items" id="current-commitments-list">
+                <!-- Current commitments will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="ui segment">
+            <h4 class="ui header">Add New Commitment</h4>
+            <form class="ui form" id="commitment-form">
+                <input type="hidden" id="item-id">
+                <input type="hidden" id="item-type" value="catchlist_item">
+                
+                <div class="ui top attached tabular menu">
+                    <a class="item active" data-tab="hard">Hard Commitment</a>
+                    <a class="item" data-tab="soft">Soft Commitment</a>
+                </div>
+                
+                <div class="ui bottom attached tab segment active" data-tab="hard">
+                    <div class="field">
+                        <label>Due Date</label>
+                        <input type="date" id="due-date" required>
+                    </div>
+                    <div class="field">
+                        <div class="ui toggle checkbox">
+                            <input type="checkbox" id="add-to-today">
+                            <label>Add to Today's List</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ui bottom attached tab segment" data-tab="soft">
+                    <div class="field">
+                        <label>Time Period</label>
+                        <select id="time-period" class="ui dropdown">
+                            <option value="week">Week</option>
+                            <option value="month">Month</option>
+                            <option value="season">Season</option>
+                            <option value="year">Year</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="field">
+                    <label>Notes (Optional)</label>
+                    <textarea id="commitment-notes" rows="2"></textarea>
+                </div>
+            </form>
         </div>
     </div>
-
-    <div class="ui message negative" id="error-message" style="display: none;">
-        <div class="error-text"></div>
-    </div>
-
-    <div class="ui divided items" id="catchlist-items">
-        <!-- Items will be loaded here dynamically -->
+    <div class="actions">
+        <div class="ui button cancel">Cancel</div>
+        <div class="ui primary button" id="save-commitment">Save Commitment</div>
     </div>
 </div>
 
+<!-- Tag Management Modal -->
+{% include "components/tag_management_modal.html" %}
+
+<script src="/static/js/auth.js"></script>
 <script>
+// Define global API_URL variable
+const API_URL = '{{ API_URL }}';
+
 // Load catchlist items when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadCatchlistItems();
     initializeEventListeners();
+    setupCommitmentsModal();
 });
 
 function loadCatchlistItems() {
     // Check if we have a token first
-    const token = getToken();
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
         showError('Authentication required. Please log in first.');
         return;
     }
@@ -53,12 +135,9 @@ function loadCatchlistItems() {
     // Get the show completed flag
     const showCompleted = document.getElementById('show-completed').checked;
 
-    fetch(`{{ API_URL }}/catchlist?show_completed=${showCompleted}`, {
+    fetch(`${API_URL}/catchlist-items?show_completed=${showCompleted}`, {
         method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json'
-        }
+        headers: headers
     })
     .then(response => {
         if (!response.ok) {
@@ -97,39 +176,60 @@ function displayItems(items) {
     
     items.forEach(item => {
         const itemElement = document.createElement('div');
-        itemElement.className = `item ${item.status === 'someday' ? 'someday-item' : ''} ${item.completed ? 'completed-item' : ''}`;
+        itemElement.className = `item ${item.status === 'someday' ? 'someday-item' : ''} ${item.is_completed ? 'completed-item' : ''}`;
         itemElement.dataset.id = item.id;
         
         // Handle visibility based on filters
         if (item.status === 'someday' && !document.getElementById('show-someday').checked) {
             itemElement.style.display = 'none';
         }
-        if (item.completed && !document.getElementById('show-completed').checked) {
+        if (item.is_completed && !document.getElementById('show-completed').checked) {
             itemElement.style.display = 'none';
         }
         
-        const completedText = item.completed ? 
-            `<div class="ui green label">Completed: ${item.completed_at}</div>` : '';
+        // Format dates for display
+        const createdDate = new Date(item.created_at);
+        const completedText = item.is_completed ? 
+            `<div class="ui green label">Completed</div>` : '';
+        
+        // Create tags HTML
+        const tagsHtml = item.tags && item.tags.length > 0 ? item.tags.map(tag => `
+            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                ${tag.name}
+                <i class="delete icon" data-tag-id="${tag.id}"></i>
+            </div>
+        `).join('') : '';
         
         itemElement.innerHTML = `
             <div class="content">
-                <div class="header">${item.content}</div>
-                <div class="meta">
-                    ${item.created_at}
+                <div class="header">
+                    ${item.content}
                     ${completedText}
                 </div>
+                <div class="meta">
+                    Created: ${createdDate.toLocaleString()}
+                </div>
                 <div class="description">
-                    <div class="ui buttons">
-                        ${!item.completed ? `<button class="ui tiny teal button mark-done">Mark as Done</button>` : ''}
-                        <button class="ui tiny button upgrade-to-project" ${item.completed ? 'disabled' : ''}>Convert to Project</button>
-                        <button class="ui tiny button someday-item" ${item.completed ? 'disabled' : ''}>
-                            ${item.status === 'someday' ? 'Active' : 'Someday/Maybe'}
-                        </button>
-                        <button class="ui tiny button ${item.on_daily_todo ? 'green' : ''} add-to-today" ${item.completed ? 'disabled' : ''}>
-                            ${item.on_daily_todo ? 'On Today\'s List' : 'Add to Today'}
-                        </button>
-                        <button class="ui red tiny button delete-item">Delete</button>
+                    <div class="ui labels" style="margin-bottom: 10px;">
+                        ${tagsHtml}
                     </div>
+                    <div class="ui buttons">
+                        <button class="ui tiny button upgrade-to-project">
+                            Convert to Project
+                        </button>
+                        <button class="ui tiny button view-commitments" data-id="${item.id}">
+                            <i class="calendar icon"></i> Manage Commitments
+                        </button>
+                        <button class="ui tiny button manage-tags" data-id="${item.id}" data-type="catchlist">
+                            <i class="tags icon"></i> Manage Tags
+                        </button>
+                        <button class="ui red tiny button delete-item">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="commitments-list" id="commitments-${item.id}" style="display: none;">
+                    <!-- Commitments will be loaded here -->
                 </div>
             </div>
         `;
@@ -137,7 +237,6 @@ function displayItems(items) {
         container.appendChild(itemElement);
     });
     
-    // Reattach event listeners
     attachItemEventListeners();
 }
 
@@ -150,18 +249,15 @@ function initializeEventListeners() {
         
         if (!content) return;
         
-        const token = getToken();
-        if (!token) {
+        const headers = getAuthHeaders();
+        if (!headers) {
             showError('Authentication required. Please log in first.');
             return;
         }
         
-        fetch('{{ API_URL }}/catchlist', {
+        fetch(`${API_URL}/catchlist-items`, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify({ content: content })
         })
         .then(response => {
@@ -222,55 +318,6 @@ function initializeEventListeners() {
 }
 
 function attachItemEventListeners() {
-    // Mark as Done button
-    document.querySelectorAll('.mark-done').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const item = this.closest('.item');
-            const itemId = item.dataset.id;
-            
-            const token = getToken();
-            if (!token) {
-                showError('Authentication required. Please log in first.');
-                return;
-            }
-            
-            fetch(`{{ API_URL }}/catchlist/${itemId}/mark-done`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw {
-                            status: response.status,
-                            statusText: response.statusText,
-                            message: errorData.message || 'Unknown error',
-                            data: errorData
-                        };
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Show success message with points
-                showCustomMessage(`Item marked as done! +${data.points} points`, 'positive');
-                
-                // Reload to update UI
-                loadCatchlistItems();
-            })
-            .catch(error => {
-                console.error('Full error:', error);
-                const errorMessage = error.message ? 
-                    `Error (${error.status}): ${error.message}` : 
-                    'Failed to mark item as done';
-                showError(errorMessage);
-            });
-        });
-    });
-    
     // Convert to project button
     document.querySelectorAll('.upgrade-to-project').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -284,118 +331,12 @@ function attachItemEventListeners() {
         });
     });
     
-    // Add to Today button
-    document.querySelectorAll('.add-to-today').forEach(btn => {
+    // View commitments button
+    document.querySelectorAll('.view-commitments').forEach(btn => {
         btn.addEventListener('click', function() {
             const item = this.closest('.item');
             const itemId = item.dataset.id;
-            const isOnToday = this.classList.contains('green');
-            
-            const token = getToken();
-            if (!token) {
-                showError('Authentication required. Please log in first.');
-                return;
-            }
-            
-            fetch(`{{ API_URL }}/catchlist/${itemId}/toggle-today`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw {
-                            status: response.status,
-                            statusText: response.statusText,
-                            message: errorData.message || 'Unknown error',
-                            data: errorData
-                        };
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Update the button appearance
-                if (data.on_daily_todo) {
-                    this.classList.add('green');
-                    this.textContent = 'On Today\'s List';
-                } else {
-                    this.classList.remove('green');
-                    this.textContent = 'Add to Today';
-                }
-                
-                showCustomMessage(`Item ${data.on_daily_todo ? 'added to' : 'removed from'} today's list!`, 'positive');
-            })
-            .catch(error => {
-                console.error('Full error:', error);
-                const errorMessage = error.message ? 
-                    `Error (${error.status}): ${error.message}` : 
-                    'Failed to update item';
-                showError(errorMessage);
-            });
-        });
-    });
-    
-    // Someday/Maybe toggle
-    document.querySelectorAll('.someday-item').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const item = this.closest('.item');
-            const itemId = item.dataset.id;
-            const isSomeday = item.classList.contains('someday-item');
-            const newStatus = isSomeday ? 'active' : 'someday';
-            
-            const token = getToken();
-            if (!token) {
-                showError('Authentication required. Please log in first.');
-                return;
-            }
-            
-            fetch(`{{ API_URL }}/catchlist/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ status: newStatus })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errorData => {
-                        throw {
-                            status: response.status,
-                            statusText: response.statusText,
-                            message: errorData.message || 'Unknown error',
-                            data: errorData
-                        };
-                    });
-                }
-                return response.json();
-            })
-            .then(updatedItem => {
-                if (newStatus === 'someday') {
-                    item.classList.add('someday-item');
-                    this.textContent = 'Active';
-                    if (!document.getElementById('show-someday').checked) {
-                        item.style.display = 'none';
-                    }
-                } else {
-                    item.classList.remove('someday-item');
-                    this.textContent = 'Someday/Maybe';
-                    item.style.display = 'block';
-                }
-                
-                showCustomMessage('Item status updated!', 'positive');
-            })
-            .catch(error => {
-                console.error('Full error:', error);
-                const errorMessage = error.message ? 
-                    `Error (${error.status}): ${error.message}` : 
-                    'Failed to update item';
-                showError(errorMessage);
-            });
+            showCommitmentsModal(itemId, 'catchlist_item');
         });
     });
     
@@ -406,17 +347,15 @@ function attachItemEventListeners() {
             const itemId = item.dataset.id;
             
             if (confirm('Are you sure you want to delete this item?')) {
-                const token = getToken();
-                if (!token) {
+                const headers = getAuthHeaders();
+                if (!headers) {
                     showError('Authentication required. Please log in first.');
                     return;
                 }
                 
-                fetch(`{{ API_URL }}/catchlist/${itemId}`, {
+                fetch(`${API_URL}/catchlist-items/${itemId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                    headers: headers
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -451,6 +390,25 @@ function attachItemEventListeners() {
             }
         });
     });
+    
+    // Manage tags button
+    document.querySelectorAll('.manage-tags').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-id');
+            showTagManagementModal(itemId);
+        });
+    });
+    
+    // Tag delete icons
+    document.querySelectorAll('.ui.label .delete.icon').forEach(icon => {
+        icon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const tagId = this.dataset.tagId;
+            const item = this.closest('.item');
+            const itemId = item.dataset.id;
+            removeTag(itemId, tagId);
+        });
+    });
 }
 
 function showCustomMessage(message, type) {
@@ -468,16 +426,699 @@ function showCustomMessage(message, type) {
     }, 3000);
 }
 
-// Function to get auth token from cookies
-function getToken() {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.startsWith('auth_token=')) {
-            return cookie.substring('auth_token='.length, cookie.length);
+function showError(message) {
+    const errorElement = document.getElementById('error-message');
+    errorElement.querySelector('.error-text').textContent = message;
+    errorElement.style.display = 'block';
+    
+    // Scroll to error
+    errorElement.scrollIntoView({ behavior: 'smooth' });
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        errorElement.style.display = 'none';
+    }, 5000);
+}
+
+// Function to show commitments modal
+function showCommitmentsModal(itemId, itemType) {
+    document.getElementById('item-id').value = itemId;
+    document.getElementById('item-type').value = itemType;
+    
+    // Load current commitments
+    loadCurrentCommitments(itemId, itemType);
+    
+    // Initialize form
+    document.getElementById('commitment-form').reset();
+    document.getElementById('due-date').valueAsDate = new Date();
+    
+    // Show modal
+    $('#commitments-modal').modal('show');
+}
+
+// Function to load current commitments
+function loadCurrentCommitments(itemId, itemType) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const container = document.getElementById('current-commitments-list');
+    container.innerHTML = '<div class="ui active inverted dimmer"><div class="ui text loader">Loading commitments...</div></div>';
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (itemType === 'catchlist_item') {
+        params.append('catchlist_item_id', itemId);
+    }
+    
+    fetch(`${API_URL}/commitments?${params.toString()}`, {
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to load commitments');
+        }
+        return response.json();
+    })
+    .then(commitments => {
+        displayCurrentCommitments(commitments);
+    })
+    .catch(error => {
+        console.error('Error loading commitments:', error);
+        container.innerHTML = '<div class="ui negative message">Failed to load commitments</div>';
+    });
+}
+
+// Function to display current commitments
+function displayCurrentCommitments(commitments) {
+    const container = document.getElementById('current-commitments-list');
+    
+    if (!commitments || commitments.length === 0) {
+        container.innerHTML = '<div class="ui info message">No commitments yet.</div>';
+        return;
+    }
+    
+    let html = '';
+    commitments.forEach(commitment => {
+        const dueDate = new Date(commitment.due_date);
+        const commitmentType = commitment.is_soft_commitment ? 'Soft' : 'Hard';
+        const timePeriod = commitment.is_soft_commitment ? 
+            `<span class="ui label">${commitment.time_period}</span>` : '';
+        
+        html += `
+            <div class="item" data-id="${commitment.id}" data-commitment-type="${commitment.is_soft_commitment ? 'soft' : 'hard'}">
+                <div class="content">
+                    <div class="header">
+                        ${commitmentType} Commitment
+                        ${timePeriod}
+                        ${commitment.completed ? '<span class="ui green label">Completed</span>' : ''}
+                    </div>
+                    <div class="meta">
+                        Due: ${dueDate.toLocaleDateString()}
+                    </div>
+                    <div class="description">${commitment.notes || ''}</div>
+                    <div class="extra">
+                        <button class="ui tiny button edit-commitment" data-id="${commitment.id}">
+                            <i class="edit icon"></i> Edit
+                        </button>
+                        <button class="ui tiny button add-checkin" data-id="${commitment.id}">
+                            <i class="plus icon"></i> Add Checkin
+                        </button>
+                        <button class="ui tiny red button delete-commitment" data-id="${commitment.id}">
+                            <i class="trash icon"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Initialize commitment controls
+    initializeCommitmentControls(container);
+}
+
+// Setup commitments modal
+function setupCommitmentsModal() {
+    // Initialize tabs
+    $('.menu .item').tab();
+    
+    // Initialize dropdown
+    $('#time-period').dropdown();
+    
+    // Get the save button element
+    const saveButton = document.getElementById('save-commitment');
+    
+    // Remove all existing event listeners
+    const newSaveButton = saveButton.cloneNode(true);
+    saveButton.parentNode.replaceChild(newSaveButton, saveButton);
+    
+    // Add a single click handler
+    newSaveButton.addEventListener('click', function() {
+        saveCommitment();
+    });
+}
+
+// Function to save commitment
+function saveCommitment() {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    const itemId = document.getElementById('item-id').value;
+    const itemType = document.getElementById('item-type').value;
+    const isSoft = $('.menu .item.active').data('tab') === 'soft';
+    const notes = document.getElementById('commitment-notes').value;
+    
+    // Get the item's content/title
+    const itemElement = document.querySelector(`.item[data-id="${itemId}"]`);
+    const title = itemElement ? itemElement.querySelector('.header').textContent.trim() : '';
+    
+    let data = {
+        notes: notes,
+        title: title
+    };
+    
+    if (isSoft) {
+        const timePeriod = document.getElementById('time-period').value;
+        // Create dates in local timezone
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set to start of day
+        let startDate = new Date(today);
+        let endDate = new Date(today);
+        
+        // Calculate date range based on time period
+        switch(timePeriod) {
+            case 'week':
+                endDate.setDate(today.getDate() + 6);
+                break;
+            case 'month':
+                endDate.setMonth(today.getMonth() + 1);
+                break;
+            case 'season':
+                endDate.setMonth(today.getMonth() + 3);
+                break;
+            case 'year':
+                endDate.setFullYear(today.getFullYear() + 1);
+                break;
+        }
+        
+        // Format dates to YYYY-MM-DD, accounting for timezone
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        
+        data = {
+            ...data,
+            start_date: formatDate(startDate),
+            end_date: formatDate(endDate),
+            catchlist_item_id: itemId
+        };
+        
+        // Create soft commitment
+        fetch(`${API_URL}/commitments/soft/${timePeriod}`, {
+            method: 'POST',
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw {
+                        status: response.status,
+                        statusText: response.statusText,
+                        message: errorData.message || 'Failed to create soft commitment',
+                        data: errorData
+                    };
+                });
+            }
+            return response.json();
+        })
+        .then(() => {
+            $('#commitments-modal').modal('hide');
+            loadCurrentCommitments(itemId, itemType);
+            showCustomMessage('Soft commitment created successfully', 'positive');
+        })
+        .catch(error => {
+            console.error('Error creating soft commitment:', error);
+            const errorMessage = error.message ? 
+                `Error (${error.status}): ${error.message}` : 
+                'Failed to create soft commitment';
+            showError(errorMessage);
+        });
+    } else {
+        // Create hard commitment
+        const dueDate = document.getElementById('due-date').value;
+        const addToToday = document.getElementById('add-to-today').checked;
+        
+        // If adding to today, use the toggle-today endpoint which will create the commitment
+        if (addToToday) {
+            fetch(`${API_URL}/catchlist-items/${itemId}/toggle-today`, {
+                method: 'POST',
+                headers: headers
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to add to today');
+                }
+                $('#commitments-modal').modal('hide');
+                loadCurrentCommitments(itemId, itemType);
+                showCustomMessage('Added to today\'s list successfully', 'positive');
+            })
+            .catch(error => {
+                console.error('Error adding to today:', error);
+                showError('Failed to add to today');
+            });
+        } else {
+            // Create a regular hard commitment
+            // Parse the input date and create a new date object
+            const [year, month, day] = dueDate.split('-').map(Number);
+            const formattedDueDate = new Date(year, month - 1, day);
+            
+            // Format date to YYYY-MM-DD, accounting for timezone
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+            
+            data = {
+                ...data,
+                due_date: formatDate(formattedDueDate),
+                catchlist_item_id: itemId
+            };
+            
+            fetch(`${API_URL}/commitments`, {
+                method: 'POST',
+                headers: {
+                    ...headers,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw {
+                            status: response.status,
+                            statusText: response.statusText,
+                            message: errorData.message || 'Failed to create commitment',
+                            data: errorData
+                        };
+                    });
+                }
+                return response.json();
+            })
+            .then(() => {
+                $('#commitments-modal').modal('hide');
+                loadCurrentCommitments(itemId, itemType);
+                showCustomMessage('Commitment created successfully', 'positive');
+            })
+            .catch(error => {
+                console.error('Error creating commitment:', error);
+                const errorMessage = error.message ? 
+                    `Error (${error.status}): ${error.message}` : 
+                    'Failed to create commitment';
+                showError(errorMessage);
+            });
         }
     }
-    return '';
+}
+
+// Add event delegation for edit commitment buttons
+document.getElementById('current-commitments-list').addEventListener('click', function(e) {
+    if (e.target.closest('.edit-commitment')) {
+        const button = e.target.closest('.edit-commitment');
+        const commitmentId = button.getAttribute('data-id');
+        showEditCommitmentModal(commitmentId);
+    }
+});
+
+// Function to show edit commitment modal
+function showEditCommitmentModal(commitmentId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+
+    // Create modal HTML
+    const modalHtml = `
+        <div class="ui modal" id="edit-commitment-modal">
+            <i class="close icon"></i>
+            <div class="header">Edit Commitment</div>
+            <div class="content">
+                <form class="ui form" id="edit-commitment-form">
+                    <input type="hidden" id="edit-commitment-id" value="${commitmentId}">
+                    <div class="field">
+                        <label>Due Date</label>
+                        <input type="date" id="edit-due-date" required>
+                    </div>
+                    <div class="field">
+                        <label>Notes (Optional)</label>
+                        <textarea id="edit-commitment-notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="actions">
+                <div class="ui button cancel">Cancel</div>
+                <div class="ui primary button" id="save-edit-commitment">Save Changes</div>
+            </div>
+        </div>
+    `;
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Initialize modal
+    $('#edit-commitment-modal').modal({
+        onShow: function() {
+            // Load current commitment data
+            fetch(`${API_URL}/commitments/${commitmentId}`, {
+                headers: headers
+            })
+            .then(response => response.json())
+            .then(commitment => {
+                document.getElementById('edit-due-date').value = commitment.due_date;
+                document.getElementById('edit-commitment-notes').value = commitment.notes || '';
+            })
+            .catch(error => {
+                console.error('Error loading commitment:', error);
+                showError('Failed to load commitment data');
+            });
+        },
+        onHide: function() {
+            // Remove modal from DOM
+            $('#edit-commitment-modal').remove();
+        }
+    });
+
+    // Add save button handler
+    document.getElementById('save-edit-commitment').addEventListener('click', function() {
+        saveEditCommitment(commitmentId);
+    });
+
+    // Show modal
+    $('#edit-commitment-modal').modal('show');
+}
+
+// Function to save edited commitment
+function saveEditCommitment(commitmentId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+
+    const dueDate = document.getElementById('edit-due-date').value;
+    const notes = document.getElementById('edit-commitment-notes').value;
+
+    // Parse the input date and create a new date object
+    const [year, month, day] = dueDate.split('-').map(Number);
+    const formattedDueDate = new Date(year, month - 1, day);
+    
+    // Format date to YYYY-MM-DD, accounting for timezone
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const data = {
+        due_date: formatDate(formattedDueDate),
+        notes: notes
+    };
+
+    fetch(`${API_URL}/commitments/${commitmentId}`, {
+        method: 'PUT',
+        headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to update commitment',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        $('#edit-commitment-modal').modal('hide');
+        const itemId = document.getElementById('item-id').value;
+        const itemType = document.getElementById('item-type').value;
+        loadCurrentCommitments(itemId, itemType);
+        showCustomMessage('Commitment updated successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error updating commitment:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to update commitment';
+        showError(errorMessage);
+    });
+}
+
+// Function to initialize commitment controls (checkboxes, checkin buttons, etc.)
+function initializeCommitmentControls(container) {
+    // Initialize checkboxes
+    container.querySelectorAll('.ui.checkbox').forEach(checkbox => {
+        $(checkbox).checkbox({
+            onChange: function() {
+                const commitmentId = this.querySelector('input').getAttribute('data-id');
+                const completed = this.querySelector('input').checked;
+                updateCommitmentCompletion(commitmentId, completed);
+            }
+        });
+    });
+    
+    // Add click handlers for checkins
+    container.querySelectorAll('.add-checkin').forEach(button => {
+        button.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            showCheckinModal(id);
+        });
+    });
+}
+
+// Function to update commitment completion status
+function updateCommitmentCompletion(commitmentId, completed) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/commitments/${commitmentId}`, {
+        method: 'PUT',
+        headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ completed: completed })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update commitment');
+        }
+        
+        // Update UI
+        const commitmentItem = document.querySelector(`.item[data-id="${commitmentId}"]`);
+        if (commitmentItem) {
+            const header = commitmentItem.querySelector('.header');
+            
+            if (completed) {
+                if (!header.querySelector('.ui.green.label')) {
+                    header.innerHTML += ' <span class="ui green label">Completed</span>';
+                }
+            } else {
+                const label = header.querySelector('.ui.green.label');
+                if (label) {
+                    label.remove();
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error updating commitment:', error);
+        showError('Failed to update commitment');
+        
+        // Revert checkbox
+        const checkbox = document.querySelector(`input[data-id="${commitmentId}"]`);
+        if (checkbox) {
+            checkbox.checked = !completed;
+        }
+    });
+}
+
+// Function to show checkin modal
+function showCheckinModal(commitmentId) {
+    // For now, just show a message that checkins are not yet implemented
+    showCustomMessage('Checkins functionality will be implemented soon!', 'info');
+}
+
+// Function to show tag management modal
+function showTagManagementModal(itemId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    // Load current tags by getting all items and finding the one we want
+    fetch(`${API_URL}/catchlist-items`, {
+        headers: headers
+    })
+    .then(response => response.json())
+    .then(items => {
+        const item = items.find(i => i.id === parseInt(itemId));
+        if (!item) {
+            throw new Error('Item not found');
+        }
+        
+        // Display current tags
+        const currentTagsContainer = document.getElementById('current-tags-list');
+        const currentTags = item.tags || [];
+        currentTagsContainer.innerHTML = currentTags.map(tag => `
+            <div class="ui label" style="background-color: ${tag.color}; color: white;">
+                ${tag.name}
+                <i class="delete icon" data-tag-id="${tag.id}"></i>
+            </div>
+        `).join('');
+        
+        // Add click handlers for delete icons
+        currentTagsContainer.querySelectorAll('.delete.icon').forEach(icon => {
+            icon.addEventListener('click', function() {
+                const tagId = this.dataset.tagId;
+                removeTag(itemId, tagId);
+            });
+        });
+        
+        // Load available tags and filter out already applied ones
+        fetch(`${API_URL}/tags`, {
+            headers: headers
+        })
+        .then(response => response.json())
+        .then(data => {
+            const availableTagsContainer = document.getElementById('available-tags-list');
+            // Filter out tags that are already applied
+            const availableTags = data.tags.filter(tag => 
+                !currentTags.some(currentTag => currentTag.id === tag.id)
+            );
+            
+            if (availableTags.length === 0) {
+                availableTagsContainer.innerHTML = '<div class="ui message">No more tags available to add.</div>';
+            } else {
+                availableTagsContainer.innerHTML = availableTags.map(tag => `
+                    <div class="ui label" style="background-color: ${tag.color}; color: white; cursor: pointer;">
+                        ${tag.name}
+                    </div>
+                `).join('');
+                
+                // Add click handlers for available tags
+                availableTagsContainer.querySelectorAll('.ui.label').forEach(label => {
+                    label.addEventListener('click', function() {
+                        const tagName = this.textContent.trim();
+                        const tag = availableTags.find(t => t.name === tagName);
+                        if (tag) {
+                            applyTag(itemId, tag.id);
+                        }
+                    });
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading available tags:', error);
+            showError('Failed to load available tags');
+        });
+    })
+    .catch(error => {
+        console.error('Error loading item tags:', error);
+        showError('Failed to load item tags');
+    });
+    
+    // Show modal
+    $('#tag-management-modal').modal('show');
+}
+
+// Function to apply a tag
+function applyTag(itemId, tagId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/tags/apply/catchlist_item/${itemId}/${tagId}`, {
+        method: 'POST',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to apply tag',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        // Reload the item to update tags
+        loadCatchlistItems();
+        showTagManagementModal(itemId);
+        showCustomMessage('Tag applied successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error applying tag:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to apply tag';
+        showError(errorMessage);
+    });
+}
+
+// Function to remove a tag
+function removeTag(itemId, tagId) {
+    const headers = getAuthHeaders();
+    if (!headers) {
+        showError('Authentication required. Please log in first.');
+        return;
+    }
+    
+    fetch(`${API_URL}/tags/remove/catchlist_item/${itemId}/${tagId}`, {
+        method: 'DELETE',
+        headers: headers
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorData.message || 'Failed to remove tag',
+                    data: errorData
+                };
+            });
+        }
+        return response.json();
+    })
+    .then(() => {
+        // Reload the item to update tags
+        loadCatchlistItems();
+        showTagManagementModal(itemId);
+        showCustomMessage('Tag removed successfully', 'positive');
+    })
+    .catch(error => {
+        console.error('Error removing tag:', error);
+        const errorMessage = error.message ? 
+            `Error (${error.status}): ${error.message}` : 
+            'Failed to remove tag';
+        showError(errorMessage);
+    });
 }
 </script>
 
@@ -489,6 +1130,136 @@ function getToken() {
 
 .completed-item {
     background-color: rgba(33, 186, 69, 0.05);
+}
+
+.someday-item {
+    background-color: rgba(251, 189, 8, 0.05);
+}
+
+/* Commitments Modal Styles */
+#commitments-modal .ui.list {
+    margin: 1em 0;
+}
+
+#commitments-modal .item {
+    padding: 1em;
+    border: 1px solid rgba(34, 36, 38, 0.15);
+    border-radius: 0.28571429rem;
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+#commitments-modal .item .header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item .meta {
+    color: rgba(0, 0, 0, 0.6);
+    font-size: 0.9em;
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item .description {
+    margin-bottom: 0.5em;
+}
+
+#commitments-modal .item .extra {
+    display: flex;
+    gap: 0.5em;
+}
+
+#commitments-modal .ui.radio.checkbox {
+    margin-right: 1em;
+}
+
+#commitments-modal .commitment-fields {
+    margin-top: 1em;
+    padding: 1em;
+    border: 1px solid rgba(34, 36, 38, 0.15);
+    border-radius: 0.28571429rem;
+}
+
+#commitments-modal .ui.label {
+    margin-left: 0.5em;
+}
+
+#commitments-modal .ui.green.label {
+    background-color: #21ba45;
+    color: white;
+}
+
+#commitments-modal .ui.button.add-checkin {
+    background-color: #2185d0;
+    color: white;
+}
+
+#commitments-modal .ui.button.add-checkin:hover {
+    background-color: #1678c2;
+}
+
+#commitments-modal .ui.button.delete-commitment {
+    background-color: #db2828;
+    color: white;
+}
+
+#commitments-modal .ui.button.delete-commitment:hover {
+    background-color: #d01919;
+}
+
+#commitments-modal .ui.dimmer {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+#commitments-modal .ui.text.loader {
+    color: #2185d0;
+}
+
+#commitments-modal .ui.negative.message {
+    margin: 1em 0;
+}
+
+#commitments-modal .ui.info.message {
+    margin: 1em 0;
+    background-color: #f8f9fa;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* Tag Management Modal Styles */
+#tag-management-modal .ui.labels {
+    margin: 1em 0;
+}
+
+#tag-management-modal .ui.label {
+    margin: 0.25em;
+    cursor: pointer;
+}
+
+#tag-management-modal .ui.label:hover {
+    opacity: 0.8;
+}
+
+#tag-management-modal .ui.label .delete.icon {
+    margin-left: 0.5em;
+    opacity: 0.7;
+}
+
+#tag-management-modal .ui.label .delete.icon:hover {
+    opacity: 1;
+}
+
+#tag-management-modal .ui.segment {
+    margin: 1em 0;
+}
+
+#tag-management-modal .ui.header {
+    margin-bottom: 1em;
 }
 </style>
 {% endblock %} 

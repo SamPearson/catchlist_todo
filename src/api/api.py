@@ -8,29 +8,21 @@ from flask_jwt_extended import (
 
 from ..config.caldav_client import CalDAVClient
 
-from ..config.db_models import db, Todo, User, BlacklistedToken
+from ..config.models import db, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
-from .routes.auth import auth_bp
-from .routes.todos import todos_bp
-from .routes.catchlist import catchlist_bp
-from .routes.projects import projects_bp
-from .routes.calendar_events import calendar_events_bp
-from .routes.today import today_bp
-from .routes.comments import comments_bp
-from .routes.reports import reports_bp
+from .routes import auth, projects, routines, commitments, reports, catchlist_items, tags
 
 app = create_app()
 
 # Register all blueprints
-app.register_blueprint(auth_bp)
-app.register_blueprint(todos_bp)
-app.register_blueprint(catchlist_bp)
-app.register_blueprint(projects_bp)
-app.register_blueprint(calendar_events_bp)
-app.register_blueprint(today_bp)
-app.register_blueprint(comments_bp)
-app.register_blueprint(reports_bp)
+app.register_blueprint(auth.auth_bp)
+app.register_blueprint(projects.projects_bp, url_prefix='/api')
+app.register_blueprint(routines.routines_bp)
+app.register_blueprint(commitments.commitments_bp)
+app.register_blueprint(reports.reports_bp)
+app.register_blueprint(catchlist_items.catchlist_items_bp)
+app.register_blueprint(tags.tags_bp, url_prefix='/api/tags')
 
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -123,7 +115,7 @@ def delete_account():
         token = BlacklistedToken(jti=jti)
         db.session.add(token)
 
-        # Delete the user (will cascade delete their todos thanks to our model setup)
+        # Delete the user
         db.session.delete(user)
         db.session.commit()
 
@@ -139,21 +131,33 @@ def test_caldav_connection():
     data = request.get_json()
 
     if not data or not data.get('url'):
-        return jsonify({"message": "CalDAV URL is required"}), 400
+        return jsonify({"success": False, "message": "CalDAV URL is required"}), 400
 
     url = data.get('url')
     username = data.get('username')
     password = data.get('password')
 
-    caldav_client = CalDAVClient(url, username, password)
+    if not username or not password:
+        return jsonify({"success": False, "message": "Username and password are required"}), 400
 
-    if not caldav_client.connect():
-        return jsonify({"success": False, "message": "Failed to connect to CalDAV server"}), 400
+    try:
+        caldav_client = CalDAVClient(url, username, password)
 
-    calendars = caldav_client.get_calendars()
-    calendar_count = len(calendars)
+        if not caldav_client.connect():
+            return jsonify({
+                "success": False, 
+                "message": "Failed to connect to CalDAV server. Please check your credentials and URL."
+            }), 400
 
-    if calendar_count > 0:
+        calendars = caldav_client.get_calendars()
+        calendar_count = len(calendars)
+
+        if calendar_count == 0:
+            return jsonify({
+                "success": False,
+                "message": "Connected to server but no calendars found. Please check your permissions."
+            }), 400
+
         # Try to get events from the first calendar
         first_calendar = calendars[0]
         events = caldav_client.get_events_as_dict(first_calendar)
@@ -166,72 +170,12 @@ def test_caldav_connection():
             "sample_events": events[:5] if events else []  # Return up to 5 sample events
         })
 
-    return jsonify({
-        "success": True,
-        "message": f"Successfully connected to CalDAV server. Found {calendar_count} calendars.",
-        "calendars": []
-    })
-
-
-@app.route('/api/todos', methods=['GET'])
-@jwt_required()
-def get_todos():
-    current_user_id = int(get_jwt_identity())
-    todos = Todo.query.filter_by(user_id=current_user_id).all()
-    return jsonify([todo.as_dict() for todo in todos])
-
-@app.route('/api/todos/<int:todo_id>', methods=['GET'])
-@jwt_required()
-def get_todo(todo_id):
-    current_user_id = int(get_jwt_identity())  # Convert string ID to integer
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
-    if todo:
-        return jsonify(todo.as_dict())
-    return jsonify({"message": "Todo not found"}), 404
-
-@app.route('/api/todos', methods=['POST'])
-@jwt_required()
-def create_todo():
-    data = request.get_json()
-    current_user_id = int(get_jwt_identity())
-    
-    try:
-        new_todo = Todo(
-            title=data.get('title'),
-            complete=False,
-            user_id=current_user_id
-        )
-        db.session.add(new_todo)
-        db.session.commit()
-        return jsonify(new_todo.as_dict()), 201
     except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "message": f"Error connecting to CalDAV server: {str(e)}"
+        }), 500
 
-
-@app.route('/api/todos/<int:todo_id>', methods=['PUT'])
-@jwt_required()
-def update_todo(todo_id):
-    current_user_id = int(get_jwt_identity())  # Convert string ID to integer
-    data = request.get_json()
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
-    if todo:
-        todo.title = data.get('title', todo.title)
-        todo.complete = data.get('complete', todo.complete)
-        db.session.commit()
-        return jsonify(todo.as_dict())
-    return jsonify({"message": "Todo not found"}), 404
-
-@app.route('/api/todos/<int:todo_id>', methods=['DELETE'])
-@jwt_required()
-def delete_todo(todo_id):
-    current_user_id = int(get_jwt_identity())  # Convert string ID to integer
-    todo = Todo.query.filter_by(id=todo_id, user_id=current_user_id).first()
-    if todo:
-        db.session.delete(todo)
-        db.session.commit()
-        return jsonify({"message": "Todo deleted"})
-    return jsonify({"message": "Todo not found"}), 404
 
 # Allows starting the server by running this script with the python3 command instead of flask or gunicorn commands
 # only do this on local/dev. see README.md for more on server/prod vs local/dev

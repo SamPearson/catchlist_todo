@@ -23,24 +23,29 @@
             <a href="/" class="item" id="home-link" data-testid="home-link">
                 <i class="home icon"></i> Home
             </a>
-            <a href="/todos" class="item" id="todos-link" data-testid="todos-link">
-                <i class="tasks icon"></i> Todos
-            </a>
             <a href="/catchlist" class="item" id="catchlist-link" data-testid="catchlist-link">
                 <i class="lightbulb icon"></i> Catchlist
             </a>
             <a href="/projects" class="item" id="projects-link" data-testid="projects-link">
                 <i class="project diagram icon"></i> Projects
             </a>
-            <a href="/calendar-events" class="item" id="calendar-link" data-testid="calendar-link">
-                <i class="calendar icon"></i> Calendar
+            <a href="/routines" class="item" id="routines-link" data-testid="routines-link">
+                <i class="sync icon"></i> Routines
             </a>
-            <a href="/today" class="item" id="today-link" data-testid="today-link">
-                <i class="clock icon"></i> Today
+            <a href="/desk" class="item" id="desk-link" data-testid="desk-link">
+                <i class="clock icon"></i> Desk
             </a>
             <a href="/reports" class="item" id="reports-link" data-testid="reports-link">
                 <i class="chart bar icon"></i> Reports
             </a>
+            <a href="/tags" class="item" id="tags-link" data-testid="tags-link">
+                <i class="tags icon"></i> Tags
+            </a>
+            {% if show_demo %}
+            <a href="/demo" class="item" id="demo-link" data-testid="demo-link">
+                <i class="lab icon"></i> Component Demo
+            </a>
+            {% endif %}
             <div class="right menu">
                 <a href="/login" class="item" id="login-link" data-testid="login-link">
                     <i class="sign in icon"></i> Login
@@ -98,6 +103,14 @@
         // Update auth UI based on login status
         updateAuthUI();
         
+        // Initialize collapsible sections
+        $('.toggle-collapse').on('click', function(e) {
+            e.stopPropagation(); // Prevent event bubbling
+            var targetId = $(this).data('target');
+            $('#' + targetId).slideToggle();
+            $(this).toggleClass('down right');
+        });
+        
         // Set up logout handler
         const logoutLink = document.getElementById('logout-link');
         if (logoutLink) {
@@ -109,5 +122,7 @@
         }
     });
     </script>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

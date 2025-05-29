@@ -2,7 +2,7 @@ from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import re
-from ..config.db_models import db, BlacklistedToken
+from ..config.models import db, BlacklistedToken
 from ..config.db_config import Config, initialize_database
 
 
@@ -10,21 +10,21 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Without CORS, the webapp and api can't connect when run locally,
-    # as they run on different ports, and that makes them two different places.
-
-    # More permissive CORS configuration for development
-    CORS(app, supports_credentials=True, resources={r"/*": {
-        "origins": "*",  # Allow all origins for development
-        "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
-        "allow_headers": "*"
-    }})
+    # Configure CORS to allow requests from the frontend
+    CORS(app, 
+        resources={r"/*": {
+            "origins": ["http://localhost:5000", "http://127.0.0.1:5000"],
+            "methods": ["GET", "HEAD", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "supports_credentials": True
+        }})
 
     # initialize extensions
     db.init_app(app)
 
     # Add JWT configuration
     app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
+    app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
     jwt = JWTManager(app)
 
     @jwt.token_in_blocklist_loader
