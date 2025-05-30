@@ -14,16 +14,17 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(64))
     created_at = db.Column(db.DateTime, default=db.func.now())
     
-    # Relationships
-    commitments = relationship("Commitment", back_populates="user", lazy=True)
-    soft_commitments = relationship("SoftCommitment", back_populates="user", lazy=True)
-    projects = relationship("Project", back_populates="user", lazy=True)
-    catchlist_items = relationship("CatchlistItem", back_populates="user", lazy=True)
+    # Relationships with cascade delete
+    commitments = relationship("Commitment", back_populates="user", cascade='all, delete-orphan')
+    soft_commitments = relationship("SoftCommitment", back_populates="user", cascade='all, delete-orphan')
+    projects = relationship("Project", back_populates="user", cascade='all, delete-orphan')
+    catchlist_items = relationship("CatchlistItem", back_populates="user", cascade='all, delete-orphan')
     routines = relationship("Routine", back_populates="user", cascade='all, delete-orphan')
     sessions = relationship("Session", back_populates="user", cascade='all, delete-orphan')
-    checkins = relationship("Checkin", back_populates="user", lazy=True)
-    tags = relationship("Tag", back_populates="user", lazy=True)
+    checkins = relationship("Checkin", back_populates="user", cascade='all, delete-orphan')
+    tags = relationship("Tag", back_populates="user", cascade='all, delete-orphan')
     calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
+    time_blocks = relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
     
     # Relationships will be defined as backref from their respective models
     # to avoid circular imports
