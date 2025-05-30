@@ -122,7 +122,8 @@ def delete_account():
         return jsonify({"message": "Account deleted successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": "Error deleting account"}), 500
+        app.logger.error(f"Error deleting account: {str(e)}")
+        return jsonify({"message": f"Error deleting account: {str(e)}"}), 500
 
 
 @app.route('/api/caldav/test-connection', methods=['POST'])
