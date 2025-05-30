@@ -109,8 +109,11 @@ class BasePage:
             try:
                 wait = WebDriverWait(self.driver, timeout)
                 wait.until(
-                    expected_conditions.element_to_be_clickable(locator) and
-                    expected_conditions.visibility_of_element_located(locator))
+                    expected_conditions.all_of(
+                        expected_conditions.element_to_be_clickable(locator),
+                        expected_conditions.visibility_of_element_located(locator)
+                    )
+                )
             except TimeoutException:
                 return False
             return True
