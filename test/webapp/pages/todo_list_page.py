@@ -1,3 +1,10 @@
+#
+# deprecated page object for a previous iteration of the project
+# but it may be useful for reference until we get some new tests up
+#
+
+
+
 from pages.base_page import testid_locator
 from pages.base_app_page import BaseAppPage
 from selenium.webdriver.support import expected_conditions
