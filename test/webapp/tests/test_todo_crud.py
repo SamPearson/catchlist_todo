@@ -2,7 +2,7 @@ import pytest
 from pages import todo_list_page
 
 
-@pytest.mark.smoke
+@pytest.mark.deprecated
 class TestTodoCrud:
     @pytest.fixture
     def page(self, login):
