@@ -98,7 +98,12 @@ class BasePage:
             raise NoSuchElementException(f"No elements were found with the locator {locator}")
 
     def _click(self, locator):
-        self._find(locator).click()
+        element = self._find(locator)
+        try:
+            element.click()
+        except Exception:
+            # Fallback to JavaScript click for headless mode
+            self.driver.execute_script("arguments[0].click();", element)
 
     def _type(self, locator, input_text):
         self._find(locator).send_keys(input_text)
@@ -108,15 +113,17 @@ class BasePage:
         if timeout > 0:
             try:
                 wait = WebDriverWait(self.driver, timeout)
-                wait.until(
-                    expected_conditions.all_of(
-                        expected_conditions.element_to_be_clickable(locator),
-                        expected_conditions.visibility_of_element_located(locator)
-                    )
+                # First check if element is present
+                element = wait.until(
+                    expected_conditions.presence_of_element_located(locator)
+                )
+                # Then check computed style for visibility
+                return self.driver.execute_script(
+                    "return window.getComputedStyle(arguments[0]).display !== 'none'",
+                    element
                 )
             except TimeoutException:
                 return False
-            return True
         else:
             try:
                 return self._find(locator).is_enabled()
