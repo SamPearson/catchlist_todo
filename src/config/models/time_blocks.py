@@ -24,11 +24,12 @@ class TimeBlock(db.Model):
     report_generated = db.Column(db.Boolean, default=False)  # Track if report has been generated
     
     # Relationships
-    user = relationship('User', backref='time_blocks')
+    user = relationship('User', back_populates='time_blocks')
     checkins = relationship('Checkin', 
                           primaryjoin="TimeBlock.id==Checkin.time_block_id",
                           back_populates="time_block",
-                          lazy='dynamic')
+                          lazy='dynamic',
+                          cascade='all, delete-orphan')
     
     __mapper_args__ = {
         'polymorphic_identity': 'time_block',

@@ -30,7 +30,7 @@ def setup_webdriver(request):
     service = Service()
     options = webdriver.ChromeOptions()
     if headless:
-        options.add_argument('--headless')
+        options.add_argument('--headless=new')
 
         # Magical Config args:
         # SOME(not all) selectors break if you don't set window size. on headless mode.

@@ -1,6 +1,5 @@
 from pages.base_app_page import BaseAppPage
 from pages.base_page import testid_locator
-from time import sleep
 
 
 class LoginPage(BaseAppPage):
@@ -18,6 +17,7 @@ class LoginPage(BaseAppPage):
         self._type(self.password_field_locator, password)
         self._click(self.login_button_locator)
 
-        # wait to be at the post-login page
-        self.wait_for_url('contains', '/todos')
+        # some assertions to make sure we are past the login page
+        self.wait_for_url('contains', '/desk')
+        assert self._is_active(self.logout_link_locator, 5), "Could not find the logout button after logging in"
 
