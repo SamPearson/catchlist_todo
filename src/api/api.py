@@ -25,6 +25,11 @@ app.register_blueprint(catchlist_items.catchlist_items_bp)
 app.register_blueprint(tags.tags_bp, url_prefix='/api/tags')
 
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
+
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
