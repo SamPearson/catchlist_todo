@@ -31,16 +31,17 @@ def setup_webdriver(request):
     options = webdriver.ChromeOptions()
     if headless:
         options.add_argument('--headless=new')
-
-        # Magical Config args:
-        # SOME(not all) selectors break if you don't set window size. on headless mode.
-        options.add_argument('window-size=1920x1080')
-        # Browser will not be initialized in bitbucket pipelines without this config argument
-        # may be able to get away without it in other platforms.
         options.add_argument('--no-sandbox')
 
     driver = webdriver.Chrome(service=service, options=options)
-    driver.maximize_window()
+    
+    # Set window size for both headless and non-headless modes
+    if headless:
+        # In headless mode, we need to set a large window size
+        driver.set_window_size(1920, 1080)
+    else:
+        # In non-headless mode, we can maximize the window
+        driver.maximize_window()
 
     test_environment = request.config.getoption("--env")
     test_env_filename = os.path.join("environments", f"{test_environment}")
