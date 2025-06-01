@@ -93,8 +93,18 @@ class BasePage:
         try:
             element.click()
         except Exception as e:
+            # Log the failure and try JavaScript click
             self._log_interaction_failure("click", locator, e)
-            self.driver.execute_script("arguments[0].click();", element)
+            
+            # Try to scroll element into view first
+            self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
+            
+            # Try JavaScript click
+            try:
+                self.driver.execute_script("arguments[0].click();", element)
+            except Exception as js_e:
+                # If JavaScript click fails, raise the original exception
+                raise e from js_e  # Chain the exceptions to preserve both error contexts
 
     @allure.step("Type '{input_text}' into element {locator}")
     def _type(self, locator, input_text):
@@ -104,6 +114,18 @@ class BasePage:
         element.send_keys(input_text)
 
     # ===== Element State Methods =====
+    def _take_screenshot(self, name="element_state"):
+        """Take a screenshot and attach it to the Allure report"""
+        try:
+            screenshot = self.driver.get_screenshot_as_png()
+            allure.attach(
+                screenshot,
+                name=f"{name}_screenshot",
+                attachment_type=allure.attachment_type.PNG
+            )
+        except Exception as e:
+            print(f"Failed to capture screenshot: {e}")
+
     def _is_active(self, locator, timeout=0):
         """
         Check if element is present, visible, and interactive.
@@ -122,84 +144,120 @@ class BasePage:
                 element = wait.until(
                     expected_conditions.presence_of_element_located(locator)
                 )
-                # Then check if it's enabled
-                return element.is_enabled()
-            except TimeoutException:
-                return False
-        else:
-            try:
-                element = self.driver.find_element(*locator)
                 
-                # Get element's position and size
-                location = element.location
-                size = element.size
+                # Take screenshot before visibility check
+                self._take_screenshot(f"before_visibility_check_{locator[1]}")
                 
-                # Check if element is in viewport
-                viewport_height = self.driver.execute_script("return window.innerHeight")
-                viewport_width = self.driver.execute_script("return window.innerWidth")
-                
-                in_viewport = (
-                    0 <= location['x'] <= viewport_width and
-                    0 <= location['y'] <= viewport_height
-                )
-                
-                # Check if element has size
-                has_size = size['height'] > 0 and size['width'] > 0
+                # Check if element has size and is enabled
+                is_visible = self.driver.execute_script("""
+                    var elem = arguments[0];
+                    var rect = elem.getBoundingClientRect();
+                    return (
+                        rect.width > 0 &&
+                        rect.height > 0 &&
+                        window.getComputedStyle(elem).display !== 'none' &&
+                        window.getComputedStyle(elem).visibility !== 'hidden'
+                    );
+                """, element)
                 
                 # Check if element is enabled
                 is_enabled = element.is_enabled()
                 
-                # Get computed style
-                computed_style = self.driver.execute_script(
-                    "return window.getComputedStyle(arguments[0])",
-                    element
-                )
-                
-                # Check if element is visible via CSS
-                is_visible_css = (
-                    computed_style['display'] != 'none' and
-                    computed_style['visibility'] != 'hidden' and
-                    float(computed_style['opacity']) > 0
-                )
-                
                 # Log detailed diagnostics if element is not active
-                if not (in_viewport and has_size and is_enabled and is_visible_css):
+                if not (is_visible and is_enabled):
                     self._log_element_state(
                         element,
-                        in_viewport=in_viewport,
-                        has_size=has_size,
+                        is_visible=is_visible,
                         is_enabled=is_enabled,
-                        is_visible_css=is_visible_css,
-                        location=location,
-                        size=size,
-                        computed_style=computed_style
+                        rect=self.driver.execute_script(
+                            "return arguments[0].getBoundingClientRect();",
+                            element
+                        )
                     )
+                    # Take screenshot after failed visibility check
+                    self._take_screenshot(f"failed_visibility_check_{locator[1]}")
                 
-                return in_viewport and has_size and is_enabled and is_visible_css
+                return is_visible and is_enabled
+                    
+            except TimeoutException:
+                # Take screenshot on timeout
+                self._take_screenshot(f"timeout_checking_{locator[1]}")
+                return False
+        else:
+            try:
+                element = self.driver.find_element(*locator)
+                # Use the same visibility check as above
+                is_visible = self.driver.execute_script("""
+                    var elem = arguments[0];
+                    var rect = elem.getBoundingClientRect();
+                    return (
+                        rect.width > 0 &&
+                        rect.height > 0 &&
+                        window.getComputedStyle(elem).display !== 'none' &&
+                        window.getComputedStyle(elem).visibility !== 'hidden'
+                    );
+                """, element)
+                is_enabled = element.is_enabled()
                 
+                if not (is_visible and is_enabled):
+                    self._log_element_state(
+                        element,
+                        is_visible=is_visible,
+                        is_enabled=is_enabled,
+                        rect=self.driver.execute_script(
+                            "return arguments[0].getBoundingClientRect();",
+                            element
+                        )
+                    )
+                    # Take screenshot after failed visibility check
+                    self._take_screenshot(f"failed_visibility_check_{locator[1]}")
+                
+                return is_visible and is_enabled
             except NoSuchElementException:
+                # Take screenshot when element not found
+                self._take_screenshot(f"element_not_found_{locator[1]}")
                 return False
 
     def _log_element_state(self, element, **kwargs):
         """Log detailed information about element state"""
+        # Create a detailed diagnostic message
+        diagnostic_info = {
+            'html': element.get_attribute('outerHTML'),
+            'location': element.location,
+            'size': element.size,
+            'classes': element.get_attribute('class'),
+            'attributes': self.driver.execute_script(
+                "return Object.fromEntries(Object.entries(arguments[0].attributes)"
+                ".map(([k,v]) => [v.name, v.value]))",
+                element
+            ),
+            **kwargs
+        }
+        
+        # Log to console
         print("\nElement State Diagnostics:")
-        print(f"HTML: {element.get_attribute('outerHTML')}")
-        for key, value in kwargs.items():
+        for key, value in diagnostic_info.items():
             print(f"{key}: {value}")
         
-        # Take screenshot if in headless mode
-        if self.driver.execute_script("return navigator.webdriver"):
-            try:
-                screenshot_path = f"element_state_{int(time.time())}.png"
-                element.screenshot(screenshot_path)
-                allure.attach(
-                    open(screenshot_path, 'rb').read(),
-                    name="element_state_screenshot",
-                    attachment_type=allure.attachment_type.PNG
-                )
-                print(f"Screenshot saved to: {screenshot_path}")
-            except Exception as e:
-                print(f"Failed to take screenshot: {e}")
+        try:
+            # Take screenshot of the entire page
+            screenshot = self.driver.get_screenshot_as_png()
+            
+            # Add to Allure report
+            allure.attach(
+                screenshot,
+                name="element_state_screenshot",
+                attachment_type=allure.attachment_type.PNG
+            )
+            
+            # Add diagnostic info to Allure report
+            allure.attach(
+                str(diagnostic_info),
+                name="element_state_diagnostics",
+                attachment_type=allure.attachment_type.TEXT
+            )
+        except Exception as e:
+            print(f"Failed to capture screenshot: {e}")
 
     # ===== Diagnostic Methods =====
     def _get_element_diagnostics(self, locator):
@@ -312,4 +370,21 @@ class BasePage:
         except TimeoutException:
             raise Exception(f'Waited for element to disappear but timed out after {timeout} seconds.'
                             f' - Using locator {locator}')
+
+    def _is_displayed(self, locator, timeout=2):
+        """
+        Check if an element is displayed.
+        
+        Args:
+            locator: A tuple of (By, value) for element location
+            timeout (int): Maximum time to wait for element to be present
+            
+        Returns:
+            bool: True if element is displayed, False otherwise
+        """
+        try:
+            element = self._find(locator, timeout)
+            return element.is_displayed()
+        except (NoSuchElementException, AssertionError):
+            return False
 
