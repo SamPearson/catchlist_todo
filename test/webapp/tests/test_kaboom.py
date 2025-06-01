@@ -13,5 +13,3 @@ class TestTodoCrud:
 
     def test_kaboom(self, page):
         page.kaboom()
-        from time import sleep
-        sleep(5)
