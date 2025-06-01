@@ -1,5 +1,5 @@
-
 import pytest
+import allure
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from environments.environment_data import Environment
@@ -61,9 +61,26 @@ def setup_webdriver(request):
 @pytest.fixture
 def driver(request):
     driver_ = setup_webdriver(request)
+    
+    # Add environment information to Allure report
+    allure.dynamic.description_html(f"""
+        <h3>Test Environment</h3>
+        <p><b>Browser:</b> Chrome</p>
+        <p><b>Headless:</b> {request.config.getoption("--headless")}</p>
+        <p><b>Environment:</b> {request.config.getoption("--env")}</p>
+    """)
 
     def quit_browser():
-        driver_.quit()
+        try:
+            # Take screenshot on test failure
+            if request.node.result_call.failed:
+                allure.attach(
+                    driver_.get_screenshot_as_png(),
+                    name="failure_screenshot",
+                    attachment_type=allure.attachment_type.PNG
+                )
+        finally:
+            driver_.quit()
 
     request.addfinalizer(quit_browser)
     return driver_
@@ -117,6 +134,16 @@ def login(driver, registered_user):
 def pytest_runtest_makereport(item, call):
     outcome = yield
     result = outcome.get_result()
+    
+    # Add test result to Allure report
+    if result.when == "call":
+        if result.failed:
+            allure.attach(
+                str(result.longrepr),
+                name="failure_details",
+                attachment_type=allure.attachment_type.TEXT
+            )
+    
     setattr(item, "result_" + result.when, result)
 
 

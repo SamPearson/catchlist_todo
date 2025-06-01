@@ -3,6 +3,7 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 import time
+import allure
 
 
 # Selenium does not natively support locating elements by the data-testid attribute.
@@ -29,6 +30,7 @@ class BasePage:
         self.driver = driver
 
     # ===== Navigation Methods =====
+    @allure.step("Navigate to {url}")
     def _visit(self, url):
         """
         Navigate to a URL, handling both absolute and relative paths.
@@ -43,6 +45,7 @@ class BasePage:
             self.driver.get(self.driver.base_url + url)
 
     # ===== Element Finding Methods =====
+    @allure.step("Find element {locator}")
     def _find(self, locator, timeout=2):
         """
         Find a single element, ensuring it's active before returning.
@@ -64,6 +67,7 @@ class BasePage:
         )
         return self.driver.find_element(*locator)
 
+    @allure.step("Find all elements matching {locator}")
     def _find_all(self, locator):
         """Find all elements matching the locator"""
         assert self._is_active(locator, 2), f"Elements not active: {locator}"
@@ -73,6 +77,7 @@ class BasePage:
         return elements
 
     # ===== Element Interaction Methods =====
+    @allure.step("Click element {locator}")
     def _click(self, locator):
         """
         Click an element with JavaScript fallback.
@@ -88,10 +93,10 @@ class BasePage:
         try:
             element.click()
         except Exception as e:
-            # Log the failure and try JavaScript click
             self._log_interaction_failure("click", locator, e)
             self.driver.execute_script("arguments[0].click();", element)
 
+    @allure.step("Type '{input_text}' into element {locator}")
     def _type(self, locator, input_text):
         """Type text into an element"""
         element = self._find(locator)
@@ -187,6 +192,11 @@ class BasePage:
             try:
                 screenshot_path = f"element_state_{int(time.time())}.png"
                 element.screenshot(screenshot_path)
+                allure.attach(
+                    open(screenshot_path, 'rb').read(),
+                    name="element_state_screenshot",
+                    attachment_type=allure.attachment_type.PNG
+                )
                 print(f"Screenshot saved to: {screenshot_path}")
             except Exception as e:
                 print(f"Failed to take screenshot: {e}")
@@ -238,6 +248,11 @@ class BasePage:
     def _log_interaction_failure(self, action, locator, exception):
         """Log detailed information about interaction failures"""
         diagnostics = self._get_element_diagnostics(locator)
+        allure.attach(
+            str(diagnostics),
+            name=f"{action}_failure_diagnostics",
+            attachment_type=allure.attachment_type.TEXT
+        )
         print(f"Failed to {action} element {locator}")
         print(f"Exception: {str(exception)}")
         print(f"Element diagnostics: {diagnostics}")
