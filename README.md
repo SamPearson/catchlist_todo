@@ -1,10 +1,12 @@
 # CrudBase
-At its core, this is a simple CRUD todo app. 
+At its core, this is a personal development task manager. 
 
 However, whereas most CRUD todo apps stop at a kind of MVP product
 (a single page with no frontend/backend split, no accounts, no deploy infrastructure),
 this one is meant to be closer to a production-ready application; 
 a realistic starting point for building something useful.
+
+Please see the [system requirements document](/docs/system_requirements.md) for detailed information about the application's purpose and features.
 
 EG this project has
 - webapp (frontend) and API (backend) split into different source directories
