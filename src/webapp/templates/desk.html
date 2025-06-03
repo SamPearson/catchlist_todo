@@ -9,369 +9,86 @@
     {% include "components/time_period_nav.html" %}
     {% include "components/checkin_management.html" %}
     
-    <!-- Date Navigation -->
-    <div class="ui segment" id="date-navigation">
-        <div class="ui grid">
-            <div class="four wide column">
-                <button class="ui icon button" id="prev-date">
-                    <i class="chevron left icon"></i>
-                </button>
-            </div>
-            <div class="eight wide column center aligned">
-                <h3 id="date-display" class="ui header"></h3>
-            </div>
-            <div class="four wide column right aligned">
-                <button class="ui icon button" id="next-date">
-                    <i class="chevron right icon"></i>
-                </button>
-            </div>
+    {% include "components/date_navigation.html" %}
+    
+    <!-- Report Forms Section (Collapsible) -->
+    <div class="ui styled accordion" id="report-accordion">
+        <div class="title">
+            <i class="dropdown icon"></i>
+            Report Forms
         </div>
-        <div class="ui grid">
-            <div class="sixteen wide column center aligned">
-                <input type="date" id="date-picker" class="ui input">
+        <div class="content">
+            <!-- Daily Report Form -->
+            <div class="ui segment" id="daily-report-form">
+                {% include "components/daily_report_form.html" %}
+            </div>
+
+            <!-- Weekly Report Form -->
+            <div class="ui segment" id="weekly-report-form" style="display: none;">
+                {% include "components/weekly_report_form.html" %}
+            </div>
+
+            <!-- Monthly Report Form -->
+            <div class="ui segment" id="monthly-report-form" style="display: none;">
+                {% include "components/monthly_report_form.html" %}
+            </div>
+
+            <!-- Seasonal Report Form -->
+            <div class="ui segment" id="seasonal-report-form" style="display: none;">
+                {% include "components/seasonal_report_form.html" %}
+            </div>
+
+            <!-- Yearly Report Form -->
+            <div class="ui segment" id="yearly-report-form" style="display: none;">
+                {% include "components/yearly_report_form.html" %}
             </div>
         </div>
     </div>
     
-    <!-- Daily Report Form -->
-    <div class="ui segment" id="daily-report-form">
-        <div class="ui styled fluid accordion">
-            <div class="title">
-                <i class="dropdown icon"></i>
-                Daily Report
-            </div>
-            <div class="content">
-                <div class="ui form">
-                    <div class="two fields">
-                        <div class="field">
-                            <label>Sleep (hours)</label>
-                            <input type="number" id="sleep-hours" min="0" max="24" step="0.5">
-                        </div>
-                        <div class="field">
-                            <label>Mood (1-10)</label>
-                            <input type="number" id="mood-score" min="1" max="10">
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label>Food</label>
-                        <textarea id="food-notes" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>RPE (Rate of Perceived Exertion)</label>
-                        <input type="number" id="rpe-score" min="1" max="10">
-                    </div>
-                    <div class="field">
-                        <label>Gains</label>
-                        <textarea id="gains-notes" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Gratitudes</label>
-                        <textarea id="gratitudes-notes" rows="2"></textarea>
-                    </div>
-                    <button class="ui primary button" id="save-daily-report">Save Daily Report</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- KABOOM Button -->
-    <div class="ui segment">
-        <button class="ui massive fluid button" id="kaboom-button" style="background: linear-gradient(45deg, #446756, #80b59c); color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">
-            KABOOM!
-        </button>
-    </div>
-    
-    <!-- Weekly Report Form -->
-    <div class="ui segment" id="weekly-report-form" style="display: none;">
-        <div class="ui styled fluid accordion">
-            <div class="title">
-                <i class="dropdown icon"></i>
-                Weekly Report
-            </div>
-            <div class="content">
-                <div class="ui form">
-                    <div class="field">
-                        <label>Weekly Aim</label>
-                        <textarea id="weekly-aim" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Weekly Notes</label>
-                        <textarea id="weekly-notes" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>RPE (Rate of Perceived Exertion)</label>
-                        <input type="number" id="weekly-rpe" min="1" max="10">
-                    </div>
-                    <div class="field">
-                        <label>Gains</label>
-                        <textarea id="weekly-gains" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Gratitudes</label>
-                        <textarea id="weekly-gratitudes" rows="2"></textarea>
-                    </div>
-                    <button class="ui primary button" id="save-weekly-report">Save Weekly Report</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Monthly Report Form -->
-    <div class="ui segment" id="monthly-report-form" style="display: none;">
-        <div class="ui styled fluid accordion">
-            <div class="title">
-                <i class="dropdown icon"></i>
-                Monthly Report
-            </div>
-            <div class="content">
-                <div class="ui form">
-                    <div class="field">
-                        <label>Month Theme</label>
-                        <input type="text" id="month-theme">
-                    </div>
-                    <div class="field">
-                        <label>Goals</label>
-                        <textarea id="month-goals" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Goals Rationale</label>
-                        <textarea id="month-goals-rationale" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>RPE (Rate of Perceived Exertion)</label>
-                        <input type="number" id="month-rpe" min="1" max="10">
-                    </div>
-                    <div class="field">
-                        <label>Gains</label>
-                        <textarea id="month-gains" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Gratitudes</label>
-                        <textarea id="month-gratitudes" rows="2"></textarea>
-                    </div>
-                    <button class="ui primary button" id="save-monthly-report">Save Monthly Report</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Seasonal Report Form -->
-    <div class="ui segment" id="seasonal-report-form" style="display: none;">
-        <div class="ui styled fluid accordion">
-            <div class="title">
-                <i class="dropdown icon"></i>
-                Seasonal Report
-            </div>
-            <div class="content">
-                <div class="ui form">
-                    <div class="field">
-                        <label>Season Theme</label>
-                        <input type="text" id="season-theme">
-                    </div>
-                    <div class="field">
-                        <label>Goals</label>
-                        <textarea id="season-goals" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Goals Rationale</label>
-                        <textarea id="season-goals-rationale" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>RPE (Rate of Perceived Exertion)</label>
-                        <input type="number" id="season-rpe" min="1" max="10">
-                    </div>
-                    <div class="field">
-                        <label>Gains</label>
-                        <textarea id="season-gains" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Gratitudes</label>
-                        <textarea id="season-gratitudes" rows="2"></textarea>
-                    </div>
-                    <button class="ui primary button" id="save-seasonal-report">Save Seasonal Report</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Yearly Report Form -->
-    <div class="ui segment" id="yearly-report-form" style="display: none;">
-        <div class="ui styled fluid accordion">
-            <div class="title">
-                <i class="dropdown icon"></i>
-                Yearly Report
-            </div>
-            <div class="content">
-                <div class="ui form">
-                    <div class="field">
-                        <label>Year Theme</label>
-                        <input type="text" id="year-theme">
-                    </div>
-                    <div class="field">
-                        <label>Goals</label>
-                        <textarea id="year-goals" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Goals Rationale</label>
-                        <textarea id="year-goals-rationale" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>RPE (Rate of Perceived Exertion)</label>
-                        <input type="number" id="year-rpe" min="1" max="10">
-                    </div>
-                    <div class="field">
-                        <label>Gains</label>
-                        <textarea id="year-gains" rows="2"></textarea>
-                    </div>
-                    <div class="field">
-                        <label>Gratitudes</label>
-                        <textarea id="year-gratitudes" rows="2"></textarea>
-                    </div>
-                    <button class="ui primary button" id="save-yearly-report">Save Yearly Report</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    {% include "components/kaboom_button.html" %}
     
     <!-- Tab Content -->
     <div class="ui bottom attached tab segment active" data-tab="day">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="day-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="day-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="day-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% with tab_id='day' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="week">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="week-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="week-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="week-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% with tab_id='week' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="month">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="month-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="month-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="month-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% with tab_id='month' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="season">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="season-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="season-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="season-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% with tab_id='season' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="year">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="year-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="year-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="year-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% with tab_id='year' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="custom">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="custom-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="custom-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="custom-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% include "components/custom_date_range_form.html" %}
+        {% with tab_id='custom' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
     
     <div class="ui bottom attached tab segment" data-tab="demo">
-        <div class="ui segments">
-            <div class="ui segment">
-                <h3 class="ui header">Routines</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="demo-routines", show_routines=true, type="routine") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Project Work</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="demo-projects", show_routines=false, type="project") }}
-            </div>
-            <div class="ui segment">
-                <h3 class="ui header">Catchlist Items</h3>
-                {% from "components/commitments_list.html" import commitments_list %}
-                {{ commitments_list(id="demo-catchlist", show_routines=false, type="catchlist") }}
-            </div>
-        </div>
+        {% with tab_id='demo' %}
+            {% include "components/commitments_tab_content.html" %}
+        {% endwith %}
     </div>
 </div>
 {% endblock %}
@@ -415,7 +132,7 @@ $(document).ready(function() {
         onVisible: function(tabPath) {
             loadTabContent(tabPath);
             
-            // Show/hide appropriate report form
+            // Show/hide appropriate report form inside the accordion
             const reportForms = {
                 'day': 'daily-report-form',
                 'week': 'weekly-report-form',
@@ -437,8 +154,11 @@ $(document).ready(function() {
         }
     });
 
-    // Initialize accordion
-    $('.ui.accordion').accordion();
+    // Initialize accordion with closed state by default
+    $('.ui.accordion').accordion({
+        exclusive: false,
+        closeNested: true
+    });
 
     // Initialize date picker and global date variables
     const today = new Date();
@@ -777,7 +497,7 @@ document.getElementById('save-daily-report').addEventListener('click', function(
         const message = document.createElement('div');
         message.className = 'ui positive message';
         message.innerHTML = '<i class="close icon"></i><div class="header">Success</div><p>Daily report saved successfully.</p>';
-        document.querySelector('.ui.accordion').parentNode.insertBefore(message, document.querySelector('.ui.accordion'));
+        document.querySelector('#report-accordion').parentNode.insertBefore(message, document.querySelector('#report-accordion'));
         
         // Add close functionality to message
         message.querySelector('.close.icon').addEventListener('click', function() {
@@ -795,7 +515,7 @@ document.getElementById('save-daily-report').addEventListener('click', function(
         const message = document.createElement('div');
         message.className = 'ui negative message';
         message.innerHTML = '<i class="close icon"></i><div class="header">Error</div><p>Failed to save daily report.</p>';
-        document.querySelector('.ui.accordion').parentNode.insertBefore(message, document.querySelector('.ui.accordion'));
+        document.querySelector('#report-accordion').parentNode.insertBefore(message, document.querySelector('#report-accordion'));
         
         // Add close functionality to message
         message.querySelector('.close.icon').addEventListener('click', function() {
@@ -1083,6 +803,18 @@ function showFullCheckinManager(entityId, entityType) {
 }
 
 .ui.tab.segment {
+    padding: 1em 0;
+}
+
+#report-accordion {
+    margin-bottom: 1em;
+}
+
+#report-accordion .content .ui.segment {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    border: none;
+    box-shadow: none;
     padding: 1em 0;
 }
 
