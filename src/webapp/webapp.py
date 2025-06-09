@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 import logging
 from pathlib import Path
 from flask_jwt_extended import JWTManager
-from .routes.reports import reports_bp
 from .routes.tags import tags_bp
 from ..config.db_setup import db
 from ..config.db_config import Config
@@ -37,7 +36,6 @@ db.init_app(app)
 app.config['SHOW_DEMO'] = os.getenv('SHOW_DEMO', 'True').lower() in ('true', '1', 't')
 
 # Register blueprints
-app.register_blueprint(reports_bp)
 app.register_blueprint(tags_bp)
 
 # env files are specified in systemd service files on staging&prod
