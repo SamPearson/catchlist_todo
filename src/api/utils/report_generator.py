@@ -1,50 +1,107 @@
 from datetime import datetime, timedelta
-from ...config.models import db, Report, Checkin
+from ...config.models import db, Checkin, DayReportModel, WeekReportModel, MonthReportModel, SeasonReportModel, YearReportModel
+from ...config.models import WeekBlock, MonthBlock, SeasonBlock, YearBlock
+from ...config.models.reports import ReportGenerator as ModelReportGenerator
 
 class ReportGenerator:
     @staticmethod
     def generate_missing_reports(user_id, session):
         """Generate any missing reports for the user"""
-        # Get the latest report date
-        latest_report = Report.query.filter_by(user_id=user_id).order_by(Report.date.desc()).first()
-        
-        # If no reports exist, start from 30 days ago
-        start_date = latest_report.date if latest_report else datetime.now().date() - timedelta(days=30)
-        end_date = datetime.now().date()
-        
-        # Generate reports for each day in the range
-        current_date = start_date
-        while current_date <= end_date:
-            # Skip if report already exists
-            existing_report = Report.query.filter_by(
+        # Use the ReportGenerator from models to generate reports
+        ModelReportGenerator.generate_missing_reports(user_id, session)
+
+    @staticmethod
+    def get_report(user_id, date, report_type, session):
+        """Get a report for the specified date and type
+
+        Args:
+            user_id: The user ID
+            date: The date for the report
+            report_type: One of 'day', 'week', 'month', 'season', 'year'
+            session: Database session
+        """
+        model_map = {
+            'day': (DayReportModel, None),
+            'week': (WeekReportModel, WeekBlock),
+            'month': (MonthReportModel, MonthBlock),
+            'season': (SeasonReportModel, SeasonBlock),
+            'year': (YearReportModel, YearBlock)
+        }
+
+        ReportModel, BlockModel = model_map.get(report_type, (None, None))
+
+        if not ReportModel:
+            raise ValueError(f"Invalid report type: {report_type}")
+
+        if report_type == 'day':
+            # Day reports don't use a time block for filtering
+            report = session.query(ReportModel).filter_by(
                 user_id=user_id,
-                date=current_date
+                date=date
             ).first()
-            
-            if not existing_report:
-                # Get checkins for the day
-                checkins = Checkin.query.filter(
-                    Checkin.user_id == user_id,
-                    db.func.date(Checkin.timestamp) == current_date
-                ).all()
-                
-                # Calculate daily metrics
-                total_rpe = sum(c.rpe or 0 for c in checkins)
-                total_mood = sum(c.mood or 0 for c in checkins)
-                total_energy = sum(c.energy or 0 for c in checkins)
-                checkin_count = len(checkins)
-                
-                # Create new report
-                report = Report(
-                    user_id=user_id,
-                    date=current_date,
-                    rpe=total_rpe / checkin_count if checkin_count > 0 else None,
-                    mood=total_mood / checkin_count if checkin_count > 0 else None,
-                    energy=total_energy / checkin_count if checkin_count > 0 else None,
-                    checkin_count=checkin_count
-                )
-                session.add(report)
-            
-            current_date += timedelta(days=1)
-        
-        session.commit() 
+
+            if not report:
+                report = ModelReportGenerator.create_day_report_model(user_id, date, session)
+        else:
+            # All other report types need a time block
+            if report_type == 'week':
+                year, week_num, _ = date.isocalendar()
+                time_block = BlockModel.get_or_create(session, user_id, year, week_num)
+                creator_method = ModelReportGenerator.create_week_report_model
+            elif report_type == 'month':
+                time_block = BlockModel.get_or_create(session, user_id, date.year, date.month)
+                creator_method = ModelReportGenerator.create_month_report_model
+            elif report_type == 'season':
+                # Determine season from date
+                month = date.month
+                if 3 <= month <= 5:
+                    season = 'spring'
+                elif 6 <= month <= 8:
+                    season = 'summer'
+                elif 9 <= month <= 11:
+                    season = 'fall'
+                else:
+                    season = 'winter'
+                time_block = BlockModel.get_or_create(session, user_id, date.year, season)
+                creator_method = ModelReportGenerator.create_season_report_model
+            else:  # year
+                time_block = BlockModel.get_or_create(session, user_id, date.year)
+                creator_method = ModelReportGenerator.create_year_report_model
+
+            # Look for an existing report
+            report = session.query(ReportModel).filter_by(
+                user_id=user_id,
+                start_date=time_block.start_date,
+                end_date=time_block.end_date
+            ).first()
+
+            # If no report exists, create one
+            if not report:
+                report = creator_method(user_id, time_block, session)
+
+        return report.as_dict() if report else None
+
+    @staticmethod
+    def get_day_report(user_id, date, session):
+        """Get a day report for the specified date"""
+        return ReportGenerator.get_report(user_id, date, 'day', session)
+
+    @staticmethod
+    def get_week_report(user_id, date, session):
+        """Get a week report containing the specified date"""
+        return ReportGenerator.get_report(user_id, date, 'week', session)
+
+    @staticmethod
+    def get_month_report(user_id, date, session):
+        """Get a month report containing the specified date"""
+        return ReportGenerator.get_report(user_id, date, 'month', session)
+
+    @staticmethod
+    def get_season_report(user_id, date, session):
+        """Get a season report containing the specified date"""
+        return ReportGenerator.get_report(user_id, date, 'season', session)
+
+    @staticmethod
+    def get_year_report(user_id, date, session):
+        """Get a year report containing the specified date"""
+        return ReportGenerator.get_report(user_id, date, 'year', session)
