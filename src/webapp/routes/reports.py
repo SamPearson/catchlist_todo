@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app, render_template, redirect, url_for
 from datetime import datetime, date
-from ...config.models.reports import DayReport, WeekReport, MonthReport, SeasonReport, YearReport
+from ...config.models.reports import DayReport as DayReport, WeekReport as WeekReport, MonthReport as MonthReport, YearReport as SeasonReport, YearReport as YearReport
 from ...config.models.time_blocks import DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
 from ...config.models.commitment import Commitment
 from ...config.db_setup import db

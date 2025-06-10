@@ -11,7 +11,8 @@ from .routines import Routine, Session
 from .commitment import Commitment, SoftCommitment
 from .time_blocks import TimeBlock, DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
 from .checkin import Checkin
-from .reports import Report, DayReport, WeekReport, MonthReport, SeasonReport, YearReport, ReportGenerator
+from .reports import (ReportGenerator, BaseReport, DayReport, WeekReport,
+                 MonthReport, SeasonReport, YearReport)
 from .tags import Tag, RoutineTag, SessionTag, ProjectTag, ProjectTaskTag, CatchlistItemTag
 from .calendar import Calendar
 
@@ -24,7 +25,8 @@ __all__ = [
     'Commitment', 'SoftCommitment',
     'TimeBlock', 'DayBlock', 'WeekBlock', 'MonthBlock', 'SeasonBlock', 'YearBlock',
     'Checkin',
-    'Report', 'DayReport', 'WeekReport', 'MonthReport', 'SeasonReport', 'YearReport', 'ReportGenerator',
+    'ReportGenerator', 'BaseReport', 'DayReport', 'WeekReport',
+    'MonthReport', 'SeasonReport', 'YearReport',
     'Tag', 'RoutineTag', 'SessionTag', 'ProjectTag', 'ProjectTaskTag', 'CatchlistItemTag',
     'Calendar',
     'db'

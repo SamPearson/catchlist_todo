@@ -4,14 +4,10 @@ from sqlalchemy.orm import validates, Session as SQLAlchemySession
 from sqlalchemy import func, Column, Integer, Float, Text, Boolean, DateTime, ForeignKey, String, text
 from sqlalchemy.ext.declarative import declared_attr
 from .time_blocks import TimeBlock, DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
-from .commitment import Commitment
-from .project import ProjectTask
-from .catchlist import CatchlistItem
-from .routines import Session as RoutineSession
 from .checkin import Checkin
 from ..db_setup import db
 
-class BaseReportModel(db.Model):
+class BaseReport(db.Model):
     """Abstract base class for all report database models"""
     __abstract__ = True
 
@@ -110,7 +106,7 @@ class BaseReportModel(db.Model):
         return base_dict
 
 
-class DayReportModel(BaseReportModel):
+class DayReport(BaseReport):
     """Database model for day reports"""
     __tablename__ = 'day_reports'
 
@@ -163,7 +159,7 @@ class DayReportModel(BaseReportModel):
         return data
 
 
-class WeekReportModel(BaseReportModel):
+class WeekReport(BaseReport):
     """Database model for week reports"""
     __tablename__ = 'week_reports'
 
@@ -194,10 +190,10 @@ class WeekReportModel(BaseReportModel):
     @property
     def day_reports(self):
         """Get all day reports for this week"""
-        return db.session.query(DayReportModel).filter(
-            DayReportModel.user_id == self.user_id,
-            DayReportModel.date >= self.start_date,
-            DayReportModel.date <= self.end_date
+        return db.session.query(DayReport).filter(
+            DayReport.user_id == self.user_id,
+            DayReport.date >= self.start_date,
+            DayReport.date <= self.end_date
         ).all()
 
     def as_dict(self) -> Dict:
@@ -218,7 +214,7 @@ class WeekReportModel(BaseReportModel):
         return data
 
 
-class MonthReportModel(BaseReportModel):
+class MonthReport(BaseReport):
     """Database model for month reports"""
     __tablename__ = 'month_reports'
 
@@ -251,10 +247,10 @@ class MonthReportModel(BaseReportModel):
         month_end = datetime(self.month.year, self.month.month + 1, 1) if self.month.month < 12 else datetime(self.month.year + 1, 1, 1)
         month_end = month_end - timedelta(days=1)
 
-        return db.session.query(WeekReportModel).filter(
-            WeekReportModel.user_id == self.user_id,
-            WeekReportModel.start_date >= self.month,
-            WeekReportModel.end_date <= month_end
+        return db.session.query(WeekReport).filter(
+            WeekReport.user_id == self.user_id,
+            WeekReport.start_date >= self.month,
+            WeekReport.end_date <= month_end
         ).all()
 
     def as_dict(self) -> Dict:
@@ -274,7 +270,7 @@ class MonthReportModel(BaseReportModel):
         return data
 
 
-class SeasonReportModel(BaseReportModel):
+class SeasonReport(BaseReport):
     """Database model for season reports"""
     __tablename__ = 'season_reports'
 
@@ -306,10 +302,10 @@ class SeasonReportModel(BaseReportModel):
     @property
     def month_reports(self):
         """Get all month reports for this season"""
-        return db.session.query(MonthReportModel).filter(
-            MonthReportModel.user_id == self.user_id,
-            MonthReportModel.month >= self.start_date,
-            func.date_add(MonthReportModel.month, text("interval 1 month")) <= self.end_date
+        return db.session.query(MonthReport).filter(
+            MonthReport.user_id == self.user_id,
+            MonthReport.month >= self.start_date,
+            func.date_add(MonthReport.month, text("interval 1 month")) <= self.end_date
         ).all()
 
     def as_dict(self) -> Dict:
@@ -331,7 +327,7 @@ class SeasonReportModel(BaseReportModel):
         return data
 
 
-class YearReportModel(BaseReportModel):
+class YearReport(BaseReport):
     """Database model for year reports"""
     __tablename__ = 'year_reports'
 
@@ -357,10 +353,10 @@ class YearReportModel(BaseReportModel):
         year_start = date(self.year, 1, 1)
         year_end = date(self.year, 12, 31)
 
-        return db.session.query(SeasonReportModel).filter(
-            SeasonReportModel.user_id == self.user_id,
-            SeasonReportModel.start_date >= year_start,
-            SeasonReportModel.end_date <= year_end
+        return db.session.query(SeasonReport).filter(
+            SeasonReport.user_id == self.user_id,
+            SeasonReport.start_date >= year_start,
+            SeasonReport.end_date <= year_end
         ).all()
 
     def as_dict(self) -> Dict:
@@ -387,7 +383,7 @@ class ReportGenerator:
             day_block = DayBlock.get_or_create(db, user_id, check_date.year, check_date.month, check_date.day)
             
             # Create day report if missing
-            if not db.query(DayReportModel).filter_by(
+            if not db.query(DayReport).filter_by(
                 user_id=user_id, date=check_date).first():
                 ReportGenerator.create_day_report_model(user_id, check_date, db)
 
@@ -398,7 +394,7 @@ class ReportGenerator:
             week_block = WeekBlock.get_or_create(db, user_id, check_date.year, week_number)
 
             # Create week report if missing
-            if not db.query(WeekReportModel).filter_by(
+            if not db.query(WeekReport).filter_by(
                 user_id=user_id, start_date=week_block.start_date, end_date=week_block.end_date).first():
                 ReportGenerator.create_week_report_model(user_id, week_block, db)
 
@@ -408,7 +404,7 @@ class ReportGenerator:
             month_block = MonthBlock.get_or_create(db, user_id, month_date.year, month_date.month)
 
             # Create month report if missing
-            if not db.query(MonthReportModel).filter_by(
+            if not db.query(MonthReport).filter_by(
                 user_id=user_id, month=month_block.start_date).first():
                 ReportGenerator.create_month_report_model(user_id, month_block, db)
     
@@ -459,7 +455,7 @@ class ReportGenerator:
         day_block.report_generated = True
 
         # Create the report model
-        day_report = DayReportModel(
+        day_report = DayReport(
             user_id=user_id,
             date=report_date,
             day_block_id=day_block.id,
@@ -483,7 +479,7 @@ class ReportGenerator:
         week_block.report_generated = True
 
         # Create the report model
-        week_report = WeekReportModel(
+        week_report = WeekReport(
             user_id=user_id,
             start_date=week_block.start_date,
             end_date=week_block.end_date,
@@ -499,7 +495,7 @@ class ReportGenerator:
     def create_month_report_model(user_id: int, month_block: MonthBlock, db: SQLAlchemySession):
         """Create a month report model for the given month block"""
         # Create the report model
-        month_report = MonthReportModel(
+        month_report = MonthReport(
             user_id=user_id,
             month=month_block.start_date,
             month_block_id=month_block.id,
@@ -514,7 +510,7 @@ class ReportGenerator:
     def create_season_report_model(user_id: int, season_block: SeasonBlock, db: SQLAlchemySession):
         """Create a season report model for the given season block"""
         # Create the report model
-        season_report = SeasonReportModel(
+        season_report = SeasonReport(
             user_id=user_id,
             start_date=season_block.start_date,
             end_date=season_block.end_date,
@@ -531,7 +527,7 @@ class ReportGenerator:
     def create_year_report_model(user_id: int, year_block: YearBlock, db: SQLAlchemySession):
         """Create a year report model for the given year block"""
         # Create the report model
-        year_report = YearReportModel(
+        year_report = YearReport(
             user_id=user_id,
             year=year_block.year,
             year_block_id=year_block.id,

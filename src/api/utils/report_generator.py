@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from ...config.models import db, Checkin, DayReportModel, WeekReportModel, MonthReportModel, SeasonReportModel, YearReportModel
+from ...config.models import db, Checkin, DayReport, WeekReport, MonthReport, SeasonReport, YearReport
 from ...config.models import WeekBlock, MonthBlock, SeasonBlock, YearBlock
 from ...config.models.reports import ReportGenerator as ModelReportGenerator
 
@@ -21,11 +21,11 @@ class ReportGenerator:
             session: Database session
         """
         model_map = {
-            'day': (DayReportModel, None),
-            'week': (WeekReportModel, WeekBlock),
-            'month': (MonthReportModel, MonthBlock),
-            'season': (SeasonReportModel, SeasonBlock),
-            'year': (YearReportModel, YearBlock)
+            'day': (DayReport, None),
+            'week': (WeekReport, WeekBlock),
+            'month': (MonthReport, MonthBlock),
+            'season': (SeasonReport, SeasonBlock),
+            'year': (YearReport, YearBlock)
         }
 
         ReportModel, BlockModel = model_map.get(report_type, (None, None))
