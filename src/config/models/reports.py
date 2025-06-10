@@ -459,6 +459,7 @@ class ReportGenerator:
             user_id=user_id,
             date=report_date,
             day_block_id=day_block.id,
+            day_block=day_block
             # Default values can be set here
         )
 
@@ -484,6 +485,7 @@ class ReportGenerator:
             start_date=week_block.start_date,
             end_date=week_block.end_date,
             week_block_id=week_block.id,
+            week_block=week_block
             # Default values can be set here
         )
 
@@ -499,6 +501,7 @@ class ReportGenerator:
             user_id=user_id,
             month=month_block.start_date,
             month_block_id=month_block.id,
+            month_block=month_block
             # Default values can be set here
         )
 
@@ -515,7 +518,8 @@ class ReportGenerator:
             start_date=season_block.start_date,
             end_date=season_block.end_date,
             season_block_id=season_block.id,
-            seasonal_theme=season_block.season_theme,
+            season_block=season_block,
+            seasonal_theme=season_block.season_theme
             # Default values can be set here
         )
 
@@ -531,6 +535,7 @@ class ReportGenerator:
             user_id=user_id,
             year=year_block.year,
             year_block_id=year_block.id,
+            year_block=year_block
             # Default values can be set here
         )
 
