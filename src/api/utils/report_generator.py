@@ -12,14 +12,7 @@ class ReportGenerator:
 
     @staticmethod
     def get_report(user_id, date, report_type, session):
-        """Get a report for the specified date and type
-
-        Args:
-            user_id: The user ID
-            date: The date for the report
-            report_type: One of 'day', 'week', 'month', 'season', 'year'
-            session: Database session
-        """
+        """Get a report for the specified date and type"""
         model_map = {
             'day': (DayReport, None),
             'week': (WeekReport, WeekBlock),
@@ -34,7 +27,6 @@ class ReportGenerator:
             raise ValueError(f"Invalid report type: {report_type}")
 
         if report_type == 'day':
-            # Day reports don't use a time block for filtering
             report = session.query(ReportModel).filter_by(
                 user_id=user_id,
                 date=date
@@ -42,17 +34,27 @@ class ReportGenerator:
 
             if not report:
                 report = ModelReportGenerator.create_day_report_model(user_id, date, session)
+
         else:
-            # All other report types need a time block
             if report_type == 'week':
                 year, week_num, _ = date.isocalendar()
                 time_block = BlockModel.get_or_create(session, user_id, year, week_num)
                 creator_method = ModelReportGenerator.create_week_report_model
+                # Week reports use start_date/end_date
+                filter_criteria = {
+                    'user_id': user_id,
+                    'start_date': time_block.start_date,
+                    'end_date': time_block.end_date
+                }
             elif report_type == 'month':
                 time_block = BlockModel.get_or_create(session, user_id, date.year, date.month)
                 creator_method = ModelReportGenerator.create_month_report_model
+                # Month reports use month field
+                filter_criteria = {
+                    'user_id': user_id,
+                    'month': time_block.start_date
+                }
             elif report_type == 'season':
-                # Determine season from date
                 month = date.month
                 if 3 <= month <= 5:
                     season = 'spring'
@@ -64,18 +66,24 @@ class ReportGenerator:
                     season = 'winter'
                 time_block = BlockModel.get_or_create(session, user_id, date.year, season)
                 creator_method = ModelReportGenerator.create_season_report_model
+                # Season reports use start_date/end_date
+                filter_criteria = {
+                    'user_id': user_id,
+                    'start_date': time_block.start_date,
+                    'end_date': time_block.end_date
+                }
             else:  # year
                 time_block = BlockModel.get_or_create(session, user_id, date.year)
                 creator_method = ModelReportGenerator.create_year_report_model
+                # Year reports use year field
+                filter_criteria = {
+                    'user_id': user_id,
+                    'year': date.year
+                }
 
-            # Look for an existing report
-            report = session.query(ReportModel).filter_by(
-                user_id=user_id,
-                start_date=time_block.start_date,
-                end_date=time_block.end_date
-            ).first()
+            # Use the appropriate filter criteria for each report type
+            report = session.query(ReportModel).filter_by(**filter_criteria).first()
 
-            # If no report exists, create one
             if not report:
                 report = creator_method(user_id, time_block, session)
 

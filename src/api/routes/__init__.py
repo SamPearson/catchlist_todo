@@ -5,7 +5,7 @@ from . import auth
 from . import projects 
 from . import routines
 from . import commitments
-from . import reports
+from .reports import reports_bp  # Use new structured reports module
 from . import catchlist_items
 from . import today
 from . import calendar_events
