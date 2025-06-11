@@ -27,17 +27,6 @@ class BaseReport(db.Model):
         # Ensure each model has a time_block reference
         self.time_block = None
 
-    def as_dict(self) -> Dict:
-        """Convert report to dictionary format"""
-        # This will be overridden by subclasses
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "notes": self.notes,
-            "gratitudes": self.gratitudes
-        }
 
     @validates('prayer_rating', 'drugs_rating', 'distractions_rating', 'work_adherence', 
               'work_rpe', 'gains_rating', 'diet_adherence', 'cleaning_adherence', 
