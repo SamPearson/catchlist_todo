@@ -14,13 +14,6 @@ def get_season_from_date(input_date):
     else:  # 12, 1, 2
         return 'winter'
 
-def generate_missing_reports(user_id):
-    """Generate any missing reports for the user"""
-    try:
-        ReportGenerator.generate_missing_reports(user_id, db.session)
-        return True, None
-    except Exception as e:
-        return False, str(e)
 
 def parse_date_or_default(date_str, format_str='%Y-%m-%d', default=None):
     """Parse a date string or return default"""

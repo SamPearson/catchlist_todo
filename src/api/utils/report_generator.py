@@ -5,12 +5,6 @@ from ...config.models.reports import ReportGenerator as ModelReportGenerator
 
 class ReportGenerator:
     @staticmethod
-    def generate_missing_reports(user_id, session):
-        """Generate any missing reports for the user"""
-        # Use the ReportGenerator from models to generate reports
-        ModelReportGenerator.generate_missing_reports(user_id, session)
-
-    @staticmethod
     def get_report(user_id, date, report_type, session):
         """Get a report for the specified date and type"""
         model_map = {

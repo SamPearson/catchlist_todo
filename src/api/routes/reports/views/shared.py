@@ -2,24 +2,10 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from ....utils.helpers import get_current_user_id
 from ...reports import reports_bp
-from ...reports.utils import generate_missing_reports
 from .....config.models import db
 from .....config.models.reports import ReportGenerator
 
-@reports_bp.route('/api/reports/generate-missing', methods=['POST'])
-@jwt_required()
-def generate_missing_reports_route():
-    """Generate missing reports for the current user"""
-    user_id = get_current_user_id()
 
-    try:
-        success, error = generate_missing_reports(user_id)
-        if success:
-            return jsonify({"message": "Successfully generated missing reports"})
-        else:
-            return jsonify({"error": error}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @reports_bp.route('/api/reports/demo/<report_type>', methods=['GET'])
 @jwt_required()

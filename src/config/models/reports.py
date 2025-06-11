@@ -356,43 +356,6 @@ class YearReport(BaseReport):
 
 class ReportGenerator:
     @staticmethod
-    def generate_missing_reports(user_id: int, db: SQLAlchemySession):
-        """Generate any missing reports for the user"""
-        today = date.today()
-        
-        # Check last 7 days
-        for i in range(7):
-            check_date = today - timedelta(days=i)
-            day_block = DayBlock.get_or_create(db, user_id, check_date.year, check_date.month, check_date.day)
-            
-            # Create day report if missing
-            if not db.query(DayReport).filter_by(
-                user_id=user_id, date=check_date).first():
-                ReportGenerator.create_day_report_model(user_id, check_date, db)
-
-        # Check last 4 weeks
-        for i in range(4):
-            check_date = today - timedelta(weeks=i)
-            week_number = check_date.isocalendar()[1]
-            week_block = WeekBlock.get_or_create(db, user_id, check_date.year, week_number)
-
-            # Create week report if missing
-            if not db.query(WeekReport).filter_by(
-                user_id=user_id, start_date=week_block.start_date, end_date=week_block.end_date).first():
-                ReportGenerator.create_week_report_model(user_id, week_block, db)
-
-        # Check last 3 months
-        for i in range(3):
-            month_date = date(today.year, today.month - i if today.month > i else 12 - (i - today.month), 1)
-            month_block = MonthBlock.get_or_create(db, user_id, month_date.year, month_date.month)
-
-            # Create month report if missing
-            if not db.query(MonthReport).filter_by(
-                user_id=user_id, month=month_block.start_date).first():
-                ReportGenerator.create_month_report_model(user_id, month_block, db)
-
-
-    @staticmethod
     def create_day_report_model(user_id: int, report_date: date, db: SQLAlchemySession):
         """Create a day report model for the given date"""
         # Find the day block for this date

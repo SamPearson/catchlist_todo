@@ -84,9 +84,7 @@ def update_commitment(commitment_id):
         commitment.completed = data['completed']
         commitment.completed_at = datetime.now() if data['completed'] else None
         
-        # Generate reports after updating commitment
-        ReportGenerator.generate_missing_reports(user_id, db.session)
-    
+
     if 'due_date' in data:
         try:
             year, month, day = map(int, data['due_date'].split('-'))
@@ -175,9 +173,7 @@ def add_commitment_checkin(commitment_id):
     db.session.add(checkin)
     db.session.commit()
     
-    # Generate reports after adding checkin
-    ReportGenerator.generate_missing_reports(user_id, db.session)
-    
+
     return jsonify(checkin.as_dict())
 
 @commitments_bp.route('/api/commitments/search', methods=['GET'])
