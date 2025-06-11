@@ -401,28 +401,7 @@ class ReportGenerator:
             if not db.query(MonthReport).filter_by(
                 user_id=user_id, month=month_block.start_date).first():
                 ReportGenerator.create_month_report_model(user_id, month_block, db)
-    
-    @staticmethod
-    def calculate_metrics_from_checkins(user_id: int, start_date: date, end_date: date, db: SQLAlchemySession) -> Dict:
-        """Calculate metrics from checkins in a date range"""
-        # Get all checkins for the time period
-        checkins = db.query(Checkin).filter(
-            Checkin.user_id == user_id,
-            func.date(Checkin.timestamp) >= start_date,
-            func.date(Checkin.timestamp) <= end_date
-        ).all()
 
-        # Calculate metrics
-        rpe_values = [c.rpe for c in checkins if c.rpe is not None]
-        mood_values = [c.mood for c in checkins if c.mood is not None]
-        energy_values = [c.energy for c in checkins if c.energy is not None]
-
-        return {
-            "rpe": sum(rpe_values) / len(rpe_values) if rpe_values else None,
-            "mood": sum(mood_values) / len(mood_values) if mood_values else None,
-            "energy": sum(energy_values) / len(energy_values) if energy_values else None,
-            "checkin_count": len(checkins)
-        }
 
     @staticmethod
     def create_day_report_model(user_id: int, report_date: date, db: SQLAlchemySession):
@@ -438,15 +417,6 @@ class ReportGenerator:
             day_block = DayBlock.get_or_create(
                 db, user_id, report_date.year, report_date.month, report_date.day)
 
-        # Calculate metrics from checkins
-        metrics = ReportGenerator.calculate_metrics_from_checkins(
-            user_id, report_date, report_date, db)
-
-        # Update day block with metrics
-        day_block.rpe = metrics["rpe"]
-        day_block.mood = metrics["mood"]
-        day_block.energy = metrics["energy"]
-        day_block.report_generated = True
 
         # Create the report model
         day_report = DayReport(
@@ -464,13 +434,9 @@ class ReportGenerator:
     @staticmethod
     def create_week_report_model(user_id: int, week_block: WeekBlock, db: SQLAlchemySession):
         """Create a week report model for the given week block"""
-        # Calculate metrics from checkins for the week
-        metrics = ReportGenerator.calculate_metrics_from_checkins(
-            user_id, week_block.start_date, week_block.end_date, db)
+
 
         # Update week block with metrics
-        week_block.rpe = metrics["rpe"]
-        week_block.mood = metrics["mood"]
         week_block.report_generated = True
 
         # Create the report model
