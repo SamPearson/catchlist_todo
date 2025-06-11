@@ -24,8 +24,6 @@ class BaseReport(db.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._stats = None
-        self._commitments = None
         # Ensure each model has a time_block reference
         self.time_block = None
 
@@ -49,10 +47,7 @@ class BaseReport(db.Model):
             if not isinstance(value, int) or not (1 <= value <= 10):
                 raise ValueError(f"{key} must be an integer between 1 and 10")
         return value
-    
-    # The commitments property has been removed as it's better to access
-    # commitments directly through the time_block's commitments property
-    # Time blocks already have the capability to retrieve commitments
+
     
     @property
     def stats(self) -> Dict:
@@ -101,7 +96,6 @@ class BaseReport(db.Model):
             "notes": self.notes,
             "gratitudes": self.gratitudes,
             "time_block": self.time_block.as_dict() if hasattr(self, 'time_block') else None,
-            "stats": self.stats
         }
         return base_dict
 
@@ -305,7 +299,7 @@ class SeasonReport(BaseReport):
         return db.session.query(MonthReport).filter(
             MonthReport.user_id == self.user_id,
             MonthReport.month >= self.start_date,
-            func.date_add(MonthReport.month, text("interval 1 month")) <= self.end_date
+            MonthReport.month <= self.end_date
         ).all()
 
     def as_dict(self) -> Dict:
