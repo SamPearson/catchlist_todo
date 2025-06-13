@@ -13,5 +13,3 @@ reports_bp.register_blueprint(month_reports.bp)
 reports_bp.register_blueprint(season_reports.bp)
 reports_bp.register_blueprint(year_reports.bp)
 
-# Import shared routes
-from .views import shared
