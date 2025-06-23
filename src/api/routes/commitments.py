@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import Commitment, Checkin, db, ReportGenerator
+from ...config.models import Commitment, Checkin, db
 from sqlalchemy import and_, or_
 
 commitments_bp = Blueprint('commitments', __name__)

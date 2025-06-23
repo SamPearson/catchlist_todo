@@ -18,10 +18,12 @@ app = create_app()
 
 # Register all blueprints
 app.register_blueprint(auth.auth_bp)
+app.register_blueprint(reports_bp)
+
+#Old blueprints
 app.register_blueprint(projects.projects_bp, url_prefix='/api')
 app.register_blueprint(routines.routines_bp)
 app.register_blueprint(commitments.commitments_bp)
-app.register_blueprint(reports_bp)  # Use new reports blueprint
 app.register_blueprint(catchlist_items.catchlist_items_bp)
 app.register_blueprint(tags.tags_bp, url_prefix='/api/tags')
 
