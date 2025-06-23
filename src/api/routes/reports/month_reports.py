@@ -31,13 +31,21 @@ def list_reports():
 
 @jwt_required()
 def create_report():
-    """Create a new month report"""
+    """Create or update a month report"""
     user_id = get_jwt_identity()
     data = request.get_json()
     report_date = datetime.strptime(data.pop('date'), '%Y-%m-%d').date()
     month_date = report_date.replace(day=1)
-    report = report_service.create_month_report(user_id, month_date, data)
-    return jsonify(report.as_dict()), 201
+
+    # Check if report exists for this month
+    existing_report = report_service.get_month_report(user_id, date=month_date)
+
+    if existing_report:
+        report = report_service.update_report(existing_report, data)
+        return jsonify(report.as_dict()), 200
+    else:
+        report = report_service.create_month_report(user_id, month_date, data)
+        return jsonify(report.as_dict()), 201
 
 
 @jwt_required()

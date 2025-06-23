@@ -31,16 +31,20 @@ def list_reports():
 
 @jwt_required()
 def create_report():
-    """Create a new week report"""
+    """Create or update a week report"""
     user_id = get_jwt_identity()
     data = request.get_json()
-
-    # Handle start date
     start_date = datetime.strptime(data.pop('date'), '%Y-%m-%d').date()
 
-    # Create report - note that end_date is calculated inside create_week_report
-    report = report_service.create_week_report(user_id, start_date, data)
-    return jsonify(report.as_dict()), 201
+    # Check if report exists for this week
+    existing_report = report_service.get_week_report(user_id, date=start_date)
+
+    if existing_report:
+        report = report_service.update_report(existing_report, data)
+        return jsonify(report.as_dict()), 200
+    else:
+        report = report_service.create_week_report(user_id, start_date, data)
+        return jsonify(report.as_dict()), 201
 
 
 @jwt_required()

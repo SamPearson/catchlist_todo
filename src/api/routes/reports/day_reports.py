@@ -20,6 +20,14 @@ def get_report(date):
     return jsonify(report.as_dict()) if report else ('', 404)
 
 
+@jwt_required()
+def get_or_create_report(date):
+    """Get or create a day report for the specified date"""
+    user_id = get_jwt_identity()
+    report_date = datetime.strptime(date, '%Y-%m-%d').date()
+    report = report_service.get_or_create_day_report(user_id, report_date)
+    return jsonify(report.as_dict())
+
 
 @jwt_required()
 def list_reports():
@@ -31,12 +39,22 @@ def list_reports():
 
 @jwt_required()
 def create_report():
-    """Create a new day report"""
+    """Create or update a day report"""
     user_id = get_jwt_identity()
     data = request.get_json()
     report_date = datetime.strptime(data.pop('date'), '%Y-%m-%d').date()
-    report = report_service.create_day_report(user_id, report_date, data)
-    return jsonify(report.as_dict()), 201
+
+    # First check if a report exists for this date
+    existing_report = report_service.get_day_report(user_id, date=report_date)
+
+    if existing_report:
+        # Update existing report
+        report = report_service.update_report(existing_report, data)
+        return jsonify(report.as_dict()), 200
+    else:
+        # Create new report
+        report = report_service.create_day_report(user_id, report_date, data)
+        return jsonify(report.as_dict()), 201
 
 
 @jwt_required()

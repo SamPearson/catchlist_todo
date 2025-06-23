@@ -38,7 +38,7 @@ def list_reports():
 
 @jwt_required()
 def create_report():
-    """Create a new year report"""
+    """Create or update a year report"""
     user_id = get_jwt_identity()
     data = request.get_json()
 
@@ -49,8 +49,15 @@ def create_report():
     else:
         year = data.pop('year')
 
-    report = report_service.create_year_report(user_id, year, data)
-    return jsonify(report.as_dict()), 201
+    # Check if report exists for this year
+    existing_report = report_service.get_year_report(user_id, year=year)
+
+    if existing_report:
+        report = report_service.update_report(existing_report, data)
+        return jsonify(report.as_dict()), 200
+    else:
+        report = report_service.create_year_report(user_id, year, data)
+        return jsonify(report.as_dict()), 201
 
 
 @jwt_required()

@@ -7,6 +7,7 @@ reports_bp = Blueprint('reports', __name__)
 reports_bp.add_url_rule('/api/reports/day/<date>', view_func=day_reports.get_report, endpoint='day_get_report', methods=['GET'])
 reports_bp.add_url_rule('/api/reports/day', view_func=day_reports.list_reports, endpoint='day_list_reports', methods=['GET'])
 reports_bp.add_url_rule('/api/reports/day', view_func=day_reports.create_report, endpoint='day_create_report', methods=['POST'])
+reports_bp.add_url_rule('/api/reports/day/<date>/get_or_create', view_func=day_reports.get_or_create_report, endpoint='day_get_or_create_report', methods=['GET'])
 reports_bp.add_url_rule('/api/reports/day/<int:report_id>', view_func=day_reports.update_report, endpoint='day_update_report', methods=['PUT'])
 reports_bp.add_url_rule('/api/reports/day/<int:report_id>', view_func=day_reports.delete_report, endpoint='day_delete_report', methods=['DELETE'])
 
