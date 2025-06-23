@@ -55,6 +55,13 @@ class ReportService:
             **data
         )
 
+    def get_or_create_day_report(self, user_id: int, report_date: date) -> DayReport:
+        """Get existing day report or create a new empty one"""
+        report = self.get_day_report(user_id, date=report_date)
+        if not report:
+            report = self.create_day_report(user_id, report_date, {})
+        return report
+
     def get_day_report(self, user_id: int, **filters) -> Optional[DayReport]:
         """Get a day report with flexible filtering"""
         return self.repository.get(DayReport, user_id=user_id, **filters)
