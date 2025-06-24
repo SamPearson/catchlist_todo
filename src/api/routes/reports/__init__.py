@@ -15,6 +15,7 @@ reports_bp.add_url_rule('/api/reports/day/<int:report_id>', view_func=day_report
 reports_bp.add_url_rule('/api/reports/week/<date>', view_func=week_reports.get_report, endpoint='week_get_report', methods=['GET'])
 reports_bp.add_url_rule('/api/reports/week', view_func=week_reports.list_reports, endpoint='week_list_reports', methods=['GET'])
 reports_bp.add_url_rule('/api/reports/week', view_func=week_reports.create_report, endpoint='week_create_report', methods=['POST'])
+reports_bp.add_url_rule('/api/reports/week/<date>/get_or_create', view_func=week_reports.get_or_create_report, endpoint='week_get_or_create_report', methods=['GET'])
 reports_bp.add_url_rule('/api/reports/week/<int:report_id>', view_func=week_reports.update_report, endpoint='week_update_report', methods=['PUT'])
 reports_bp.add_url_rule('/api/reports/week/<int:report_id>', view_func=week_reports.delete_report, endpoint='week_delete_report', methods=['DELETE'])
 
