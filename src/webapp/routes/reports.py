@@ -1,308 +1,115 @@
-from flask import Blueprint, jsonify, request, current_app, render_template, redirect, url_for
-from datetime import datetime, date
-from ...config.models.reports import DayReport as DayReport, WeekReport as WeekReport, MonthReport as MonthReport, YearReport as SeasonReport, YearReport as YearReport
-from ...config.models.time_blocks import DayBlock, WeekBlock, MonthBlock, SeasonBlock, YearBlock
-from ...config.models.commitment import Commitment
-from ...config.db_setup import db
-from functools import wraps
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import date, datetime
+from src.common_utils.date_utils import parse_date, format_date, get_week_sunday
+from flask import Blueprint, render_template, redirect, url_for, request
+from src.webapp.services.auth import require_auth
+from src.webapp.services.api_client import api_client
 
 reports_bp = Blueprint('reports', __name__)
 
-def token_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = None
-        # First try to get from headers
-        auth_header = request.headers.get('Authorization')
-        if auth_header:
-            token = auth_header.replace('Bearer ', '')
-        # Then try to get from cookies
-        if not token:
-            token = request.cookies.get('auth_token')
-        
-        if not token:
-            return jsonify({'error': 'Authentication required'}), 401
-            
-        # For now, we'll just check if the token exists
-        # In a real app, you'd want to validate the token with your API
-        return f(*args, **kwargs)
-    return decorated
 
-@reports_bp.route('/api/reports/day/<date_str>')
-@token_required
-def get_day_report(date_str):
-    """Get a report for a specific day"""
-    try:
-        report_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Get or create the day block
-    day_block = DayBlock.get_or_create(
-        db=db.session,
-        user_id=1,  # TODO: Get actual user_id from token
-        year=report_date.year,
-        month=report_date.month,
-        day=report_date.day
-    )
-    
-    # Generate the report
-    report = DayReport(day_block, db.session)
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/api/reports/week/<date_str>')
-@token_required
-def get_week_report(date_str):
-    """Get a report for a specific week"""
-    try:
-        report_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Get or create the week block
-    week_block = WeekBlock.get_or_create(
-        db=db.session,
-        user_id=1,  # TODO: Get actual user_id from token
-        year=report_date.year,
-        week_number=report_date.isocalendar()[1]
-    )
-    
-    # Generate the report
-    report = WeekReport(week_block, db.session)
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/api/reports/month/<date_str>')
-@token_required
-def get_month_report(date_str):
-    """Get a report for a specific month"""
-    try:
-        report_date = datetime.strptime(date_str, '%Y-%m').date()
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM"}), 400
-    
-    # Get or create the month block
-    month_block = MonthBlock.get_or_create(
-        db=db.session,
-        user_id=1,  # TODO: Get actual user_id from token
-        year=report_date.year,
-        month=report_date.month
-    )
-    
-    # Generate the report
-    report = MonthReport(month_block, db.session)
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/api/reports/season/<year>/<season>')
-@token_required
-def get_season_report(year, season):
-    """Get a report for a specific season"""
-    try:
-        year = int(year)
-        if season not in ['Winter', 'Spring', 'Summer', 'Fall']:
-            raise ValueError("Invalid season")
-    except ValueError:
-        return jsonify({"error": "Invalid year or season"}), 400
-    
-    # Get or create the season block
-    season_block = SeasonBlock.get_or_create(
-        db=db.session,
-        user_id=1,  # TODO: Get actual user_id from token
-        year=year,
-        season_name=season
-    )
-    
-    # Generate the report
-    report = SeasonReport(season_block, db.session)
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/api/reports/year/<year>')
-@token_required
-def get_year_report(year):
-    """Get a report for a specific year"""
-    try:
-        year = int(year)
-    except ValueError:
-        return jsonify({"error": "Invalid year"}), 400
-    
-    # Get or create the year block
-    year_block = YearBlock.get_or_create(
-        db=db.session,
-        user_id=1,  # TODO: Get actual user_id from token
-        year=year
-    )
-    
-    # Generate the report
-    report = YearReport(year_block, db.session)
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/api/reports/custom', methods=['POST'])
-@token_required
-def get_custom_report():
-    """Get a report for a custom date range"""
-    data = request.get_json()
-    if not data or 'start_date' not in data or 'end_date' not in data:
-        return jsonify({"error": "Missing start_date or end_date"}), 400
-    
-    try:
-        start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-        end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
-    
-    # Create a custom time block
-    time_block = TimeBlock(
-        user_id=1,  # TODO: Get actual user_id from token
-        start_date=start_date,
-        end_date=end_date,
-        block_type='custom'
-    )
-    
-    # Generate the report
-    report = Report(time_block, db.session)
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/api/reports/demo/<report_type>')
-@token_required
-def get_demo_report(report_type):
-    """Get a demo report of the specified type"""
-    if not current_app.config['SHOW_DEMO']:
-        return jsonify({"error": "Demo reports are not enabled"}), 403
-    
-    # Create demo data based on report type
-    today = date.today()
-    
-    if report_type == 'day':
-        time_block = DayBlock(
-            user_id=1,  # TODO: Get actual user_id from token
-            year=today.year,
-            month=today.month,
-            day=today.day,
-            sleep_hours=7.5,
-            mood='Good',
-            rpe=6
-        )
-    elif report_type == 'week':
-        time_block = WeekBlock(
-            user_id=1,  # TODO: Get actual user_id from token
-            year=today.year,
-            week_number=today.isocalendar()[1],
-            weekly_aim='Complete project milestone',
-            weekly_notes='Focus on core features'
-        )
-    elif report_type == 'month':
-        time_block = MonthBlock(
-            user_id=1,  # TODO: Get actual user_id from token
-            year=today.year,
-            month=today.month,
-            theme='Productivity Boost'
-        )
-    elif report_type == 'season':
-        # Determine current season
-        month = today.month
-        if month in [12, 1, 2]:
-            season = 'Winter'
-        elif month in [3, 4, 5]:
-            season = 'Spring'
-        elif month in [6, 7, 8]:
-            season = 'Summer'
-        else:
-            season = 'Fall'
-        
-        time_block = SeasonBlock(
-            user_id=1,  # TODO: Get actual user_id from token
-            year=today.year,
-            season_name=season,
-            aim='Improve work-life balance'
-        )
-    elif report_type == 'year':
-        time_block = YearBlock(
-            user_id=1,  # TODO: Get actual user_id from token
-            year=today.year,
-            theme='Personal Growth'
-        )
-    else:
-        return jsonify({"error": "Invalid report type"}), 400
-    
-    # Add some demo commitments
-    commitments = [
-        Commitment(
-            user_id=1,  # TODO: Get actual user_id from token
-            title="Complete project documentation",
-            completed=True,
-            rpe=7
-        ),
-        Commitment(
-            user_id=1,  # TODO: Get actual user_id from token
-            title="Review pull requests",
-            completed=True,
-            rpe=5
-        ),
-        Commitment(
-            user_id=1,  # TODO: Get actual user_id from token
-            title="Team meeting",
-            completed=False,
-            rpe=None
-        ),
-        Commitment(
-            user_id=1,  # TODO: Get actual user_id from token
-            title="Update dependencies",
-            completed=False,
-            rpe=None
-        )
-    ]
-    
-    # Create and return the report
-    report_class = {
-        'day': DayReport,
-        'week': WeekReport,
-        'month': MonthReport,
-        'season': SeasonReport,
-        'year': YearReport
-    }[report_type]
-    
-    report = report_class(time_block, db.session)
-    report._commitments = commitments  # Override the commitments property
-    
-    return jsonify(report.as_dict())
-
-@reports_bp.route('/reports')
+@reports_bp.route('/reports/')
+@require_auth
 def index():
-    token = request.cookies.get('auth_token')
-    if not token:
-        return redirect(url_for('login'))
-    
-    # Use the API_URL from the injected globals in the webapp
-    return render_template("reports.html")
+    """Main reports page"""
+    return render_template('reports/index.html')
 
-@reports_bp.route('/reports/daily')
-def daily():
-    token = request.cookies.get('auth_token')
-    if not token:
-        return redirect(url_for('login'))
-    
-    return render_template('reports/daily.html')
 
-@reports_bp.route('/reports/weekly')
-def weekly():
-    token = request.cookies.get('auth_token')
-    if not token:
-        return redirect(url_for('login'))
-    
-    return render_template('reports/weekly.html')
 
-@reports_bp.route('/reports/monthly')
-def monthly():
-    token = request.cookies.get('auth_token')
-    if not token:
-        return redirect(url_for('login'))
-    
-    return render_template('reports/monthly.html')
+@reports_bp.route('/reports/day/')
+@require_auth
+def daily_redirect():
+    """Redirect to today's report"""
+    today = date.today().strftime('%Y-%m-%d')
+    return redirect(url_for('reports.daily', date=today))
 
-@reports_bp.route('/reports/seasonal')
-def seasonal():
-    token = request.cookies.get('auth_token')
-    if not token:
-        return redirect(url_for('login'))
-    
-    return render_template('reports/seasonal.html') 
+@reports_bp.route('/reports/day/<date>', methods=['GET', 'POST'])
+@require_auth
+def daily(date):
+    """Daily report view and save"""
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        data['date'] = date
+        api_client.post('/reports/day', data)
+        return redirect(url_for('reports.daily', date=date))
+
+    report = api_client.get(f"/reports/day/{date}/get_or_create")
+    return render_template('reports/day_report.html',
+                         date=date,
+                         report=report)
+
+@reports_bp.route('/reports/week/')
+@require_auth
+def weekly_redirect():
+    """Redirect to this week's report"""
+    today = date.today()
+    week_sunday = get_week_sunday(today)
+    return redirect(url_for('reports.weekly', date=format_date(week_sunday)))
+
+
+@reports_bp.route('/reports/week/<date>', methods=['GET', 'POST'])
+@require_auth
+def weekly(date):
+    """Weekly report view and save"""
+    input_date = parse_date(date)
+    week_sunday = get_week_sunday(input_date)
+
+    if request.method == 'POST':
+        data = request.form.to_dict()
+        data['week_sunday'] = format_date(week_sunday)
+        api_client.post('/reports/week', data)
+        return redirect(url_for('reports.weekly', date=date))
+
+    report = api_client.get(f"/reports/week/{format_date(week_sunday)}/get_or_create")
+    return render_template('reports/week_report.html',
+                           date=date,
+                           report=report)
+
+
+#
+#
+# @reports_bp.route('/reports/month/<date>', methods=['GET', 'POST'])
+# @require_auth
+# def monthly(date):
+#     """Monthly report view and save"""
+#     if request.method == 'POST':
+#         data = request.form.to_dict()
+#         data['date'] = date
+#         api_client.post('/reports/month', data)
+#         return redirect(url_for('reports.monthly', date=date))
+#
+#     report = api_client.get(f"/reports/month/{date}/get_or_create")
+#     return render_template('reports/monthly.html',
+#                          date=date,
+#                          report=report)
+#
+# @reports_bp.route('/reports/season/<year>/<season>', methods=['GET', 'POST'])
+# @require_auth
+# def seasonal(year, season):
+#     """Seasonal report view and save"""
+#     if request.method == 'POST':
+#         data = request.form.to_dict()
+#         data['year'] = year
+#         data['season'] = season
+#         api_client.post('/reports/season', data)
+#         return redirect(url_for('reports.seasonal', year=year, season=season))
+#
+#     report = api_client.get(f"/reports/season/{year}/{season}")
+#     return render_template('reports/seasonal.html',
+#                          year=year,
+#                          season=season,
+#                          report=report)
+#
+# @reports_bp.route('/reports/year/<year>', methods=['GET', 'POST'])
+# @require_auth
+# def yearly(year):
+#     """Yearly report view and save"""
+#     if request.method == 'POST':
+#         data = request.form.to_dict()
+#         data['year'] = year
+#         api_client.post('/reports/year', data)
+#         return redirect(url_for('reports.yearly', year=year))
+#
+#     report = api_client.get(f"/reports/year/{year}")
+#     return render_template('reports/yearly.html',
+#                          year=year,
+#                          report=report)
