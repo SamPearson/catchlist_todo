@@ -34,17 +34,27 @@ def create_report():
     """Create or update a week report"""
     user_id = get_jwt_identity()
     data = request.get_json()
-    start_date = datetime.strptime(data.pop('date'), '%Y-%m-%d').date()
+    week_sunday = datetime.strptime(data.pop('week_sunday'), '%Y-%m-%d').date()
 
     # Check if report exists for this week
-    existing_report = report_service.get_week_report(user_id, date=start_date)
+    existing_report = report_service.get_week_report(user_id, week_sunday=week_sunday)
 
     if existing_report:
         report = report_service.update_report(existing_report, data)
         return jsonify(report.as_dict()), 200
     else:
-        report = report_service.create_week_report(user_id, start_date, data)
+        data['week_sunday'] = week_sunday
+        report = report_service.create_week_report(user_id, data)
         return jsonify(report.as_dict()), 201
+
+
+@jwt_required()
+def get_or_create_report(date):
+    """Get or create a week report for the specified date"""
+    user_id = get_jwt_identity()
+    report_date = datetime.strptime(date, '%Y-%m-%d').date()
+    report = report_service.get_or_create_week_report(user_id, report_date)
+    return jsonify(report.as_dict())
 
 
 @jwt_required()

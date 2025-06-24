@@ -3,6 +3,8 @@ from typing import Dict, Tuple, Optional
 from ..dates.services import DateService
 from .repositories import ReportRepository
 from .models import DayReport, WeekReport, MonthReport, SeasonReport, YearReport
+from ...common_utils.date_utils import get_week_sunday
+
 
 class ReportService:
     def __init__(self, repository: ReportRepository):
@@ -17,18 +19,26 @@ class ReportService:
             **data
         )
 
-    def create_week_report(self, user_id: int, start_date: date, data: Dict) -> WeekReport:
-        # Ensure we always use Monday as the start date
-        week_start = self.date_service.get_week_start(start_date)
-        end_date = week_start + timedelta(days=6)
+    def create_week_report(self, user_id: int, data: Dict) -> WeekReport:
         return self.repository.create(
             WeekReport,
             user_id=user_id,
-            start_date=week_start,
-            end_date=end_date,
             **data
         )
 
+    def get_week_report(self, user_id: int, **filters) -> Optional[WeekReport]:
+        """Get a week report with flexible filtering"""
+        if 'date' in filters:
+            # Convert date to week_sunday if date is provided
+            filters['week_sunday'] = get_week_sunday(filters.pop('date'))
+        return self.repository.get(WeekReport, user_id=user_id, **filters)
+
+    def get_or_create_week_report(self, user_id: int, week_sunday: date) -> WeekReport:
+        """Get existing week report or create a new empty one"""
+        report = self.get_week_report(user_id, week_sunday=week_sunday)
+        if not report:
+            report = self.create_week_report(user_id, {'week_sunday': week_sunday})
+        return report
 
     def create_month_report(self, user_id: int, month_date: date, data: Dict) -> MonthReport:
         return self.repository.create(
@@ -66,12 +76,6 @@ class ReportService:
         """Get a day report with flexible filtering"""
         return self.repository.get(DayReport, user_id=user_id, **filters)
 
-    def get_week_report(self, user_id: int, **filters) -> Optional[WeekReport]:
-        """Get a week report with flexible filtering"""
-        if 'date' in filters:
-            # Convert date to start_date if date is provided
-            filters['start_date'] = self.date_service.get_week_start(filters.pop('date'))
-        return self.repository.get(WeekReport, user_id=user_id, **filters)
 
     def get_month_report(self, user_id: int, **filters) -> Optional[MonthReport]:
         """Get a month report with flexible filtering"""

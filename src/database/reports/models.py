@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, Float, String, Text, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship, validates
 from ...config.db_setup import db
@@ -70,8 +70,7 @@ class WeekReport(BaseReport):
     """Weekly planning and review"""
     __tablename__ = 'week_reports'
 
-    start_date = Column(Date, nullable=False, index=True)
-    end_date = Column(Date, nullable=False)
+    week_sunday = Column(Date, nullable=False, index=True)  # The Sunday that starts this week
     weekly_goals = Column(Text)
     goals_rationale = Column(Text)
     start_notes = Column(Text)
@@ -79,13 +78,14 @@ class WeekReport(BaseReport):
     goals_achieved_rating = Column(Integer)
     course_corrections = Column(Text)
 
-    __table_args__ = (db.Index('idx_week_user_date', 'user_id', 'start_date'),)
+    __table_args__ = (db.Index('idx_week_user_date', 'user_id', 'week_sunday'),)
 
     def as_dict(self):
         data = super().as_dict()
+        week_sunday = self.week_sunday
         data.update({
-            'start_date': self.start_date.isoformat() if self.start_date else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'week_sunday': week_sunday.isoformat(),
+            'week_saturday': (week_sunday + timedelta(days=6)).isoformat(),
             'weekly_goals': self.weekly_goals,
             'goals_rationale': self.goals_rationale,
             'start_notes': self.start_notes,
