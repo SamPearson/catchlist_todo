@@ -1,0 +1,121 @@
+
+{% extends "bulma_base.html" %}
+
+{% block title %}Weekly Report - {{ date }}{% endblock %}
+
+{% block content %}
+    <!-- Hero Section -->
+    <section class="hero is-primary is-small">
+        <div class="hero-body">
+            <div class="container">
+                <div class="level is-mobile">
+                    <!-- Left side -->
+                    <div class="level-left">
+                        <div class="level-item">
+                            <a href="{{ url_for('reports.weekly', date=(parse_date(date) - timedelta(days=7)).strftime('%Y-%m-%d')) }}" 
+                               class="button is-primary is-inverted">
+                                <span class="icon">
+                                    <i class="fas fa-chevron-left"></i>
+                                </span>
+                                <span>Previous Week</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Center -->
+                    <div class="level-item has-text-centered">
+                        <div>
+                            <p class="title">Weekly Report</p>
+                            <p class="subtitle">{{ report.week_sunday }} to {{ report.week_saturday }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Right side -->
+                    <div class="level-right">
+                        <div class="level-item">
+                            <a href="{{ url_for('reports.weekly', date=(parse_date(date) + timedelta(days=7)).strftime('%Y-%m-%d')) }}" 
+                               class="button is-primary is-inverted">
+                                <span>Next Week</span>
+                                <span class="icon">
+                                    <i class="fas fa-chevron-right"></i>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="box">
+                <form method="POST">
+                    <!-- Week Planning -->
+                    <h3 class="title is-4">Week Planning</h3>
+                    <div class="field">
+                        <label class="label">Weekly Goals</label>
+                        <div class="control">
+                            <textarea class="textarea" name="weekly_goals" rows="4"
+                                    placeholder="What do you want to accomplish this week?">{{ report.weekly_goals if report else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">Goals Rationale</label>
+                        <div class="control">
+                            <textarea class="textarea" name="goals_rationale" rows="4"
+                                    placeholder="Why are these goals important?">{{ report.goals_rationale if report else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">Start Notes</label>
+                        <div class="control">
+                            <textarea class="textarea" name="start_notes" rows="4"
+                                    placeholder="Any notes or thoughts at the start of the week?">{{ report.start_notes if report else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Week Review -->
+                    <h3 class="title is-4 mt-5">Week Review</h3>
+                    <div class="field">
+                        <label class="label">Goals Achieved Rating (1-10)</label>
+                        <div class="control">
+                            <input class="input" type="number" min="1" max="10" name="goals_achieved_rating"
+                                   value="{{ report.goals_achieved_rating if report else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">End Notes</label>
+                        <div class="control">
+                            <textarea class="textarea" name="end_notes" rows="4"
+                                    placeholder="How did the week go overall?">{{ report.end_notes if report else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="label">Course Corrections</label>
+                        <div class="control">
+                            <textarea class="textarea" name="course_corrections" rows="4"
+                                    placeholder="What adjustments should be made for next week?">{{ report.course_corrections if report else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="field mt-5">
+                        <div class="control">
+                            <button type="submit" class="button is-primary is-fullwidth">
+                                <span class="icon">
+                                    <i class="fas fa-save"></i>
+                                </span>
+                                <span>Save Report</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+{% endblock %}
