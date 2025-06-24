@@ -1,6 +1,21 @@
 from datetime import date, datetime, timedelta
 from typing import Tuple
 
+def get_next_day(input_date: date) -> date:
+    """Get the next day's date."""
+    return input_date + timedelta(days=1)
+
+def get_previous_day(input_date: date) -> date:
+    """Get the previous day's date."""
+    return input_date - timedelta(days=1)
+
+def format_date(input_date: date) -> str:
+    """Format date as YYYY-MM-DD string."""
+    return input_date.strftime('%Y-%m-%d')
+
+def parse_date(date_str: str) -> date:
+    """Parse YYYY-MM-DD string into date object."""
+    return datetime.strptime(date_str, '%Y-%m-%d').date()
 
 def get_week_bounds(input_date: date) -> Tuple[date, date]:
     """Get the start and end dates of the week containing the input date."""
@@ -11,6 +26,24 @@ def get_week_bounds(input_date: date) -> Tuple[date, date]:
     end = start + timedelta(days=6)
     return start, end
 
+def get_week_sunday(input_date: date) -> date:
+    """Get the Sunday that starts the week containing the input date.
+    Treats Sunday as the first day of the week."""
+    # weekday() returns 6 for Sunday, 0 for Monday, etc.
+    days_since_sunday = input_date.weekday() + 1
+    if days_since_sunday == 7:  # It's already Sunday
+        return input_date
+    return input_date - timedelta(days=days_since_sunday)
+
+def get_next_week_sunday(input_date: date) -> date:
+    """Get the Sunday that starts the next week"""
+    current_sunday = get_week_sunday(input_date)
+    return current_sunday + timedelta(days=7)
+
+def get_previous_week_sunday(input_date: date) -> date:
+    """Get the Sunday that starts the previous week"""
+    current_sunday = get_week_sunday(input_date)
+    return current_sunday - timedelta(days=7)
 
 def get_season(input_date: date) -> str:
     """Get the season name for the given date."""
