@@ -1,0 +1,61 @@
+
+{# Field Macros #}
+{% macro input_field(label, name, type="text", value="", testid="", placeholder="") %}
+    <div class="field">
+        <label class="label">{{ label }}</label>
+        <div class="control">
+            <input class="input"
+                   type="{{ type }}"
+                   name="{{ name }}"
+                   value="{{ value }}"
+                   data-testid="field-{{ testid or name }}"
+                   {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+                   {% if type == "number" %}min="1" max="10"{% endif %}>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro textarea_field(label, name, value="", rows=4, testid="", placeholder="") %}
+    <div class="field">
+        <label class="label">{{ label }}</label>
+        <div class="control">
+            <textarea class="textarea"
+                      name="{{ name }}"
+                      rows="{{ rows }}"
+                      data-testid="field-{{ testid or name }}"
+                      placeholder="{{ placeholder }}">{{ value }}</textarea>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro select_field(label, name, options, value="", testid="") %}
+    <div class="field">
+        <label class="label">{{ label }}</label>
+        <div class="control">
+            <div class="select is-fullwidth">
+                <select name="{{ name }}" data-testid="field-{{ testid or name }}">
+                    <option value="">Select...</option>
+                    {% for opt_value, opt_label in options %}
+                        <option value="{{ opt_value }}" {{ 'selected' if value == opt_value else '' }}>
+                            {{ opt_label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+{# Section Macros #}
+{% macro field_section(title, testid="") %}
+    <h3 class="title is-4" data-testid="section-{{ testid }}">{{ title }}</h3>
+    <div class="columns">
+        {{ caller() }}
+    </div>
+{% endmacro %}
+
+{% macro field_column() %}
+    <div class="column">
+        {{ caller() }}
+    </div>
+{% endmacro %}

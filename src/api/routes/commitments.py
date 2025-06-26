@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import Commitment, Checkin, db, ReportGenerator
+from ...config.models import Commitment, Checkin, db
 from sqlalchemy import and_, or_
 
 commitments_bp = Blueprint('commitments', __name__)
@@ -84,9 +84,7 @@ def update_commitment(commitment_id):
         commitment.completed = data['completed']
         commitment.completed_at = datetime.now() if data['completed'] else None
         
-        # Generate reports after updating commitment
-        ReportGenerator.generate_missing_reports(user_id, db.session)
-    
+
     if 'due_date' in data:
         try:
             year, month, day = map(int, data['due_date'].split('-'))
@@ -175,9 +173,7 @@ def add_commitment_checkin(commitment_id):
     db.session.add(checkin)
     db.session.commit()
     
-    # Generate reports after adding checkin
-    ReportGenerator.generate_missing_reports(user_id, db.session)
-    
+
     return jsonify(checkin.as_dict())
 
 @commitments_bp.route('/api/commitments/search', methods=['GET'])

@@ -1,0 +1,152 @@
+
+{% extends "reports/base_report.html" %}
+{% from "reports/report_components.html" import input_field, textarea_field, select_field, field_section, field_column %}
+
+{% set report_type = 'Daily' %}
+{% set nav_text = 'Day' %}
+{% set prev_url = 'reports.daily' %}
+{% set next_url = 'reports.daily' %}
+{% set nav_delta = timedelta(days=1) %}
+
+{% block report_content %}
+    {% call field_section('Morning', 'morning') %}
+        {% call field_column() %}
+            {{ textarea_field('Morning Notes', 'morning_notes',
+                            value=report.morning_notes if report else '',
+                            testid='morning-notes',
+                            placeholder='How are you feeling this morning?') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ textarea_field('Plans for the Day', 'daily_plans',
+                            value=report.daily_plans if report else '',
+                            testid='daily-plans',
+                            placeholder='What do you plan to accomplish today?') }}
+        {% endcall %}
+    {% endcall %}
+
+    {% call field_section('Wellness', 'wellness') %}
+        {% call field_column() %}
+            {{ input_field('Sleep Hours', 'sleep_hours', 'number',
+                          value=report.sleep_hours if report else '',
+                          testid='sleep-hours') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ input_field('Prayer Rating (1-10)', 'prayer_rating', 'number',
+                          value=report.prayer_rating if report else '',
+                          testid='prayer-rating') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ select_field('Diet', 'diet_adherence',
+                          [('1', 'Maintained'), ('0', 'Off Plan')],
+                          value=report.diet_adherence if report else '',
+                          testid='diet-adherence') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ input_field('Drug Rating (1-10)', 'drug_rating', 'number',
+                          value=report.drug_rating if report else '',
+                          testid='drug-rating') }}
+        {% endcall %}
+    {% endcall %}
+
+    {% call field_section('Exercise', 'exercise') %}
+        {% call field_column() %}
+            {{ select_field('DYEL', 'dyel',
+                          [('1', 'Yes'), ('0', 'No')],
+                          value=report.dyel if report else '',
+                          testid='dyel') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ input_field('Workout RPE (1-10)', 'workout_rpe', 'number',
+                          value=report.workout_rpe if report else '',
+                          testid='workout-rpe') }}
+        {% endcall %}
+    {% endcall %}
+
+    <div class="columns">
+        <div class="column is-full">
+            {{ textarea_field('Exercise Notes', 'exercise_notes',
+                            value=report.exercise_notes if report else '',
+                            testid='exercise-notes',
+                            placeholder='Notes about today\'s workout') }}
+        </div>
+    </div>
+
+    {% call field_section('Work', 'work') %}
+        {% call field_column() %}
+            {{ select_field('Work Adherence', 'work_adherence',
+                          [('1', 'Completed'), ('0', 'Incomplete')],
+                          value=report.work_adherence if report else '',
+                          testid='work-adherence') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ input_field('Work RPE (1-10)', 'work_rpe', 'number',
+                          value=report.work_rpe if report else '',
+                          testid='work-rpe') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ select_field('Cleaning', 'cleaning_adherence',
+                          [('1', 'Completed'), ('0', 'Not Done')],
+                          value=report.cleaning_adherence if report else '',
+                          testid='cleaning-adherence') }}
+        {% endcall %}
+    {% endcall %}
+
+    {% call field_section('Jobbin', 'jobbin') %}
+        {% call field_column() %}
+            {{ input_field('Job Hunt RPE (1-10)', 'job_hunt_rpe', 'number',
+                          value=report.job_hunt_rpe if report else '',
+                          testid='job-hunt-rpe') }}
+        {% endcall %}
+    {% endcall %}
+
+    <div class="columns">
+        <div class="column is-full">
+            {{ textarea_field('Job Hunt Notes', 'job_hunt_notes',
+                            value=report.job_hunt_notes if report else '',
+                            testid='job-hunt-notes',
+                            placeholder='Notes about job hunting progress') }}
+        </div>
+    </div>
+
+
+    {% call field_section('Reflection', 'reflection') %}
+
+        {% call field_column() %}
+            {{ textarea_field('Gains', 'gains',
+                            value=report.gains if report else '',
+                            testid='gains',
+                            placeholder='What gains did you make today?') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ input_field('Gains Rating (1-10)', 'gains_rating', 'number',
+                          value=report.gains_rating if report else '',
+                          testid='gains-rating') }}
+        {% endcall %}
+
+        {% call field_column() %}
+            {{ textarea_field('Gratitudes', 'gratitudes',
+                            value=report.gratitudes if report else '',
+                            testid='gratitudes',
+                            placeholder='What are you grateful for today?') }}
+        {% endcall %}
+    {% endcall %}
+
+    <div class="columns">
+        <div class="column is-full">
+            {{ textarea_field('Notes', 'notes',
+                            value=report.notes if report else '',
+                            testid='notes',
+                            placeholder='Any notable events or thoughts from today?') }}
+        </div>
+    </div>
+
+
+{% endblock %}

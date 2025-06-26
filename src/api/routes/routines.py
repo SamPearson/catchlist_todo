@@ -5,7 +5,6 @@ from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient, CalDAVError, CalDAVConnectionError
 from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
-from ..utils.report_generator import ReportGenerator
 import random
 from ...config.models.tags import Tag, RoutineTag, SessionTag
 from dateutil import rrule

@@ -6,8 +6,12 @@ import logging
 from pathlib import Path
 from flask_jwt_extended import JWTManager
 from .routes.tags import tags_bp
+from .routes.reports import reports_bp
 from ..config.db_setup import db
 from ..config.db_config import Config
+from datetime import timedelta
+from src.common_utils.date_utils import parse_date
+
 
 # Configure logging for production - only show warnings and errors
 logging.basicConfig(level=logging.WARNING)
@@ -37,6 +41,8 @@ app.config['SHOW_DEMO'] = os.getenv('SHOW_DEMO', 'True').lower() in ('true', '1'
 
 # Register blueprints
 app.register_blueprint(tags_bp)
+app.register_blueprint(reports_bp)
+
 
 # env files are specified in systemd service files on staging&prod
 # we launch the app with gunicon on staging/prod, thus ( __name__ == main ) only on dev/local.
@@ -55,7 +61,10 @@ if not API_URL:
 def inject_globals():
     return {
         'show_demo': app.config['SHOW_DEMO'],
-        'API_URL': API_URL
+        'API_URL': API_URL,
+        'parse_date': parse_date,
+        'timedelta': timedelta
+
     }
 
 @app.route('/login', methods=['GET', 'POST'])
