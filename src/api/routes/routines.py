@@ -6,7 +6,7 @@ from ...config.caldav_client import CalDAVClient, CalDAVError, CalDAVConnectionE
 from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
 import random
-from ...config.models.tags import Tag, RoutineTag, SessionTag
+from ...config.models.tags import LegacyTag, RoutineTag, SessionTag
 from dateutil import rrule
 import re
 from typing import Dict, List, Optional

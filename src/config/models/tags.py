@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Table
 from sqlalchemy.sql import func
 
 # Tag model for user-defined tags
-class Tag(db.Model):
+class LegacyTag(db.Model):
     __tablename__ = 'tag'
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False)

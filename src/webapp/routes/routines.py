@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import db, Routine, Session, Calendar, Tag, RoutineTag
+from ...config.models import db, Routine, Session, Calendar, RoutineTag
+from ...config.models import LegacyTag as Tag # from the deprecated backend. This needs to go.
 from ...config.caldav_client import CalDAVClient
 from datetime import datetime, timedelta
 from dateutil import rrule
