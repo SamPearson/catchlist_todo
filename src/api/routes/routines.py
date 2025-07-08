@@ -6,7 +6,7 @@ from ...config.caldav_client import CalDAVClient, CalDAVError, CalDAVConnectionE
 from datetime import datetime, date, timedelta
 from ..utils.commitment_utils import create_commitment_from_routine
 import random
-from ...config.models.tags import LegacyTag, RoutineTag, SessionTag
+#from ...config.models.tags import LegacyTag, RoutineTag, SessionTag
 from dateutil import rrule
 import re
 from typing import Dict, List, Optional
@@ -244,21 +244,22 @@ def import_routines():
                 )
                 db.session.add(calendar_obj)
                 db.session.flush()
-            
-            # Create or get calendar tag
-            calendar_tag = Tag.query.filter_by(
-                name=calendar.name,
-                user_id=user_id
-            ).first()
-            
-            if not calendar_tag:
-                calendar_tag = Tag(
-                    name=calendar.name,
-                    color=generate_random_color(),  # Use random color instead of calendar color
-                    user_id=user_id
-                )
-                db.session.add(calendar_tag)
-                db.session.flush()
+
+            # Hacking out the LEGACY TAG SYSTEM
+            # # Create or get calendar tag
+            # calendar_tag = Tag.query.filter_by(
+            #     name=calendar.name,
+            #     user_id=user_id
+            # ).first()
+            #
+            # if not calendar_tag:
+            #     calendar_tag = Tag(
+            #         name=calendar.name,
+            #         color=generate_random_color(),  # Use random color instead of calendar color
+            #         user_id=user_id
+            #     )
+            #     db.session.add(calendar_tag)
+            #     db.session.flush()
             
             # Get events from calendar
             events = client.get_events(calendar.url)
@@ -325,13 +326,14 @@ def import_routines():
                     end_time=event.end
                 )
                 db.session.add(commitment)
-                
-                # Associate routine with calendar tag
-                routine_tag = RoutineTag(
-                    routine_id=routine.id,
-                    tag_id=calendar_tag.id
-                )
-                db.session.add(routine_tag)
+
+                # hacking out the LEGACY TAG SYSTEM
+                # # Associate routine with calendar tag
+                # routine_tag = RoutineTag(
+                #     routine_id=routine.id,
+                #     tag_id=calendar_tag.id
+                # )
+                # db.session.add(routine_tag)
                 
                 imported_count += 1
         
