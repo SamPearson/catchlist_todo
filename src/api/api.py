@@ -6,14 +6,15 @@ from flask_jwt_extended import (
     get_jwt
 )
 
+from src.api.routes.tags import tags_bp
 from ..config.caldav_client import CalDAVClient
 
 from ..config.models import db, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
-from .routes import auth, projects, routines, commitments, catchlist_items, tags
+from .routes import auth, projects, routines, commitments, catchlist_items
 from .routes.tasks import tasks_bp
-from .routes.reports import reports_bp  # Import new reports blueprint
+from .routes.reports import reports_bp
 
 app = create_app()
 
@@ -21,6 +22,7 @@ app = create_app()
 app.register_blueprint(auth.auth_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(tasks_bp)
+app.register_blueprint(tags_bp)
 
 
 #Old blueprints
@@ -28,7 +30,6 @@ app.register_blueprint(projects.projects_bp, url_prefix='/api')
 app.register_blueprint(routines.routines_bp)
 app.register_blueprint(commitments.commitments_bp)
 app.register_blueprint(catchlist_items.catchlist_items_bp)
-app.register_blueprint(tags.tags_bp, url_prefix='/api/tags')
 
 
 @app.route('/api/health', methods=['GET'])

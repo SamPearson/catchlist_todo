@@ -12,14 +12,20 @@ def get_tag(tag_id):
     """Get a specific tag"""
     user_id = get_jwt_identity()
     tag = tag_service.repository.get_by_id(tag_id=tag_id, user_id=user_id)
-    return jsonify(tag.as_dict()) if tag else ('', 404)
+    return jsonify({'tag': tag.as_dict()}) if tag else ('', 404)
 
 @jwt_required()
 def list_tags():
     """List all tags for the current user"""
     user_id = get_jwt_identity()
     tags = tag_service.get_all_by_user(user_id=user_id)
-    return jsonify([tag.as_dict() for tag in tags])
+    tag_list = jsonify({
+        'tags': [tag.as_dict() for tag in tags]
+    })
+
+    return tag_list
+
+
 
 @jwt_required()
 def create_tag():
