@@ -1,347 +1,262 @@
-{% extends 'base.html' %}
+{% extends "bulma_base.html" %}
 
-{% block title %}Tags{% endblock %}
-
-{% block head %}
-{{ super() }}
-<style>
-    .tag-color {
-        width: 18px;
-        height: 18px;
-        display: inline-block;
-        border-radius: 50%;
-        margin-right: 10px;
-        border: 1px solid rgba(0,0,0,0.1);
-    }
-    
-    .tag-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.25em 0.6em;
-        font-size: 80%;
-        font-weight: 500;
-        border-radius: 4px;
-        margin-right: 6px;
-        margin-bottom: 6px;
-    }
-    
-    .tag-list-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        border-bottom: 1px solid rgba(34,36,38,.1);
-        transition: background-color 0.15s;
-    }
-    
-    .tag-list-item:last-child {
-        border-bottom: none;
-    }
-    
-    .tag-list-item:hover {
-        background-color: rgba(0,0,0,.03);
-    }
-    
-    .tag-input-color {
-        height: 38px;
-        cursor: pointer;
-    }
-    
-    .tag-name {
-        font-weight: 500;
-    }
-</style>
-{% endblock %}
+{% block title %}{{ report_type }} Tags {% endblock %}
 
 {% block content %}
-<div class="ui container">
-    <div class="ui segment">
-        <h2 class="ui header">
-            <i class="tags icon"></i>
-            <div class="content">
-                Manage Tags
-                <div class="sub header">Create and manage tags to organize your routines, sessions, projects, tasks, and catchlist items.</div>
-            </div>
-        </h2>
-    </div>
+<div class="container"
+     x-data="tagsManager"
+     data-tags='{{ tags | tojson | safe }}'>
+    <div class="columns is-centered">
+        <!-- Create Tag Column -->
+        <div class="column is-one-third">
+            <div class="box">
+                <h2 class="title is-4">Create New Tag</h2>
+                <form method="POST" action="/tags">
+                    <div class="field">
+                        <label class="label">Tag Name</label>
+                        <div class="control">
+                            <input class="input" type="text" name="name" placeholder="Enter tag name" required>
+                        </div>
+                    </div>
 
-    <div class="ui grid">
-        <div class="six wide column">
-            <div class="ui segment">
-                <h3 class="ui header">Create New Tag</h3>
-                <form id="createTagForm" class="ui form">
                     <div class="field">
-                        <label for="tagName">Tag Name</label>
-                        <input type="text" id="tagName" placeholder="Enter tag name" required>
+                        <label class="label">Tag Color</label>
+                        <div class="control">
+                            <input class="input" type="color" name="color" value="#6c757d" style="height: 38px; cursor: pointer;">
+                        </div>
                     </div>
+
                     <div class="field">
-                        <label for="tagColor">Tag Color</label>
-                        <input type="color" class="tag-input-color" id="tagColor" value="#6c757d">
+                        <div class="control">
+                            <button type="submit" class="button is-primary is-fullwidth">
+                                Create Tag
+                            </button>
+                        </div>
                     </div>
-                    <button type="submit" class="ui primary button">Create Tag</button>
                 </form>
             </div>
         </div>
 
-        <div class="ten wide column">
-            <div class="ui segment">
-                <h3 class="ui header">Your Tags</h3>
-                <div id="tagsList" class="ui list">
-                    <!-- Tags will be loaded here dynamically -->
-                    <div class="ui active centered inline loader" id="tagsLoading"></div>
-                    <div id="noTagsMessage" class="ui placeholder segment" style="display: none;">
-                        <div class="ui icon header">
-                            <i class="tags icon"></i>
-                            You don't have any tags yet
+
+        <!-- Tags List Column -->
+        <div class="column is-two-thirds">
+            <div class="box">
+                <h2 class="title is-4">Your Tags</h2>
+
+                <!-- Loading State -->
+                <div x-show="isLoading" class="has-text-centered">
+                    <span class="icon is-large">
+                        <i class="fas fa-spinner fa-pulse"></i>
+                    </span>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="!isLoading && tags.length === 0" class="has-text-centered">
+                    <p class="is-size-5 has-text-grey">
+                        You don't have any tags yet. Create one to get started!
+                    </p>
+                </div>
+
+                <!-- Tags List -->
+                <div x-show="!isLoading && tags.length > 0">
+                    <template x-for="tag in tags" :key="tag.id">
+                        <div class="box mb-3">
+                            <div class="level is-mobile">
+                                <div class="level-left">
+                                    <div class="level-item">
+                                        <span class="icon" :style="{ color: tag.color }">
+                                            <i class="fas fa-tag"></i>
+                                        </span>
+                                        <span class="ml-2" x-text="tag.name"></span>
+                                    </div>
+                                </div>
+                                <div class="level-right">
+                                    <div class="level-item">
+                                        <div class="buttons are-small">
+                                            <button class="button" @click="editTag(tag)">
+                                                <span class="icon">
+                                                    <i class="fas fa-edit"></i>
+                                                </span>
+                                            </button>
+                                            <button class="button is-danger" @click="confirmDelete(tag)">
+                                                <span class="icon">
+                                                    <i class="fas fa-trash"></i>
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="inline">
-                            Create a new tag to get started.
-                        </div>
-                    </div>
+                    </template>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Edit Tag Modal -->
-    <div class="ui modal" id="editTagModal">
-        <i class="close icon"></i>
-        <div class="header">Edit Tag</div>
-        <div class="content">
-            <form id="editTagForm" class="ui form">
-                <input type="hidden" id="editTagId">
-                <div class="field">
-                    <label for="editTagName">Tag Name</label>
-                    <input type="text" id="editTagName" required>
-                </div>
-                <div class="field">
-                    <label for="editTagColor">Tag Color</label>
-                    <input type="color" class="tag-input-color" id="editTagColor">
-                </div>
+    <!-- Edit Modal -->
+    <div class="modal" :class="{ 'is-active': showEditModal }">
+        <div class="modal-background" @click="showEditModal = false"></div>
+        <div class="modal-card">
+            <header class="modal-card-head">
+                <p class="modal-card-title">Edit Tag</p>
+                <button class="delete" @click="showEditModal = false"></button>
+            </header>
+            <form method="POST" :action="'/tags/' + editingTag.id + '/edit'">
+                <section class="modal-card-body">
+                    <div class="field">
+                        <label class="label">Tag Name</label>
+                        <div class="control">
+                            <input class="input" type="text" name="name" :value="editingTag.name" required>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="label">Tag Color</label>
+                        <div class="control">
+                            <input class="input" type="color" name="color" :value="editingTag.color">
+                        </div>
+                    </div>
+                </section>
+                <footer class="modal-card-foot">
+                    <button type="submit" class="button is-primary">Save changes</button>
+                    <button type="button" class="button" @click="showEditModal = false">Cancel</button>
+                </footer>
             </form>
         </div>
-        <div class="actions">
-            <div class="ui cancel button">Cancel</div>
-            <div class="ui primary button" id="saveTagChanges">Save Changes</div>
+    </div>
+
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" :class="{ 'is-active': showDeleteModal }">
+        <div class="modal-background" @click="showDeleteModal = false"></div>
+        <div class="modal-card">
+            <header class="modal-card-head">
+                <p class="modal-card-title">Delete Tag</p>
+                <button class="delete" @click="showDeleteModal = false"></button>
+            </header>
+            <!-- Forms can't make DELETE requests, we have to hack in an "actually pls delete" preference -->
+            <form :action="'/tags/' + tagToDelete?.id" method="POST">
+                <!-- Hidden input to indicate this is a DELETE operation -->
+                <input type="hidden" name="_method" value="DELETE">
+                <section class="modal-card-body">
+                    <p>Are you sure you want to delete this tag? This action cannot be undone.</p>
+                </section>
+                <footer class="modal-card-foot">
+                    <button type="submit" class="button is-danger">Delete</button>
+                    <button type="button" class="button" @click="showDeleteModal = false">Cancel</button>
+                </footer>
+            </form>
         </div>
     </div>
 
-    <!-- Delete Tag Confirmation Modal -->
-    <div class="ui modal" id="deleteTagModal">
-        <i class="close icon"></i>
-        <div class="header">Confirm Delete</div>
-        <div class="content">
-            <p>Are you sure you want to delete this tag? This action cannot be undone.</p>
-            <p class="ui text muted">The tag will be removed from all associated items.</p>
-        </div>
-        <div class="actions">
-            <div class="ui cancel button">Cancel</div>
-            <div class="ui red button" id="confirmDeleteTag">Delete</div>
-        </div>
-    </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
-    const API_URL = "{{ API_URL }}";
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        loadTags();
-        
-        // Create tag form submission
-        document.getElementById('createTagForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            createTag();
-        });
-        
-        // Set up edit tag button
-        document.getElementById('saveTagChanges').addEventListener('click', function() {
-            updateTag();
-        });
-        
-        // Set up delete tag button
-        document.getElementById('confirmDeleteTag').addEventListener('click', function() {
-            deleteTag();
-        });
+
+function showSuccess(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification is-success';
+    notification.innerHTML = `
+        <button class="delete"></button>
+        ${message}
+    `;
+    document.querySelector('main').insertAdjacentElement('afterbegin', notification);
+    notification.querySelector('.delete').addEventListener('click', () => {
+        notification.remove();
     });
-    
-    let currentTagId = null;
-    
-    // Load all tags
-    function loadTags() {
-        document.getElementById('tagsLoading').style.display = 'block';
-        document.getElementById('noTagsMessage').style.display = 'none';
-        
-        fetch(`${API_URL}/tags`, {
-            method: 'GET',
-            headers: {
-                'Authorization': 'Bearer ' + getToken()
+    setTimeout(() => notification.remove(), 3000);
+}
+
+function showError(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification is-danger';
+    notification.innerHTML = `
+        <button class="delete"></button>
+        ${message}
+    `;
+    document.querySelector('main').insertAdjacentElement('afterbegin', notification);
+    notification.querySelector('.delete').addEventListener('click', () => {
+        notification.remove();
+    });
+    setTimeout(() => notification.remove(), 3000);
+}
+
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('tagsManager', () => ({
+        // Data properties
+        tags: [],
+        newTag: {
+            name: '',
+            color: '#6c757d'
+        },
+        editingTag: {
+            id: null,
+            name: '',
+            color: '#6c757d'
+        },
+        tagToDelete: null,
+        showEditModal: false,
+        showDeleteModal: false,
+        isLoading: true,
+
+        // Lifecycle methods
+        init() {
+            this.isLoading = true;
+            const tagsData = this.$el.dataset.tags;
+            try {
+                const data = JSON.parse(tagsData);
+                this.tags = data.tags || [];
+            } catch (error) {
+                console.error('Error parsing initial tags data:', error);
+                this.tags = [];
+            } finally {
+                this.isLoading = false;
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('tagsLoading').style.display = 'none';
-            
-            if (data.tags && data.tags.length > 0) {
-                renderTags(data.tags);
-            } else {
-                document.getElementById('noTagsMessage').style.display = 'block';
-            }
-        })
-        .catch(error => {
-            console.error('Error loading tags:', error);
-            document.getElementById('tagsLoading').style.display = 'none';
-            alert('Failed to load tags. Please try again later.');
-        });
-    }
-    
-    // Render tags list
-    function renderTags(tags) {
-        const tagsList = document.getElementById('tagsList');
-        tagsList.innerHTML = '';
-        
-        tags.forEach(tag => {
-            const tagItem = document.createElement('div');
-            tagItem.className = 'tag-list-item';
-            
-            const tagContent = document.createElement('div');
-            tagContent.className = 'content';
-            
-            const tagColor = document.createElement('span');
-            tagColor.className = 'tag-color';
-            tagColor.style.backgroundColor = tag.color;
-            
-            const tagName = document.createElement('span');
-            tagName.className = 'tag-name';
-            tagName.textContent = tag.name;
-            
-            tagContent.appendChild(tagColor);
-            tagContent.appendChild(tagName);
-            
-            const tagActions = document.createElement('div');
-            tagActions.className = 'right floated content';
-            
-            const editButton = document.createElement('button');
-            editButton.className = 'ui icon button';
-            editButton.innerHTML = '<i class="pencil icon"></i>';
-            editButton.title = 'Edit';
-            editButton.addEventListener('click', function() {
-                openEditModal(tag);
-            });
-            
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'ui icon button';
-            deleteButton.innerHTML = '<i class="trash icon"></i>';
-            deleteButton.title = 'Delete';
-            deleteButton.addEventListener('click', function() {
-                openDeleteModal(tag.id);
-            });
-            
-            tagActions.appendChild(editButton);
-            tagActions.appendChild(deleteButton);
-            
-            tagItem.appendChild(tagContent);
-            tagItem.appendChild(tagActions);
-            
-            tagsList.appendChild(tagItem);
-        });
-    }
-    
-    // Create a new tag
-    function createTag() {
-        const name = document.getElementById('tagName').value;
-        const color = document.getElementById('tagColor').value;
-        
-        fetch(`${API_URL}/tags`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getToken()
-            },
-            body: JSON.stringify({
-                name: name,
+        },
+
+        // UI Methods
+        editTag(tag) {
+            this.editingTag = { ...tag };
+            this.showEditModal = true;
+        },
+
+        confirmDelete(tag) {
+            this.tagToDelete = tag;
+            this.showDeleteModal = true;
+        },
+
+        closeEditModal() {
+            this.showEditModal = false;
+            this.editingTag = {
+                id: null,
+                name: '',
+                color: '#6c757d'
+            };
+        },
+
+        closeDeleteModal() {
+            this.showDeleteModal = false;
+            this.tagToDelete = null;
+        },
+
+        // Helper methods
+        getTagStyle(color) {
+            return {
                 color: color
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.tag) {
-                document.getElementById('createTagForm').reset();
-                loadTags();
-            } else {
-                alert(data.message || 'Failed to create tag');
-            }
-        })
-        .catch(error => {
-            console.error('Error creating tag:', error);
-            alert('Failed to create tag. Please try again.');
-        });
-    }
-    
-    // Open the edit tag modal
-    function openEditModal(tag) {
-        currentTagId = tag.id;
-        document.getElementById('editTagId').value = tag.id;
-        document.getElementById('editTagName').value = tag.name;
-        document.getElementById('editTagColor').value = tag.color;
-        
-        $('#editTagModal').modal('show');
-    }
-    
-    // Update a tag
-    function updateTag() {
-        const id = document.getElementById('editTagId').value;
-        const name = document.getElementById('editTagName').value;
-        const color = document.getElementById('editTagColor').value;
-        
-        fetch(`${API_URL}/tags/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getToken()
-            },
-            body: JSON.stringify({
-                name: name,
-                color: color
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.tag) {
-                $('#editTagModal').modal('hide');
-                loadTags();
-            } else {
-                alert(data.message || 'Failed to update tag');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating tag:', error);
-            alert('Failed to update tag. Please try again.');
-        });
-    }
-    
-    // Open the delete confirmation modal
-    function openDeleteModal(tagId) {
-        currentTagId = tagId;
-        $('#deleteTagModal').modal('show');
-    }
-    
-    // Delete a tag
-    function deleteTag() {
-        fetch(`${API_URL}/tags/${currentTagId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': 'Bearer ' + getToken()
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            $('#deleteTagModal').modal('hide');
-            loadTags();
-        })
-        .catch(error => {
-            console.error('Error deleting tag:', error);
-            alert('Failed to delete tag. Please try again.');
-        });
-    }
+            };
+        },
+
+        // Template formatting helpers
+        formatDate(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleDateString();
+        }
+    }));
+});
 </script>
-{% endblock %} 
+
+{% endblock %}
