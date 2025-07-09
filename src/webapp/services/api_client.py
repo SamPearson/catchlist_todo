@@ -60,7 +60,10 @@ class APIClient:
             f"{self.base_url}{endpoint}",
             headers=self._get_headers(token)
         )
-        return response.json()
+        # For 204 No Content responses, return None instead of trying to parse JSON
+        if response.status_code == 204:
+            return None
+        return response.json() if response.ok else None
 
 
 # Create global API client instance
