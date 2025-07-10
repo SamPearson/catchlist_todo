@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for
 from src.webapp.services.auth import require_auth
 from src.webapp.services.api_client import api_client
 
