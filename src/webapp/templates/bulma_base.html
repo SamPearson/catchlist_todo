@@ -17,7 +17,7 @@
     {# Custom styles #}
     {% block styles %}{% endblock %}
 </head>
-<body>
+<body x-data>
     {# Navigation #}
     <nav class="navbar is-light" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
@@ -35,7 +35,7 @@
         <div id="navbarBasic" class="navbar-menu">
             <div class="navbar-start">
                 <a class="navbar-item" href="{{ url_for('desk') }}">Desk</a>
-                <a class="navbar-item" href="{{ url_for('catchlist') }}">Catchlist</a>
+                <a class="navbar-item" href="{{ url_for('tasks.task_list') }}">Tasks</a>
                 <a class="navbar-item" href="{{ url_for('projects') }}">Projects</a>
                 <a class="navbar-item" href="{{ url_for('routines') }}">Routines</a>
                 <a class="navbar-item" href="{{ url_for('reports.index') }}">Reports</a>
