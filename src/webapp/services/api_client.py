@@ -28,11 +28,13 @@ class APIClient:
             headers['Authorization'] = f'Bearer {token}'
         return headers
 
-    def get(self, endpoint, token=None):
+    def get(self, endpoint, token=None, params=None):
         """Make GET request to API"""
         response = requests.get(
             f"{self.base_url}{endpoint}",
-            headers=self._get_headers(token)
+            headers=self._get_headers(token),
+            params=params
+
         )
         return response.json() if response.ok else None
 
