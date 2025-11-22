@@ -27,7 +27,7 @@ class Routine(db.Model):
     # Relationships
     user = relationship('User', back_populates='routines')
     sessions = relationship('Session', backref='routine', lazy=True, cascade="all, delete-orphan")
-    tag_associations = relationship('RoutineTag', back_populates='routine', cascade='all, delete-orphan')
+#    tag_associations = relationship('RoutineTag', back_populates='routine', cascade='all, delete-orphan')
     
     def __init__(self, **kwargs):
         super(Routine, self).__init__(**kwargs)
@@ -48,8 +48,8 @@ class Routine(db.Model):
             "external_source": self.external_source,
             "external_source_name": self.external_source_name,
             "timezone": self.timezone,
-            "calendar": self.calendar.as_dict() if self.calendar else None,
-            "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
+            "calendar": self.calendar.as_dict() if self.calendar else None
+ #           "tags": [assoc.tag.as_dict() for assoc in self.tag_associations] if hasattr(self, 'tag_associations') else []
         }
 
 
@@ -75,7 +75,7 @@ class Session(db.Model):
                           lazy=True,
                           cascade="all, delete-orphan",
                           overlaps="checkins,checkins,checkins")
-    tag_associations = relationship('SessionTag', back_populates='session', cascade='all, delete-orphan')
+    #tag_associations = relationship('SessionTag', back_populates='session', cascade='all, delete-orphan')
     notes = db.Column(db.Text)
     rpe = db.Column(db.Integer)  # Rate of Perceived Exertion (1-10)
     
@@ -99,8 +99,8 @@ class Session(db.Model):
             "timezone": self.timezone
         }
         
-        # Add tags if they exist
-        if hasattr(self, 'tag_associations'):
-            base_dict["tags"] = [assoc.tag.as_dict() for assoc in self.tag_associations]
+        # # Add tags if they exist
+        # if hasattr(self, 'tag_associations'):
+        #     base_dict["tags"] = [assoc.tag.as_dict() for assoc in self.tag_associations]
         
         return base_dict 

@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from ..db_setup import db
 from ..db_config import Config
+
 from sqlalchemy.orm import relationship
 
 class User(UserMixin, db.Model):
@@ -26,9 +27,7 @@ class User(UserMixin, db.Model):
     calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
     time_blocks = relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
     
-    # Relationships will be defined as backref from their respective models
-    # to avoid circular imports
-    
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     

@@ -5,12 +5,15 @@ from dotenv import load_dotenv
 import logging
 from pathlib import Path
 from flask_jwt_extended import JWTManager
-from .routes.tags import tags_bp
-from .routes.reports import reports_bp
 from ..config.db_setup import db
 from ..config.db_config import Config
 from datetime import timedelta
 from src.common_utils.date_utils import parse_date
+
+# webapp routes are bundled in feature-scoped blueprints
+from .routes.tags import tags_bp
+from .routes.tasks import tasks_bp
+from .routes.reports import reports_bp
 
 
 # Configure logging for production - only show warnings and errors
@@ -42,6 +45,7 @@ app.config['SHOW_DEMO'] = os.getenv('SHOW_DEMO', 'True').lower() in ('true', '1'
 # Register blueprints
 app.register_blueprint(tags_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(tasks_bp)
 
 
 # env files are specified in systemd service files on staging&prod
@@ -183,14 +187,6 @@ def desk():
     # We'll load all data via JavaScript on the client side
     return render_template("desk.html", API_URL=API_URL)
 
-
-@app.route('/catchlist')
-def catchlist():
-    token = get_auth_token()
-    if not token:
-        return redirect(url_for('login'))
-    
-    return render_template("catchlist.html", API_URL=API_URL)
 
 
 @app.route('/projects')
