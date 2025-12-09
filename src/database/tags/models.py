@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from sqlalchemy.sql import func
-from ...config.models import db  # deprecated model, db handling
+from ...config.db_setup import db  # deprecated model, db handling
 
 class Tag(db.Model):
     """
