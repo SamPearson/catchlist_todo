@@ -1,39 +1,31 @@
 from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, Float, String, Text, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship, validates
-from ...config.db_setup import db
+from config.db_setup import db
 
-class BaseReport(db.Model):
+from database.base.models import UserOwnedModel
+from sqlalchemy import Column, Integer, Float, String, Text, Date
+
+
+class BaseReport(UserOwnedModel):
     """Abstract base class for all reports"""
     __abstract__ = True
 
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, onupdate=datetime.utcnow)
     notes = Column(Text)
     gratitudes = Column(Text)
 
-    @validates('*_rating', '*_adherence', '*_rpe')
-    def validate_rating(self, key, value):
-        if value is not None and not (1 <= value <= 10):
-            raise ValueError(f"{key} must be between 1 and 10")
-        return value
-
     def as_dict(self):
         """Base dictionary representation"""
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        data = super().as_dict()
+        data.update({
             'notes': self.notes,
             'gratitudes': self.gratitudes
-        }
+        })
+        return data
+
 
 class DayReport(BaseReport):
     """Daily report with ratings and notes"""
-    __tablename__ = 'day_reports'
 
     date = Column(Date, nullable=False, index=True)
     sleep_hours = Column(Integer)
@@ -46,8 +38,6 @@ class DayReport(BaseReport):
     diet_adherence = Column(Integer)
     cleaning_adherence = Column(Integer)
     gains = Column(Text)
-
-    __table_args__ = (db.Index('idx_day_user_date', 'user_id', 'date'),)
 
     def as_dict(self):
         data = super().as_dict()
@@ -66,11 +56,11 @@ class DayReport(BaseReport):
         })
         return data
 
+
 class WeekReport(BaseReport):
     """Weekly planning and review"""
-    __tablename__ = 'week_reports'
 
-    week_sunday = Column(Date, nullable=False, index=True)  # The Sunday that starts this week
+    week_sunday = Column(Date, nullable=False, index=True)
     weekly_goals = Column(Text)
     goals_rationale = Column(Text)
     start_notes = Column(Text)
@@ -78,14 +68,10 @@ class WeekReport(BaseReport):
     goals_achieved_rating = Column(Integer)
     course_corrections = Column(Text)
 
-    __table_args__ = (db.Index('idx_week_user_date', 'user_id', 'week_sunday'),)
-
     def as_dict(self):
         data = super().as_dict()
-        week_sunday = self.week_sunday
         data.update({
-            'week_sunday': week_sunday.isoformat(),
-            'week_saturday': (week_sunday + timedelta(days=6)).isoformat(),
+            'week_sunday': self.week_sunday.isoformat() if self.week_sunday else None,
             'weekly_goals': self.weekly_goals,
             'goals_rationale': self.goals_rationale,
             'start_notes': self.start_notes,
@@ -95,9 +81,9 @@ class WeekReport(BaseReport):
         })
         return data
 
+
 class MonthReport(BaseReport):
     """Monthly planning and review"""
-    __tablename__ = 'month_reports'
 
     month_date = Column(Date, nullable=False, index=True)
     monthly_goals = Column(Text)
@@ -106,8 +92,6 @@ class MonthReport(BaseReport):
     end_notes = Column(Text)
     goals_achieved_rating = Column(Integer)
     course_corrections = Column(Text)
-
-    __table_args__ = (db.Index('idx_month_user_date', 'user_id', 'month_date'),)
 
     def as_dict(self):
         data = super().as_dict()
@@ -122,9 +106,9 @@ class MonthReport(BaseReport):
         })
         return data
 
+
 class SeasonReport(BaseReport):
     """Seasonal planning and review"""
-    __tablename__ = 'season_reports'
 
     start_date = Column(Date, nullable=False, index=True)
     end_date = Column(Date, nullable=False)
@@ -135,8 +119,6 @@ class SeasonReport(BaseReport):
     postseason_notes = Column(Text)
     goals_achieved_rating = Column(Integer)
     course_corrections = Column(Text)
-
-    __table_args__ = (db.Index('idx_season_user_date', 'user_id', 'start_date'),)
 
     def as_dict(self):
         data = super().as_dict()
@@ -153,14 +135,12 @@ class SeasonReport(BaseReport):
         })
         return data
 
+
 class YearReport(BaseReport):
     """Yearly reflection"""
-    __tablename__ = 'year_reports'
 
     year = Column(Integer, nullable=False, index=True)
     reflections = Column(Text)
-
-    __table_args__ = (db.Index('idx_year_user', 'user_id', 'year'),)
 
     def as_dict(self):
         data = super().as_dict()

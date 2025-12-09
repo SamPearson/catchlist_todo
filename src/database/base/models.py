@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Dict
 from sqlalchemy import Column, Integer, DateTime
 from sqlalchemy.ext.declarative import declared_attr
-from ...config.db_setup import db  # TODO: Update this import when db config is moved
+from config.db_setup import db  # TODO: Update this import when db config is moved
 
 class BaseModel(db.Model):
     """
