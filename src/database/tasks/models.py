@@ -1,9 +1,9 @@
 from datetime import datetime
 from sqlalchemy.sql import func
-from config.db_setup import db  # deprecated model, db handling
+from src.database.db import db  # deprecated model, db handling
 
 
-from database.base.models import UserOwnedModel
+from src.database.base.models import UserOwnedModel
 from sqlalchemy import Column, Text, Boolean
 
 

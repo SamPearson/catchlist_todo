@@ -1,7 +1,7 @@
 """Database models for the application.""" 
 
 from flask_sqlalchemy import SQLAlchemy
-from ..db_setup import db
+from src.database.db import db
 
 # Import all models
 from .user import User, BlacklistedToken

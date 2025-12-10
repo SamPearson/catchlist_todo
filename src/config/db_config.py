@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import inspect
-from .db_setup import db
+from src.database.db import db
 from datetime import timedelta
 from dotenv import load_dotenv
 from pathlib import Path
@@ -40,9 +40,7 @@ class Config:
 def initialize_database(app):
     """Initialize the database with all tables if they don't exist"""
     with app.app_context():
-        # Import all models to ensure they're registered with SQLAlchemy
-        from .models import db
-        
+
         # Create tables if they don't exist
         db.create_all()
         

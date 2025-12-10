@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from sqlalchemy import Column, Integer, Float, String, Text, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship, validates
-from config.db_setup import db
+from src.database.db import db
 
-from database.base.models import UserOwnedModel
+from src.database.base.models import UserOwnedModel
 from sqlalchemy import Column, Integer, Float, String, Text, Date
 
 

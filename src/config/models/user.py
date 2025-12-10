@@ -1,8 +1,11 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from ..db_setup import db
+from src.database.db import db
 from ..db_config import Config
+
+from src.database.tags.models import Tag
+
 
 from sqlalchemy.orm import relationship
 
@@ -23,7 +26,7 @@ class User(UserMixin, db.Model):
     routines = relationship("Routine", back_populates="user", cascade='all, delete-orphan')
     sessions = relationship("Session", back_populates="user", cascade='all, delete-orphan')
     checkins = relationship("Checkin", back_populates="user", cascade='all, delete-orphan')
-    tags = relationship("Tag", back_populates="user", cascade='all, delete-orphan')
+    tags = relationship(Tag, back_populates="user", cascade='all, delete-orphan')
     calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
     time_blocks = relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
     
