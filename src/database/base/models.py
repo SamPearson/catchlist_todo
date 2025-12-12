@@ -77,3 +77,18 @@ class SoftDeleteModel(BaseModel):
         data = super().as_dict()
         data['deleted_at'] = self.deleted_at.isoformat() if self.deleted_at else None
         return data
+
+
+class TaggableMixin:
+    @declared_attr
+    def tags(cls):
+        from src.database.tags.models import Tag
+        return db.relationship(
+            "Tag",
+            secondary='tag_association',
+            primaryjoin=f"and_({cls.__name__}.id==TagAssociation.entity_id, "
+                       f"TagAssociation.entity_type=='{cls.__name__.lower()}')",
+            secondaryjoin="Tag.id==TagAssociation.tag_id",
+            lazy='select',
+            backref=db.backref(f"{cls.__name__.lower()}s", lazy='dynamic')
+        )
