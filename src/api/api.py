@@ -6,10 +6,12 @@ from flask_jwt_extended import (
     get_jwt
 )
 
+from src.database.db import db
+
+from src.config.models.user import User, BlacklistedToken
 from src.api.routes.tags import tags_bp
 from ..config.caldav_client import CalDAVClient
 
-from ..config.models import db, User, BlacklistedToken
 from ..config.db_config import initialize_database
 from .app_factory import create_app
 from .routes import auth, projects, routines, commitments, catchlist_items
@@ -28,7 +30,7 @@ app.register_blueprint(tags_bp)
 #Old blueprints
 app.register_blueprint(projects.projects_bp, url_prefix='/api')
 app.register_blueprint(routines.routines_bp)
-app.register_blueprint(commitments.commitments_bp)
+#app.register_blueprint(commitments.commitments_bp)
 app.register_blueprint(catchlist_items.catchlist_items_bp)
 
 

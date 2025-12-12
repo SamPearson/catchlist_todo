@@ -2,10 +2,11 @@ from datetime import datetime
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from src.database.db import db
+
 from src.database.reports.models import SeasonReport
 from src.database.reports.service import ReportService
 from src.database.reports.repositories import ReportRepository
-from src.config.models import db
 
 # Create a single instance of the service
 report_service = ReportService(ReportRepository(db.session))

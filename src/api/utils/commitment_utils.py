@@ -1,5 +1,6 @@
 from datetime import datetime, date
-from ...config.models import Commitment, db
+from src.database.db import db
+from src.config.models.commitment import Commitment
 
 def create_commitment_from_task(task, user_id):
     """

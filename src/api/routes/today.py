@@ -1,6 +1,14 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Routine, Session, Project, Commitment, CatchlistItem, ProjectTask
+
+from database import Project
+from src.database.db import db
+
+from src.config.models.routines import Routine, Session
+from src.config.models.commitment import Commitment
+from src.config.models.catchlist import CatchlistItem
+
+
 from ..utils.helpers import get_current_user_id
 from datetime import datetime, date
 

@@ -1,6 +1,7 @@
 from datetime import datetime
 from src.database.db import db
 from sqlalchemy.orm import relationship, foreign
+from src.config.models.time_blocks import TimeBlock
 
 class Checkin(db.Model):
     """

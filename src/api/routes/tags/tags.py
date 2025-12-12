@@ -1,8 +1,8 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.tags.service import TagService
-from src.database.tags.repositories import TagRepository
-from src.config.models import db
+from src.database.db import db
+
 
 # Create a single instance of the service
 tag_service = TagService(db.session)
