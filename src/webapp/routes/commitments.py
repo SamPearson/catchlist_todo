@@ -8,7 +8,6 @@ from src.database.db import db
 
 commitments = Blueprint('commitments', __name__)
 
-# ... existing code ...
 
 @commitments.route('/api/commitments/soft/<period>', methods=['GET'])
 @login_required
