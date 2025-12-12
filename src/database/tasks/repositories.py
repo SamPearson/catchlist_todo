@@ -8,9 +8,9 @@ class TaskRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, user_id: int, content: str) -> Task:
+    def create(self, user_id: int, title: str) -> Task:
         """Create a new task"""
-        task = Task(user_id=user_id, content=content)
+        task = Task(user_id=user_id, title=title)
         self.session.add(task)
         self.session.commit()
         return task
@@ -29,10 +29,10 @@ class TaskRepository:
             query = query.filter_by(completed=False)
         return query.order_by(Task.created_at.desc()).all()
 
-    def update(self, task: Task, content: Optional[str] = None, completed: Optional[bool] = None) -> Task:
+    def update(self, task: Task, title: Optional[str] = None, completed: Optional[bool] = None) -> Task:
         """Update a task"""
-        if content is not None:
-            task.content = content
+        if title is not None:
+            task.content = title
         if completed is not None:
             task.completed = completed
         self.session.commit()

@@ -31,12 +31,12 @@ def create_task():
     user_id = get_jwt_identity()
     data = request.get_json()
 
-    if not data or 'content' not in data:
-        return jsonify({'error': 'Content is required'}), 400
+    if not data or 'title' not in data:
+        return jsonify({'error': 'Title is required'}), 400
 
     task = task_service.create_task(
         user_id=user_id,
-        content=data['content']
+        title=data['title']
     )
     return jsonify(task.as_dict()), 201
 
