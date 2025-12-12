@@ -1,5 +1,5 @@
 from datetime import datetime, date, timedelta
-from ..db_setup import db
+from src.database.db import db
 from sqlalchemy.orm import foreign
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Float
 from sqlalchemy.orm import relationship

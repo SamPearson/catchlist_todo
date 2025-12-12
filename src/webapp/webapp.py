@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import logging
 from pathlib import Path
 from flask_jwt_extended import JWTManager
-from ..config.db_setup import db
+from src.database.db import db
 from ..config.db_config import Config
 from datetime import timedelta
 from src.common_utils.date_utils import parse_date

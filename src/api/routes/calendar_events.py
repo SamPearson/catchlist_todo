@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from ...config.models import db, Routine, Session, Commitment
+
+from src.database.db import db
+
+from src.config.models.routines import Routine, Session
+
 from ..utils.helpers import get_current_user_id
 from ...config.caldav_client import CalDAVClient
 from datetime import datetime

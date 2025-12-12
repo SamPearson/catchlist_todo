@@ -1,7 +1,7 @@
 
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from ...config.models import db
+from src.database.db import db
 from src.database.tags.models import Tag
 from .repositories import TagRepository
 

@@ -1,7 +1,10 @@
 from datetime import datetime, date
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import Commitment, Checkin, db
+from src.database.db import db
+from src.config.models.commitment import Commitment
+from src.config.models.checkin import Checkin
+
 from sqlalchemy import and_, or_
 
 commitments_bp = Blueprint('commitments', __name__)
@@ -36,7 +39,6 @@ def create_commitment():
     # Create commitment
     commitment = Commitment(
         user_id=user_id,
-        project_task_id=data.get('project_task_id'),
         catchlist_item_id=data.get('catchlist_item_id'),
         routine_id=data.get('routine_id'),
         session_id=data.get('session_id'),
@@ -211,9 +213,10 @@ def search_commitments():
     # Item type filter
     item_type = request.args.get('item_type')
     if item_type:
-        if item_type == 'project_task':
-            query = query.filter(Commitment.project_task_id.isnot(None))
-        elif item_type == 'catchlist_item':
+        # project_task_id isn't a thing any more.
+        # if item_type == 'project_task':
+        #     query = query.filter(Commitment.project_task_id.isnot(None))
+        if item_type == 'catchlist_item':
             query = query.filter(Commitment.catchlist_item_id.isnot(None))
     
     # Checkin presence filter
@@ -269,17 +272,17 @@ def get_commitments():
     if catchlist_item_id:
         query = query.filter(Commitment.catchlist_item_id == catchlist_item_id)
     
-    # Filter by project task ID if provided
-    project_task_id = request.args.get('project_task_id')
-    if project_task_id:
-        query = query.filter(Commitment.project_task_id == project_task_id)
+    # # Filter by project task ID if provided
+    # project_task_id = request.args.get('project_task_id')
+    # if project_task_id:
+    #     query = query.filter(Commitment.project_task_id == project_task_id)
     
     # Add logging
     print(f"Querying commitments for user {user_id}")
     if catchlist_item_id:
         print(f"Filtering by catchlist_item_id: {catchlist_item_id}")
-    if project_task_id:
-        print(f"Filtering by project_task_id: {project_task_id}")
+    # if project_task_id:
+    #     print(f"Filtering by project_task_id: {project_task_id}")
     
     commitments = query.order_by(Commitment.due_date.desc()).all()
     print(f"Found {len(commitments)} commitments")
@@ -324,8 +327,8 @@ def get_commitments_range():
             query = query.filter(Commitment.routine_id.isnot(None))
         elif commitment_type == 'project':
             query = query.filter(or_(
-                Commitment.project_id.isnot(None),
-                Commitment.project_task_id.isnot(None)
+                Commitment.project_id.isnot(None)
+                # Commitment.project_task_id.isnot(None)
             ))
         elif commitment_type == 'catchlist':
             query = query.filter(Commitment.catchlist_item_id.isnot(None))
@@ -398,10 +401,10 @@ def get_all_soft_commitments():
     if project_id:
         query = query.filter(Commitment.project_id == project_id)
     
-    # Apply project_task_id filter if provided
-    project_task_id = request.args.get('project_task_id')
-    if project_task_id:
-        query = query.filter(Commitment.project_task_id == project_task_id)
+    # # Apply project_task_id filter if provided
+    # project_task_id = request.args.get('project_task_id')
+    # if project_task_id:
+    #     query = query.filter(Commitment.project_task_id == project_task_id)
     
     # Apply catchlist_item_id filter if provided
     catchlist_item_id = request.args.get('catchlist_item_id')
@@ -444,8 +447,8 @@ def create_soft_commitment(period):
         time_period=period,
         # Add item reference if provided
         project_id=data.get('project_id'),
-        catchlist_item_id=data.get('catchlist_item_id'),
-        project_task_id=data.get('project_task_id')
+        catchlist_item_id=data.get('catchlist_item_id')
+        # project_task_id=data.get('project_task_id')
     )
     
     try:
@@ -516,8 +519,8 @@ def get_project_tasks():
     
     # Get commitments that are associated with project tasks
     commitments = Commitment.query.filter(
-        Commitment.user_id == user_id,
-        Commitment.project_task_id.isnot(None)
+        Commitment.user_id == user_id
+        # Commitment.project_task_id.isnot(None)
     ).order_by(Commitment.due_date.asc()).all()
     
     return jsonify([commitment.as_dict() for commitment in commitments])

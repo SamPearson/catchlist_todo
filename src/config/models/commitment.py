@@ -1,5 +1,5 @@
 from datetime import datetime
-from ..db_setup import db
+from src.database.db import db
 from sqlalchemy.orm import relationship, foreign
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date, Text
 
@@ -9,12 +9,14 @@ class Commitment(db.Model):
     by a specific date. It tracks progress through checkins.
     """
     __tablename__ = 'commitment'
+    __table_args__ = {'extend_existing': True}
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # The item this commitment refers to - only one will be set
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True)
-    project_task_id = db.Column(db.Integer, db.ForeignKey('project_task.id'), nullable=True)
+    # project_task_id = db.Column(db.Integer, db.ForeignKey('project_task.id'), nullable=True)
     catchlist_item_id = db.Column(db.Integer, db.ForeignKey('catchlist_item.id'), nullable=True)
     routine_id = db.Column(db.Integer, db.ForeignKey('routine.id'), nullable=True)
     session_id = db.Column(db.Integer, db.ForeignKey('session.id'), nullable=True)
@@ -42,7 +44,7 @@ class Commitment(db.Model):
     # Relationships
     user = relationship("User", back_populates="commitments")
     project = relationship("Project", foreign_keys=[project_id], back_populates="commitments")
-    project_task = relationship("ProjectTask", foreign_keys=[project_task_id])
+    # project_task = relationship("ProjectTask", foreign_keys=[project_task_id])
     catchlist_item = relationship("CatchlistItem", foreign_keys=[catchlist_item_id])
     routine = relationship("Routine", foreign_keys=[routine_id])
     session = relationship("Session", foreign_keys=[session_id])
@@ -58,8 +60,8 @@ class Commitment(db.Model):
         """Returns the type of item this commitment refers to"""
         if self.project_id:
             return "project"
-        elif self.project_task_id:
-            return "project_task"
+        # elif self.project_task_id:
+        #     return "project_task"
         elif self.catchlist_item_id:
             return "catchlist_item"
         elif self.routine_id:
@@ -71,8 +73,8 @@ class Commitment(db.Model):
         """Returns the actual item this commitment refers to"""
         if self.project_id:
             return self.project
-        elif self.project_task_id:
-            return self.project_task
+        # elif self.project_task_id:
+        #     return self.project_task
         elif self.catchlist_item_id:
             return self.catchlist_item
         elif self.routine_id:
@@ -86,8 +88,8 @@ class Commitment(db.Model):
             return self.title
         if self.project_id:
             return self.project.title
-        elif self.project_task_id:
-            return self.project_task.title
+        # elif self.project_task_id:
+        #     return self.project_task.title
         elif self.catchlist_item_id:
             return self.catchlist_item.content
         elif self.routine_id:
@@ -112,7 +114,7 @@ class Commitment(db.Model):
             "is_soft_commitment": self.is_soft_commitment,
             "time_period": self.time_period,
             "project_id": self.project_id,
-            "project_task_id": self.project_task_id,
+            # "project_task_id": self.project_task_id,
             "catchlist_item_id": self.catchlist_item_id,
             "routine_id": self.routine_id,
             "session_id": self.session_id
@@ -124,7 +126,8 @@ class SoftCommitment(db.Model):
     (week, month, season, or year) without a specific due date.
     """
     __tablename__ = 'soft_commitment'
-    
+    __table_args__ = {'extend_existing': True}
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(255), nullable=False)
@@ -138,14 +141,14 @@ class SoftCommitment(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
     # Optional relationships
-    project_task_id = db.Column(db.Integer, db.ForeignKey('project_task.id'), nullable=True)
+    # project_task_id = db.Column(db.Integer, db.ForeignKey('project_task.id'), nullable=True)
     catchlist_item_id = db.Column(db.Integer, db.ForeignKey('catchlist_item.id'), nullable=True)
     
     # Relationships
     user = relationship("User", back_populates="soft_commitments")
-    project_task = relationship("ProjectTask", foreign_keys=[project_task_id])
+    # project_task = relationship("ProjectTask", foreign_keys=[project_task_id])
     catchlist_item = relationship("CatchlistItem", foreign_keys=[catchlist_item_id])
-    checkins = relationship("Checkin", 
+    checkins = relationship("Checkin",
                           primaryjoin="and_(foreign(Checkin.entity_id)==SoftCommitment.id, "
                                     "Checkin.entity_type=='soft_commitment')",
                           lazy=True,

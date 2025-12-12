@@ -8,9 +8,9 @@ class TaskService:
     def __init__(self, repository: TaskRepository):
         self.repository = repository
 
-    def create_task(self, user_id: int, content: str) -> Task:
+    def create_task(self, user_id: int, title: str) -> Task:
         """Create a new task"""
-        return self.repository.create(user_id=user_id, content=content)
+        return self.repository.create(user_id=user_id, title=title)
 
     def get_task(self, task_id: int, user_id: int) -> Optional[Task]:
         """Get a specific task, ensuring user ownership"""
@@ -27,7 +27,7 @@ class TaskService:
         """Update a task with the given data"""
         return self.repository.update(
             task,
-            content=data.get('content'),
+            title=data.get('content'),
             completed=data.get('completed')
         )
 

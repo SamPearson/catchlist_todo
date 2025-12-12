@@ -1,32 +1,31 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
-from ..db_setup import db
+from src.database.db import db
 from ..db_config import Config
-
-from sqlalchemy.orm import relationship
 
 class User(UserMixin, db.Model):
     __tablename__ = 'user'
+    __table_args__ = {'extend_existing': True}
+    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=True)
     name = db.Column(db.String(64))
     created_at = db.Column(db.DateTime, default=db.func.now())
-    
+
     # Relationships with cascade delete
-    commitments = relationship("Commitment", back_populates="user", cascade='all, delete-orphan')
-    soft_commitments = relationship("SoftCommitment", back_populates="user", cascade='all, delete-orphan')
-    projects = relationship("Project", back_populates="user", cascade='all, delete-orphan')
-    catchlist_items = relationship("CatchlistItem", back_populates="user", cascade='all, delete-orphan')
-    routines = relationship("Routine", back_populates="user", cascade='all, delete-orphan')
-    sessions = relationship("Session", back_populates="user", cascade='all, delete-orphan')
-    checkins = relationship("Checkin", back_populates="user", cascade='all, delete-orphan')
-    tags = relationship("Tag", back_populates="user", cascade='all, delete-orphan')
-    calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
-    time_blocks = relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
-    
+    commitments = db.relationship("Commitment", back_populates="user", cascade='all, delete-orphan')
+    soft_commitments = db.relationship("SoftCommitment", back_populates="user", cascade='all, delete-orphan')
+    projects = db.relationship("Project", back_populates="user", cascade='all, delete-orphan')
+    catchlist_items = db.relationship("CatchlistItem", back_populates="user", cascade='all, delete-orphan')
+    routines = db.relationship("Routine", back_populates="user", cascade='all, delete-orphan')
+    sessions = db.relationship("Session", back_populates="user", cascade='all, delete-orphan')
+    checkins = db.relationship("Checkin", back_populates="user", cascade='all, delete-orphan')
+    tags = db.relationship("Tag", back_populates="user", cascade='all, delete-orphan')
+    calendars = db.relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
+    time_blocks = db.relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -44,6 +43,8 @@ class User(UserMixin, db.Model):
 
 class BlacklistedToken(db.Model):
     __tablename__ = 'blacklisted_tokens'
+    __table_args__ = {'extend_existing': True}
+    
     id = db.Column(db.Integer, primary_key=True)
     jti = db.Column(db.String(36), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -53,4 +54,4 @@ class BlacklistedToken(db.Model):
         """Remove tokens that are past their JWT expiration time"""
         expiration = datetime.utcnow() - Config.get_token_expires_delta()
         cls.query.filter(cls.created_at < expiration).delete()
-        db.session.commit() 
+        db.session.commit()
