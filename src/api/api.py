@@ -17,6 +17,8 @@ from .app_factory import create_app
 from .routes import auth, projects, routines, commitments, catchlist_items
 from .routes.tasks import tasks_bp
 from .routes.reports import reports_bp
+from .routes.timeframes import timeframes_bp
+
 
 app = create_app()
 
@@ -25,13 +27,12 @@ app.register_blueprint(auth.auth_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(tags_bp)
+app.register_blueprint(timeframes_bp)
 
 
 #Old blueprints
 app.register_blueprint(projects.projects_bp, url_prefix='/api')
 app.register_blueprint(routines.routines_bp)
-#app.register_blueprint(commitments.commitments_bp)
-app.register_blueprint(catchlist_items.catchlist_items_bp)
 
 
 @app.route('/api/health', methods=['GET'])
