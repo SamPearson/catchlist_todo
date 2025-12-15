@@ -15,6 +15,8 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(64))
     created_at = db.Column(db.DateTime, default=db.func.now())
 
+    timezone = db.Column(db.String(64), nullable=False, default="UTC")
+
     # Relationships with cascade delete
     commitments = db.relationship("Commitment", back_populates="user", cascade='all, delete-orphan')
     soft_commitments = db.relationship("SoftCommitment", back_populates="user", cascade='all, delete-orphan')
@@ -38,6 +40,7 @@ class User(UserMixin, db.Model):
             "id": self.id,
             "email": self.email,
             "name": self.name,
+            "timezone": self.timezone,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 
