@@ -17,18 +17,6 @@ class User(UserMixin, db.Model):
 
     timezone = db.Column(db.String(64), nullable=False, default="UTC")
 
-    # Relationships with cascade delete
-    commitments = db.relationship("Commitment", back_populates="user", cascade='all, delete-orphan')
-    soft_commitments = db.relationship("SoftCommitment", back_populates="user", cascade='all, delete-orphan')
-    projects = db.relationship("Project", back_populates="user", cascade='all, delete-orphan')
-    catchlist_items = db.relationship("CatchlistItem", back_populates="user", cascade='all, delete-orphan')
-    routines = db.relationship("Routine", back_populates="user", cascade='all, delete-orphan')
-    sessions = db.relationship("Session", back_populates="user", cascade='all, delete-orphan')
-    checkins = db.relationship("Checkin", back_populates="user", cascade='all, delete-orphan')
-    tags = db.relationship("Tag", back_populates="user", cascade='all, delete-orphan')
-    calendars = db.relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
-    time_blocks = db.relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
-
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
