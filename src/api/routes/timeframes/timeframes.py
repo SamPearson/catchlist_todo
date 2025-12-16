@@ -7,7 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.timeframes.service import TimeframeService
 from src.database.timeframes.repository import TimeframeRepo
-
+from src.config.models.user import User
 
 _ALLOWED_KINDS = {
     TimeframeService.KIND_DAY,
@@ -39,6 +39,20 @@ def _validate_timezone(tz: str) -> str | None:
         return None
     except Exception:
         return f"Invalid timezone '{tz}'. Expected an IANA timezone like 'America/Chicago'."
+
+
+def _get_user_timezone(user_id: int) -> str:
+    user = User.query.get(user_id)
+    if user and getattr(user, "timezone", None):
+        return user.timezone
+    return "UTC"
+
+
+def _get_tz_or_user_default(user_id: int) -> str:
+    tz = request.args.get("tz")
+    if tz:
+        return tz
+    return _get_user_timezone(user_id)
 
 
 def _today_in_tz(tz: str):
@@ -132,7 +146,7 @@ def create_timeframe():
     if kind_error:
         return jsonify({"error": kind_error}), 400
 
-    user_tz = data.get("tz") or request.args.get("tz") or "UTC"
+    user_tz = data.get("tz") or request.args.get("tz") or _get_user_timezone(user_id)
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
@@ -186,7 +200,7 @@ def get_timeframe_today(kind: str):
     if kind_error:
         return jsonify({"error": kind_error}), 400
 
-    user_tz = request.args.get("tz", "UTC")
+    user_tz = _get_tz_or_user_default(user_id)
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
@@ -208,7 +222,7 @@ def get_or_create_timeframe_today(kind: str):
     if kind_error:
         return jsonify({"error": kind_error}), 400
 
-    user_tz = request.args.get("tz", "UTC")
+    user_tz = _get_tz_or_user_default(user_id)
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
@@ -237,7 +251,7 @@ def get_timeframe(kind: str, date: str):
     if local_day is None:
         return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD."}), 400
 
-    user_tz = request.args.get("tz", "UTC")
+    user_tz = _get_tz_or_user_default(user_id)
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
@@ -262,7 +276,7 @@ def get_or_create_timeframe(kind: str, date: str):
     if local_day is None:
         return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD."}), 400
 
-    user_tz = request.args.get("tz", "UTC")
+    user_tz = _get_tz_or_user_default(user_id)
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
