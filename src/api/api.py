@@ -20,6 +20,7 @@ from .routes.tasks import tasks_bp
 from .routes.reports import reports_bp
 from .routes.timeframes import timeframes_bp
 from .routes.commitments import commitments_bp
+from .routes.checkins import checkins_bp
 
 app = create_app()
 
@@ -30,6 +31,7 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(tags_bp)
 app.register_blueprint(timeframes_bp)
 app.register_blueprint(commitments_bp)
+app.register_blueprint(checkins_bp)
 
 
 #Old blueprints
