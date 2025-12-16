@@ -15,17 +15,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(64))
     created_at = db.Column(db.DateTime, default=db.func.now())
 
-    # Relationships with cascade delete
-    commitments = db.relationship("Commitment", back_populates="user", cascade='all, delete-orphan')
-    soft_commitments = db.relationship("SoftCommitment", back_populates="user", cascade='all, delete-orphan')
-    projects = db.relationship("Project", back_populates="user", cascade='all, delete-orphan')
-    catchlist_items = db.relationship("CatchlistItem", back_populates="user", cascade='all, delete-orphan')
-    routines = db.relationship("Routine", back_populates="user", cascade='all, delete-orphan')
-    sessions = db.relationship("Session", back_populates="user", cascade='all, delete-orphan')
-    checkins = db.relationship("Checkin", back_populates="user", cascade='all, delete-orphan')
-    tags = db.relationship("Tag", back_populates="user", cascade='all, delete-orphan')
-    calendars = db.relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
-    time_blocks = db.relationship('TimeBlock', back_populates="user", cascade='all, delete-orphan')
+    timezone = db.Column(db.String(64), nullable=False, default="UTC")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -38,6 +28,7 @@ class User(UserMixin, db.Model):
             "id": self.id,
             "email": self.email,
             "name": self.name,
+            "timezone": self.timezone,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

@@ -20,11 +20,6 @@ class Project(UserOwnedModel, TaggableMixin):
 
     # Relationships
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
-    # legacy commitment relationship
-    commitments = relationship("Commitment", back_populates="project",
-                             foreign_keys='Commitment.project_id',
-                             overlaps="project",
-                             cascade="all, delete-orphan")
 
     def as_dict(self) -> Dict[str, Any]:
         """Convert Project model to dictionary representation."""
