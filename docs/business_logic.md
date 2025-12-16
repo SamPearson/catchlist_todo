@@ -4,7 +4,7 @@
 
 ### 1. Task-Like Entities
 
-#### Catchlist Items
+#### Tasks
 - Represent simple, atomic tasks or thoughts
 - Should be completable within a day
 - Properties:
