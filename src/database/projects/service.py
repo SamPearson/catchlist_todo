@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from .models import Project
-from .repositories import ProjectRepository
+from .repository import ProjectRepository
 from ..tasks.models import Task
 
 

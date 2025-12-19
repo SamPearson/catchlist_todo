@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
 from src.database.projects.service import ProjectService
-from src.database.projects.repositories import ProjectRepository
+from src.database.projects.repository import ProjectRepository
 from src.database.db import db
 from ..utils.helpers import get_current_user_id
 
