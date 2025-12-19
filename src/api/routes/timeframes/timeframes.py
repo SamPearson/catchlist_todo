@@ -11,7 +11,6 @@ from src.database.timeframes.service import (
     UnsupportedTimeframeKind,
     InvalidTimezone,
 )
-from src.database.timeframes.repository import TimeframeRepo
 from src.config.models.user import User
 
 _ALLOWED_KINDS = {
@@ -100,7 +99,7 @@ def list_timeframes():
     start_str = request.args.get("start")
     end_str = request.args.get("end")
 
-    repo = TimeframeRepo(session=db.session)
+    service = TimeframeService(session=db.session)
 
     if start_str and end_str:
         start_day = _parse_local_date(start_str)
@@ -115,7 +114,7 @@ def list_timeframes():
         if not kind:
             return jsonify({"error": "kind is required when using start/end window queries."}), 400
 
-        items = repo.list_overlapping(
+        items = service.repo.list_overlapping(
             user_id=user_id,
             kind=kind,
             start_utc=start_utc,
@@ -124,9 +123,9 @@ def list_timeframes():
         return jsonify([tf.as_dict() for tf in items])
 
     if kind:
-        items = repo.list_for_user(user_id=user_id, kind=kind)
+        items = service.repo.list_for_user(user_id=user_id, kind=kind)
     else:
-        items = repo.list_for_user(user_id=user_id)
+        items = service.repo.list_for_user(user_id=user_id)
 
     return jsonify([tf.as_dict() for tf in items])
 
@@ -182,22 +181,19 @@ def create_timeframe():
 @jwt_required()
 def get_timeframe_by_id(timeframe_id: int):
     user_id = int(get_jwt_identity())
-    repo = TimeframeRepo(session=db.session)
-    tf = repo.get(timeframe_id, user_id=user_id)
+    service = TimeframeService(session=db.session)
+    tf = service.get_timeframe(timeframe_id, user_id=user_id)
     return jsonify(tf.as_dict()) if tf else ("", 404)
 
 
 @jwt_required()
 def delete_timeframe(timeframe_id: int):
     user_id = int(get_jwt_identity())
-    repo = TimeframeRepo(session=db.session)
+    service = TimeframeService(session=db.session)
 
-    tf = repo.get(timeframe_id, user_id=user_id)
-    if not tf:
-        return ("", 404)
-
-    repo.delete(tf)
-    return ("", 204)
+    if service.delete_timeframe(timeframe_id, user_id=user_id):
+        return ("", 204)
+    return ("", 404)
 
 
 @jwt_required()

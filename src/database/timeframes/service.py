@@ -162,3 +162,14 @@ class TimeframeService:
             end_utc=end_local.astimezone(utc),
             label=label,
         )
+
+    def get_timeframe(self, timeframe_id: int, user_id: int) -> Timeframe | None:
+        """Retrieve a specific timeframe by ID and user_id"""
+        return self.repo.get(timeframe_id, user_id=user_id)
+
+    def delete_timeframe(self, timeframe_id: int, user_id: int) -> bool:
+        """Delete a timeframe ensuring ownership"""
+        tf = self.get_timeframe(timeframe_id, user_id)
+        if not tf:
+            return False
+        return self.repo.delete(tf)
