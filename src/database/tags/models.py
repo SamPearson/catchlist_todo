@@ -6,7 +6,7 @@ from src.database.db import db
 
 class TagAssociation(db.Model):
     """Association model for connecting tags to any entity"""
-    __tablename__ = 'tag_association'
+    __tablename__ = 'tag_associations'
 
     id = Column(Integer, primary_key=True)
     tag_id = Column(Integer, ForeignKey('tag.id', ondelete='CASCADE'), nullable=False)
@@ -21,7 +21,7 @@ class TagAssociation(db.Model):
 
 class Tag(UserOwnedModel):
     """Tag model representing user-defined tags"""
-    __tablename__ = 'tag'
+    __tablename__ = 'tags'
 
     name = Column(String(50), nullable=False)
     color = Column(String(10), default='#6c757d')

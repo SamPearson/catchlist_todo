@@ -8,6 +8,8 @@ class Task(UserOwnedModel, TaggableMixin):
     """
     Task model representing both standalone tasks and project tasks.
     """
+    __tablename__ = "tasks"
+
     title = Column(String(200), nullable=False)
     description = Column(Text)
     completed = Column(Boolean, default=False)

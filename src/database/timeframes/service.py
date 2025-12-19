@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.database.timeframes.repository import TimeframeRepo
 from src.database.timeframes.models import Timeframe
+from src.database.base.exceptions import ValidationError
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,29 @@ class TimeframeBounds:
     start_utc: datetime
     end_utc: datetime
     label: str | None = None
+
+
+@dataclass(frozen=True)
+class TimeframeValidationError(ValidationError):
+    message: str
+
+
+@dataclass(frozen=True)
+class UnsupportedTimeframeKind(TimeframeValidationError):
+    kind: str
+
+    def __post_init__(self):
+        if not self.message:
+            object.__setattr__(self, "message", f"Unsupported timeframe kind: {self.kind}")
+
+
+@dataclass(frozen=True)
+class InvalidTimezone(TimeframeValidationError):
+    tz: str
+
+    def __post_init__(self):
+        if not self.message:
+            object.__setattr__(self, "message", f"Invalid timezone: {self.tz}")
 
 
 class TimeframeService:
@@ -60,7 +84,11 @@ class TimeframeService:
         local_day: date,
         user_tz: str,
     ) -> TimeframeBounds:
-        tz = ZoneInfo(user_tz)
+        try:
+            tz = ZoneInfo(user_tz)
+        except Exception:
+            raise InvalidTimezone(message="", tz=user_tz)
+
         utc = ZoneInfo("UTC")
 
         if kind == self.KIND_DAY:
@@ -127,10 +155,21 @@ class TimeframeService:
             label = f"{local_day.year:04d}"
 
         else:
-            raise ValueError(f"Unsupported timeframe kind: {kind}")
+            raise UnsupportedTimeframeKind(message="", kind=kind)
 
         return TimeframeBounds(
             start_utc=start_local.astimezone(utc),
             end_utc=end_local.astimezone(utc),
             label=label,
         )
+
+    def get_timeframe(self, timeframe_id: int, user_id: int) -> Timeframe | None:
+        """Retrieve a specific timeframe by ID and user_id"""
+        return self.repo.get(timeframe_id, user_id=user_id)
+
+    def delete_timeframe(self, timeframe_id: int, user_id: int) -> bool:
+        """Delete a timeframe ensuring ownership"""
+        tf = self.get_timeframe(timeframe_id, user_id)
+        if not tf:
+            return False
+        return self.repo.delete(tf)

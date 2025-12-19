@@ -6,6 +6,8 @@ from src.database.commitments.service import (
     CommitmentService,
     CommitmentConflict,
     CommitmentValidationError,
+    CommitmentTargetNotFound,
+    CommitmentTimeframeNotFound,
 )
 
 
@@ -64,6 +66,10 @@ def create_soft_commitment():
             notes=data.get("notes"),
         )
         return jsonify(c.as_dict()), 201
+    except CommitmentTargetNotFound as e:
+        return jsonify({"error": e.message}), 404
+    except CommitmentTimeframeNotFound as e:
+        return jsonify({"error": e.message}), 404
     except CommitmentConflict as e:
         return jsonify({"error": e.message}), 409
     except CommitmentValidationError as e:
@@ -92,6 +98,8 @@ def create_hard_commitment():
             notes=data.get("notes"),
         )
         return jsonify(c.as_dict()), 201
+    except CommitmentTargetNotFound as e:
+        return jsonify({"error": e.message}), 404
     except CommitmentConflict as e:
         return jsonify({"error": e.message}), 409
     except CommitmentValidationError as e:

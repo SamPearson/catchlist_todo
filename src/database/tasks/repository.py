@@ -17,14 +17,15 @@ class TaskRepository:
 
     def get(self, task_id: int, user_id: int) -> Optional[Task]:
         """Get a specific task by ID and user_id"""
-        return Task.query.filter_by(
-            id=task_id,
-            user_id=user_id
-        ).first()
+        return (
+            self.session.query(Task)
+            .filter_by(id=task_id, user_id=user_id)
+            .first()
+        )
 
     def list_for_user(self, user_id: int, include_completed: bool = False) -> List[Task]:
         """List all tasks for a user"""
-        query = Task.query.filter_by(user_id=user_id)
+        query = self.session.query(Task).filter_by(user_id=user_id)
         if not include_completed:
             query = query.filter_by(completed=False)
         return query.order_by(Task.created_at.desc()).all()
@@ -32,7 +33,7 @@ class TaskRepository:
     def update(self, task: Task, title: Optional[str] = None, completed: Optional[bool] = None) -> Task:
         """Update a task"""
         if title is not None:
-            task.content = title
+            task.title = title
         if completed is not None:
             task.completed = completed
         self.session.commit()

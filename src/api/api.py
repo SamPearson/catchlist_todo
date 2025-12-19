@@ -10,6 +10,7 @@ from src.database.db import db
 
 from src.config.models.user import User, BlacklistedToken
 from src.api.routes.tags import tags_bp
+from .routes.projects import projects_bp
 from ..config.caldav_client import CalDAVClient
 
 from ..config.db_config import initialize_database
@@ -29,13 +30,10 @@ app.register_blueprint(auth.auth_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(tags_bp)
+app.register_blueprint(projects_bp)
 app.register_blueprint(timeframes_bp)
 app.register_blueprint(commitments_bp)
 app.register_blueprint(checkins_bp)
-
-
-#Old blueprints
-app.register_blueprint(projects.projects_bp, url_prefix='/api')
 
 
 @app.route('/api/health', methods=['GET'])

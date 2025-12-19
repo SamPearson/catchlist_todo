@@ -7,18 +7,30 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from src.config.models.user import User
+from src.database.base.exceptions import EntityNotFoundError, InvalidStateError, ValidationError
 from src.database.commitments.models import Commitment
 from src.database.commitments.repository import CommitmentRepo
+from src.database.timeframes.models import Timeframe
 from src.database.timeframes.service import TimeframeService
 
 
 @dataclass(frozen=True)
-class CommitmentConflict(Exception):
+class CommitmentConflict(InvalidStateError):
     message: str
 
 
 @dataclass(frozen=True)
-class CommitmentValidationError(Exception):
+class CommitmentValidationError(ValidationError):
+    message: str
+
+
+@dataclass(frozen=True)
+class CommitmentTargetNotFound(EntityNotFoundError):
+    message: str
+
+
+@dataclass(frozen=True)
+class CommitmentTimeframeNotFound(EntityNotFoundError):
     message: str
 
 
@@ -70,6 +82,44 @@ class CommitmentService:
     def _anchor_for_day(self, start_at_utc: datetime | None, due_at_utc: datetime) -> datetime:
         return start_at_utc or due_at_utc
 
+    def _target_exists(self, *, user_id: int, target_type: str, target_id: int) -> bool:
+        """
+        Existence + ownership check per target type.
+
+        NOTE: routines/sessions are currently legacy models (src.config.*).
+        """
+        if target_id <= 0:
+            return False
+
+        if target_type == "task":
+            from src.database.tasks.models import Task  # new system
+            return self.session.query(Task).filter_by(id=target_id, user_id=user_id).first() is not None
+
+        if target_type == "project":
+            from src.database.projects.models import Project  # new system
+            return self.session.query(Project).filter_by(id=target_id, user_id=user_id).first() is not None
+
+        if target_type == "routine":
+            from src.config.models.routines import Routine  # legacy
+            return self.session.query(Routine).filter_by(id=target_id, user_id=user_id).first() is not None
+
+        if target_type == "session":
+            from src.config.models.routines import Session  # legacy
+            return self.session.query(Session).filter_by(id=target_id, user_id=user_id).first() is not None
+
+        return False
+
+    def _ensure_target_exists(self, *, user_id: int, target_type: str, target_id: int) -> None:
+        if not self._target_exists(user_id=user_id, target_type=target_type, target_id=int(target_id)):
+            raise CommitmentTargetNotFound(f"Target not found for {target_type} id={target_id}")
+
+    def _ensure_timeframe_exists(self, *, user_id: int, timeframe_id: int) -> None:
+        if timeframe_id <= 0:
+            raise CommitmentTimeframeNotFound(f"Timeframe not found id={timeframe_id}")
+        tf = self.session.query(Timeframe).filter_by(id=timeframe_id, user_id=user_id).first()
+        if tf is None:
+            raise CommitmentTimeframeNotFound(f"Timeframe not found id={timeframe_id}")
+
     def create_soft(
         self,
         *,
@@ -82,6 +132,9 @@ class CommitmentService:
     ) -> Commitment:
         target_type = self._normalize_target_type(target_type)
         status = self._normalize_status(status)
+
+        self._ensure_target_exists(user_id=user_id, target_type=target_type, target_id=int(target_id))
+        self._ensure_timeframe_exists(user_id=user_id, timeframe_id=int(timeframe_id))
 
         existing = self.repo.find_by_unique(
             user_id=user_id,

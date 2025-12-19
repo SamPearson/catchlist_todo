@@ -1,22 +1,34 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from .models import Project
-from .repositories import ProjectRepository
+from .repository import ProjectRepository
 from ..tasks.models import Task
+from src.database.base.exceptions import ValidationError
 
+
+class ProjectValidationError(ValidationError):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
 
 class ProjectService:
     def __init__(self, repository: ProjectRepository):
         self.repository = repository
 
     def get_project(self, project_id: int, user_id: int) -> Optional[Project]:
-        return self.repository.get_by_id(project_id, user_id)
+        return self.repository.get(project_id, user_id)
 
     def list_projects(self, user_id: int, include_completed: bool = False) -> List[Project]:
-        return self.repository.get_all_by_user(user_id, include_completed)
+        filters = {}
+        if not include_completed:
+            filters['active'] = True
+        return self.repository.list_for_user(user_id, **filters)
 
     def create_project(self, user_id: int, data: Dict[str, Any]) -> Project:
-        project = Project(
+        if not data.get('title'):
+            raise ProjectValidationError("Project title is required")
+            
+        return self.repository.create(
             user_id=user_id,
             title=data['title'],
             description=data.get('description'),
@@ -25,36 +37,28 @@ class ProjectService:
             next_step=data.get('next_step'),
             active=True
         )
-        self.repository.session.add(project)
-        self.repository.session.commit()
-        return project
 
     def update_project(self, project: Project, data: Dict[str, Any]) -> Project:
-        if 'title' in data:
-            project.title = data['title']
-        if 'description' in data:
-            project.description = data['description']
-        if 'win_condition' in data:
-            project.win_condition = data['win_condition']
-        if 'reason' in data:
-            project.reason = data['reason']
-        if 'next_step' in data:
-            project.next_step = data['next_step']
-        if 'active' in data:
-            project.active = data['active']
+        update_data = {}
+        for field in ['title', 'description', 'win_condition', 'reason', 'next_step', 'active']:
+            if field in data:
+                update_data[field] = data[field]
+        
+        if 'title' in update_data and not update_data['title']:
+            raise ProjectValidationError("Title cannot be empty")
 
-        self.repository.session.commit()
-        return project
+        return self.repository.update(project, **update_data)
 
     def delete_project(self, project: Project) -> None:
-        self.repository.session.delete(project)
-        self.repository.session.commit()
+        self.repository.delete(project)
 
     def get_project_tasks(self, project_id: int, user_id: int, include_completed: bool = False) -> List[Task]:
-        """Get all tasks associated with a specific project"""
         return self.repository.get_project_tasks(project_id, user_id, include_completed)
 
     def create_task(self, project: Project, user_id: int, data: Dict[str, Any]) -> Task:
+        if not data.get('title'):
+            raise ProjectValidationError("Task title is required")
+
         task = Task(
             user_id=user_id,
             project_id=project.id,
@@ -80,6 +84,5 @@ class ProjectService:
         return task
 
     def delete_task(self, task: Task) -> None:
-        """Delete a task associated with a project"""
         self.repository.session.delete(task)
         self.repository.session.commit()

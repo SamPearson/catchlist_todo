@@ -5,8 +5,12 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.db import db
-from src.database.timeframes.service import TimeframeService
-from src.database.timeframes.repository import TimeframeRepo
+from src.database.timeframes.service import (
+    TimeframeService,
+    TimeframeValidationError,
+    UnsupportedTimeframeKind,
+    InvalidTimezone,
+)
 from src.config.models.user import User
 
 _ALLOWED_KINDS = {
@@ -95,7 +99,7 @@ def list_timeframes():
     start_str = request.args.get("start")
     end_str = request.args.get("end")
 
-    repo = TimeframeRepo(session=db.session)
+    service = TimeframeService(session=db.session)
 
     if start_str and end_str:
         start_day = _parse_local_date(start_str)
@@ -110,7 +114,7 @@ def list_timeframes():
         if not kind:
             return jsonify({"error": "kind is required when using start/end window queries."}), 400
 
-        items = repo.list_overlapping(
+        items = service.repo.list_overlapping(
             user_id=user_id,
             kind=kind,
             start_utc=start_utc,
@@ -119,9 +123,9 @@ def list_timeframes():
         return jsonify([tf.as_dict() for tf in items])
 
     if kind:
-        items = repo.list_for_user(user_id=user_id, kind=kind)
+        items = service.repo.list_for_user(user_id=user_id, kind=kind)
     else:
-        items = repo.list_for_user(user_id=user_id)
+        items = service.repo.list_for_user(user_id=user_id)
 
     return jsonify([tf.as_dict() for tf in items])
 
@@ -160,12 +164,15 @@ def create_timeframe():
         local_day = _today_in_tz(user_tz)
 
     service = TimeframeService(session=db.session)
-    tf, created = service.get_or_create_for_local_date_with_flag(
-        user_id=user_id,
-        kind=kind,
-        local_day=local_day,
-        user_tz=user_tz,
-    )
+    try:
+        tf, created = service.get_or_create_for_local_date_with_flag(
+            user_id=user_id,
+            kind=kind,
+            local_day=local_day,
+            user_tz=user_tz,
+        )
+    except (TimeframeValidationError, UnsupportedTimeframeKind, InvalidTimezone) as e:
+        return jsonify({"error": getattr(e, "message", str(e))}), 400
 
     status = 201 if created else 200
     return jsonify({"created": created, "timeframe": tf.as_dict()}), status
@@ -174,22 +181,19 @@ def create_timeframe():
 @jwt_required()
 def get_timeframe_by_id(timeframe_id: int):
     user_id = int(get_jwt_identity())
-    repo = TimeframeRepo(session=db.session)
-    tf = repo.get(timeframe_id, user_id=user_id)
+    service = TimeframeService(session=db.session)
+    tf = service.get_timeframe(timeframe_id, user_id=user_id)
     return jsonify(tf.as_dict()) if tf else ("", 404)
 
 
 @jwt_required()
 def delete_timeframe(timeframe_id: int):
     user_id = int(get_jwt_identity())
-    repo = TimeframeRepo(session=db.session)
+    service = TimeframeService(session=db.session)
 
-    tf = repo.get(timeframe_id, user_id=user_id)
-    if not tf:
-        return ("", 404)
-
-    repo.delete(tf)
-    return ("", 204)
+    if service.delete_timeframe(timeframe_id, user_id=user_id):
+        return ("", 204)
+    return ("", 404)
 
 
 @jwt_required()
@@ -208,7 +212,11 @@ def get_timeframe_today(kind: str):
     local_day = _today_in_tz(user_tz)
 
     service = TimeframeService(session=db.session)
-    bounds = service.compute_bounds_for_local_date(kind=kind, local_day=local_day, user_tz=user_tz)
+    try:
+        bounds = service.compute_bounds_for_local_date(kind=kind, local_day=local_day, user_tz=user_tz)
+    except (TimeframeValidationError, UnsupportedTimeframeKind, InvalidTimezone) as e:
+        return jsonify({"error": getattr(e, "message", str(e))}), 400
+
     tf = service.repo.find_exact(user_id=user_id, kind=kind, start_at_utc=bounds.start_utc)
 
     return jsonify(tf.as_dict()) if tf else ("", 404)
@@ -230,12 +238,16 @@ def get_or_create_timeframe_today(kind: str):
     local_day = _today_in_tz(user_tz)
 
     service = TimeframeService(session=db.session)
-    tf = service.get_or_create_for_local_date(
-        user_id=user_id,
-        kind=kind,
-        local_day=local_day,
-        user_tz=user_tz,
-    )
+    try:
+        tf = service.get_or_create_for_local_date(
+            user_id=user_id,
+            kind=kind,
+            local_day=local_day,
+            user_tz=user_tz,
+        )
+    except (TimeframeValidationError, UnsupportedTimeframeKind, InvalidTimezone) as e:
+        return jsonify({"error": getattr(e, "message", str(e))}), 400
+
     return jsonify(tf.as_dict())
 
 
@@ -257,8 +269,11 @@ def get_timeframe(kind: str, date: str):
         return jsonify({"error": tz_error}), 400
 
     service = TimeframeService(session=db.session)
+    try:
+        bounds = service.compute_bounds_for_local_date(kind=kind, local_day=local_day, user_tz=user_tz)
+    except (TimeframeValidationError, UnsupportedTimeframeKind, InvalidTimezone) as e:
+        return jsonify({"error": getattr(e, "message", str(e))}), 400
 
-    bounds = service.compute_bounds_for_local_date(kind=kind, local_day=local_day, user_tz=user_tz)
     tf = service.repo.find_exact(user_id=user_id, kind=kind, start_at_utc=bounds.start_utc)
 
     return jsonify(tf.as_dict()) if tf else ("", 404)
@@ -282,10 +297,14 @@ def get_or_create_timeframe(kind: str, date: str):
         return jsonify({"error": tz_error}), 400
 
     service = TimeframeService(session=db.session)
-    tf = service.get_or_create_for_local_date(
-        user_id=user_id,
-        kind=kind,
-        local_day=local_day,
-        user_tz=user_tz,
-    )
+    try:
+        tf = service.get_or_create_for_local_date(
+            user_id=user_id,
+            kind=kind,
+            local_day=local_day,
+            user_tz=user_tz,
+        )
+    except (TimeframeValidationError, UnsupportedTimeframeKind, InvalidTimezone) as e:
+        return jsonify({"error": getattr(e, "message", str(e))}), 400
+
     return jsonify(tf.as_dict())
