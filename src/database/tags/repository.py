@@ -12,12 +12,19 @@ class TagRepository:
 
     def get_all_by_user_id(self, user_id: int) -> list[Tag]:
         """Retrieve all tags for a specific user"""
-        return Tag.query.filter_by(user_id=user_id).all()
-
+        return (
+            self.db_session.query(Tag)
+            .filter_by(user_id=user_id)
+            .all()
+        )
 
     def get_by_id(self, tag_id: int, user_id: int) -> Optional[Tag]:
         """Retrieve a specific tag by ID and user ID"""
-        return self.db_session.query(Tag).filter_by(id=tag_id, user_id=user_id).first()
+        return (
+            self.db_session.query(Tag)
+            .filter_by(id=tag_id, user_id=user_id)
+            .first()
+        )
 
 
     def create(self, name: str, user_id: int, color: str = '#6c757d') -> Tag:

@@ -3,7 +3,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from src.database.db import db
 from src.database.tags.models import Tag
-from .repositories import TagRepository
+from .repository import TagRepository
 
 class TagService:
     def __init__(self, session: Session):
