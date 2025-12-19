@@ -10,6 +10,9 @@ class Project(UserOwnedModel, TaggableMixin):
     """
     Project model representing long-term goals that consist of multiple tasks.
     """
+
+    __tablename__ = "projects"
+
     title = Column(String(200), nullable=False)
     description = Column(Text)
     win_condition = Column(Text)
