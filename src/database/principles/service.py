@@ -1,0 +1,75 @@
+from typing import List, Optional, Dict, Any
+from sqlalchemy.orm import Session
+from src.database.base.exceptions import ValidationError
+from .models import Principle
+from .repository import PrincipleRepo
+
+
+class PrincipleValidationError(ValidationError):
+    pass
+
+
+class PrincipleService:
+    def __init__(self, session: Session):
+        self.session = session
+        self.repo = PrincipleRepo(session)
+
+    def get_principle(self, principle_id: int, user_id: int) -> Optional[Principle]:
+        return self.repo.get(principle_id, user_id)
+
+    def list_principles(self, user_id: int) -> List[Principle]:
+        return self.repo.list_for_user(user_id)
+
+    def create_principle(self, user_id: int, data: Dict[str, Any]) -> Principle:
+        title = (data.get('title') or "").strip()
+        if not title:
+            raise PrincipleValidationError("Principle title is required.")
+
+        return self.repo.create(
+            user_id=user_id,
+            title=title,
+            description=data.get('description'),
+            color=data.get('color', '#ffd700')
+        )
+
+    def update_principle(self, principle_id: int, user_id: int, data: Dict[str, Any]) -> Optional[Principle]:
+        principle = self.get_principle(principle_id, user_id)
+        if not principle:
+            return None
+
+        update_data = {}
+        if 'title' in data:
+            if not data['title'].strip():
+                raise PrincipleValidationError("Title cannot be empty.")
+            update_data['title'] = data['title'].strip()
+
+        if 'description' in data: update_data['description'] = data['description']
+        if 'color' in data: update_data['color'] = data['color']
+
+        return self.repo.update(principle, **update_data)
+
+    def delete_principle(self, principle_id: int, user_id: int) -> bool:
+        principle = self.get_principle(principle_id, user_id)
+        if not principle:
+            return False
+        return self.repo.delete(principle)
+
+    def attach_to_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
+        principle = self.get_principle(principle_id, user_id)
+        if not principle or not hasattr(entity, 'principles'):
+            return False
+
+        if principle not in entity.principles:
+            entity.principles.append(principle)
+            self.session.commit()
+        return True
+
+    def detach_from_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
+        principle = self.get_principle(principle_id, user_id)
+        if not principle or not hasattr(entity, 'principles'):
+            return False
+
+        if principle in entity.principles:
+            entity.principles.remove(principle)
+            self.session.commit()
+        return True
