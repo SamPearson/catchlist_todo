@@ -1,0 +1,9 @@
+from flask import Blueprint
+from . import calendars
+
+calendars_bp = Blueprint("calendars", __name__)
+
+calendars_bp.add_url_rule("/api/calendars", view_func=calendars.list_calendars, methods=["GET"])
+calendars_bp.add_url_rule("/api/calendars", view_func=calendars.create_calendar, methods=["POST"])
+calendars_bp.add_url_rule("/api/calendars/discover", view_func=calendars.discover_calendars, methods=["POST"])
+calendars_bp.add_url_rule("/api/calendars/sync", view_func=calendars.sync_calendar, methods=["POST"])
