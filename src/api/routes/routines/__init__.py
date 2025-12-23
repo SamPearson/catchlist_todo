@@ -11,3 +11,6 @@ routines_bp.add_url_rule("/api/routines/<int:routine_id>", view_func=routines.de
 
 # CalDAV Import
 routines_bp.add_url_rule("/api/routines/import", view_func=routines.import_routines, methods=["POST"])
+
+# RRule Expansion
+routines_bp.add_url_rule("/api/routines/<int:routine_id>/expand", view_func=routines.expand_routine, methods=["POST"])

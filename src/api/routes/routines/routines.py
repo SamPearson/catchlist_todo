@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.routines.service import RoutineService, RoutineValidationError
 from src.config.caldav_client import CalDAVClient
+from dateutil.parser import parse
 
 
 @jwt_required()
@@ -99,22 +100,36 @@ def import_routines():
 
 @jwt_required()
 def expand_routine(routine_id: int):
-    """POST /api/routines/<id>/expand?start=2025-01-01T00:00:00&end=2025-01-07T00:00:00"""
+    """
+    POST /api/routines/<id>/expand?start=2025-12-01&end=2025-12-31
+    Supports flexible date strings (dates or full timestamps).
+    """
     user_id = int(get_jwt_identity())
     start_str = request.args.get('start')
     end_str = request.args.get('end')
-    
+
     if not start_str or not end_str:
-        return jsonify({"error": "start and end ISO timestamps required"}), 400
-        
+        return jsonify({"error": "start and end query parameters are required"}), 400
+
     service = RoutineService(db.session)
     try:
+        # dateutil.parser.parse handles YYYY-MM-DD and ISO timestamps automatically
+        start_dt = parse(start_str)
+        end_dt = parse(end_str)
+
+        # If user provided just a date (like 2025-12-31),
+        # make sure end_dt covers the full day by setting it to 23:59:59
+        if len(end_str) <= 10:
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+
         count = service.generate_sessions_from_rule(
-            routine_id, 
-            user_id, 
-            datetime.fromisoformat(start_str), 
-            datetime.fromisoformat(end_str)
+            routine_id,
+            user_id,
+            start_dt,
+            end_dt
         )
         return jsonify({"message": f"Successfully expanded routine into {count} sessions"}), 201
+    except (ValueError, OverflowError) as e:
+        return jsonify({"error": f"Invalid date format: {str(e)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 500
