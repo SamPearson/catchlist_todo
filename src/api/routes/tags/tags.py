@@ -19,8 +19,8 @@ def _get_target_entity(session, user_id, target_type, target_id):
         from src.database.routines.models import Routine
         return session.query(Routine).filter_by(id=target_id, user_id=user_id).first()
     if target_type == "session":
-        from src.database.sessions.models import Session
-        return session.query(Session).filter_by(id=target_id, user_id=user_id).first()
+        from src.database.sessions.models import RoutineSession
+        return session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first()
     return None
 
 @jwt_required()

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List
 from sqlalchemy.orm import Session
 from src.database.base.repositories import UserOwnedRepository
-from .models import Session as RoutineSession
+from .models import RoutineSession as RoutineSession
 
 class SessionRepo(UserOwnedRepository[RoutineSession]):
     def __init__(self, session: Session):

@@ -4,7 +4,7 @@ from src.database.db import db
 from src.database.base.models import UserOwnedModel, TaggableMixin
 
 
-class Session(UserOwnedModel, TaggableMixin):
+class RoutineSession(UserOwnedModel, TaggableMixin):
     """
     A Session is a specific instance of a Routine occurring at a specific time.
     It tracks completion, notes, and performance (RPE).

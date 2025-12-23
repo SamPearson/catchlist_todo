@@ -6,6 +6,7 @@ from src.database.base.exceptions import ValidationError
 from dateutil.rrule import rrulestr
 from datetime import datetime, timedelta
 
+from ..sessions.models import RoutineSession
 
 
 class RoutineValidationError(ValidationError):
@@ -76,7 +77,7 @@ class RoutineService:
         
         # Use rrulestr to parse the string stored in DB
         # dtstart ensures the rule knows where to begin expanding
-        rule = rrulestr(routine.rrule, dtstart=routine.created_at)
+        rule = rrulestr(routine.rrule, dtstart=start)
         
         # Find all occurrences in the requested window
         occurrences = rule.between(start, end, inc=True)
@@ -85,7 +86,7 @@ class RoutineService:
         for dt in occurrences:
             # Check if session already exists for this exact start time 
             # (to prevent duplicates if user runs expand twice)
-            existing = self.session.query(Session).filter_by(
+            existing = self.session.query(RoutineSession).filter_by(
                 routine_id=routine.id, 
                 start_time=dt
             ).first()

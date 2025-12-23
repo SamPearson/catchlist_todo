@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from .models import Session as RoutineSession
+from .models import RoutineSession as RoutineSession
 from .repository import SessionRepo
 from src.database.base.exceptions import ValidationError
 

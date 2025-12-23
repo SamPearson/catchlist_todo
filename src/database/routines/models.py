@@ -31,7 +31,7 @@ class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
 
     # Relationships
     calendar = relationship("Calendar", back_populates="routines")
-    sessions = relationship("Session", back_populates="routine", cascade="all, delete-orphan")
+    sessions = relationship("RoutineSession", back_populates="routine", cascade="all, delete-orphan")
 
     def as_dict(self):
         data = super().as_dict()
