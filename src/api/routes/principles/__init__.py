@@ -8,3 +8,5 @@ principles_bp.add_url_rule("/api/principles", view_func=principles.create_princi
 principles_bp.add_url_rule("/api/principles/<int:principle_id>", view_func=principles.get_principle, methods=["GET"])
 principles_bp.add_url_rule("/api/principles/<int:principle_id>", view_func=principles.update_principle, methods=["PUT"])
 principles_bp.add_url_rule("/api/principles/<int:principle_id>", view_func=principles.delete_principle, methods=["DELETE"])
+principles_bp.add_url_rule("/api/principles/attach", view_func=principles.attach_principle, methods=["POST"])
+principles_bp.add_url_rule("/api/principles/detach", view_func=principles.detach_principle, methods=["POST"])
