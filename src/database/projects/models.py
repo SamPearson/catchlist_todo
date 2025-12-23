@@ -3,10 +3,10 @@ from typing import Dict, Any
 from sqlalchemy import Column, String, Text, Boolean
 from sqlalchemy.orm import relationship
 from src.database.db import db
-from src.database.base.models import UserOwnedModel, TaggableMixin
+from src.database.base.models import UserOwnedModel, TaggableMixin, PrincipledMixin
 
 
-class Project(UserOwnedModel, TaggableMixin):
+class Project(UserOwnedModel, TaggableMixin, PrincipledMixin):
     """
     Project model representing long-term goals that consist of multiple tasks.
     """
@@ -34,6 +34,8 @@ class Project(UserOwnedModel, TaggableMixin):
             'reason': self.reason,
             'next_step': self.next_step,
             'active': self.active,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'tags': [tag.as_dict() for tag in self.tags],
+            'principles': [p.as_dict() for p in self.principles]
         })
         return data
