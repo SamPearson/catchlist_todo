@@ -274,37 +274,17 @@ class CalDAVClient:
                                 recurrence_id = str(recurrence_id)
                         else:
                             recurrence_id = str(recurrence_id)
-                    
+
                     # Format rrule to proper iCalendar format
                     if rrule:
-                        # Convert vRecur to proper iCalendar format
-                        rrule_str = f"FREQ={rrule['FREQ'][0]}"
-                        if 'INTERVAL' in rrule:
-                            rrule_str += f";INTERVAL={rrule['INTERVAL'][0]}"
-                        if 'COUNT' in rrule:
-                            rrule_str += f";COUNT={rrule['COUNT'][0]}"
-                        if 'UNTIL' in rrule:
-                            until = rrule['UNTIL'][0]
-                            if isinstance(until, datetime):
-                                if until.tzinfo is None:
-                                    until = pytz.UTC.localize(until)
-                                else:
-                                    until = until.astimezone(pytz.UTC)
-                                rrule_str += f";UNTIL={until.strftime('%Y%m%dT%H%M%SZ')}"
-                            else:
-                                rrule_str += f";UNTIL={until}"
-                        if 'BYDAY' in rrule:
-                            rrule_str += f";BYDAY={','.join(rrule['BYDAY'])}"
-                        if 'BYMONTHDAY' in rrule:
-                            rrule_str += f";BYMONTHDAY={','.join(map(str, rrule['BYMONTHDAY']))}"
-                        if 'BYMONTH' in rrule:
-                            rrule_str += f";BYMONTH={','.join(map(str, rrule['BYMONTH']))}"
-                        if 'BYSETPOS' in rrule:
-                            rrule_str += f";BYSETPOS={','.join(map(str, rrule['BYSETPOS']))}"
-                        if 'WKST' in rrule:
-                            rrule_str += f";WKST={rrule['WKST'][0]}"
-                        logger.debug(f"Formatted RRULE: {rrule_str}")
-                        rrule = rrule_str
+                        try:
+                            rrule_str = rrule.to_ical().decode('utf-8')
+                            # Clean up the prefix if icalendar added 'RRULE:'
+                            if rrule_str.startswith('RRULE:'):
+                                rrule_str = rrule_str.replace('RRULE:', '')
+                            rrule = rrule_str
+                        except Exception:
+                            rrule = str(rrule)
                     
                     return EventInfo(
                         summary=summary,
