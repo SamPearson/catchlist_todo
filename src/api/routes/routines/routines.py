@@ -1,11 +1,23 @@
+import logging
+import traceback
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.routines.service import RoutineService, RoutineValidationError
 from src.config.caldav_client import CalDAVClient
-from dateutil.parser import parse
+from src.config.models.user import User
+
+# Import the timezone utilities
+from src.utils.timezone import parse_dt, to_utc, from_utc, localize_dict
+
+
+def get_user_timezone(user_id):
+    """Get the user's timezone or return UTC as default"""
+    user = User.query.get(user_id)
+    return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
 
 
 @jwt_required()
@@ -14,7 +26,19 @@ def list_routines():
     active_only = request.args.get('active_only', 'true').lower() == 'true'
     service = RoutineService(db.session)
     items = service.list_routines(user_id, active_only=active_only)
-    return jsonify([r.as_dict() for r in items])
+
+    # Get user timezone
+    user_timezone = get_user_timezone(user_id)
+
+    # Convert routines to dicts and localize timestamps
+    routine_dicts = []
+    for routine in items:
+        routine_dict = routine.as_dict()
+        # Only datetime fields will be converted, time-of-day fields pass through
+        localized = localize_dict(routine_dict, user_timezone)
+        routine_dicts.append(localized)
+
+    return jsonify(routine_dicts)
 
 
 @jwt_required()
@@ -22,7 +46,16 @@ def get_routine(routine_id: int):
     user_id = int(get_jwt_identity())
     service = RoutineService(db.session)
     routine = service.get_routine(routine_id, user_id)
-    return jsonify(routine.as_dict()) if routine else ('', 404)
+
+    if not routine:
+        return '', 404
+
+    # Convert routine to dict and localize timestamps
+    routine_dict = routine.as_dict()
+    routine_timezone = routine_dict.get('timezone') or "UTC"
+    localized = localize_dict(routine_dict, routine_timezone)
+
+    return jsonify(localized)
 
 
 @jwt_required()
@@ -30,6 +63,7 @@ def create_routine():
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     service = RoutineService(db.session)
+
     try:
         routine = service.create_routine(user_id, data)
         return jsonify(routine.as_dict()), 201
@@ -42,9 +76,12 @@ def update_routine(routine_id: int):
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     service = RoutineService(db.session)
+
     try:
         updated = service.update_routine(routine_id, user_id, data)
-        return jsonify(updated.as_dict()) if updated else ('', 404)
+        if not updated:
+            return '', 404
+        return jsonify(updated.as_dict())
     except RoutineValidationError as e:
         return jsonify({"error": e.message}), 400
 
@@ -85,10 +122,17 @@ def import_routines():
         if existing:
             continue
 
+        # Convert event start time to UTC before storing
+        utc_start = event.start
+        if hasattr(event, 'timezone') and event.timezone:
+            if utc_start.tzinfo is None:
+                utc_start = to_utc(event.start, event.timezone)
+
         service.create_routine(user_id, {
             "title": event.summary,
             "description": event.description,
             "rrule": event.rrule,
+            "anchor_start_time": utc_start,
             "external_uid": event.uid,
             "external_source": 'caldav',
             "timezone": event.timezone
@@ -99,37 +143,37 @@ def import_routines():
 
 
 @jwt_required()
-def expand_routine(routine_id: int):
-    """
-    POST /api/routines/<id>/expand?start=2025-12-01&end=2025-12-31
-    Supports flexible date strings (dates or full timestamps).
-    """
+def generate_routine_sessions(routine_id: int):
+    """Generate sessions for a routine based on its recurrence rule for a specified period"""
     user_id = int(get_jwt_identity())
-    start_str = request.args.get('start')
-    end_str = request.args.get('end')
+    data = request.get_json() or {}
 
-    if not start_str or not end_str:
-        return jsonify({"error": "start and end query parameters are required"}), 400
+    if 'start_date' not in data or 'end_date' not in data:
+        return jsonify({"error": "start_date and end_date are required"}), 400
 
-    service = RoutineService(db.session)
     try:
-        # dateutil.parser.parse handles YYYY-MM-DD and ISO timestamps automatically
-        start_dt = parse(start_str)
-        end_dt = parse(end_str)
+        service = RoutineService(db.session)
+        
+        # Parse dates (assuming ISO format)
+        start_date = datetime.fromisoformat(data['start_date'])
+        end_date = datetime.fromisoformat(data['end_date'])
 
-        # If user provided just a date (like 2025-12-31),
-        # make sure end_dt covers the full day by setting it to 23:59:59
-        if len(end_str) <= 10:
-            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+        # If end_date is just a date (no time), set it to end of day
+        if len(data['end_date']) <= 10:  # Just YYYY-MM-DD
+            end_date = end_date.replace(hour=23, minute=59, second=59)
 
-        count = service.generate_sessions_from_rule(
-            routine_id,
-            user_id,
-            start_dt,
-            end_dt
-        )
-        return jsonify({"message": f"Successfully expanded routine into {count} sessions"}), 201
-    except (ValueError, OverflowError) as e:
-        return jsonify({"error": f"Invalid date format: {str(e)}"}), 400
+        sessions = service.generate_sessions(user_id, routine_id, start_date, end_date)
+        
+        # Convert sessions to dicts for response
+        session_dicts = [session.as_dict() for session in sessions]
+        
+        return jsonify(session_dicts), 201
+
+    except ValueError as e:
+        return jsonify({"error": f"Invalid date format: {str(e)}. Use ISO format: YYYY-MM-DD or YYYY-MM-DDThh:mm:ss"}), 400
+    except RoutineValidationError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error in generate_routine_sessions: {str(e)}")
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
