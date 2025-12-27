@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from .repository import CalendarRepo
@@ -29,7 +30,7 @@ class CalendarService:
         """
         if not client.connect():
             raise ValidationError("Failed to connect to CalDAV server.")
-        
+
         # 1. Find the specific remote calendar
         remote_cals = client.get_calendars()
         remote_info = next((c for c in remote_cals if c.uid == remote_uid), None)
@@ -40,7 +41,7 @@ class CalendarService:
         local_cal = self.session.query(Calendar).filter_by(
             user_id=user_id, external_uid=remote_uid
         ).first()
-        
+
         if not local_cal:
             local_cal = self.repo.create(
                 user_id=user_id,
@@ -54,10 +55,21 @@ class CalendarService:
         events = client.get_events(remote_info.url)
         routine_service = RoutineService(self.session)
         created_count = 0
-        
+
         for event in events:
             if not event.rrule:
                 continue
+
+
+            # If event.start is a datetime, we can get the weekday
+            if hasattr(event.start, 'weekday'):
+                weekday = event.start.weekday()
+                weekday_names = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+                
+                # If RRULE is weekly but doesn't specify BYDAY, add it
+                if 'FREQ=WEEKLY' in event.rrule and 'BYDAY' not in event.rrule:
+                    event.rrule = f"{event.rrule};BYDAY={weekday_names[weekday]}"
+                    logging.debug(f"  Added weekday to RRULE: {event.rrule}")
 
             # Duplicate Check: Name + Source + RRule
             existing = self.session.query(Routine).filter_by(
@@ -68,17 +80,22 @@ class CalendarService:
             ).first()
 
             if not existing:
+                # Extract time components from the event's start/end times
+                start_time = event.start.time()
+                end_time = event.end.time() if event.end else None
+
                 routine_service.create_routine(user_id, {
                     "title": event.summary,
                     "description": event.description,
                     "rrule": event.rrule,
+                    "start_time": start_time.strftime('%H:%M'),
+                    "end_time": end_time.strftime('%H:%M') if end_time else None,
                     "calendar_id": local_cal.id,
                     "external_uid": event.uid,
-                    "external_source": 'caldav',
-                    "timezone": event.timezone
+                    "external_source": 'caldav'
                 })
                 created_count += 1
-        
+
         return {"calendar_id": local_cal.id, "created_routines": created_count}
 
     def create_calendar(self, user_id: int, data: Dict[str, Any]) -> Calendar:
