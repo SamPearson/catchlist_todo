@@ -132,7 +132,6 @@ def import_routines():
             "title": event.summary,
             "description": event.description,
             "rrule": event.rrule,
-            "anchor_start_time": utc_start,
             "external_uid": event.uid,
             "external_source": 'caldav',
             "timezone": event.timezone
