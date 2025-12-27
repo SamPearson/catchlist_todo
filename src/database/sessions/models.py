@@ -13,10 +13,9 @@ class RoutineSession(UserOwnedModel, TaggableMixin):
 
     routine_id = Column(Integer, ForeignKey('routines.id'), nullable=False)
 
-    # Timing (Store in UTC as per new system standards)
+    # Timing (stored in UTC)
     start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
-    timezone = Column(String(50), default="UTC")
 
     # Tracking
     completed = Column(Boolean, default=False)
@@ -28,21 +27,25 @@ class RoutineSession(UserOwnedModel, TaggableMixin):
 
     @property
     def duration_minutes(self):
+        """Calculate duration in minutes between start and end time"""
         if self.start_time and self.end_time:
             delta = self.end_time - self.start_time
             return delta.total_seconds() / 60
         return 0
 
     def as_dict(self):
+        """
+        Return a dictionary representation of the model.
+        Datetime values are returned in ISO format (UTC).
+        """
         data = super().as_dict()
         data.update({
-            "routine_id": self.routine_id,
-            "start_time": self.start_time.isoformat() if self.start_time else None,
-            "end_time": self.end_time.isoformat() if self.end_time else None,
-            "timezone": self.timezone,
-            "completed": self.completed,
-            "notes": self.notes,
-            "rpe": self.rpe,
-            "duration_minutes": self.duration_minutes
+            'routine_id': self.routine_id,
+            'start_time': self.start_time.isoformat() if self.start_time else None,
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'completed': self.completed,
+            'notes': self.notes,
+            'rpe': self.rpe,
+            'duration_minutes': self.duration_minutes
         })
         return data
