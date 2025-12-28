@@ -55,12 +55,27 @@ class PrincipleService:
         return self.repo.delete(principle)
 
     def attach_to_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
+        from .models import PrincipleAssociation
+    
         principle = self.get_principle(principle_id, user_id)
         if not principle or not hasattr(entity, 'principles'):
             return False
 
-        if principle not in entity.principles:
-            entity.principles.append(principle)
+        # Check if association already exists
+        existing = self.session.query(PrincipleAssociation).filter_by(
+            principle_id=principle.id,
+            entity_id=entity.id,
+            entity_type=entity.__class__.__name__.lower()
+        ).first()
+
+        if not existing:
+            # Create association explicitly
+            association = PrincipleAssociation(
+                principle_id=principle.id,
+                entity_id=entity.id,
+                entity_type=entity.__class__.__name__.lower()
+            )
+            self.session.add(association)
             self.session.commit()
         return True
 
