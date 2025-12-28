@@ -13,7 +13,7 @@ from src.api.routes.tags import tags_bp
 from .routes.projects import projects_bp
 from ..config.caldav_client import CalDAVClient
 
-from ..config.db_config import initialize_database
+from src.database.config_db import initialize_database
 from .app_factory import create_app
 from .routes import auth
 
