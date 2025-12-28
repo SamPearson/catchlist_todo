@@ -77,6 +77,33 @@ class TimeframeService:
             label=bounds.label,
         )
 
+    def get_or_create_for_local_date_with_flag(
+            self,
+            *,
+            user_id: int,
+            kind: str,
+            local_day: date,
+            user_tz: str,
+    ) -> tuple[Timeframe, bool]:
+        bounds = self.compute_bounds_for_local_date(kind=kind, local_day=local_day, user_tz=user_tz)
+
+        existing = self.repo.find_exact(
+            user_id=user_id,
+            kind=kind,
+            start_at_utc=bounds.start_utc,
+        )
+        if existing is not None:
+            return existing, False
+
+        created = self.repo.create(
+            user_id=user_id,
+            kind=kind,
+            start_at_utc=bounds.start_utc,
+            end_at_utc=bounds.end_utc,
+            label=bounds.label,
+        )
+        return created, True
+
     def compute_bounds_for_local_date(
         self,
         *,
