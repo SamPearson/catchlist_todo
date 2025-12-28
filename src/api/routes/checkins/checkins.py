@@ -79,6 +79,39 @@ def get_checkin(checkin_id: int):
 
 
 @jwt_required()
+def update_checkin(checkin_id: int):
+    user_id = int(get_jwt_identity())
+    data = request.get_json() or {}
+
+    # Only note and occurred_at can be modified
+    update_data = {}
+    if "note" in data:
+        note = (data["note"] or "").strip()
+        if not note:
+            return jsonify({"error": "Note cannot be empty"}), 400
+        update_data["note"] = note
+
+    if "occurred_at" in data:
+        update_data["occurred_at"] = data["occurred_at"]
+
+    if not update_data:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    service = CheckinService(session=db.session)
+    try:
+        updated = service.update(
+            user_id=user_id,
+            checkin_id=checkin_id,
+            **update_data
+        )
+        if not updated:
+            return "", 404
+        return jsonify(updated.as_dict())
+    except CheckinValidationError as e:
+        return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
 def delete_checkin(checkin_id: int):
     user_id = int(get_jwt_identity())
     service = CheckinService(session=db.session)
