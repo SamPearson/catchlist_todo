@@ -150,3 +150,21 @@ class RoutineService:
         except Exception as e:
             logging.error(f"Error generating sessions: {str(e)}")
             raise RoutineValidationError(f"Failed to generate sessions: {str(e)}")
+
+    def delete_routine(self, routine_id: int, user_id: int) -> bool:
+        """
+        Delete a routine and all its associated sessions.
+        Sessions will be automatically deleted due to cascade setting in relationship.
+
+        Args:
+            routine_id: ID of the routine to delete
+            user_id: ID of the user who owns the routine
+
+        Returns:
+            bool: True if routine was found and deleted, False otherwise
+        """
+        routine = self.get_routine(routine_id, user_id)
+        if not routine:
+            return False
+
+        return self.repo.delete(routine)
