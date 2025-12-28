@@ -100,12 +100,12 @@ class CommitmentService:
             return self.session.query(Project).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "routine":
-            from src.config.models.routines import Routine  # legacy
+            from database.routines.models import Routine
             return self.session.query(Routine).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "session":
-            from src.config.models.routines import Session  # legacy
-            return self.session.query(Session).filter_by(id=target_id, user_id=user_id).first() is not None
+            from database.sessions.models import RoutineSession
+            return self.session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first() is not None
 
         return False
 

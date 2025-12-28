@@ -1,10 +1,12 @@
 from sqlalchemy import Column, String, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import relationship
+
+from src.database.base.models import PrincipledMixin
 from src.database.db import db
 from src.database.base.models import UserOwnedModel, TaggableMixin
 
 
-class Task(UserOwnedModel, TaggableMixin):
+class Task(UserOwnedModel, TaggableMixin, PrincipledMixin):
     """
     Task model representing both standalone tasks and project tasks.
     """
@@ -16,13 +18,10 @@ class Task(UserOwnedModel, TaggableMixin):
     completed_at = Column(db.DateTime)
     
     # Optional project association
-    project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
     
     # Relationships
     project = relationship("Project", back_populates="tasks")
-
-
-
 
     def as_dict(self):
         """Convert task to dictionary representation"""
@@ -33,6 +32,7 @@ class Task(UserOwnedModel, TaggableMixin):
             'completed': self.completed,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'project_id': self.project_id,
-            'tags': [tag.as_dict() for tag in self.tags]
+            'tags': [tag.as_dict() for tag in self.tags],
+            'principles': [p.as_dict() for p in self.principles]
         })
         return data

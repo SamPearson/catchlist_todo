@@ -9,7 +9,7 @@ class TagAssociation(db.Model):
     __tablename__ = 'tag_associations'
 
     id = Column(Integer, primary_key=True)
-    tag_id = Column(Integer, ForeignKey('tag.id', ondelete='CASCADE'), nullable=False)
+    tag_id = Column(Integer, ForeignKey('tags.id', ondelete='CASCADE'), nullable=False)
     entity_id = Column(Integer, nullable=False)
     entity_type = Column(String(50), nullable=False)
 

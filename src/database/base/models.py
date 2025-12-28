@@ -1,8 +1,9 @@
-
 from datetime import datetime
 from typing import Any, Dict
-from sqlalchemy import Column, Integer, DateTime
+
+from sqlalchemy import Column, Integer, DateTime, String, ForeignKey
 from sqlalchemy.ext.declarative import declared_attr
+
 from src.database.db import db
 
 class BaseModel(db.Model):
@@ -82,13 +83,31 @@ class SoftDeleteModel(BaseModel):
 class TaggableMixin:
     @declared_attr
     def tags(cls):
-        from src.database.tags.models import Tag
+        #Importing here to avoid circular imports
+        from src.database.tags.models import Tag, TagAssociation
         return db.relationship(
             "Tag",
-            secondary='tag_association',
+            secondary='tag_associations',
             primaryjoin=f"and_({cls.__name__}.id==TagAssociation.entity_id, "
                        f"TagAssociation.entity_type=='{cls.__name__.lower()}')",
             secondaryjoin="Tag.id==TagAssociation.tag_id",
+            lazy='select',
+            backref=db.backref(f"{cls.__name__.lower()}s", lazy='dynamic')
+        )
+
+
+class PrincipledMixin:
+    @declared_attr
+    def principles(cls):
+        #Importing here to avoid circular imports
+        from src.database.principles.models import Principle, PrincipleAssociation
+
+        return db.relationship(
+            "Principle",
+            secondary='principle_associations',
+            primaryjoin=f"and_({cls.__name__}.id==PrincipleAssociation.entity_id, "
+                       f"PrincipleAssociation.entity_type=='{cls.__name__.lower()}')",
+            secondaryjoin="Principle.id==PrincipleAssociation.principle_id",
             lazy='select',
             backref=db.backref(f"{cls.__name__.lower()}s", lazy='dynamic')
         )
