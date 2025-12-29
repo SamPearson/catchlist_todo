@@ -8,7 +8,7 @@
 - Represent simple, atomic tasks or thoughts
 - Should be completable within a day
 - Properties:
-  - Content
+  - Text
   - Status (active/completed)
   - Creation date
 - Can be converted to:
