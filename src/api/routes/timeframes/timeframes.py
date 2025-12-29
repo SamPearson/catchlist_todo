@@ -11,7 +11,7 @@ from src.database.timeframes.service import (
     UnsupportedTimeframeKind,
     InvalidTimezone,
 )
-from src.config.models.user import User
+from src.database.users.user import User
 
 _ALLOWED_KINDS = {
     TimeframeService.KIND_DAY,

@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.sessions.service import SessionService, SessionValidationError
 from src.utils.timezone import parse_dt, to_utc, from_utc
-from src.config.models.user import User
+from src.database.users.user import User
 
 
 def get_user_timezone(user_id):

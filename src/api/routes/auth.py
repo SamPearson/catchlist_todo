@@ -6,7 +6,7 @@ from flask_jwt_extended import (
     get_jwt
 )
 from src.database.db import db
-from src.config.models.user import User
+from src.database.users.user import User
 
 auth_bp = Blueprint('auth', __name__)
 

@@ -8,10 +8,10 @@ from flask_jwt_extended import (
 
 from src.database.db import db
 
-from src.config.models.user import User, BlacklistedToken
+from src.database.users.user import User, BlacklistedToken
 from src.api.routes.tags import tags_bp
 from .routes.projects import projects_bp
-from ..config.caldav_client import CalDAVClient
+from src.api.utils.caldav_client import CalDAVClient
 
 from src.database.config_db import initialize_database
 from .app_factory import create_app

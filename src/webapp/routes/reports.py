@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from src.common_utils.date_utils import parse_date, format_date, get_week_sunday
+from src.utils.date_utils import parse_date, format_date, get_week_sunday
 from flask import Blueprint, render_template, redirect, url_for, request
 from src.webapp.services.auth import require_auth
 from src.webapp.services.api_client import api_client

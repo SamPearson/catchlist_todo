@@ -8,7 +8,7 @@ from flask_jwt_extended import JWTManager
 from src.database.db import db
 from src.database.config_db import Config
 from datetime import timedelta
-from src.common_utils.date_utils import parse_date
+from src.utils.date_utils import parse_date
 
 # webapp routes are bundled in feature-scoped blueprints
 from .routes.tags import tags_bp

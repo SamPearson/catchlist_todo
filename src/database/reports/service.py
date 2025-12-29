@@ -3,7 +3,7 @@ from typing import Dict, Tuple, Optional
 from ..dates.services import DateService
 from .repositories import ReportRepository
 from .models import DayReport, WeekReport, MonthReport, SeasonReport, YearReport
-from ...common_utils.date_utils import get_week_sunday
+from src.utils.date_utils import get_week_sunday
 
 
 class ReportService:

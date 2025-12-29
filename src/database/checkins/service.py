@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from src.config.models.user import User
+from src.database.users.user import User
 from src.database.checkins.models import CheckinRecord
 from src.database.checkins.repository import CheckinRepo
 
@@ -74,9 +74,6 @@ class CheckinService:
     def _target_exists(self, *, user_id: int, target_type: str, target_id: int) -> bool:
         """
         Existence + ownership check per target type.
-
-        NOTE: routines/sessions are currently legacy models (src.config.*) in your codebase;
-        this function intentionally enforces existence anyway, per your updated decision.
         """
         if target_id <= 0:
             return False

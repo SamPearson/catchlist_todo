@@ -7,8 +7,8 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.routines.service import RoutineService, RoutineValidationError
-from src.config.caldav_client import CalDAVClient
-from src.config.models.user import User
+from src.api.utils.caldav_client import CalDAVClient
+from src.database.users.user import User
 
 # Import the timezone utilities
 from src.utils.timezone import parse_dt, to_utc, from_utc, localize_dict
