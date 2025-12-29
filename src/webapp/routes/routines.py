@@ -2,11 +2,12 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 
-from src.config.models.routines import Routine, Session
-from src.config.models.calendar import Calendar
+from src.database.routines.models import Routine
+from src.database.sessions.models import RoutineSession
+from src.database.calendars.models import Calendar
 
 from src.database.tags.models import Tag
-from ...config.caldav_client import CalDAVClient
+from src.api.utils.caldav_client import CalDAVClient
 from datetime import datetime, timedelta
 from dateutil import rrule
 from dateutil.parser import parse

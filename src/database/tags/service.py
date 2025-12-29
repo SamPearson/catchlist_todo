@@ -42,6 +42,8 @@ class TagService:
 
     def add_tag_to_entity(self, tag_id: int, user_id: int, entity: any) -> bool:
         """Add a tag to any entity that supports tags"""
+        from src.database.tags.models import TagAssociation
+
         tag = self.get_tag(tag_id, user_id)
         if not tag:
             return False
@@ -49,8 +51,21 @@ class TagService:
         if not hasattr(entity, 'tags'):
             raise TagValidationError(f"Entity {type(entity).__name__} does not support tags")
 
-        if tag not in entity.tags:
-            entity.tags.append(tag)
+        # Check if association already exists
+        existing = self.session.query(TagAssociation).filter_by(
+            tag_id=tag.id,
+            entity_id=entity.id,
+            entity_type=entity.__class__.__name__.lower()
+        ).first()
+
+        if not existing:
+            # Create association explicitly
+            association = TagAssociation(
+                tag_id=tag.id,
+                entity_id=entity.id,
+                entity_type=entity.__class__.__name__.lower()
+            )
+            self.session.add(association)
             self.session.commit()
         return True
 

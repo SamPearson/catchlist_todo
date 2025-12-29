@@ -2,7 +2,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.calendars.service import CalendarService
-from src.config.caldav_client import CalDAVClient
+from src.api.utils.caldav_client import CalDAVClient
 from src.database.base.exceptions import ValidationError
 
 @jwt_required()

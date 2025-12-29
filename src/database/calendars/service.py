@@ -5,7 +5,7 @@ from .repository import CalendarRepo
 from .models import Calendar
 from src.database.routines.models import Routine
 from src.database.routines.service import RoutineService
-from src.config.caldav_client import CalDAVClient
+from src.api.utils.caldav_client import CalDAVClient
 from src.database.base.exceptions import ValidationError
 
 class CalendarService:

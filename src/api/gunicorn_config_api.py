@@ -1,6 +1,6 @@
 from src.api.api import app
-from src.config.models import db
-from src.config.db_config import initialize_database
+from src.database.db import db
+from src.database.config_db import initialize_database
 
 def on_starting(server):
     with app.app_context():

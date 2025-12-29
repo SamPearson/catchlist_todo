@@ -4,9 +4,9 @@ from flask_cors import CORS
 import re
 
 from src.database.db import db
-from src.config.models.user import BlacklistedToken
+from src.database.users.user import BlacklistedToken
 
-from ..config.db_config import Config, initialize_database
+from src.database.config_db import Config, initialize_database
 
 
 def create_app():

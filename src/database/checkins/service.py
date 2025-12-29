@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from src.config.models.user import User
+from src.database.users.user import User
 from src.database.checkins.models import CheckinRecord
 from src.database.checkins.repository import CheckinRepo
 
@@ -74,9 +74,6 @@ class CheckinService:
     def _target_exists(self, *, user_id: int, target_type: str, target_id: int) -> bool:
         """
         Existence + ownership check per target type.
-
-        NOTE: routines/sessions are currently legacy models (src.config.*) in your codebase;
-        this function intentionally enforces existence anyway, per your updated decision.
         """
         if target_id <= 0:
             return False
@@ -94,12 +91,12 @@ class CheckinService:
             return self.session.query(Commitment).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "routine":
-            from src.config.models.routines import Routine  # legacy
+            from database.routines.models import Routine
             return self.session.query(Routine).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "session":
-            from src.config.models.routines import Session  # legacy
-            return self.session.query(Session).filter_by(id=target_id, user_id=user_id).first() is not None
+            from database.sessions.models import RoutineSession
+            return self.session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first() is not None
 
         return False
 
@@ -131,6 +128,47 @@ class CheckinService:
 
     def get(self, *, user_id: int, checkin_id: int) -> CheckinRecord | None:
         return self.repo.get(checkin_id, user_id=user_id)
+
+    def update(
+            self,
+            *,
+            user_id: int,
+            checkin_id: int,
+            note: str | None = None,
+            occurred_at: str | None = None,
+    ) -> CheckinRecord | None:
+        """
+        Update a checkin record.
+
+        Args:
+            user_id: The user ID
+            checkin_id: The checkin ID
+            note: Optional new note text
+            occurred_at: Optional new occurred_at timestamp (ISO format)
+
+        Returns:
+            Updated CheckinRecord or None if not found
+
+        Raises:
+            CheckinValidationError: If validation fails
+        """
+        checkin = self.get(user_id=user_id, checkin_id=checkin_id)
+        if not checkin:
+            return None
+
+        update_data = {}
+
+        if note is not None:
+            update_data['note'] = self._normalize_note(note)
+
+        if occurred_at is not None:
+            user_tz = self._get_user_timezone(user_id)
+            update_data['occurred_at_utc'] = self._parse_occurred_at(occurred_at, user_tz=user_tz)
+
+        if not update_data:
+            return checkin  # No changes needed
+
+        return self.repo.update(checkin, **update_data)
 
     def delete(self, *, user_id: int, checkin_id: int) -> bool:
         checkin = self.get(user_id=user_id, checkin_id=checkin_id)

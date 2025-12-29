@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from src.config.models.user import User
+from src.database.users.user import User
 from src.database.base.exceptions import EntityNotFoundError, InvalidStateError, ValidationError
 from src.database.commitments.models import Commitment
 from src.database.commitments.repository import CommitmentRepo
@@ -85,8 +85,6 @@ class CommitmentService:
     def _target_exists(self, *, user_id: int, target_type: str, target_id: int) -> bool:
         """
         Existence + ownership check per target type.
-
-        NOTE: routines/sessions are currently legacy models (src.config.*).
         """
         if target_id <= 0:
             return False
