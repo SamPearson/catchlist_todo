@@ -2,13 +2,12 @@ from flask import Blueprint, jsonify, request, render_template
 from flask_login import login_required, current_user
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
-from ...config.models.commitment import Commitment, SoftCommitment
-from ...config.models.time_blocks import TimeBlock
-from ...config.db_setup import db
+#from ...config.models.commitment import Commitment, SoftCommitment
+#from ...config.models.time_blocks import TimeBlock
+from src.database.db import db
 
 commitments = Blueprint('commitments', __name__)
 
-# ... existing code ...
 
 @commitments.route('/api/commitments/soft/<period>', methods=['GET'])
 @login_required

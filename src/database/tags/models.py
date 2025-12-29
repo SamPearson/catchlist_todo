@@ -1,31 +1,39 @@
+from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy.orm import relationship
+from src.database.base.models import UserOwnedModel
+from src.database.db import db
 
-from datetime import datetime
-from sqlalchemy.sql import func
-from ...config.models import db  # deprecated model, db handling
 
-class Tag(db.Model):
-    """
-    Tag model representing user-defined tags for categorizing items.
-    Designed to be attachable to tasks and other future entities.
-    """
-    __tablename__ = 'new_tags'
+class TagAssociation(db.Model):
+    """Association model for connecting tags to any entity"""
+    __tablename__ = 'tag_associations'
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    color = db.Column(db.String(10), default='#6c757d')
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=func.now())
-    updated_at = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now())
+    id = Column(Integer, primary_key=True)
+    tag_id = Column(Integer, ForeignKey('tags.id', ondelete='CASCADE'), nullable=False)
+    entity_id = Column(Integer, nullable=False)
+    entity_type = Column(String(50), nullable=False)
 
-    # named new_tags to avoid collision and help identify cruft, rename during cleanup
-    user = db.relationship('User', back_populates='tags')
+    # Index for faster lookups - combine with extend_existing
+    __table_args__ = (
+        db.Index('idx_tag_entity', 'entity_type', 'entity_id'),
+    )
+
+
+class Tag(UserOwnedModel):
+    """Tag model representing user-defined tags"""
+    __tablename__ = 'tags'
+
+    name = Column(String(50), nullable=False)
+    color = Column(String(10), default='#6c757d')
+
+    associations = relationship("TagAssociation",
+                              backref='tag',
+                              cascade='all, delete-orphan')
 
     def as_dict(self):
-        """Convert tag to dictionary representation"""
-        return {
-            'id': self.id,
+        data = super().as_dict()
+        data.update({
             'name': self.name,
-            'color': self.color,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+            'color': self.color
+        })
+        return data

@@ -1,8 +1,8 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.tasks.service import TaskService
-from src.database.tasks.repositories import TaskRepository
-from src.config.models import db
+from src.database.tasks.repository import TaskRepository
+from src.database.db import db
 
 # Create a single instance of the service
 task_service = TaskService(TaskRepository(db.session))
@@ -31,12 +31,12 @@ def create_task():
     user_id = get_jwt_identity()
     data = request.get_json()
 
-    if not data or 'content' not in data:
-        return jsonify({'error': 'Content is required'}), 400
+    if not data or 'title' not in data:
+        return jsonify({'error': 'Title is required'}), 400
 
     task = task_service.create_task(
         user_id=user_id,
-        content=data['content']
+        title=data['title']
     )
     return jsonify(task.as_dict()), 201
 

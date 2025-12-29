@@ -12,7 +12,7 @@ The system serves as a personal development tracking tool that bridges the gap b
 ### 3. Data Entities
 
 #### 3.1 Primary Entities
-1. **Catchlist Items**
+1. **Tasks**
    - Standalone, atomic tasks
    - Properties: content, status, creation date
    - Example: "Buy new hat"
@@ -25,7 +25,7 @@ The system serves as a personal development tracking tool that bridges the gap b
 3. **Project Subtasks**
    - Components of larger projects
    - Linked to parent project
-   - Similar to catchlist items but with project context
+   - Similar to tasks(same database model as task) but with project context
 
 4. **Routines**
    - Template for recurring time-boxed activities
@@ -115,17 +115,3 @@ The system serves as a personal development tracking tool that bridges the gap b
 - Unified handling of commitments
 - Consistent check-in mechanism across entity types
 - Efficient querying for report generation
-
-### 7. Migration Notes
-Current implementation includes:
-- Working API and webapp
-- CI/CD pipeline with Jenkins
-- Selenium and Postman tests
-- Need for architectural consolidation of common patterns
-
-### 8. Next Steps
-1. Identify common patterns in existing implementation
-2. Design unified data structures
-3. Plan incremental migration strategy
-4. Develop comprehensive test suite
-5. Implement architectural improvements

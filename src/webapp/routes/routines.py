@@ -1,8 +1,13 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ...config.models import db, Routine, Session, Calendar
+from src.database.db import db
+
+from src.database.routines.models import Routine
+from src.database.sessions.models import RoutineSession
+from src.database.calendars.models import Calendar
+
 from src.database.tags.models import Tag
-from ...config.caldav_client import CalDAVClient
+from src.api.utils.caldav_client import CalDAVClient
 from datetime import datetime, timedelta
 from dateutil import rrule
 from dateutil.parser import parse
@@ -154,12 +159,12 @@ def import_routines():
                     db.session.add(calendar_tag)
                     db.session.flush()
 
-                # Associate routine with calendar tag
-                routine_tag = RoutineTag(
-                    routine_id=routine.id,
-                    tag_id=calendar_tag.id
-                )
-                db.session.add(routine_tag)
+                # # Associate routine with calendar tag
+                # routine_tag = RoutineTag(
+                #     routine_id=routine.id,
+                #     tag_id=calendar_tag.id
+                # )
+                # db.session.add(routine_tag)
 
                 imported_count += 1
         

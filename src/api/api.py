@@ -6,15 +6,26 @@ from flask_jwt_extended import (
     get_jwt
 )
 
-from src.api.routes.tags import tags_bp
-from ..config.caldav_client import CalDAVClient
+from src.database.db import db
 
-from ..config.models import db, User, BlacklistedToken
-from ..config.db_config import initialize_database
+from src.database.users.user import User, BlacklistedToken
+from src.api.routes.tags import tags_bp
+from .routes.projects import projects_bp
+from src.api.utils.caldav_client import CalDAVClient
+
+from src.database.config_db import initialize_database
 from .app_factory import create_app
-from .routes import auth, projects, routines, commitments, catchlist_items
+from .routes import auth
+
 from .routes.tasks import tasks_bp
 from .routes.reports import reports_bp
+from .routes.timeframes import timeframes_bp
+from .routes.commitments import commitments_bp
+from .routes.checkins import checkins_bp
+from .routes.routines import routines_bp
+from .routes.sessions import sessions_bp
+from .routes.calendars import calendars_bp
+from .routes.principles import principles_bp
 
 app = create_app()
 
@@ -23,13 +34,14 @@ app.register_blueprint(auth.auth_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(tags_bp)
-
-
-#Old blueprints
-app.register_blueprint(projects.projects_bp, url_prefix='/api')
-app.register_blueprint(routines.routines_bp)
-app.register_blueprint(commitments.commitments_bp)
-app.register_blueprint(catchlist_items.catchlist_items_bp)
+app.register_blueprint(projects_bp)
+app.register_blueprint(timeframes_bp)
+app.register_blueprint(commitments_bp)
+app.register_blueprint(checkins_bp)
+app.register_blueprint(routines_bp)
+app.register_blueprint(sessions_bp)
+app.register_blueprint(calendars_bp)
+app.register_blueprint(principles_bp)
 
 
 @app.route('/api/health', methods=['GET'])

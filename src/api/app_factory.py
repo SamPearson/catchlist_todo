@@ -2,8 +2,11 @@ from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import re
-from ..config.models import db, BlacklistedToken
-from ..config.db_config import Config, initialize_database
+
+from src.database.db import db
+from src.database.users.user import BlacklistedToken
+
+from src.database.config_db import Config, initialize_database
 
 
 def create_app():

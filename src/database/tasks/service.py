@@ -1,6 +1,14 @@
 from typing import List, Optional, Dict
-from .repositories import TaskRepository
+from .repository import TaskRepository
 from .models import Task
+from src.database.base.exceptions import ValidationError
+
+
+class TaskValidationError(ValidationError):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
 
 class TaskService:
     """Service layer for task operations"""
@@ -8,9 +16,12 @@ class TaskService:
     def __init__(self, repository: TaskRepository):
         self.repository = repository
 
-    def create_task(self, user_id: int, content: str) -> Task:
+    def create_task(self, user_id: int, title: str) -> Task:
         """Create a new task"""
-        return self.repository.create(user_id=user_id, content=content)
+        normalized = (title or "").strip()
+        if not normalized:
+            raise TaskValidationError("title is required.")
+        return self.repository.create(user_id=user_id, title=normalized)
 
     def get_task(self, task_id: int, user_id: int) -> Optional[Task]:
         """Get a specific task, ensuring user ownership"""
@@ -25,10 +36,20 @@ class TaskService:
 
     def update_task(self, task: Task, data: Dict) -> Task:
         """Update a task with the given data"""
+        if "title" in data:
+            title = str(data.get("title") or "").strip()
+            if not title:
+                raise TaskValidationError("title cannot be empty.")
+        else:
+            title = None
+
+        if "content" in data and "title" not in data:
+            raise TaskValidationError("content is deprecated; use title.")
+
         return self.repository.update(
             task,
-            content=data.get('content'),
-            completed=data.get('completed')
+            title=title,
+            completed=data.get("completed")
         )
 
     def delete_task(self, task: Task) -> None:
