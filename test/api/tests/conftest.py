@@ -17,12 +17,13 @@ def env_manager(request):
 
 @pytest.fixture(scope="session")
 def api_client(env_manager):
+    """Session-scoped base API client"""
     return APIClient(env_manager.base_url)
 
 
 @pytest.fixture(scope="session")
 def test_user(api_client):
-    """Create and register a test user for the session"""
+    """Create and register the primary test user for the session"""
     user = APIUserFactory.create()
     api_client.register(user)
 
@@ -38,10 +39,46 @@ def test_user(api_client):
 
 @pytest.fixture
 def auth_client(api_client, test_user):
-    """Provide authenticated client for tests"""
+    """Provide authenticated client for primary test user"""
     api_client.login(test_user)
     yield api_client
     api_client.logout()
+
+
+@pytest.fixture
+def secondary_user(env_manager):
+    """Create a secondary test user for isolation testing"""
+    user = APIUserFactory.create()
+    client = APIClient(env_manager.base_url)
+    client.register(user)
+
+    yield user
+
+    # Cleanup: Delete secondary user
+    try:
+        cleanup_client = APIClient(env_manager.base_url)
+        cleanup_client.login(user)
+        cleanup_client.delete_account()
+    except Exception as e:
+        print(f"Failed to delete secondary user {user.username}: {e}")
+
+
+@pytest.fixture
+def secondary_auth_client(env_manager, secondary_user):
+    """Provide independent authenticated client for secondary test user"""
+    client = APIClient(env_manager.base_url)
+    client.login(secondary_user)
+    yield client
+    try:
+        client.logout()
+    except:
+        pass
+
+
+@pytest.fixture
+def unauthenticated_client(env_manager):
+    """Provide an unauthenticated client for testing auth failures"""
+    return APIClient(env_manager.base_url)
 
 
 def pytest_collection_modifyitems(items):
