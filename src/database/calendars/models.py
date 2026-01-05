@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from src.database.db import db
 from src.database.base.models import UserOwnedModel
@@ -14,6 +14,7 @@ class Calendar(UserOwnedModel):
     color = Column(String(7), default='#767676')
     external_uid = Column(String(100))
     external_source = Column(String(50))
+    active = Column(Boolean, default=True)
 
     # Relationships
     routines = relationship('Routine', back_populates='calendar', cascade='all, delete-orphan')
@@ -24,6 +25,7 @@ class Calendar(UserOwnedModel):
             "name": self.name,
             "color": self.color,
             "external_uid": self.external_uid,
-            "external_source": self.external_source
+            "external_source": self.external_source,
+            "active": self.active
         })
         return data
