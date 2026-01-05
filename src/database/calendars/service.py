@@ -108,8 +108,58 @@ class CalendarService:
             name=data['name'],
             color=data.get('color', '#767676'),
             external_uid=data.get('external_uid'),
-            external_source=data.get('external_source', 'manual')
+            external_source=data.get('external_source')
         )
 
-    def list_calendars(self, user_id: int) -> List[Calendar]:
-        return self.repo.list_for_user(user_id)
+    def list_calendars(self, user_id: int, include_inactive: bool = False) -> List[Calendar]:
+        """
+        List calendars for a user.
+
+        Args:
+            user_id: ID of the user
+            include_inactive: If False (default), only returns active calendars
+
+        Returns:
+            List of calendars
+        """
+        calendars = self.repo.list_for_user(user_id)
+        if not include_inactive:
+            calendars = [c for c in calendars if c.active]
+        return calendars
+
+    def update_calendar(self, user_id: int, calendar_id: int, data: Dict[str, Any]) -> Optional[Calendar]:
+        """
+        Update a calendar's properties.
+        Only allows updating: name, color, active
+        Prevents updating: external_uid, external_source
+        """
+        calendar = self.repo.get(calendar_id, user_id)
+        if not calendar:
+            return None
+
+        # Whitelist of updatable fields
+        updatable = ['name', 'color', 'active']
+        update_data = {k: v for k, v in data.items() if k in updatable}
+
+        if 'name' in update_data and not update_data['name']:
+            raise ValidationError("Calendar name cannot be empty.")
+
+        return self.repo.update(calendar, **update_data)
+
+    def delete_calendar(self, user_id: int, calendar_id: int) -> bool:
+        """
+        Delete a calendar and all its associated routines and sessions.
+        Sessions are automatically deleted via cascade in Routine model.
+        
+        Args:
+            user_id: ID of the user who owns the calendar
+            calendar_id: ID of the calendar to delete
+            
+        Returns:
+            bool: True if calendar was found and deleted, False otherwise
+        """
+        calendar = self.repo.get(calendar_id, user_id)
+        if not calendar:
+            return False
+
+        return self.repo.delete(calendar)
