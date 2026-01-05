@@ -32,3 +32,21 @@ class EnvironmentManager:
         if not self.environment:
             raise RuntimeError("Environment not initialized")
         return os.getenv('API_BASE_URL')
+
+    @property
+    def caldav_url(self) -> str:
+        if not self.environment:
+            raise RuntimeError("Environment not initialized")
+        return os.getenv('CALDAV_URL')
+
+    @property
+    def caldav_username(self) -> str:
+        if not self.environment:
+            raise RuntimeError("Environment not initialized")
+        return os.getenv('CALDAV_USERNAME')
+
+    @property
+    def caldav_password(self) -> str:
+        if not self.environment:
+            raise RuntimeError("Environment not initialized")
+        return os.getenv('CALDAV_PASSWORD')
