@@ -17,6 +17,7 @@ def run_tests(args):
         "pytest",
         "--env=dev",
         "-v",
+        #"-s", # This flag enables print statements, but is very spammy.
         f"--alluredir={args.report_dir}",
     ]
 
