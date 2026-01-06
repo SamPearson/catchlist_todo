@@ -24,7 +24,7 @@ class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
 
     # External Integration Metadata
     external_uid = Column(String(100), index=True)
-    external_source = Column(String(50))  # e.g., 'caldav', 'manual'
+    external_source = Column(String(50))  # e.g., 'caldav' or null
     external_source_name = Column(String(100))
 
     # Optional connection to a Calendar entity

@@ -61,7 +61,7 @@ class RoutineService:
             end_time=end_time,
             active=data.get('active', True),
             external_uid=data.get('external_uid'),
-            external_source=data.get('external_source', 'manual'),
+            external_source=data.get('external_source'),
             external_source_name=data.get('external_source_name'),
             calendar_id=data.get('calendar_id')
         )
