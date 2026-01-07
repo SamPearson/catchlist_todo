@@ -131,7 +131,7 @@ class RoutineService:
                 existing = self.session_repo.list_for_window(
                     user_id=user_id,
                     start=session_start,
-                    end=session_start
+                    end=session_end
                 )
 
                 if not existing:
