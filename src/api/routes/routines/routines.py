@@ -66,9 +66,15 @@ def create_routine():
 
     try:
         routine = service.create_routine(user_id, data)
-        return jsonify(routine.as_dict()), 201
+
+        # Get user timezone and localize the response
+        user_timezone = get_user_timezone(user_id)
+        routine_dict = routine.as_dict()
+        localized = localize_dict(routine_dict, user_timezone)
+
+        return jsonify(localized), 201
     except RoutineValidationError as e:
-        return jsonify({"error": e.message}), 400
+        return jsonify({"error": str(e)}), 400
 
 
 @jwt_required()
@@ -81,9 +87,15 @@ def update_routine(routine_id: int):
         updated = service.update_routine(routine_id, user_id, data)
         if not updated:
             return '', 404
-        return jsonify(updated.as_dict())
+
+        # Get user timezone and localize the response
+        user_timezone = get_user_timezone(user_id)
+        routine_dict = updated.as_dict()
+        localized = localize_dict(routine_dict, user_timezone)
+
+        return jsonify(localized)
     except RoutineValidationError as e:
-        return jsonify({"error": e.message}), 400
+        return jsonify({"error": str(e)}), 400
 
 
 @jwt_required()
@@ -91,54 +103,6 @@ def delete_routine(routine_id: int):
     user_id = int(get_jwt_identity())
     service = RoutineService(db.session)
     return ('', 204) if service.delete_routine(routine_id, user_id) else ('', 404)
-
-
-@jwt_required()
-def import_routines():
-    """Migrated CalDAV import logic using new Service/Repo pattern"""
-    user_id = int(get_jwt_identity())
-    data = request.get_json() or {}
-
-    url, username, password = data.get('url'), data.get('username'), data.get('password')
-    if not all([url, username, password]):
-        return jsonify({"error": "Missing CalDAV credentials"}), 400
-
-    client = CalDAVClient(url, username, password)
-    if not client.connect():
-        return jsonify({"error": "Failed to connect to CalDAV server"}), 400
-
-    calendars = client.get_calendars()
-    if not calendars:
-        return jsonify({"error": "No calendars found"}), 404
-
-    # Use first calendar (matching legacy behavior)
-    events = client.get_events(calendars[0].url)
-    service = RoutineService(db.session)
-    imported_count = 0
-
-    for event in events:
-        # Check if already exists via repo check in service
-        existing = service.repo.find_by_external_uid(user_id, event.uid)
-        if existing:
-            continue
-
-        # Convert event start time to UTC before storing
-        utc_start = event.start
-        if hasattr(event, 'timezone') and event.timezone:
-            if utc_start.tzinfo is None:
-                utc_start = to_utc(event.start, event.timezone)
-
-        service.create_routine(user_id, {
-            "title": event.summary,
-            "description": event.description,
-            "rrule": event.rrule,
-            "external_uid": event.uid,
-            "external_source": 'caldav',
-            "timezone": event.timezone
-        })
-        imported_count += 1
-
-    return jsonify({"success": True, "imported_count": imported_count})
 
 
 @jwt_required()
