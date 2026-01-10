@@ -39,7 +39,7 @@ def run_tests(args):
         # If allure is requested, serve the report
         if not args.no_allure:
             print("\nTests passed! Opening Allure report...")
-            subprocess.run(["allure", "serve", args.report_dir], shell=True)
+            subprocess.run(f"allure serve {args.report_dir}", shell=True)
         else:
             sys.exit(result.returncode)
 
