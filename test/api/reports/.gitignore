@@ -1,4 +1,4 @@
-# Allure test reports should go in here, keep them out of git.
-*
-# But put this gitignore file into git.
+#ignore everything in this directory
+*.*
+#except this file
 !.gitignore

@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from src.database.db import db
@@ -16,6 +18,14 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=db.func.now())
 
     timezone = db.Column(db.String(64), nullable=False, default="UTC")
+
+    # Add cascade delete to all relationships
+    tasks = relationship('Task', back_populates='user', cascade='all, delete-orphan')
+    projects = relationship('Project', back_populates='user', cascade='all, delete-orphan')
+    tags = relationship('Tag', back_populates='user', cascade='all, delete-orphan')
+    calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
+    routine = relationship("Routine", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("RoutineSession", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

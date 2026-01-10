@@ -9,9 +9,6 @@ routines_bp.add_url_rule("/api/routines/<int:routine_id>", view_func=routines.ge
 routines_bp.add_url_rule("/api/routines/<int:routine_id>", view_func=routines.update_routine, methods=["PUT"])
 routines_bp.add_url_rule("/api/routines/<int:routine_id>", view_func=routines.delete_routine, methods=["DELETE"])
 
-# CalDAV Import
-routines_bp.add_url_rule("/api/routines/import", view_func=routines.import_routines, methods=["POST"])
-
 # Generate sessions for a routine based on its recurrence rule
 routines_bp.add_url_rule("/api/routines/<int:routine_id>/sessions/generate",
                         view_func=routines.generate_routine_sessions,

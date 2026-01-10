@@ -7,3 +7,5 @@ calendars_bp.add_url_rule("/api/calendars", view_func=calendars.list_calendars, 
 calendars_bp.add_url_rule("/api/calendars", view_func=calendars.create_calendar, methods=["POST"])
 calendars_bp.add_url_rule("/api/calendars/discover", view_func=calendars.discover_calendars, methods=["POST"])
 calendars_bp.add_url_rule("/api/calendars/sync", view_func=calendars.sync_calendar, methods=["POST"])
+calendars_bp.add_url_rule("/api/calendars/<int:calendar_id>", view_func=calendars.update_calendar, methods=["PUT"])
+calendars_bp.add_url_rule("/api/calendars/<int:calendar_id>", view_func=calendars.delete_calendar, methods=["DELETE"])
