@@ -1,0 +1,169 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-10T14:37:27-06:00
+====== Tags and Principles ======
+
+===== Overview =====
+
+**Tags** and **Principles** are categorization systems that can be attached to most entities. They share the same polymorphic association pattern but serve different purposes:
+
+* **Tags**: Numerous, low-level labels for flexible categorization and filtering
+* **Principles**: Few, high-level values or ideals representing aspirations and motivations
+
+The distinction is intentional: tags answer "what kind of thing is this?" while principles answer "why does this matter to me?"
+
+
+===== Tags =====
+
+==== Purpose ====
+Tags provide flexible categorization across all taggable entities. They're meant to be numerous and used liberally for organization, filtering, and grouping related items.
+
+Examples: "work", "home", "urgent", "health", "learning", "errands"
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| name | string(50) | yes | Tag label |
+| color | string(10) | no | Hex color; defaults to #6c757d (gray) |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Behaviors ====
+
+**Create**
+* Name is required (cannot be empty/whitespace)
+* Color defaults to gray (#6c757d)
+
+**Update**
+* Name and color can be updated
+* Name cannot be set to empty
+
+**Delete**
+* Hard delete
+* Cascade deletes all associations (removes tag from all entities)
+
+**Attach to Entity**
+* Creates association between tag and entity
+* Idempotent: attaching same tag twice has no effect
+* Entity must support tags (have TaggableMixin)
+
+**Detach from Entity**
+* Removes association between tag and entity
+* Idempotent: detaching non-attached tag has no effect
+
+==== Taggable Entities ====
+The following entities can have tags attached:
+* Tasks
+* Projects
+* Calendars
+* Routines
+* Sessions
+
+==== Relationships ====
+* Belongs to one User (required)
+* Can be attached to many entities (polymorphic many-to-many)
+
+
+===== Principles =====
+
+==== Purpose ====
+Principles represent high-level values, aspirations, or "why" statements. They're meant to be few in number and represent core motivations that can be linked to actions.
+
+The idea: define what kind of person you want to be, then connect tasks/projects/routines to those ideals without them getting lost in a sea of low-level tags.
+
+Examples: "Be more reliable", "Prioritize health", "Continuous learning", "Financial independence"
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| title | string(100) | yes | The principle statement |
+| description | text | no | Elaboration on what this principle means |
+| color | string(10) | no | Hex color; defaults to #ffd700 (gold) |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Behaviors ====
+
+**Create**
+* Title is required (cannot be empty/whitespace)
+* Color defaults to gold (#ffd700)
+
+**Update**
+* Title, description, and color can be updated
+* Title cannot be set to empty
+
+**Delete**
+* Hard delete
+* Cascade deletes all associations (removes principle from all entities)
+
+**Attach to Entity**
+* Creates association between principle and entity
+* Idempotent: attaching same principle twice has no effect
+* Entity must support principles (have PrincipledMixin)
+
+**Detach from Entity**
+* Removes association between principle and entity
+* Idempotent: detaching non-attached principle has no effect
+
+==== Principled Entities ====
+The following entities can have principles attached:
+* Tasks
+* Projects
+* Calendars
+* Routines
+* Sessions
+
+==== Relationships ====
+* Belongs to one User (required)
+* Can be attached to many entities (polymorphic many-to-many)
+
+
+===== Association Model =====
+
+Both Tags and Principles use the same polymorphic association pattern:
+
+==== TagAssociation ====
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | integer | Primary key |
+| tag_id | integer | FK to tags table |
+| entity_id | integer | ID of the tagged entity |
+| entity_type | string(50) | Type name (e.g., "task", "project") |
+
+==== PrincipleAssociation ====
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | integer | Primary key |
+| principle_id | integer | FK to principles table |
+| entity_id | integer | ID of the principled entity |
+| entity_type | string(50) | Type name (e.g., "task", "routine") |
+
+==== Behavior Notes ====
+* Associations are created/deleted through the Tag/Principle services, not directly
+* Deleting a Tag or Principle cascades to delete all its associations
+* Deleting an entity should clean up its associations (handled by entity's cascade)
+* entity_type is stored lowercase (e.g., "task" not "Task")
+
+
+===== Design Philosophy =====
+
+**Why Two Systems?**
+
+A single tagging system could technically handle both use cases, but separating them:
+
+1. **Prevents clutter**: Principles won't get buried among dozens of organizational tags
+2. **Encourages intentionality**: Having a dedicated "principles" concept prompts reflection on values
+3. **Enables different UI treatment**: Principles can be displayed prominently; tags can be compact
+4. **Supports different queries**: "Show me everything tied to this principle" vs "filter by these tags"
+
+**Intended Usage Pattern**
+* Tags: Create freely as needed, use for filtering and organization
+* Principles: Define thoughtfully (maybe 5-10 total), attach to reinforce motivation and alignment

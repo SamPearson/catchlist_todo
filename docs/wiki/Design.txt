@@ -1,0 +1,91 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-10T09:21:54-06:00
+
+====== Design ======
+Created Saturday 10 January 2026
+
+===== Overview =====
+
+Catchlist is a personal development task manager—a to-do app tailored to the specific needs of a single user.
+
+==== Project Purpose ====
+
+This project serves three purposes:
+
+**1. A Personal Productivity Tool**
+A to-do application designed around one person's workflow, without the compromises that come from designing for a general audience. This allows for precise optimization and features that might be too niche for a commercial product.
+
+**2. A Learning Platform**
+A vehicle for gaining hands-on experience with:
+* Web application architecture (frontend/backend split)
+* API design and implementation (Flask)
+* Database design and ORM usage (SQLAlchemy)
+* Frontend interactivity (Alpine.js)
+* Test automation—both API (pytest, custom framework) and frontend (Selenium, pytest)
+* Test reporting (Allure)
+* DevOps practices (systemd, nginx, Jenkins CI/CD)
+* Documentation practices
+
+**3. A Portfolio Project**
+A demonstration of practical software development skills in a realistic, production-like environment—not just an MVP tutorial project, but something with proper infrastructure, testing, and documentation.
+
+These purposes are self-reinforcing: the app is useful, which motivates continued development, which generates learning opportunities, which improves the portfolio.
+
+==== Design Philosophy ====
+
+**Getting Things Done (GTD) Influence**
+The core task management concepts draw from David Allen's GTD methodology:
+* **Tasks** are atomic, actionable items—things that can be done in a single sitting
+* **Projects** are outcomes requiring multiple tasks; they must have a defined "next action" and a clear purpose ("why")
+
+**Recurring Events**
+Many productivity goals are habitual rather than one-time. The calendar/routine/session system supports tracking recurring behaviors (workouts, cleaning schedules, regular reviews, etc.).
+
+**Accountability Through Time**
+The timeframe/commitment/checkin system provides structure for:
+* Anchoring work to specific time periods (day, week, month, season, year)
+* Tracking what was planned vs. what was accomplished
+* Leaving timestamped notes and reflections
+* Generating printable reports for offline review
+
+**Categorization at Two Levels**
+* **Tags**: Numerous, low-level, used for flexible categorization and filtering
+* **Principles**: Few, high-level, representing core values or aspirations (e.g., "Be more reliable") that can be linked to actions without getting lost in a sea of tags
+
+
+===== Entities =====
+
+The application manages the following entity types:
+
+==== Task Management ====
+* **Tasks** - Atomic, standalone to-do items
+* **Projects** - Larger goals containing multiple tasks
+
+==== Recurring Events ====
+* **Calendars** - Groupings that contain a set of routines
+* **Routines** - Templates for recurring activities (with schedule in RRULE format)
+* **Sessions** - Individual occurrences of routines
+
+==== Accountability System ====
+* **Timeframes** - Containers representing day/week/month/season/year
+* **Commitments** - Entities linking tasks, projects, routines, etc. to a timeframe
+* **Checkins** - Timestamped notes that can be attached to most entities
+
+==== Categorization ====
+* **Tags** - Low-level categorization, attachable to most entities
+* **Principles** - High-level values/ideals, attachable to most entities
+
+==== Reporting ====
+* **Reports** - Timeframe-connected documents providing a plan of action, exportable as PDF
+
+
+===== Architecture =====
+
+The application consists of:
+* **Backend**: Flask API with SQLAlchemy database
+* **Frontend**: Flask webapp with Alpine.js (currently under refactoring)
+* **Testing**: 
+	* API test suite (pytest + custom framework + Allure)
+	* Frontend test suite (Selenium + pytest + Allure)
+* **Infrastructure**: systemd services, nginx reverse proxy, Jenkins CI/CD
