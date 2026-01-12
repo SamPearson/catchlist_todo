@@ -3,6 +3,8 @@ from datetime import datetime
 from .models import Project
 from .repository import ProjectRepository
 from ..tasks.models import Task
+from ..tasks.service import TaskService
+from ..tasks.repository import TaskRepository
 from src.database.base.exceptions import ValidationError
 
 
@@ -16,8 +18,17 @@ VALID_STATUSES = {'open', 'waiting', 'deferred', 'declined', 'stale'}
 
 
 class ProjectService:
-    def __init__(self, repository: ProjectRepository):
+    def __init__(self, repository: ProjectRepository, task_service: TaskService = None):
         self.repository = repository
+        # Allow injection or create from same session
+        self._task_service = task_service
+
+    @property
+    def task_service(self) -> TaskService:
+        if self._task_service is None:
+            task_repo = TaskRepository(self.repository.session)
+            self._task_service = TaskService(task_repo)
+        return self._task_service
 
     def get_project(self, project_id: int, user_id: int) -> Optional[Project]:
         return self.repository.get(project_id, user_id)
@@ -103,56 +114,16 @@ class ProjectService:
     def get_project_tasks(self, project_id: int, user_id: int, include_completed: bool = False) -> List[Task]:
         return self.repository.get_project_tasks(project_id, user_id, include_completed)
 
-    def create_task(self, project: Project, user_id: int, data: Dict[str, Any]) -> Task:
-        if not data.get('title'):
-            raise ProjectValidationError("Task title is required")
+    def create_subtask(self, project: Project, user_id: int, title: str, data: Optional[Dict[str, Any]] = None) -> Task:
+        """Create a task as a subtask of this project."""
+        data = data or {}
+        data['project_id'] = project.id
+        return self.task_service.create_task(user_id, title, data)
 
-        task = Task(
-            user_id=user_id,
-            project_id=project.id,
-            title=data['title'],
-            description=data.get('description'),
-            completed=False,
-            status=data.get('status', 'open'),
-            active=data.get('active', True)
-        )
-        self.repository.session.add(task)
-        self.repository.session.commit()
-        return task
+    def add_task_to_project(self, project: Project, task: Task) -> Task:
+        """Associate an existing task with this project."""
+        return self.task_service.update_task(task, {'project_id': project.id})
 
-    def update_task(self, task: Task, data: Dict[str, Any]) -> Task:
-        if 'title' in data:
-            task.title = data['title']
-        if 'description' in data:
-            task.description = data['description']
-        if 'status' in data:
-            task.status = data['status']
-        if 'active' in data:
-            task.active = data['active']
-
-        self.repository.session.commit()
-        return task
-
-    def complete_task(self, task: Task) -> Task:
-        """Mark a subtask as completed."""
-        if task.completed:
-            return task
-
-        task.completed = True
-        task.completed_at = datetime.utcnow()
-        self.repository.session.commit()
-        return task
-
-    def uncomplete_task(self, task: Task) -> Task:
-        """Mark a subtask as not completed."""
-        if not task.completed:
-            return task
-
-        task.completed = False
-        task.completed_at = None
-        self.repository.session.commit()
-        return task
-
-    def delete_task(self, task: Task) -> None:
-        self.repository.session.delete(task)
-        self.repository.session.commit()
+    def remove_task_from_project(self, task: Task) -> Task:
+        """Remove a task's project association (make it standalone)."""
+        return self.task_service.update_task(task, {'project_id': None})
