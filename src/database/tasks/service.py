@@ -52,7 +52,7 @@ class TaskService:
         )
 
     def update_task(self, task: Task, data: Dict) -> Task:
-        """Update a task with the given data"""
+        """Update a task with the given data (excluding completion status)"""
         if "title" in data:
             title = str(data.get("title") or "").strip()
             if not title:
@@ -66,21 +66,10 @@ class TaskService:
         if "status" in data and data["status"] not in VALID_STATUSES:
             raise TaskValidationError(f"Invalid status: {data['status']}. Must be one of: {', '.join(VALID_STATUSES)}")
 
-        # Handle completed_at auto-set logic
-        completed = data.get("completed")
-        completed_at = None
-        if completed is not None:
-            if completed and not task.completed:
-                completed_at = datetime.utcnow()
-            elif not completed and task.completed:
-                completed_at = None  # Will be used to clear the field
-        
         return self.repository.update(
             task,
             title=title,
             description=data.get("description"),
-            completed=completed,
-            completed_at=completed_at if "completed" in data else ...,  # sentinel to skip if not provided
             status=data.get("status"),
             active=data.get("active"),
             project_id=data.get("project_id")
@@ -90,16 +79,29 @@ class TaskService:
         """Delete a task"""
         self.repository.delete(task)
 
+    def complete_task(self, task: Task) -> Task:
+        """Mark a task as completed with timestamp"""
+        if task.completed:
+            return task
+        return self.repository.mark_completed(task)
+
+    def uncomplete_task(self, task: Task) -> Task:
+        """Mark a task as not completed, clearing timestamp"""
+        if not task.completed:
+            return task
+        return self.repository.mark_incomplete(task)
+
     def toggle_task_completion(self, task: Task) -> Task:
         """Toggle the completion status of a task"""
         if task.completed:
-            return self.repository.mark_incomplete(task)
-        return self.repository.mark_completed(task)
+            return self.uncomplete_task(task)
+        return self.complete_task(task)
 
+    # Keep these for backwards compatibility, delegating to new methods
     def mark_completed(self, task: Task) -> Task:
         """Mark a task as completed"""
-        return self.repository.mark_completed(task)
+        return self.complete_task(task)
 
     def mark_incomplete(self, task: Task) -> Task:
         """Mark a task as incomplete"""
-        return self.repository.mark_incomplete(task)
+        return self.uncomplete_task(task)
