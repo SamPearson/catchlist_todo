@@ -16,6 +16,8 @@ class Task(UserOwnedModel, TaggableMixin, PrincipledMixin):
     description = Column(Text)
     completed = Column(Boolean, default=False)
     completed_at = Column(db.DateTime)
+    status = Column(String(20), default='open')  # open, waiting, deferred, declined, stale
+    active = Column(Boolean, default=True)
     
     # Optional project association
     project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
@@ -31,6 +33,8 @@ class Task(UserOwnedModel, TaggableMixin, PrincipledMixin):
             'description': self.description,
             'completed': self.completed,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'status': self.status,
+            'active': self.active,
             'project_id': self.project_id,
             'tags': [tag.as_dict() for tag in self.tags],
             'principles': [p.as_dict() for p in self.principles]
