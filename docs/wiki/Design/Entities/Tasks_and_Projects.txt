@@ -1,0 +1,144 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-10T14:36:48-06:00
+
+====== Tasks and Projects ======
+Created Saturday 10 January 2026
+
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-09T10:00:00-06:00
+
+
+===== Overview =====
+
+**Tasks** and **Projects** are the core task management entities, based on GTD (Getting Things Done) methodology.
+
+* **Task**: An atomic, standalone action—something completable in a single sitting
+* **Project**: A larger outcome requiring multiple tasks; must have a defined next action and purpose
+
+Tasks can exist independently or as subtasks of a project. Subtasks are simply tasks with a project association.
+
+
+===== Tasks =====
+
+==== Purpose ====
+Tasks represent the smallest unit of actionable work. They should be concrete and completable—not vague intentions.
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner of the task |
+| title | string(200) | yes | Brief description of the action |
+| description | text | no | Additional details or context |
+| completed | boolean | no | Default false; true when task is done |
+| completed_at | datetime | no | Auto-set when completed becomes true |
+| status | enum | no | See status values below; default "open" |
+| active | boolean | no | Default true; false moves task to backlog |
+| project_id | integer | no | If set, task is a subtask of that project |
+| created_at | datetime | auto | When task was created |
+| updated_at | datetime | auto | When task was last modified |
+
+==== Status Values ====
+
+| Status | Meaning |
+|--------|---------|
+| open | Defined and ready for action |
+| waiting | Blocked on something external (delivery, coworker, etc.) |
+| deferred | "Someday/maybe" — not committed to doing it now |
+| declined | Decided not to do; kept for record but inactive |
+| stale | No action in a while; needs review |
+
+==== Behaviors ====
+
+**Create**
+* Title is required
+* Status defaults to "open"
+* Active defaults to true
+* completed defaults to false
+
+**Update**
+* All fields except id, user_id, created_at are updatable
+
+**Complete**
+* Setting completed to true must auto-set completed_at to current timestamp
+* Setting completed to false should clear completed_at
+
+**Delete**
+* Hard delete (no soft delete)
+* If task is a subtask, it is simply removed from the project
+
+**Subtask Association**
+* A task becomes a subtask by setting project_id
+* A subtask can be detached by setting project_id to null
+* A subtask can be moved to a different project by changing project_id
+
+==== Relationships ====
+* Belongs to one User (required)
+* Optionally belongs to one Project
+* Can have many Tags
+* Can have many Principles
+
+
+===== Projects =====
+
+==== Purpose ====
+Projects represent outcomes that require multiple actions. Per GTD, a project should have:
+* A clear **win condition** (how do you know it's done?)
+* A **reason** (why does this matter?)
+* A **next step** (what's the very next action?)
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner of the project |
+| title | string(200) | yes | Name of the project |
+| description | text | no | Overview of the project |
+| win_condition | text | no | Definition of done |
+| reason | text | no | Why this project matters |
+| next_step | string(200) | no | The immediate next action |
+| completed | boolean | no | Default false; true when project is done |
+| completed_at | datetime | no | Auto-set when completed becomes true |
+| status | enum | no | See status values below; default "open" |
+| active | boolean | no | Default true; false means "not on deck" |
+| created_at | datetime | auto | When project was created |
+| updated_at | datetime | auto | When project was last modified |
+
+==== Status Values ====
+Same as Tasks: open, waiting, deferred, declined, stale
+
+==== Behaviors ====
+
+**Create**
+* Title is required
+* Status defaults to "open"
+* Active defaults to true
+* completed defaults to false
+* GTD fields (win_condition, reason, next_step) are optional but encouraged
+
+**Update**
+* All fields except id, user_id, created_at are updatable
+
+**Complete**
+* Cannot complete a project that has incomplete subtasks
+* Setting completed to true must auto-set completed_at to current timestamp
+* Setting completed to false should clear completed_at
+* Completing a project should set active to false
+
+**Delete**
+* Hard delete
+* Cascade deletes all associated subtasks
+
+**Subtask Management**
+* Tasks can be attached/detached via the task's project_id field
+* Deleting a project deletes all its subtasks
+
+==== Relationships ====
+* Belongs to one User (required)
+* Has many Tasks (subtasks)
+* Can have many Tags
+* Can have many Principles

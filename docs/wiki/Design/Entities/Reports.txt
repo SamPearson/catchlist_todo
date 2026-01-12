@@ -1,0 +1,294 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-10T14:37:33-06:00
+
+====== Reports ======
+
+===== Overview =====
+
+**Reports** are timeframe-connected documents for planning, tracking metrics, and reflecting on a time period. They're the primary output of the accountability system—meant to be viewable, printable, and useful for review.
+
+A report consolidates:
+* **Planning**: What you intend to do and why
+* **Metrics**: Configurable measurements you're tracking
+* **Commitments**: What's scheduled for this timeframe (queried from Commitments)
+* **Execution notes**: Checkins recorded during the timeframe
+
+Reports have a 1:1 relationship with Timeframes. A daily report is simply a report attached to a day timeframe; a weekly report is attached to a week timeframe, etc.
+
+
+===== Report =====
+
+==== Purpose ====
+The report is the container for a timeframe's planning and reflection content.
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| timeframe_id | integer | yes | 1:1 link to a timeframe (unique) |
+| plan | text | no | What you intend to accomplish |
+| reason | text | no | Why this matters; motivation and purpose |
+| pre_notes | text | no | Thoughts/intentions before the timeframe begins |
+| post_notes | text | no | Reflection after the timeframe ends |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Behaviors ====
+
+**Create**
+* Requires a timeframe_id (or parameters to get_or_create a timeframe)
+* One report per timeframe (unique constraint)
+* Can optionally specify a template to pre-populate metrics
+
+**Get or Create**
+* Given timeframe info, returns existing report or creates new one
+* If creating, can apply a template to populate metric values
+
+**Update**
+* Text fields (plan, reason, pre_notes, post_notes) can be updated freely
+
+**Delete**
+* Hard delete
+* Cascade deletes associated MetricValues
+* Does NOT delete the timeframe (timeframe can exist without a report)
+
+==== Derived Data (Queried, Not Stored) ====
+* **Commitments**: All commitments linked to this report's timeframe
+* **Execution notes**: All checkins where target_type="report" and target_id=this report
+
+==== Relationships ====
+* Belongs to one User (required)
+* Belongs to one Timeframe (required, 1:1)
+* Has many MetricValues
+* Can receive Checkins (as execution notes)
+* Can have Tags attached
+* Can have Principles attached
+
+
+===== MetricType =====
+
+==== Purpose ====
+MetricTypes define what measurements a user wants to track. They're a user-configured pool of available metrics that can be added to reports via templates.
+
+Examples: "Sleep Hours", "Work RPE", "Diet Adherence", "Exercise Completed"
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| name | string(100) | yes | Display name |
+| value_type | string(20) | yes | Data type: integer, float, rating, boolean |
+| unit | string(20) | no | Label for display (e.g., "hours", "1-10") |
+| min_value | integer | no | Minimum valid value (for rating/bounded types) |
+| max_value | integer | no | Maximum valid value (for rating/bounded types) |
+| active | boolean | no | Default true; false = archived |
+| sort_order | integer | no | Default display ordering |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Value Types ====
+
+| Type | Description | Example |
+|------|-------------|---------|
+| integer | Whole number | Sleep hours: 7 |
+| float | Decimal number | Weight: 185.5 |
+| rating | Bounded integer (uses min/max) | Work RPE: 8 (1-10 scale) |
+| boolean | Yes/no | Exercise completed: true |
+
+==== Behaviors ====
+
+**Create**
+* Name and value_type are required
+* Active defaults to true
+
+**Update**
+* All fields except id, user_id, created_at are updatable
+
+**Archive**
+* Set active=false to archive
+* Archived metrics are hidden from templates but historical data is preserved
+* Can be reactivated by setting active=true
+
+**Delete**
+* Should archive instead of delete to preserve historical data
+* If hard deleted, cascade deletes all MetricValues using this type
+
+==== Relationships ====
+* Belongs to one User (required)
+* Referenced by many MetricValues
+* Referenced by many ReportTemplateMetrics
+
+
+===== MetricValue =====
+
+==== Purpose ====
+MetricValues store the actual measurements recorded on a specific report.
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| report_id | integer | yes | FK to report |
+| metric_type_id | integer | yes | FK to metric type |
+| value_int | integer | no | Value for integer/rating types |
+| value_float | float | no | Value for float types |
+| value_bool | boolean | no | Value for boolean types |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+Unique constraint: (report_id, metric_type_id) — one value per metric per report
+
+==== Behaviors ====
+
+**Create**
+* Created when a report is generated from a template
+* Initial value can be null (to be filled in later)
+
+**Update**
+* Value fields can be updated
+* Only the appropriate value field should be set based on metric_type's value_type
+
+**Delete**
+* Deleted when parent report is deleted (cascade)
+* Can be individually removed from a report
+
+==== Relationships ====
+* Belongs to one Report (required)
+* Belongs to one MetricType (required)
+
+
+===== ReportTemplate =====
+
+==== Purpose ====
+Templates define which metrics should be included when creating a report for a specific timeframe kind. Users can have multiple templates per kind (e.g., "Weekday Daily", "Weekend Daily") and mark one as default.
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| name | string(100) | yes | Template name (e.g., "Daily Standard v2") |
+| timeframe_kind | string(16) | yes | day, week, month, season, year |
+| is_default | boolean | no | Default false; if true, used when no template specified |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Behaviors ====
+
+**Create**
+* Name and timeframe_kind are required
+* If is_default=true, unset default on other templates of same kind for this user
+
+**Update**
+* Name, timeframe_kind, is_default can be updated
+* Changing is_default=true unsets other defaults for that kind
+
+**Delete**
+* Hard delete
+* Cascade deletes ReportTemplateMetrics
+* Does NOT affect existing reports created from this template
+
+**Set Default**
+* Only one template per (user, timeframe_kind) can be default
+* Setting a new default unsets the previous one
+
+==== Relationships ====
+* Belongs to one User (required)
+* Has many ReportTemplateMetrics
+
+
+===== ReportTemplateMetric =====
+
+==== Purpose ====
+Join table linking templates to the metrics they include.
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| template_id | integer | yes | FK to ReportTemplate |
+| metric_type_id | integer | yes | FK to MetricType |
+| sort_order | integer | no | Order within this template |
+
+Unique constraint: (template_id, metric_type_id)
+
+==== Behaviors ====
+
+**Add Metric to Template**
+* Creates association with optional sort_order
+
+**Remove Metric from Template**
+* Deletes association
+* Does NOT delete the MetricType
+
+**Reorder**
+* Update sort_order values
+
+==== Relationships ====
+* Belongs to one ReportTemplate (required)
+* Belongs to one MetricType (required)
+
+
+===== Workflows =====
+
+==== Creating a Report ====
+
+**Simple (no template)**
+1. Get or create timeframe for the desired period
+2. Create report linked to timeframe
+3. Manually add metric values as needed
+
+**From Template**
+1. Get or create timeframe for the desired period
+2. Find template (specified or default for that timeframe kind)
+3. Create report linked to timeframe
+4. For each metric in template, create MetricValue with null value
+5. User fills in values over time
+
+**Bulk Creation**
+Example: "Create daily reports for next week from my standard template"
+1. Determine date range (7 days)
+2. For each day:
+   a. Get or create day timeframe
+   b. Get or create report from template
+3. Result: 7 reports ready to be filled in
+
+==== Viewing a Report ====
+
+A complete report view includes:
+* Report text fields (plan, reason, pre_notes, post_notes)
+* MetricValues with their MetricType names/units
+* Commitments for this timeframe (queried from Commitments table)
+* Checkins attached to this report (execution notes)
+
+==== Archiving Metrics ====
+
+When tracking needs change:
+1. Set active=false on MetricType
+2. Metric disappears from templates (won't be added to new reports)
+3. Historical MetricValues remain intact and queryable
+4. Metric can be reactivated later if needed
+
+
+===== Design Notes =====
+
+**Why a single Report model instead of five?**
+The timeframe determines the "kind" of report. A report attached to a day timeframe is a daily report. This simplifies the codebase and makes all reports queryable from one table.
+
+**Why separate MetricType and MetricValue?**
+* Flexibility: Users can add/remove/archive metrics without migrations
+* Queryability: Can aggregate metrics across reports (e.g., "average sleep this month")
+* Reusability: Same metric definition used across many reports
+
+**Why templates?**
+* Convenience: Don't manually add the same 10 metrics to every daily report
+* Flexibility: Different templates for different contexts (weekday vs weekend)
+* Evolution: Change your template, new reports get new metrics, old reports unchanged

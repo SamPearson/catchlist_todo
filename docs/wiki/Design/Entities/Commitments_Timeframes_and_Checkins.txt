@@ -1,0 +1,225 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-10T14:37:21-06:00
+
+====== Commitments, Timeframes, and Checkins ======
+
+===== Overview =====
+
+The **accountability system** provides structure for planning, tracking, and reflecting on work over time.
+
+* **Timeframe**: A container representing a time period (day, week, month, season, year)
+* **Commitment**: Links an entity to a timeframe—"I will do X during Y"
+* **Checkin**: A timestamped note attached to any entity
+
+Together, these enable:
+* Scheduling work within specific time periods
+* Distinguishing between precise appointments (hard) and flexible goals (soft)
+* Tracking what was planned vs. accomplished
+* Leaving notes and reflections over time
+
+
+===== Timeframes =====
+
+==== Purpose ====
+Timeframes are containers representing bounded periods of time. They exist primarily to anchor commitments and organize reports.
+
+==== Kinds ====
+
+| Kind | Description | Example Label |
+|------|-------------|---------------|
+| day | A single calendar day | "2025-06-08" |
+| week | A calendar week (Mon-Sun) | "2025-W23" |
+| month | A calendar month | "June 2025" |
+| season | Three months; see below | "Summer 2025" |
+| year | A calendar year | "2025" |
+
+**Season Definitions:**
+| Season | Months |
+|--------|--------|
+| Winter | December, January, February |
+| Spring | March, April, May |
+| Summer | June, July, August |
+| Autumn | September, October, November |
+
+Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1).
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| kind | string(16) | yes | day, week, month, season, year |
+| start_at_utc | datetime | yes | Start of period (inclusive) |
+| end_at_utc | datetime | yes | End of period (exclusive) |
+| label | string(32) | no | Human-readable label for display |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Interval Semantics ====
+Timeframes use half-open intervals: ''[start_at_utc, end_at_utc)''
+* Start is inclusive
+* End is exclusive
+* This prevents overlap between adjacent timeframes
+
+==== Behaviors ====
+
+**Create**
+* Can be created explicitly via API
+* Can be auto-created when needed (e.g., hard commitments derive their day timeframe)
+* Unique constraint: one timeframe per (user, kind, start_at_utc)
+
+**Delete**
+* Should cascade delete associated commitments
+* Consider: prevent deletion if commitments exist? (TBD)
+
+==== Relationships ====
+* Belongs to one User (required)
+* Has many Commitments
+* Has one Report (1:1 relationship; covered in [[Reports]])
+
+
+===== Commitments =====
+
+==== Purpose ====
+Commitments attach an entity to a timeframe, representing a plan or intention to complete something within that period.
+
+==== Two Types ====
+
+**Soft Commitment**
+* "I'll do this sometime during this timeframe"
+* Requires an existing timeframe to be specified
+* No specific due time
+* Example: "Clean garage sometime this month"
+
+**Hard Commitment**
+* "I'll do this at this specific time"
+* Requires a due_at timestamp; start_at is optional
+* Timeframe is auto-derived as the DAY containing the due time
+* Example: "Dentist appointment at 2pm on Tuesday"
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| timeframe_id | integer | yes | The timeframe this commitment belongs to |
+| target_type | string(32) | yes | Entity type: task, project, routine, session |
+| target_id | integer | yes | ID of the target entity |
+| status | string(16) | yes | Default "planned"; see status values |
+| notes | text | no | Optional notes about this commitment |
+| start_at_utc | datetime | no | Hard commitments: when it starts (optional) |
+| due_at_utc | datetime | no | Hard commitments: when it's due (required for hard) |
+| created_at | datetime | auto | When created |
+| updated_at | datetime | auto | When last modified |
+
+==== Target Types ====
+
+| Type | Description |
+|------|-------------|
+| task | A task (standalone or subtask) |
+| project | A project |
+| routine | A routine template |
+| session | A specific session occurrence |
+
+==== Status Values ====
+
+| Status | Meaning |
+|--------|---------|
+| planned | Default; commitment is scheduled |
+| done | Successfully completed |
+| skipped | Intentionally not done |
+| canceled | Removed from schedule |
+| missed | Was not done (unintentionally) |
+
+==== Behaviors ====
+
+**Create Soft Commitment**
+* Required: target_type, target_id, timeframe_id
+* Validates target exists and belongs to user
+* Validates timeframe exists and belongs to user
+* Status defaults to "planned"
+* Prevents duplicate: same target cannot be committed to same timeframe twice
+
+**Create Hard Commitment**
+* Required: target_type, target_id, due_at
+* Optional: start_at, status, notes
+* Validates target exists and belongs to user
+* Auto-creates DAY timeframe if needed (based on due_at in user's timezone)
+* Prevents duplicate: same target cannot be committed to same day twice
+
+**Update Status**
+* Status can be changed to any valid value
+* No automatic status transitions (manual control)
+
+**Delete**
+* Hard delete
+
+**Auto-Generation**
+* When Sessions are generated from a Routine, a hard commitment is auto-created for each session
+* The commitment's due_at matches the session's start_time
+
+==== Constraints ====
+* Unique: (user_id, target_type, target_id, timeframe_id)
+* One entity can have multiple commitments to different timeframes
+* One entity cannot have duplicate commitments to the same timeframe
+
+==== Relationships ====
+* Belongs to one User (required)
+* Belongs to one Timeframe (required)
+* References one target entity (polymorphic)
+
+
+===== Checkins =====
+
+==== Purpose ====
+Checkins are timestamped notes attached to entities. They provide a chronological record of thoughts, progress, and reflections.
+
+==== Properties ====
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| id | integer | auto | Primary key |
+| user_id | integer | auto | Owner |
+| target_type | string(32) | yes | Entity type being checked in on |
+| target_id | integer | yes | ID of the target entity |
+| note | text | yes | The checkin content |
+| occurred_at_utc | datetime | yes | When this happened (defaults to now) |
+| created_at | datetime | auto | When record was created |
+| updated_at | datetime | auto | When record was last modified |
+
+==== Target Types ====
+
+| Type | Description |
+|------|-------------|
+| task | A task |
+| project | A project |
+| routine | A routine |
+| session | A session |
+| report | A report |
+| tag | A tag |
+| principle | A principle |
+
+==== Behaviors ====
+
+**Create**
+* Required: target_type, target_id, note
+* occurred_at_utc defaults to current time if not specified
+* Validates target exists and belongs to user
+
+**Update**
+* Note and occurred_at_utc can be updated
+
+**Delete**
+* Hard delete
+
+==== Design Notes ====
+* Freeform by design—meant to be flexible
+* occurred_at_utc vs created_at: allows backdating notes ("this happened yesterday")
+* May add additional fields later (mood, metrics, etc.)
+
+==== Relationships ====
+* Belongs to one User (required)
+* References one target entity (polymorphic)

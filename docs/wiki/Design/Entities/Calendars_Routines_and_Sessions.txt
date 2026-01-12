@@ -1,0 +1,186 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-10T14:37:00-06:00
+
+====== Calendars, Routines, and Sessions ======
+
+===== Overview =====
+
+The **Calendar/Routine/Session** system handles recurring activities—habits, workouts, scheduled cleaning, regular reviews, etc.
+
+* **Calendar**: An organizational container for routines (often imported from CalDAV)
+* **Routine**: A template for a recurring activity (e.g., "Leg Day every Monday")
+* **Session**: A concrete occurrence of a routine at a specific date/time (e.g., "Leg Day on Monday, June 8th")
+
+The typical workflow:
+1. Import a calendar from CalDAV (or create one manually)
+2. Routines are created within the calendar (or imported with it)
+3. Sessions are generated on-demand for a specified date range
+4. Sessions auto-generate associated Timeframes and Commitments (see [[Commitments_Timeframes_and_Checkins]])
+
+
+===== Calendars =====
+
+==== Purpose ====
+Calendars are organizational groupings for routines. The primary use case is importing from external calendar software (Google Calendar, CalDAV server), but they can also be created manually.
+
+==== Properties ====
+
+| Property        | Type        | Required | Description                          |
+|-----------------|-------------|----------|--------------------------------------|
+| id              | integer     | auto     | Primary key                          |
+| user_id         | integer     | auto     | Owner of the calendar                |
+| name            | string(200) | yes      | Display name                         |
+| color           | string(7)   | no       | Hex color code; defaults to #767676  |
+| active          | boolean     | no       | Default true; false hides from views |
+| external_uid    | string(100) | no       | UID from external source (for sync)  |
+| external_source | string(50)  | no       | Source identifier (e.g., "caldav")   |
+| created_at      | datetime    | auto     | When created                         |
+| updated_at      | datetime    | auto     | When last modified                   |
+
+
+==== Behaviors ====
+
+**Create**
+* Name is required
+* Color defaults to #767676 (gray)
+* Active defaults to true
+
+**Update**
+* All fields except id, user_id, created_at are updatable
+* Setting active to false should cascade to contained routines
+
+**Delete**
+* Hard delete
+* Cascade deletes all contained routines (and their sessions)
+
+**CalDAV Import**
+* Creates calendar with external_uid and external_source populated
+* Creates routines for each recurring event in the calendar
+
+==== Relationships ====
+* Belongs to one User (required)
+* Has many Routines
+* Can have many Tags
+* Can have many Principles
+
+
+===== Routines =====
+
+==== Purpose ====
+Routines are templates for recurring activities. They define what the activity is and optionally when it recurs, but the actual occurrences (sessions) are generated separately.
+
+==== Properties ====
+
+| Property             | Type        | Required | Description                                              |
+|----------------------|-------------|----------|----------------------------------------------------------|
+| id                   | integer     | auto     | Primary key                                              |
+| user_id              | integer     | auto     | Owner of the routine                                     |
+| title                | string(200) | yes      | Name of the routine                                      |
+| description          | text        | no       | Details about the routine                                |
+| rrule                | string(200) | no       | iCalendar recurrence rule (e.g., "FREQ=WEEKLY;BYDAY=MO") |
+| start_time           | time        | no       | Time of day the routine starts (HH:MM)                   |
+| end_time             | time        | no       | Time of day the routine ends (HH:MM)                     |
+| active               | boolean     | no       | Default true; false hides from views                     |
+| calendar_id          | integer     | no       | Parent calendar (optional)                               |
+| external_uid         | string(100) | no       | UID from external source                                 |
+| external_source      | string(50)  | no       | Source identifier (e.g., "caldav")                       |
+| external_source_name | string(100) | no       | Human-readable source name                               |
+| created_at           | datetime    | auto     | When created                                             |
+| updated_at           | datetime    | auto     | When last modified                                       |
+
+
+==== Behaviors ====
+
+**Create**
+* Title is required
+* RRULE is optional—routines without RRULE can have sessions added manually
+* Active defaults to true
+
+**Update**
+* All fields except id, user_id, created_at are updatable
+* Editing rrule or times does NOT affect already-generated sessions
+
+**Deactivate**
+* Setting active to false should offer option to delete future (incomplete) sessions
+* Inactive routines are hidden from normal views but retained
+
+**Delete**
+* Hard delete
+* Cascade deletes all associated sessions
+
+**Session Generation**
+* Endpoint: generate sessions for routine X between dates Y and Z
+* Uses RRULE to calculate occurrences within the date range
+* Each generated session auto-creates an associated Commitment
+* Routines without RRULE cannot use automatic generation; sessions must be created manually
+
+==== Relationships ====
+* Belongs to one User (required)
+* Optionally belongs to one Calendar
+* Has many Sessions
+* Can have many Tags
+* Can have many Principles
+
+
+===== Sessions =====
+
+==== Purpose ====
+Sessions are concrete occurrences of routines—the actual scheduled events that get completed, skipped, or rescheduled.
+
+==== Properties ====
+
+| Property   | Type     | Required | Description                                                       |
+|------------|----------|----------|-------------------------------------------------------------------|
+| id         | integer  | auto     | Primary key                                                       |
+| user_id    | integer  | auto     | Owner of the session                                              |
+| routine_id | integer  | yes      | Parent routine                                                    |
+| start_time | datetime | yes      | When the session starts (UTC)                                     |
+| end_time   | datetime | yes      | When the session ends (UTC)                                       |
+| completed  | boolean  | no       | Default false; true when session is done                          |
+| status     | string   | no       | Flexible status field (e.g., "scheduled", "skipped", "cancelled") |
+| notes      | text     | no       | Freeform notes about this session                                 |
+| rpe        | integer  | no       | Rate of Perceived Exertion (1-10); how hard was this?             |
+| created_at | datetime | auto     | When created                                                      |
+| updated_at | datetime | auto     | When last modified                                                |
+
+
+==== Status Values (Convention) ====
+Status is not strictly validated, but common values:
+
+| Status    | Meaning                                     |
+|-----------|---------------------------------------------|
+| scheduled | Default; session is planned                 |
+| completed | Session was done (also sets completed=true) |
+| skipped   | Intentionally not done this occurrence      |
+| cancelled | Removed from schedule                       |
+
+
+==== Behaviors ====
+
+**Create**
+* routine_id, start_time, and end_time are required
+* Sessions are typically generated via the routine's session generation endpoint
+* Manual creation is allowed
+* Creating a session should auto-create an associated Commitment
+
+**Update**
+* Times can be edited independently (rescheduling is allowed)
+* All fields except id, user_id, routine_id, created_at are updatable
+
+**Complete**
+* Setting completed to true should set status to "completed" if not already set
+
+**Delete**
+* Hard delete
+* Should also delete associated Commitment
+
+==== Computed Properties ====
+* **duration_minutes**: Calculated from end_time - start_time
+
+==== Relationships ====
+* Belongs to one User (required)
+* Belongs to one Routine (required)
+* Has one Commitment (auto-generated)
+* Can have many Tags
+* Can have many Principles
