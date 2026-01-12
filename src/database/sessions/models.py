@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, Text, Boolean, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from src.database.db import db
-from src.database.base.models import UserOwnedModel, TaggableMixin
+from src.database.base.models import UserOwnedModel, TaggableMixin, PrincipledMixin
 
 
-class RoutineSession(UserOwnedModel, TaggableMixin):
+class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
     """
     A Session is a specific instance of a Routine occurring at a specific time.
     It tracks completion, notes, and performance (RPE).
@@ -19,6 +19,7 @@ class RoutineSession(UserOwnedModel, TaggableMixin):
 
     # Tracking
     completed = Column(Boolean, default=False)
+    status = Column(String(20), default='scheduled')  # scheduled, completed, skipped, cancelled
     notes = Column(Text)
     rpe = Column(Integer)  # Rate of Perceived Exertion (1-10)
 
@@ -44,8 +45,11 @@ class RoutineSession(UserOwnedModel, TaggableMixin):
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
             'completed': self.completed,
+            'status': self.status,
             'notes': self.notes,
             'rpe': self.rpe,
-            'duration_minutes': self.duration_minutes
+            'duration_minutes': self.duration_minutes,
+            'tags': [tag.as_dict() for tag in self.tags],
+            'principles': [p.as_dict() for p in self.principles]
         })
         return data
