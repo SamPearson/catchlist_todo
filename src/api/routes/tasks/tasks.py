@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.database.tasks.service import TaskService
+from src.database.tasks.service import TaskService, TaskValidationError
 from src.database.tasks.repository import TaskRepository
 from src.database.db import db
 
@@ -34,11 +34,15 @@ def create_task():
     if not data or 'title' not in data:
         return jsonify({'error': 'Title is required'}), 400
 
-    task = task_service.create_task(
-        user_id=user_id,
-        title=data['title']
-    )
-    return jsonify(task.as_dict()), 201
+    try:
+        task = task_service.create_task(
+            user_id=user_id,
+            title=data['title'],
+            data=data
+        )
+        return jsonify(task.as_dict()), 201
+    except TaskValidationError as e:
+        return jsonify({'error': e.message}), 400
 
 
 @jwt_required()
@@ -53,8 +57,11 @@ def update_task(task_id):
     if not data:
         return jsonify({'error': 'No update data provided'}), 400
 
-    updated_task = task_service.update_task(task, data)
-    return jsonify(updated_task.as_dict())
+    try:
+        updated_task = task_service.update_task(task, data)
+        return jsonify(updated_task.as_dict())
+    except TaskValidationError as e:
+        return jsonify({'error': e.message}), 400
 
 
 @jwt_required()
@@ -67,4 +74,28 @@ def delete_task(task_id):
 
     task_service.delete_task(task)
     return ('', 204)
+
+
+@jwt_required()
+def complete_task(task_id):
+    """Mark a task as completed"""
+    user_id = get_jwt_identity()
+    task = task_service.get_task(task_id=task_id, user_id=user_id)
+    if not task:
+        return ('', 404)
+
+    completed_task = task_service.complete_task(task)
+    return jsonify(completed_task.as_dict())
+
+
+@jwt_required()
+def uncomplete_task(task_id):
+    """Mark a task as not completed"""
+    user_id = get_jwt_identity()
+    task = task_service.get_task(task_id=task_id, user_id=user_id)
+    if not task:
+        return ('', 404)
+
+    uncompleted_task = task_service.uncomplete_task(task)
+    return jsonify(uncompleted_task.as_dict())
 
