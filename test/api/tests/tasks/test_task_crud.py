@@ -74,27 +74,6 @@ def test_create_task_with_description(auth_client):
 @pytest.mark.crud
 @pytest.mark.smoke_test
 @allure.severity(allure.severity_level.CRITICAL)
-def test_create_task_with_completed_status(auth_client):
-    """Create task with completed status"""
-    with allure.step("Prepare test data"):
-        data = {
-            "title": "Completed task",
-            "completed": True
-        }
-
-    with allure.step("Create new task"):
-        response = auth_client.post('/api/tasks', data)
-
-    with allure.step("Verify completed status"):
-        assert response['completed'] is True
-
-
-@allure.feature('Tasks')
-@allure.story('CRUD Operations')
-@pytest.mark.tasks
-@pytest.mark.crud
-@pytest.mark.smoke_test
-@allure.severity(allure.severity_level.CRITICAL)
 def test_create_multiple_tasks(auth_client):
     """Create multiple tasks to verify independence"""
     with allure.step("Create first task"):
@@ -202,30 +181,6 @@ def test_update_task_title(auth_client):
         assert updated['updated_at'] >= created['updated_at']
 
 
-@allure.feature('Tasks')
-@allure.story('CRUD Operations')
-@pytest.mark.tasks
-@pytest.mark.crud
-@pytest.mark.smoke_test
-@allure.severity(allure.severity_level.CRITICAL)
-def test_update_task_completion_status(auth_client):
-    """Update task completion status"""
-    with allure.step("Create incomplete task"):
-        created = auth_client.post('/api/tasks', {
-            "title": "Test task",
-            "completed": False
-        })
-        task_id = created['id']
-
-    with allure.step("Mark task as complete"):
-        updated = auth_client.put(f'/api/tasks/{task_id}', {
-            "completed": True
-        })
-
-    with allure.step("Verify completion status changed"):
-        assert updated['completed'] is True
-        assert updated['title'] == created['title']  # Title unchanged
-
 
 @allure.feature('Tasks')
 @allure.story('CRUD Operations')
@@ -272,13 +227,13 @@ def test_update_multiple_fields(auth_client):
         updated = auth_client.put(f'/api/tasks/{task_id}', {
             "title": "New title",
             "description": "New description",
-            "completed": True
+            "status": "waiting"
         })
 
     with allure.step("Verify all updates applied"):
         assert updated['title'] == "New title"
         assert updated['description'] == "New description"
-        assert updated['completed'] is True
+        assert updated['status'] == "waiting"
 
 
 @allure.feature('Tasks')
@@ -368,3 +323,55 @@ def test_delete_task_cannot_be_retrieved(auth_client):
 
     with allure.step("Verify 404 response"):
         assert response.status_code == 404
+
+
+@allure.feature('Tasks')
+@allure.story('CRUD Operations')
+@pytest.mark.tasks
+@pytest.mark.crud
+@pytest.mark.smoke_test
+@allure.severity(allure.severity_level.CRITICAL)
+def test_complete_task(auth_client):
+    """Mark a task as completed using complete endpoint"""
+    with allure.step("Create incomplete task"):
+        created = auth_client.post('/api/tasks', {
+            "title": "Task to complete"
+        })
+        task_id = created['id']
+        assert created['completed'] is False
+        assert created['completed_at'] is None
+
+    with allure.step("Complete the task"):
+        completed = auth_client.post(f'/api/tasks/{task_id}/complete', {})
+
+    with allure.step("Verify task is completed"):
+        assert completed['id'] == task_id
+        assert completed['completed'] is True
+        assert completed['completed_at'] is not None
+        assert isinstance(completed['completed_at'], str)
+        assert completed['title'] == created['title']  # Other fields unchanged
+
+
+@allure.feature('Tasks')
+@allure.story('CRUD Operations')
+@pytest.mark.tasks
+@pytest.mark.crud
+@pytest.mark.smoke_test
+@allure.severity(allure.severity_level.CRITICAL)
+def test_uncomplete_task(auth_client):
+    """Mark a completed task as not completed"""
+    with allure.step("Create and complete a task"):
+        created = auth_client.post('/api/tasks', {
+            "title": "Task to uncomplete"
+        })
+        task_id = created['id']
+        auth_client.post(f'/api/tasks/{task_id}/complete', {})
+
+    with allure.step("Uncomplete the task"):
+        uncompleted = auth_client.post(f'/api/tasks/{task_id}/uncomplete', {})
+
+    with allure.step("Verify task is no longer completed"):
+        assert uncompleted['id'] == task_id
+        assert uncompleted['completed'] is False
+        assert uncompleted['completed_at'] is None
+        assert uncompleted['title'] == created['title']
