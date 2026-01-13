@@ -159,7 +159,7 @@ Commitments attach an entity to a timeframe, representing a plan or intention to
 
 **Auto-Generation**
 * When Sessions are generated from a Routine, a hard commitment is auto-created for each session
-* The commitment's due_at matches the session's start_time
+* The commitment's due_at matches the session's end_time
 
 ==== Constraints ====
 * Unique: (user_id, target_type, target_id, timeframe_id)
