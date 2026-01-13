@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from src.database.base.exceptions import ValidationError
-from .repository import MetricTypeRepository
+from .repositories import MetricTypeRepository
 from .models import MetricType
 
 
