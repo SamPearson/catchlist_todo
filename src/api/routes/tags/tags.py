@@ -15,6 +15,9 @@ def _get_target_entity(session, user_id, target_type, target_id):
     if target_type == "project":
         from src.database.projects.models import Project
         return session.query(Project).filter_by(id=target_id, user_id=user_id).first()
+    if target_type == "calendar":
+        from src.database.calendars.models import Calendar
+        return session.query(Calendar).filter_by(id=target_id, user_id=user_id).first()
     if target_type == "routine":
         from src.database.routines.models import Routine
         return session.query(Routine).filter_by(id=target_id, user_id=user_id).first()
