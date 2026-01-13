@@ -66,7 +66,8 @@ class RoutineService:
             calendar_id=data.get('calendar_id')
         )
 
-    def update_routine(self, routine_id: int, user_id: int, data: Dict[str, Any]) -> Optional[Routine]:
+    def update_routine(self, routine_id: int, user_id: int, data: Dict[str, Any],
+                       delete_future_sessions: bool = False) -> Optional[Routine]:
         routine = self.get_routine(routine_id, user_id)
         if not routine:
             return None
@@ -93,7 +94,28 @@ class RoutineService:
             except ValueError:
                 raise RoutineValidationError("end_time must be in HH:MM format")
 
+        # If deactivating and delete_future_sessions is True, remove future incomplete sessions
+        if update_data.get('active') is False and routine.active and delete_future_sessions:
+            self._delete_future_incomplete_sessions(routine)
+
         return self.repo.update(routine, **update_data)
+
+    def _delete_future_incomplete_sessions(self, routine: Routine) -> int:
+        """
+        Delete all future incomplete sessions for a routine.
+
+        Returns:
+            Number of sessions deleted
+        """
+        now = datetime.utcnow()
+        deleted_count = 0
+
+        for session in routine.sessions:
+            if session.start_time > now and not session.completed:
+                self.session_repo.delete(session)
+                deleted_count += 1
+
+        return deleted_count
 
     def generate_sessions(self, user_id: int, routine_id: int, start_date: datetime,
                          end_date: datetime) -> List[RoutineSession]:

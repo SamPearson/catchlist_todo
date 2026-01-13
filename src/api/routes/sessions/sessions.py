@@ -126,3 +126,41 @@ def delete_session(session_id: int):
     user_id = int(get_jwt_identity())
     service = SessionService(db.session)
     return ('', 204) if service.delete_session(session_id, user_id) else ('', 404)
+
+
+@jwt_required()
+def complete_session(session_id: int):
+    """Mark a session as completed."""
+    user_id = int(get_jwt_identity())
+    service = SessionService(db.session)
+    
+    session_obj = service.complete_session(session_id, user_id)
+    if not session_obj:
+        return '', 404
+
+    # Convert UTC times to user timezone
+    user_timezone = get_user_timezone(user_id)
+    session_dict = session_obj.as_dict()
+    session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
+    session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+
+    return jsonify(session_dict)
+
+
+@jwt_required()
+def uncomplete_session(session_id: int):
+    """Mark a session as not completed."""
+    user_id = int(get_jwt_identity())
+    service = SessionService(db.session)
+    
+    session_obj = service.uncomplete_session(session_id, user_id)
+    if not session_obj:
+        return '', 404
+
+    # Convert UTC times to user timezone
+    user_timezone = get_user_timezone(user_id)
+    session_dict = session_obj.as_dict()
+    session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
+    session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+
+    return jsonify(session_dict)

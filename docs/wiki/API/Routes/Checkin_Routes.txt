@@ -1,0 +1,133 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T19:00:00-06:00
+
+====== Checkin Routes ======
+
+===== Overview =====
+
+API endpoints for managing checkins. Checkins are timestamped notes attached to entities, providing a chronological record of thoughts, progress, and reflections.
+
+All endpoints require authentication via JWT Bearer token.
+
+All datetime values are returned in the user's configured timezone. Input datetimes can be in any timezone (with offset) or naive (interpreted as user's timezone).
+
+
+===== Checkin Endpoints =====
+
+==== List Checkins ====
+
+**GET /api/checkins**
+
+Returns checkins for a specific target entity.
+
+| Parameter   | Type    | Location | Required | Description                              |
+|-------------|---------|----------|----------|------------------------------------------|
+| target_type | string  | query    | yes      | Entity type (see target types)           |
+| target_id   | integer | query    | yes      | ID of the target entity                  |
+| limit       | integer | query    | no       | Max results to return. Default 50        |
+| offset      | integer | query    | no       | Number of results to skip. Default 0     |
+
+**Response:** Array of checkin objects (newest first)
+
+**Errors:**
+* 400 if target_type or target_id missing/invalid
+* 404 if target not found
+
+
+==== Create Checkin ====
+
+**POST /api/checkins**
+
+Creates a new checkin.
+
+| Field       | Type    | Required | Description                                  |
+|-------------|---------|----------|----------------------------------------------|
+| target_type | string  | yes      | Entity type (see target types)               |
+| target_id   | integer | yes      | ID of the target entity                      |
+| note        | text    | yes      | The checkin content (cannot be empty)        |
+| occurred_at | string  | no       | When this happened (ISO datetime). Defaults to now |
+
+**Business Logic:**
+* Validates target exists and belongs to user
+* occurred_at defaults to current time if not specified
+* Allows backdating notes ("this happened yesterday")
+
+**Response:** Created checkin object (201)
+
+**Errors:**
+* 400 if required fields missing or note is empty
+* 404 if target not found
+
+
+==== Get Checkin ====
+
+**GET /api/checkins/<checkin_id>**
+
+Returns a specific checkin by ID.
+
+**Response:** Checkin object, or 404 if not found
+
+
+==== Update Checkin ====
+
+**PUT /api/checkins/<checkin_id>**
+
+Updates a checkin's properties.
+
+| Field       | Type   | Description                                  |
+|-------------|--------|----------------------------------------------|
+| note        | text   | The checkin content (cannot be empty)        |
+| occurred_at | string | When this happened (ISO datetime)            |
+
+At least one field must be provided.
+
+**Response:** Updated checkin object, or 404 if not found
+
+**Errors:** 400 if note is empty or no valid fields provided
+
+
+==== Delete Checkin ====
+
+**DELETE /api/checkins/<checkin_id>**
+
+Permanently deletes a checkin.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== Target Types =====
+
+| Type      | Description           |
+|-----------|-----------------------|
+| task      | A task                |
+| project   | A project             |
+| routine   | A routine             |
+| session   | A session             |
+| report    | A report              |
+| tag       | A tag                 |
+| principle | A principle           |
+
+
+===== Checkin Object =====
+
+| Field       | Type     | Description                                   |
+|-------------|----------|-----------------------------------------------|
+| id          | integer  | Primary key                                   |
+| user_id     | integer  | Owner                                         |
+| target_type | string   | Entity type being checked in on               |
+| target_id   | integer  | ID of the target entity                       |
+| note        | text     | The checkin content                           |
+| occurred_at | datetime | When this happened (ISO format, user TZ)      |
+| created_at  | datetime | When record was created                       |
+| updated_at  | datetime | When record was last modified                 |
+
+
+===== Timezone Handling =====
+
+* All datetimes are stored in UTC internally
+* Input datetimes are converted from user's timezone to UTC
+* Output datetimes are converted from UTC to user's timezone
+* User's timezone is configured in their profile
+* If no timezone is configured, UTC is used as default
+* occurred_at vs created_at: allows backdating notes

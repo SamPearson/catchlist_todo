@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, date
 
 from sqlalchemy.orm import Session
 
-from src.database.users.user import User
 from src.database.base.exceptions import EntityNotFoundError, InvalidStateError, ValidationError
 from src.database.commitments.models import Commitment
 from src.database.commitments.repository import CommitmentRepo
@@ -43,10 +41,6 @@ class CommitmentService:
         self.repo = CommitmentRepo(session=session)
         self.timeframe_service = TimeframeService(session=session)
 
-    def _get_user_timezone(self, user_id: int) -> str:
-        user = User.query.get(user_id)
-        return (user.timezone if user and getattr(user, "timezone", None) else "UTC")
-
     def _normalize_status(self, status: str | None) -> str:
         if not status:
             return "planned"
@@ -65,23 +59,6 @@ class CommitmentService:
             )
         return t
 
-    def _parse_iso_datetime(self, value: str, user_tz: str) -> datetime:
-        """
-        Accepts ISO datetime strings. If naive, interpret as user local time and convert to UTC.
-        """
-        try:
-            dt = datetime.fromisoformat(value)
-        except Exception:
-            raise CommitmentValidationError("Invalid datetime format. Expected ISO 8601.")
-
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=ZoneInfo(user_tz))
-
-        return dt.astimezone(ZoneInfo("UTC"))
-
-    def _anchor_for_day(self, start_at_utc: datetime | None, due_at_utc: datetime) -> datetime:
-        return start_at_utc or due_at_utc
-
     def _target_exists(self, *, user_id: int, target_type: str, target_id: int) -> bool:
         """
         Existence + ownership check per target type.
@@ -90,19 +67,19 @@ class CommitmentService:
             return False
 
         if target_type == "task":
-            from src.database.tasks.models import Task  # new system
+            from src.database.tasks.models import Task
             return self.session.query(Task).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "project":
-            from src.database.projects.models import Project  # new system
+            from src.database.projects.models import Project
             return self.session.query(Project).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "routine":
-            from database.routines.models import Routine
+            from src.database.routines.models import Routine
             return self.session.query(Routine).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "session":
-            from database.sessions.models import RoutineSession
+            from src.database.sessions.models import RoutineSession
             return self.session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first() is not None
 
         return False
@@ -119,15 +96,26 @@ class CommitmentService:
             raise CommitmentTimeframeNotFound(f"Timeframe not found id={timeframe_id}")
 
     def create_soft(
-        self,
-        *,
-        user_id: int,
-        target_type: str,
-        target_id: int,
-        timeframe_id: int,
-        status: str | None = None,
-        notes: str | None = None,
+            self,
+            *,
+            user_id: int,
+            target_type: str,
+            target_id: int,
+            timeframe_id: int,
+            status: str | None = None,
+            notes: str | None = None,
     ) -> Commitment:
+        """
+        Create a soft commitment (no specific time, just within a timeframe).
+
+        Args:
+            user_id: Owner of the commitment
+            target_type: One of task, project, routine, session
+            target_id: ID of the target entity
+            timeframe_id: ID of an existing timeframe
+            status: Optional status (defaults to 'planned')
+            notes: Optional notes
+        """
         target_type = self._normalize_target_type(target_type)
         status = self._normalize_status(status)
 
@@ -155,32 +143,45 @@ class CommitmentService:
         )
 
     def create_hard(
-        self,
-        *,
-        user_id: int,
-        target_type: str,
-        target_id: int,
-        due_at: str,
-        start_at: str | None = None,
-        status: str | None = None,
-        notes: str | None = None,
+            self,
+            *,
+            user_id: int,
+            target_type: str,
+            target_id: int,
+            due_at_utc: datetime,
+            start_at_utc: datetime | None = None,
+            local_date: date,
+            user_tz: str,
+            status: str | None = None,
+            notes: str | None = None,
     ) -> Commitment:
+        """
+        Create a hard commitment (specific time, auto-derives DAY timeframe).
+
+        All datetime parameters should already be in UTC. The local_date and user_tz
+        are needed to determine which DAY timeframe to attach to.
+
+        Args:
+            user_id: Owner of the commitment
+            target_type: One of task, project, routine, session
+            target_id: ID of the target entity
+            due_at_utc: When the commitment is due (UTC)
+            start_at_utc: Optional start time (UTC)
+            local_date: The local calendar date for timeframe derivation
+            user_tz: User's timezone (for timeframe creation)
+            status: Optional status (defaults to 'planned')
+            notes: Optional notes
+        """
         target_type = self._normalize_target_type(target_type)
         status = self._normalize_status(status)
 
-        user_tz = self._get_user_timezone(user_id)
-
-        due_at_utc = self._parse_iso_datetime(due_at, user_tz=user_tz)
-        start_at_utc = self._parse_iso_datetime(start_at, user_tz=user_tz) if start_at else None
-
-        anchor_utc = self._anchor_for_day(start_at_utc, due_at_utc)
-        anchor_local_day = anchor_utc.astimezone(ZoneInfo(user_tz)).date()
+        self._ensure_target_exists(user_id=user_id, target_type=target_type, target_id=int(target_id))
 
         # Hard commitments always attach to the derived DAY timeframe.
         day_tf = self.timeframe_service.get_or_create_for_local_date(
             user_id=user_id,
             kind=TimeframeService.KIND_DAY,
-            local_day=anchor_local_day,
+            local_day=local_date,
             user_tz=user_tz,
         )
 
@@ -203,6 +204,70 @@ class CommitmentService:
             start_at_utc=start_at_utc,
             due_at_utc=due_at_utc,
         )
+
+    def create_for_session(
+            self,
+            *,
+            user_id: int,
+            session_id: int,
+            start_at_utc: datetime,
+            due_at_utc: datetime,
+            local_date: date,
+            user_tz: str,
+    ) -> Commitment:
+        """
+        Create a hard commitment for a session. Convenience method for auto-generation.
+
+        Args:
+            user_id: Owner of the commitment
+            session_id: ID of the session
+            start_at_utc: Session start time (UTC)
+            due_at_utc: Session end time (UTC) - used as due time
+            local_date: The local calendar date for timeframe derivation
+            user_tz: User's timezone
+
+        Returns:
+            The created commitment, or None if commitment already exists
+        """
+        return self.create_hard(
+            user_id=user_id,
+            target_type="session",
+            target_id=session_id,
+            due_at_utc=due_at_utc,
+            start_at_utc=start_at_utc,
+            local_date=local_date,
+            user_tz=user_tz,
+            status="planned",
+            notes=None,
+        )
+
+    def delete_for_target(
+            self,
+            *,
+            user_id: int,
+            target_type: str,
+            target_id: int,
+    ) -> bool:
+        """
+        Delete all commitments for a specific target.
+        Used when deleting a session or other entity.
+
+        Returns:
+            True if any commitments were deleted
+        """
+        target_type = self._normalize_target_type(target_type)
+        commitments = self.repo.list_for_target(
+            user_id=user_id,
+            target_type=target_type,
+            target_id=target_id,
+        )
+
+        deleted_any = False
+        for commitment in commitments:
+            self.repo.delete(commitment)
+            deleted_any = True
+
+        return deleted_any
 
     def get(self, *, user_id: int, commitment_id: int) -> Commitment | None:
         return self.repo.get(commitment_id, user_id=user_id)

@@ -132,6 +132,8 @@ class CalendarService:
         Update a calendar's properties.
         Only allows updating: name, color, active
         Prevents updating: external_uid, external_source
+        
+        If active is set to False, cascades deactivation to all contained routines.
         """
         calendar = self.repo.get(calendar_id, user_id)
         if not calendar:
@@ -143,6 +145,11 @@ class CalendarService:
 
         if 'name' in update_data and not update_data['name']:
             raise ValidationError("Calendar name cannot be empty.")
+
+        # Cascade deactivation to routines if calendar is being deactivated
+        if 'active' in update_data and update_data['active'] is False and calendar.active:
+            for routine in calendar.routines:
+                routine.active = False
 
         return self.repo.update(calendar, **update_data)
 

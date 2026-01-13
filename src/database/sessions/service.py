@@ -5,6 +5,9 @@ from .models import RoutineSession
 from .repository import SessionRepo
 from src.database.base.exceptions import ValidationError
 from src.database.routines.models import Routine
+from src.database.commitments.service import CommitmentService, CommitmentConflict
+from src.database.users.user import User
+from src.utils.timezone import from_utc
 from dateutil import rrule as dateutil_rrule
 import logging
 
@@ -17,6 +20,52 @@ class SessionService:
     def __init__(self, session: Session):
         self.session = session
         self.repo = SessionRepo(session)
+        self.commitment_service = CommitmentService(session)
+
+    def _get_user_timezone(self, user_id: int) -> str:
+        """Get the user's timezone or return UTC as default"""
+        user = User.query.get(user_id)
+        return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
+
+    def _create_commitment_for_session(
+        self, 
+        user_id: int, 
+        session_obj: RoutineSession,
+        user_tz: str
+    ) -> None:
+        """
+        Create a hard commitment for a session.
+        Silently handles conflicts (commitment already exists).
+        """
+        try:
+            # Convert UTC start time to local date for timeframe derivation
+            local_start = from_utc(session_obj.start_time, user_tz)
+            local_date = local_start.date()
+
+            self.commitment_service.create_for_session(
+                user_id=user_id,
+                session_id=session_obj.id,
+                start_at_utc=session_obj.start_time,
+                due_at_utc=session_obj.end_time,
+                local_date=local_date,
+                user_tz=user_tz,
+            )
+        except CommitmentConflict:
+            # Commitment already exists, that's fine
+            logging.debug(f"Commitment already exists for session {session_obj.id}")
+        except Exception as e:
+            logging.error(f"Error creating commitment for session {session_obj.id}: {str(e)}")
+
+    def _delete_commitment_for_session(self, user_id: int, session_id: int) -> None:
+        """Delete any commitments associated with a session."""
+        try:
+            self.commitment_service.delete_for_target(
+                user_id=user_id,
+                target_type="session",
+                target_id=session_id,
+            )
+        except Exception as e:
+            logging.error(f"Error deleting commitment for session {session_id}: {str(e)}")
 
     def get_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
         return self.repo.get(session_id, user_id)
@@ -28,30 +77,63 @@ class SessionService:
         if not data.get('start_time') or not data.get('end_time'):
             raise SessionValidationError("Start and end times are required for sessions")
 
-        return self.repo.create(
+        session_obj = self.repo.create(
             user_id=user_id,
             routine_id=routine_id,
             start_time=data['start_time'],
             end_time=data['end_time'],
             completed=data.get('completed', False),
+            status=data.get('status', 'scheduled'),
             notes=data.get('notes'),
             rpe=data.get('rpe')
         )
+
+        # Auto-create commitment for the session
+        user_tz = self._get_user_timezone(user_id)
+        self._create_commitment_for_session(user_id, session_obj, user_tz)
+
+        return session_obj
 
     def update_session(self, session_id: int, user_id: int, data: Dict[str, Any]) -> Optional[RoutineSession]:
         session_obj = self.get_session(session_id, user_id)
         if not session_obj:
             return None
 
-        updatable = ['start_time', 'end_time', 'completed', 'notes', 'rpe']
+        updatable = ['start_time', 'end_time', 'notes', 'rpe', 'status']
         update_data = {k: v for k, v in data.items() if k in updatable}
 
         return self.repo.update(session_obj, **update_data)
+
+    def complete_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
+        """
+        Mark a session as completed.
+        Sets completed=True and status='completed'.
+        """
+        session_obj = self.get_session(session_id, user_id)
+        if not session_obj:
+            return None
+
+        return self.repo.update(session_obj, completed=True, status='completed')
+
+    def uncomplete_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
+        """
+        Mark a session as not completed.
+        Sets completed=False and status='scheduled'.
+        """
+        session_obj = self.get_session(session_id, user_id)
+        if not session_obj:
+            return None
+
+        return self.repo.update(session_obj, completed=False, status='scheduled')
 
     def delete_session(self, session_id: int, user_id: int) -> bool:
         session_obj = self.get_session(session_id, user_id)
         if not session_obj:
             return False
+
+        # Delete associated commitment first
+        self._delete_commitment_for_session(user_id, session_id)
+
         return self.repo.delete(session_obj)
 
     def create_sessions_for_period(self, user_id: int, routine_id: int, start_date: datetime, 
@@ -66,6 +148,9 @@ class SessionService:
 
         if not routine.start_time:
             raise SessionValidationError("Routine has no start time")
+
+        # Get user timezone for commitment creation
+        user_tz = self._get_user_timezone(user_id)
 
         # Calculate session duration from routine
         duration_minutes = 0
@@ -96,12 +181,20 @@ class SessionService:
                 continue
 
             try:
-                session = self.create_session(user_id, routine_id, {
-                    'start_time': session_start,
-                    'end_time': session_end,
-                    'notes': 'Auto-generated from routine'
-                })
-                created_sessions.append(session)
+                session_obj = self.repo.create(
+                    user_id=user_id,
+                    routine_id=routine_id,
+                    start_time=session_start,
+                    end_time=session_end,
+                    completed=False,
+                    status='scheduled',
+                    notes='Auto-generated from routine'
+                )
+                created_sessions.append(session_obj)
+
+                # Auto-create commitment for each generated session
+                self._create_commitment_for_session(user_id, session_obj, user_tz)
+
             except Exception as e:
                 logging.error(f"Error creating session: {str(e)}")
 

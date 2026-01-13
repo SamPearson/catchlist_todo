@@ -18,8 +18,10 @@ class Project(UserOwnedModel, TaggableMixin, PrincipledMixin):
     win_condition = Column(Text)
     reason = Column(Text)
     next_step = Column(String(200))
-    active = Column(Boolean, default=True)
+    completed = Column(Boolean, default=False)
     completed_at = Column(db.DateTime)
+    status = Column(String(20), default='open')  # open, waiting, deferred, declined, stale
+    active = Column(Boolean, default=True)
 
     # Relationships
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
@@ -33,8 +35,10 @@ class Project(UserOwnedModel, TaggableMixin, PrincipledMixin):
             'win_condition': self.win_condition,
             'reason': self.reason,
             'next_step': self.next_step,
-            'active': self.active,
+            'completed': self.completed,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'status': self.status,
+            'active': self.active,
             'tags': [tag.as_dict() for tag in self.tags],
             'principles': [p.as_dict() for p in self.principles]
         })

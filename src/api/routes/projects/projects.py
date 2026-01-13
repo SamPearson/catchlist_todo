@@ -3,6 +3,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.projects.service import ProjectService, ProjectValidationError
 from src.database.projects.repository import ProjectRepository
+from src.database.tasks.service import TaskService, TaskValidationError
+from src.database.tasks.repository import TaskRepository
 
 
 @jwt_required()
@@ -67,7 +69,38 @@ def delete_project(project_id: int):
     return ('', 204)
 
 
-# --- Task Sub-routes ---
+@jwt_required()
+def complete_project(project_id: int):
+    """Mark a project as completed"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    try:
+        completed = service.complete_project(project)
+        return jsonify(completed.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def uncomplete_project(project_id: int):
+    """Mark a project as not completed"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    uncompleted = service.uncomplete_project(project)
+    return jsonify(uncompleted.as_dict())
+
+
+# --- Subtask Routes ---
 
 @jwt_required()
 def get_project_tasks(project_id: int):
@@ -85,6 +118,7 @@ def get_project_tasks(project_id: int):
 
 @jwt_required()
 def create_project_task(project_id: int):
+    """Create a new task as a subtask of this project"""
     user_id = int(get_jwt_identity())
     service = ProjectService(ProjectRepository(db.session))
 
@@ -92,39 +126,46 @@ def create_project_task(project_id: int):
     if not project:
         return ('', 404)
 
+    data = request.get_json() or {}
+    if not data.get('title'):
+        return jsonify({"error": "Title is required"}), 400
+
     try:
-        data = request.get_json() or {}
-        task = service.create_task(project, user_id, data)
+        task = service.create_subtask(project, user_id, data['title'], data)
         return jsonify(task.as_dict()), 201
-    except ProjectValidationError as e:
+    except (ProjectValidationError, TaskValidationError) as e:
         return jsonify({"error": e.message}), 400
 
 
 @jwt_required()
-def update_project_task(project_id: int, task_id: int):
+def add_task_to_project(project_id: int, task_id: int):
+    """Associate an existing standalone task with this project"""
     user_id = int(get_jwt_identity())
     service = ProjectService(ProjectRepository(db.session))
+    task_service = TaskService(TaskRepository(db.session))
 
-    task = service.repository.get_task_by_id(task_id, user_id)
-    if not task or task.project_id != project_id:
+    project = service.get_project(project_id, user_id)
+    if not project:
         return ('', 404)
 
-    try:
-        data = request.get_json() or {}
-        updated = service.update_task(task, data)
-        return jsonify(updated.as_dict())
-    except ProjectValidationError as e:
-        return jsonify({"error": e.message}), 400
+    task = task_service.get_task(task_id, user_id)
+    if not task:
+        return ('', 404)
+
+    updated_task = service.add_task_to_project(project, task)
+    return jsonify(updated_task.as_dict())
 
 
 @jwt_required()
-def delete_project_task(project_id: int, task_id: int):
+def remove_task_from_project(project_id: int, task_id: int):
+    """Remove a task from this project (makes it standalone, does not delete)"""
     user_id = int(get_jwt_identity())
     service = ProjectService(ProjectRepository(db.session))
+    task_service = TaskService(TaskRepository(db.session))
 
-    task = service.repository.get_task_by_id(task_id, user_id)
+    task = task_service.get_task(task_id, user_id)
     if not task or task.project_id != project_id:
         return ('', 404)
 
-    service.delete_task(task)
-    return ('', 204)
+    updated_task = service.remove_task_from_project(task)
+    return jsonify(updated_task.as_dict())

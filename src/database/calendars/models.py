@@ -4,7 +4,7 @@ from src.database.db import db
 from src.database.base.models import UserOwnedModel
 
 
-class Calendar(UserOwnedModel):
+class Calendar(UserOwnedModel, TaggableMixin, PrincipledMixin):
     """
     A Calendar represents an imported calendar from a CalDAV source.
     """
@@ -26,6 +26,8 @@ class Calendar(UserOwnedModel):
             "color": self.color,
             "external_uid": self.external_uid,
             "external_source": self.external_source,
-            "active": self.active
+            "active": self.active,
+            "tags": [tag.as_dict() for tag in self.tags],
+            "principles": [p.as_dict() for p in self.principles]
         })
         return data

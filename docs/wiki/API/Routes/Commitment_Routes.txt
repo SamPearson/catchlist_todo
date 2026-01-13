@@ -1,0 +1,168 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T19:38:25-06:00
+
+
+====== Commitment Routes ======
+
+===== Overview =====
+
+API endpoints for managing commitments. Commitments link entities (tasks, projects, routines, sessions) to timeframes, representing a plan or intention to complete something within a specific period.
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Two Types of Commitments =====
+
+**Soft Commitment**
+* "I'll do this sometime during this timeframe"
+* Requires an existing timeframe to be specified
+* No specific due time
+* Example: "Clean garage sometime this month"
+
+**Hard Commitment**
+* "I'll do this at this specific time"
+* Requires a due_at timestamp; start_at is optional
+* Timeframe is auto-derived as the DAY containing the due time
+* Example: "Dentist appointment at 2pm on Tuesday"
+
+
+===== Commitment Endpoints =====
+
+==== List Commitments ====
+
+**GET /api/commitments**
+
+Returns commitments for the authenticated user.
+
+| Parameter    | Type    | Location | Required | Description                           |
+|--------------|---------|----------|----------|---------------------------------------|
+| timeframe_id | integer | query    | no       | Filter by timeframe                   |
+
+**Response:** Array of commitment objects
+
+
+==== Get Commitment ====
+
+**GET /api/commitments/<commitment_id>**
+
+Returns a specific commitment by ID.
+
+**Response:** Commitment object, or 404 if not found
+
+
+==== Create Soft Commitment ====
+
+**POST /api/commitments/soft**
+
+Creates a soft commitment (flexible timing within a timeframe).
+
+| Field        | Type    | Required | Description                                      |
+|--------------|---------|----------|--------------------------------------------------|
+| target_type  | string  | yes      | One of: task, project, routine, session          |
+| target_id    | integer | yes      | ID of the target entity                          |
+| timeframe_id | integer | yes      | ID of an existing timeframe                      |
+| status       | string  | no       | Default "planned"; see status values             |
+| notes        | text    | no       | Optional notes                                   |
+
+**Business Logic:**
+* Validates target exists and belongs to user
+* Validates timeframe exists and belongs to user
+* Prevents duplicate: same target cannot be committed to same timeframe twice
+
+**Response:** Created commitment object (201)
+
+**Errors:**
+* 400 if validation fails
+* 404 if target or timeframe not found
+* 409 if commitment already exists for this target and timeframe
+
+
+==== Create Hard Commitment ====
+
+**POST /api/commitments/hard**
+
+Creates a hard commitment (specific time, auto-derives DAY timeframe).
+
+| Field       | Type   | Required | Description                                      |
+|-------------|--------|----------|--------------------------------------------------|
+| target_type | string | yes      | One of: task, project, routine, session          |
+| target_id   | integer| yes      | ID of the target entity                          |
+| due_at      | string | yes      | When it's due (ISO datetime)                     |
+| start_at    | string | no       | When it starts (ISO datetime)                    |
+| status      | string | no       | Default "planned"; see status values             |
+| notes       | text   | no       | Optional notes                                   |
+
+**Business Logic:**
+* Validates target exists and belongs to user
+* Auto-creates DAY timeframe if needed (based on due_at in user's timezone)
+* Prevents duplicate: same target cannot be committed to same day twice
+
+**Response:** Created commitment object (201)
+
+**Errors:**
+* 400 if validation fails
+* 404 if target not found
+* 409 if commitment already exists for this target on that day
+
+
+==== Update Commitment Status ====
+
+**PUT /api/commitments/<commitment_id>/status**
+
+Updates a commitment's status.
+
+| Field  | Type   | Required | Description                                          |
+|--------|--------|----------|------------------------------------------------------|
+| status | string | yes      | One of: planned, done, skipped, canceled, missed     |
+
+**Response:** Updated commitment object, or 404 if not found
+
+**Errors:** 400 if status is invalid
+
+
+==== Delete Commitment ====
+
+**DELETE /api/commitments/<commitment_id>**
+
+Permanently deletes a commitment.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== Status Values =====
+
+| Status   | Meaning                          |
+|----------|----------------------------------|
+| planned  | Default; commitment is scheduled |
+| done     | Successfully completed           |
+| skipped  | Intentionally not done           |
+| canceled | Removed from schedule            |
+| missed   | Was not done (unintentionally)   |
+
+
+===== Target Types =====
+
+| Type    | Description                |
+|---------|----------------------------|
+| task    | A task (standalone or subtask) |
+| project | A project                  |
+| routine | A routine template         |
+| session | A specific session occurrence |
+
+
+===== Commitment Object =====
+
+| Field        | Type     | Description                                    |
+|--------------|----------|------------------------------------------------|
+| id           | integer  | Primary key                                    |
+| user_id      | integer  | Owner                                          |
+| timeframe_id | integer  | The timeframe this commitment belongs to       |
+| target_type  | string   | Entity type                                    |
+| target_id    | integer  | ID of the target entity                        |
+| status       | string   | Current status                                 |
+| notes        | text     | Optional notes                                 |
+| start_at_utc | datetime | Hard commitments: when it starts (UTC)         |
+| due_at_utc   | datetime | Hard commitments: when it's due (UTC)          |
+| created_at   | datetime | When created                                   |
+| updated_at   | datetime | When last modified                             |

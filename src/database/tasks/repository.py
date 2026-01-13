@@ -1,53 +1,65 @@
 from typing import List, Optional
+from datetime import datetime
 from sqlalchemy.orm import Session
+from src.database.base.repositories import UserOwnedRepository
 from .models import Task
 
-class TaskRepository:
+
+class TaskRepository(UserOwnedRepository[Task]):
     """Repository for handling Task database operations"""
 
     def __init__(self, session: Session):
-        self.session = session
+        super().__init__(session=session, model_class=Task)
 
-    def create(self, user_id: int, title: str) -> Task:
+    def create(self, user_id: int, title: str, description: Optional[str] = None,
+               status: str = 'open', active: bool = True, 
+               project_id: Optional[int] = None) -> Task:
         """Create a new task"""
-        task = Task(user_id=user_id, title=title)
-        self.session.add(task)
-        self.session.commit()
-        return task
-
-    def get(self, task_id: int, user_id: int) -> Optional[Task]:
-        """Get a specific task by ID and user_id"""
-        return (
-            self.session.query(Task)
-            .filter_by(id=task_id, user_id=user_id)
-            .first()
+        return super().create(
+            user_id=user_id,
+            title=title,
+            description=description,
+            status=status,
+            active=active,
+            project_id=project_id,
+            completed=False
         )
 
-    def list_for_user(self, user_id: int, include_completed: bool = False) -> List[Task]:
+    def list_for_user(self, user_id: int, include_completed: bool = False, **filters) -> List[Task]:
         """List all tasks for a user"""
-        query = self.session.query(Task).filter_by(user_id=user_id)
         if not include_completed:
-            query = query.filter_by(completed=False)
-        return query.order_by(Task.created_at.desc()).all()
+            filters['completed'] = False
+        tasks = super().list_for_user(user_id, **filters)
+        return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 
-    def update(self, task: Task, title: Optional[str] = None, completed: Optional[bool] = None) -> Task:
-        """Update a task"""
+    def update(self, task: Task, title: Optional[str] = None, 
+               description: Optional[str] = None, status: Optional[str] = None,
+               active: Optional[bool] = None, project_id: Optional[int] = None,
+               completed: Optional[bool] = None, completed_at: Optional[datetime] = None) -> Task:
+        """Update a task - only sets fields that are explicitly provided"""
+        update_data = {}
         if title is not None:
-            task.title = title
+            update_data['title'] = title
+        if description is not None:
+            update_data['description'] = description
+        if status is not None:
+            update_data['status'] = status
+        if active is not None:
+            update_data['active'] = active
+        if project_id is not None:
+            update_data['project_id'] = project_id
         if completed is not None:
-            task.completed = completed
-        self.session.commit()
-        return task
-
-    def delete(self, task: Task) -> None:
-        """Delete a task"""
-        self.session.delete(task)
-        self.session.commit()
+            update_data['completed'] = completed
+        if completed_at is not None or (completed is not None and not completed):
+            # Set completed_at if provided, or clear it if uncompleting
+            update_data['completed_at'] = completed_at
+        
+        return super().update(task, **update_data)
 
     def mark_completed(self, task: Task) -> Task:
-        """Mark a task as completed"""
-        return self.update(task, completed=True)
+        """Mark a task as completed with timestamp"""
+        return super().update(task, completed=True, completed_at=datetime.utcnow())
 
     def mark_incomplete(self, task: Task) -> Task:
-        """Mark a task as incomplete"""
-        return self.update(task, completed=False)
+        """Mark a task as incomplete, clearing timestamp"""
+        return super().update(task, completed=False, completed_at=None)
