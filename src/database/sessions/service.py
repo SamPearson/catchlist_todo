@@ -34,6 +34,7 @@ class SessionService:
             start_time=data['start_time'],
             end_time=data['end_time'],
             completed=data.get('completed', False),
+            status=data.get('status', 'scheduled'),
             notes=data.get('notes'),
             rpe=data.get('rpe')
         )
@@ -43,8 +44,13 @@ class SessionService:
         if not session_obj:
             return None
 
-        updatable = ['start_time', 'end_time', 'completed', 'notes', 'rpe']
+        updatable = ['start_time', 'end_time', 'completed', 'status', 'notes', 'rpe']
         update_data = {k: v for k, v in data.items() if k in updatable}
+
+        # If completed is being set to True, auto-set status to 'completed' if not already set
+        if update_data.get('completed') is True:
+            if 'status' not in update_data and session_obj.status != 'completed':
+                update_data['status'] = 'completed'
 
         return self.repo.update(session_obj, **update_data)
 
