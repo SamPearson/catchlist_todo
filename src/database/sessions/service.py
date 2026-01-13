@@ -44,15 +44,46 @@ class SessionService:
         if not session_obj:
             return None
 
-        updatable = ['start_time', 'end_time', 'completed', 'status', 'notes', 'rpe']
+        updatable = ['start_time', 'end_time', 'notes', 'rpe', 'status']
         update_data = {k: v for k, v in data.items() if k in updatable}
 
-        # If completed is being set to True, auto-set status to 'completed' if not already set
-        if update_data.get('completed') is True:
-            if 'status' not in update_data and session_obj.status != 'completed':
-                update_data['status'] = 'completed'
-
         return self.repo.update(session_obj, **update_data)
+
+    def complete_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
+        """
+        Mark a session as completed.
+        Sets completed=True and status='completed'.
+        
+        Args:
+            session_id: ID of the session to complete
+            user_id: ID of the user who owns the session
+            
+        Returns:
+            Updated session, or None if not found
+        """
+        session_obj = self.get_session(session_id, user_id)
+        if not session_obj:
+            return None
+
+        return self.repo.update(session_obj, completed=True, status='completed')
+
+    def uncomplete_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
+        """
+        Mark a session as not completed.
+        Sets completed=False and status='scheduled'.
+        
+        Args:
+            session_id: ID of the session to uncomplete
+            user_id: ID of the user who owns the session
+            
+        Returns:
+            Updated session, or None if not found
+        """
+        session_obj = self.get_session(session_id, user_id)
+        if not session_obj:
+            return None
+
+        return self.repo.update(session_obj, completed=False, status='scheduled')
 
     def delete_session(self, session_id: int, user_id: int) -> bool:
         session_obj = self.get_session(session_id, user_id)
