@@ -120,10 +120,3 @@ class ProjectService:
         data['project_id'] = project.id
         return self.task_service.create_task(user_id, title, data)
 
-    def add_task_to_project(self, project: Project, task: Task) -> Task:
-        """Associate an existing task with this project."""
-        return self.task_service.update_task(task, {'project_id': project.id})
-
-    def remove_task_from_project(self, task: Task) -> Task:
-        """Remove a task's project association (make it standalone)."""
-        return self.task_service.update_task(task, {'project_id': None})

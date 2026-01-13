@@ -136,36 +136,3 @@ def create_project_task(project_id: int):
     except (ProjectValidationError, TaskValidationError) as e:
         return jsonify({"error": e.message}), 400
 
-
-@jwt_required()
-def add_task_to_project(project_id: int, task_id: int):
-    """Associate an existing standalone task with this project"""
-    user_id = int(get_jwt_identity())
-    service = ProjectService(ProjectRepository(db.session))
-    task_service = TaskService(TaskRepository(db.session))
-
-    project = service.get_project(project_id, user_id)
-    if not project:
-        return ('', 404)
-
-    task = task_service.get_task(task_id, user_id)
-    if not task:
-        return ('', 404)
-
-    updated_task = service.add_task_to_project(project, task)
-    return jsonify(updated_task.as_dict())
-
-
-@jwt_required()
-def remove_task_from_project(project_id: int, task_id: int):
-    """Remove a task from this project (makes it standalone, does not delete)"""
-    user_id = int(get_jwt_identity())
-    service = ProjectService(ProjectRepository(db.session))
-    task_service = TaskService(TaskRepository(db.session))
-
-    task = task_service.get_task(task_id, user_id)
-    if not task or task.project_id != project_id:
-        return ('', 404)
-
-    updated_task = service.remove_task_from_project(task)
-    return jsonify(updated_task.as_dict())

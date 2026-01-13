@@ -138,24 +138,14 @@ Creates a new task as a subtask of this project.
 **Response:** Created task object (201), or 404 if project not found
 
 
-==== Add Task to Project ====
+==== Attach/Detach Tasks ====
 
-**PUT /api/projects/<project_id>/tasks/<task_id>**
+To attach an existing task to a project or detach a task from a project, use the Task endpoints:
 
-Associates an existing standalone task with this project.
+* **POST /api/tasks/<task_id>/attach/<project_id>** - Attach task to project
+* **POST /api/tasks/<task_id>/detach** - Detach task from project (makes it standalone)
 
-**Response:** Updated task object, or 404 if project or task not found
-
-
-==== Remove Task from Project ====
-
-**DELETE /api/projects/<project_id>/tasks/<task_id>**
-
-Removes a task's association with this project. The task becomes standalone; it is not deleted.
-
-To permanently delete a subtask, use **DELETE /api/tasks/<task_id>** instead.
-
-**Response:** Updated task object (now standalone), or 404 if task not found or not associated with this project
+See [[Task Routes]] for details.
 
 
 ===== Project Object =====
