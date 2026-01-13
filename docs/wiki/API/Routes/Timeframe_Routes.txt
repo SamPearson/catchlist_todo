@@ -1,0 +1,188 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T19:38:01-06:00
+
+
+====== Timeframe Routes ======
+
+===== Overview =====
+
+API endpoints for managing timeframes. Timeframes are containers representing bounded periods of time (day, week, month, season, year). They exist primarily to anchor commitments and organize reports.
+
+All endpoints require authentication via JWT Bearer token.
+
+Timeframes use half-open intervals: [start_at_utc, end_at_utc) — start is inclusive, end is exclusive.
+
+
+===== Utility Endpoints =====
+
+==== List Timeframe Kinds ====
+
+**GET /api/timeframes/kinds**
+
+Returns the list of valid timeframe kinds.
+
+**Response:**
+| Field      | Type  | Description                    |
+|------------|-------|--------------------------------|
+| kinds      | array | List of valid kind strings     |
+| default_tz | string| Default timezone (UTC)         |
+
+
+===== Timeframe Endpoints =====
+
+==== List Timeframes ====
+
+**GET /api/timeframes**
+
+Returns timeframes for the authenticated user.
+
+| Parameter | Type   | Location | Required | Description                                      |
+|-----------|--------|----------|----------|--------------------------------------------------|
+| kind      | string | query    | no*      | Filter by kind (day, week, month, season, year)  |
+| start     | string | query    | no       | Start of date range (YYYY-MM-DD)                 |
+| end       | string | query    | no       | End of date range (YYYY-MM-DD)                   |
+| tz        | string | query    | no       | Timezone for date interpretation. Default UTC    |
+
+*kind is required when using start/end window queries.
+
+**Response:** Array of timeframe objects
+
+**Errors:** 400 if kind is invalid, dates are malformed, or end < start
+
+
+==== Create Timeframe ====
+
+**POST /api/timeframes**
+
+Creates a timeframe using get-or-create semantics. Returns existing timeframe if one already exists for the specified period.
+
+| Field | Type   | Required | Description                                    |
+|-------|--------|----------|------------------------------------------------|
+| kind  | string | yes      | One of: day, week, month, season, year         |
+| date  | string | no       | Local date (YYYY-MM-DD). Defaults to today     |
+| tz    | string | no       | Timezone for date. Defaults to user's timezone |
+
+**Response:**
+| Field     | Type    | Description                          |
+|-----------|---------|--------------------------------------|
+| created   | boolean | True if new, false if already existed|
+| timeframe | object  | The timeframe object                 |
+
+**Status:** 201 if created, 200 if already existed
+
+**Errors:** 400 if kind or timezone is invalid
+
+
+==== Get Timeframe by ID ====
+
+**GET /api/timeframes/<timeframe_id>**
+
+Returns a specific timeframe by ID.
+
+**Response:** Timeframe object, or 404 if not found
+
+
+==== Delete Timeframe ====
+
+**DELETE /api/timeframes/<timeframe_id>**
+
+Permanently deletes a timeframe.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== Convenience Endpoints =====
+
+==== Get Timeframe for Today ====
+
+**GET /api/timeframes/<kind>**
+
+Returns the existing timeframe of the specified kind containing today's date.
+
+| Parameter | Type   | Location | Required | Description                                    |
+|-----------|--------|----------|----------|------------------------------------------------|
+| kind      | string | path     | yes      | One of: day, week, month, season, year         |
+| tz        | string | query    | no       | Timezone for "today". Defaults to user's timezone |
+
+**Response:** Timeframe object, or 404 if not found
+
+
+==== Get or Create Timeframe for Today ====
+
+**GET /api/timeframes/<kind>/get_or_create**
+
+Returns the timeframe of the specified kind containing today's date, creating it if necessary.
+
+| Parameter | Type   | Location | Required | Description                                    |
+|-----------|--------|----------|----------|------------------------------------------------|
+| kind      | string | path     | yes      | One of: day, week, month, season, year         |
+| tz        | string | query    | no       | Timezone for "today". Defaults to user's timezone |
+
+**Response:** Timeframe object (always succeeds for valid kind)
+
+
+==== Get Timeframe for Date ====
+
+**GET /api/timeframes/<kind>/<date>**
+
+Returns the existing timeframe of the specified kind containing the given date.
+
+| Parameter | Type   | Location | Required | Description                                    |
+|-----------|--------|----------|----------|------------------------------------------------|
+| kind      | string | path     | yes      | One of: day, week, month, season, year         |
+| date      | string | path     | yes      | Local date (YYYY-MM-DD)                        |
+| tz        | string | query    | no       | Timezone for date. Defaults to user's timezone |
+
+**Response:** Timeframe object, or 404 if not found
+
+
+==== Get or Create Timeframe for Date ====
+
+**GET /api/timeframes/<kind>/<date>/get_or_create**
+
+Returns the timeframe of the specified kind containing the given date, creating it if necessary.
+
+| Parameter | Type   | Location | Required | Description                                    |
+|-----------|--------|----------|----------|------------------------------------------------|
+| kind      | string | path     | yes      | One of: day, week, month, season, year         |
+| date      | string | path     | yes      | Local date (YYYY-MM-DD)                        |
+| tz        | string | query    | no       | Timezone for date. Defaults to user's timezone |
+
+**Response:** Timeframe object (always succeeds for valid kind and date)
+
+
+===== Timeframe Kinds =====
+
+| Kind   | Description                  | Example Label   |
+|--------|------------------------------|-----------------|
+| day    | A single calendar day        | "2025-06-08"    |
+| week   | A calendar week (Mon-Sun)    | "2025-W23"      |
+| month  | A calendar month             | "2025-06"       |
+| season | Three months; see below      | "Summer 2025"   |
+| year   | A calendar year              | "2025"          |
+
+**Season Definitions:**
+
+| Season | Months                    |
+|--------|---------------------------|
+| Winter | December, January, February |
+| Spring | March, April, May         |
+| Summer | June, July, August        |
+| Autumn | September, October, November |
+
+Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1).
+
+
+===== Timeframe Object =====
+
+| Field       | Type     | Description                           |
+|-------------|----------|---------------------------------------|
+| id          | integer  | Primary key                           |
+| user_id     | integer  | Owner                                 |
+| kind        | string   | Timeframe kind                        |
+| start_at_utc| datetime | Start of period (inclusive, UTC)      |
+| end_at_utc  | datetime | End of period (exclusive, UTC)        |
+| label       | string   | Human-readable label                  |
+| created_at  | datetime | When created                          |
+| updated_at  | datetime | When last modified                    |

@@ -1,0 +1,144 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T19:47:13-06:00
+
+====== Tag Routes ======
+
+===== Overview =====
+
+API endpoints for managing tags. Tags provide flexible, low-level categorization across entities. They're meant to be numerous and used liberally for organization, filtering, and grouping related items.
+
+Examples: "work", "home", "urgent", "health", "learning", "errands"
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Tag Endpoints =====
+
+==== List Tags ====
+
+**GET /api/tags**
+
+Returns all tags for the authenticated user.
+
+**Response:** Array of tag objects
+
+
+==== Create Tag ====
+
+**POST /api/tags**
+
+Creates a new tag.
+
+| Field | Type   | Required | Description                                |
+|-------|--------|----------|--------------------------------------------|
+| name  | string | yes      | Tag label (max 50 chars, cannot be empty)  |
+| color | string | no       | Hex color code. Default "#6c757d" (gray)   |
+
+**Response:** Created tag object (201)
+
+**Errors:** 400 if name is missing or empty
+
+
+==== Get Tag ====
+
+**GET /api/tags/<tag_id>**
+
+Returns a specific tag by ID.
+
+**Response:** Tag object, or 404 if not found
+
+
+==== Update Tag ====
+
+**PUT /api/tags/<tag_id>**
+
+Updates a tag's properties.
+
+| Field | Type   | Description                           |
+|-------|--------|---------------------------------------|
+| name  | string | Tag label (cannot be empty if provided) |
+| color | string | Hex color code                        |
+
+**Response:** Updated tag object, or 404 if not found
+
+**Errors:** 400 if name is set to empty
+
+
+==== Delete Tag ====
+
+**DELETE /api/tags/<tag_id>**
+
+Permanently deletes a tag and removes it from all attached entities.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== Association Endpoints =====
+
+==== Attach Tag to Entity ====
+
+**POST /api/tags/attach**
+
+Attaches a tag to an entity.
+
+| Field       | Type    | Required | Description                              |
+|-------------|---------|----------|------------------------------------------|
+| tag_id      | integer | yes      | ID of the tag to attach                  |
+| target_type | string  | yes      | Entity type (see taggable entities)      |
+| target_id   | integer | yes      | ID of the target entity                  |
+
+**Business Logic:**
+* Idempotent: attaching the same tag twice has no effect
+* Entity must support tags (have TaggableMixin)
+
+**Response:** { "success": true } (200)
+
+**Errors:**
+* 400 if required fields missing
+* 404 if tag or target entity not found
+
+
+==== Detach Tag from Entity ====
+
+**POST /api/tags/detach**
+
+Removes a tag from an entity.
+
+| Field       | Type    | Required | Description                              |
+|-------------|---------|----------|------------------------------------------|
+| tag_id      | integer | yes      | ID of the tag to detach                  |
+| target_type | string  | yes      | Entity type (see taggable entities)      |
+| target_id   | integer | yes      | ID of the target entity                  |
+
+**Business Logic:**
+* Idempotent: detaching a non-attached tag has no effect
+
+**Response:** { "success": true } (200)
+
+**Errors:**
+* 400 if required fields missing
+* 404 if tag or target entity not found
+
+
+===== Taggable Entities =====
+
+| Entity Type | Description                |
+|-------------|----------------------------|
+| task        | A task (standalone or subtask) |
+| project     | A project                  |
+| routine     | A routine template         |
+| session     | A specific session occurrence |
+| calendar    | A calendar container       |
+
+
+===== Tag Object =====
+
+| Field      | Type     | Description                    |
+|------------|----------|--------------------------------|
+| id         | integer  | Primary key                    |
+| user_id    | integer  | Owner                          |
+| name       | string   | Tag label                      |
+| color      | string   | Hex color code                 |
+| created_at | datetime | When created                   |
+| updated_at | datetime | When last modified             |

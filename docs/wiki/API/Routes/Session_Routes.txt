@@ -1,0 +1,157 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T18:43:23-06:00
+
+====== Session Routes ======
+
+===== Overview =====
+
+API endpoints for managing sessions. Sessions are concrete occurrences of routines—the actual scheduled events that get completed, skipped, or rescheduled.
+
+All endpoints require authentication via JWT Bearer token.
+
+All datetime values are returned in the user's configured timezone. Input datetimes can be in any timezone (with offset) or naive (interpreted as user's timezone).
+
+
+===== Session Endpoints =====
+
+==== List Sessions ====
+
+**GET /api/sessions**
+
+Returns all sessions within a time window for the authenticated user.
+
+| Parameter | Type   | Location | Required | Description                      |
+|-----------|--------|----------|----------|----------------------------------|
+| start     | string | query    | yes      | Start of window (ISO datetime)   |
+| end       | string | query    | yes      | End of window (ISO datetime)     |
+
+**Response:** Array of session objects
+
+**Errors:** 400 if start or end is missing or invalid
+
+
+==== Create Session ====
+
+**POST /api/routines/<routine_id>/sessions**
+
+Creates a new session for a routine.
+
+| Field      | Type    | Required | Description                                                |
+|------------|---------|----------|------------------------------------------------------------|
+| start_time | string  | yes      | When session starts (ISO datetime)                         |
+| end_time   | string  | yes      | When session ends (ISO datetime)                           |
+| completed  | boolean | no       | Default false                                              |
+| status     | string  | no       | Default "scheduled"; see status values                     |
+| notes      | text    | no       | Freeform notes                                             |
+| rpe        | integer | no       | Rate of Perceived Exertion (1-10)                          |
+
+**Business Logic:**
+* Auto-creates a hard Commitment for the session (due_at = end_time)
+* Commitment is attached to the DAY timeframe containing the session
+
+**Response:** Created session object (201)
+
+**Errors:** 400 if start_time or end_time missing
+
+
+==== Get Session ====
+
+**GET /api/sessions/<session_id>**
+
+Returns a specific session by ID.
+
+**Response:** Session object, or 404 if not found
+
+
+==== Update Session ====
+
+**PUT /api/sessions/<session_id>**
+
+Updates a session's properties. Does not handle completion—use the complete/uncomplete endpoints.
+
+| Field      | Type    | Description                            |
+|------------|---------|----------------------------------------|
+| start_time | string  | When session starts (ISO datetime)     |
+| end_time   | string  | When session ends (ISO datetime)       |
+| status     | string  | Status value (see below)               |
+| notes      | text    | Freeform notes                         |
+| rpe        | integer | Rate of Perceived Exertion (1-10)      |
+
+**Note:** The `completed` field cannot be set via update; use the complete/uncomplete endpoints.
+
+**Response:** Updated session object, or 404 if not found
+
+
+==== Delete Session ====
+
+**DELETE /api/sessions/<session_id>**
+
+Permanently deletes a session and its associated Commitment.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+==== Complete Session ====
+
+**POST /api/sessions/<session_id>/complete**
+
+Marks a session as completed.
+
+* Sets completed=true
+* Sets status="completed"
+
+**Response:** Updated session object, or 404 if not found
+
+
+==== Uncomplete Session ====
+
+**POST /api/sessions/<session_id>/uncomplete**
+
+Marks a session as not completed.
+
+* Sets completed=false
+* Sets status="scheduled"
+
+**Response:** Updated session object, or 404 if not found
+
+
+===== Status Values =====
+
+Status is a flexible string field. Common values by convention:
+
+| Status    | Meaning                                     |
+|-----------|---------------------------------------------|
+| scheduled | Default; session is planned                 |
+| completed | Session was done (set automatically via /complete) |
+| skipped   | Intentionally not done this occurrence      |
+| cancelled | Removed from schedule                       |
+
+
+===== Session Object =====
+
+| Field            | Type     | Description                                   |
+|------------------|----------|-----------------------------------------------|
+| id               | integer  | Primary key                                   |
+| user_id          | integer  | Owner                                         |
+| routine_id       | integer  | Parent routine                                |
+| start_time       | datetime | When session starts (ISO format, user TZ)     |
+| end_time         | datetime | When session ends (ISO format, user TZ)       |
+| completed        | boolean  | Completion status                             |
+| status           | string   | Current status                                |
+| notes            | text     | Freeform notes                                |
+| rpe              | integer  | Rate of Perceived Exertion (1-10)             |
+| duration_minutes | number   | Computed: minutes between start and end       |
+| tags             | array    | Attached tags                                 |
+| principles       | array    | Attached principles                           |
+| created_at       | datetime | When created                                  |
+| updated_at       | datetime | When last modified                            |
+
+
+===== Timezone Handling =====
+
+* All datetimes are stored in UTC internally
+* Input datetimes are converted from user's timezone to UTC
+* Output datetimes are converted from UTC to user's timezone
+* User's timezone is configured in their profile
+* If no timezone is configured, UTC is used as default

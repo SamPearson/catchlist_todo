@@ -1,0 +1,12 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T13:44:58-06:00
+
+====== API Infrastructure ======
+Created Monday 12 January 2026
+
+How and when do we initialize the API?
+
+How do we make it available to other modules?
+
+What if anything changes between dev/staging/production?

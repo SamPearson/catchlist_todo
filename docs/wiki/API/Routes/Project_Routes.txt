@@ -1,0 +1,182 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T17:23:43-06:00
+
+====== Project Routes ======
+
+===== Overview =====
+
+API endpoints for managing projects and their subtasks. Projects are containers for related tasks with GTD-style metadata (win condition, reason, next step).
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Project Endpoints =====
+
+==== List Projects ====
+
+**GET /api/projects**
+
+Returns all projects for the authenticated user.
+
+| Parameter         | Type    | Location | Required | Description                                                   |
+|-------------------|---------|----------|----------|---------------------------------------------------------------|
+| include_completed | boolean | query    | no       | If true, includes completed/inactive projects. Default false. |
+
+**Response:** Array of project objects
+
+
+==== Create Project ====
+
+**POST /api/projects**
+
+Creates a new project.
+
+| Field         | Type    | Required | Description                                                      |
+|---------------|---------|----------|------------------------------------------------------------------|
+| title         | string  | yes      | Project name (max 200 chars)                                     |
+| description   | text    | no       | Overview of the project                                          |
+| win_condition | text    | no       | Definition of done                                               |
+| reason        | text    | no       | Why this project matters                                         |
+| next_step     | string  | no       | The immediate next action (max 200 chars)                        |
+| status        | string  | no       | One of: open, waiting, deferred, declined, stale. Default "open" |
+| active        | boolean | no       | Default true; false means "not on deck"                          |
+
+**Response:** Created project object (201)
+
+
+==== Get Project ====
+
+**GET /api/projects/<project_id>**
+
+Returns a specific project by ID.
+
+**Response:** Project object, or 404 if not found
+
+
+==== Update Project ====
+
+**PUT /api/projects/<project_id>**
+
+Updates a project's fields. Does not handle completion—use the complete/uncomplete endpoints.
+
+| Field         | Type    | Description                                      |
+|---------------|---------|--------------------------------------------------|
+| title         | string  | Project name (cannot be empty)                   |
+| description   | text    | Overview of the project                          |
+| win_condition | text    | Definition of done                               |
+| reason        | text    | Why this project matters                         |
+| next_step     | string  | The immediate next action                        |
+| status        | string  | One of: open, waiting, deferred, declined, stale |
+| active        | boolean | Active flag                                      |
+
+**Response:** Updated project object, or 404 if not found
+
+
+==== Delete Project ====
+
+**DELETE /api/projects/<project_id>**
+
+Permanently deletes a project and all its subtasks.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+==== Complete Project ====
+
+**POST /api/projects/<project_id>/complete**
+
+Marks a project as completed.
+
+* Fails if there are incomplete subtasks
+* Sets completed=true, completed_at=now
+* Automatically sets active=false
+
+**Response:** Updated project object, or 400 if incomplete subtasks exist, or 404 if not found
+
+
+==== Uncomplete Project ====
+
+**POST /api/projects/<project_id>/uncomplete**
+
+Marks a project as not completed.
+
+* Clears completed and completed_at
+* Does NOT automatically set active=true
+
+**Response:** Updated project object, or 404 if not found
+
+
+===== Subtask Endpoints =====
+
+==== List Project Tasks ====
+
+**GET /api/projects/<project_id>/tasks**
+
+Returns all subtasks for a project.
+
+| Parameter         | Type    | Location | Required | Description                                       |
+|-------------------|---------|----------|----------|---------------------------------------------------|
+| include_completed | boolean | query    | no       | If true, includes completed tasks. Default false. |
+
+**Response:** Array of task objects, or 404 if project not found
+
+
+==== Create Subtask ====
+
+**POST /api/projects/<project_id>/tasks**
+
+Creates a new task as a subtask of this project.
+
+| Field       | Type    | Required | Description                                                      |
+|-------------|---------|----------|------------------------------------------------------------------|
+| title       | string  | yes      | Task title (max 200 chars)                                       |
+| description | text    | no       | Additional details                                               |
+| status      | string  | no       | One of: open, waiting, deferred, declined, stale. Default "open" |
+| active      | boolean | no       | Default true                                                     |
+
+**Response:** Created task object (201), or 404 if project not found
+
+
+==== Add Task to Project ====
+
+**PUT /api/projects/<project_id>/tasks/<task_id>**
+
+Associates an existing standalone task with this project.
+
+**Response:** Updated task object, or 404 if project or task not found
+
+
+==== Remove Task from Project ====
+
+**DELETE /api/projects/<project_id>/tasks/<task_id>**
+
+Removes a task's association with this project. The task becomes standalone; it is not deleted.
+
+To permanently delete a subtask, use **DELETE /api/tasks/<task_id>** instead.
+
+**Response:** Updated task object (now standalone), or 404 if task not found or not associated with this project
+
+
+===== Project Object =====
+
+| Field         | Type     | Description                                        |
+|---------------|----------|----------------------------------------------------|
+| id            | integer  | Primary key                                        |
+| user_id       | integer  | Owner                                              |
+| title         | string   | Project name                                       |
+| description   | text     | Overview                                           |
+| win_condition | text     | Definition of done                                 |
+| reason        | text     | Why this project matters                           |
+| next_step     | string   | The immediate next action                          |
+| completed     | boolean  | Completion status                                  |
+| completed_at  | datetime | When completed (ISO format, null if not completed) |
+| status        | string   | Current status                                     |
+| active        | boolean  | Active flag                                        |
+| tags          | array    | Attached tags                                      |
+| principles    | array    | Attached principles                                |
+| created_at    | datetime | When created                                       |
+| updated_at    | datetime | When last modified                                 |
+
+
+

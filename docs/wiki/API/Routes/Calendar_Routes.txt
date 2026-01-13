@@ -1,0 +1,140 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T18:43:10-06:00
+
+
+====== Calendar Routes ======
+
+===== Overview =====
+
+API endpoints for managing calendars. Calendars are organizational containers for routines, often imported from external CalDAV sources (Google Calendar, etc.) but can also be created manually.
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Calendar Endpoints =====
+
+==== List Calendars ====
+
+**GET /api/calendars**
+
+Returns all calendars for the authenticated user.
+
+| Parameter        | Type    | Location | Required | Description                                          |
+|------------------|---------|----------|----------|------------------------------------------------------|
+| include_inactive | boolean | query    | no       | If true, includes inactive calendars. Default false. |
+
+**Response:** Array of calendar objects
+
+
+==== Create Calendar ====
+
+**POST /api/calendars**
+
+Creates a new calendar manually.
+
+| Field           | Type   | Required | Description                                          |
+|-----------------|--------|----------|------------------------------------------------------|
+| name            | string | yes      | Calendar name (max 200 chars)                        |
+| color           | string | no       | Hex color code (e.g., "#ff5733"). Default "#767676"  |
+| external_uid    | string | no       | UID from external source (for sync)                  |
+| external_source | string | no       | Source identifier (e.g., "caldav")                   |
+
+**Response:** Created calendar object (201)
+
+
+==== Get Calendar ====
+
+**GET /api/calendars/<calendar_id>**
+
+Returns a specific calendar by ID.
+
+**Response:** Calendar object, or 404 if not found
+
+
+==== Update Calendar ====
+
+**PUT /api/calendars/<calendar_id>**
+
+Updates a calendar's properties.
+
+| Field  | Type    | Description                                            |
+|--------|---------|--------------------------------------------------------|
+| name   | string  | Calendar name (cannot be empty)                        |
+| color  | string  | Hex color code                                         |
+| active | boolean | Active flag; setting to false cascades to all routines |
+
+**Business Logic:**
+* Setting active to false will also deactivate all routines within the calendar
+* external_uid and external_source cannot be updated after creation
+
+**Response:** Updated calendar object, or 404 if not found
+
+
+==== Delete Calendar ====
+
+**DELETE /api/calendars/<calendar_id>**
+
+Permanently deletes a calendar and all its routines (and their sessions).
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== CalDAV Integration =====
+
+==== Discover Remote Calendars ====
+
+**POST /api/calendars/discover**
+
+Tests CalDAV credentials and returns available remote calendars without saving.
+
+| Field    | Type   | Required | Description       |
+|----------|--------|----------|-------------------|
+| url      | string | yes      | CalDAV server URL |
+| username | string | yes      | CalDAV username   |
+| password | string | yes      | CalDAV password   |
+
+**Response:** Array of remote calendar info objects with fields: name, uid, url, color
+
+**Errors:** 400 if connection fails
+
+
+==== Sync Calendar ====
+
+**POST /api/calendars/sync**
+
+Imports or syncs a remote calendar. Creates local Calendar record if needed, then imports recurring events as Routines.
+
+| Field      | Type   | Required | Description                          |
+|------------|--------|----------|--------------------------------------|
+| url        | string | yes      | CalDAV server URL                    |
+| username   | string | yes      | CalDAV username                      |
+| password   | string | yes      | CalDAV password                      |
+| remote_uid | string | yes      | UID of the specific calendar to sync |
+
+**Business Logic:**
+* Creates Calendar record with external_uid and external_source='caldav' if not exists
+* Imports recurring events (those with RRULE) as Routines
+* Duplicate detection: skips routines with matching (title, external_source, rrule)
+* Non-recurring events are ignored
+
+**Response:** Object with fields: calendar_id (integer), created_routines (integer)
+
+**Errors:** 400 if connection fails or remote calendar not found
+
+
+===== Calendar Object =====
+
+| Field           | Type     | Description                              |
+|-----------------|----------|------------------------------------------|
+| id              | integer  | Primary key                              |
+| user_id         | integer  | Owner                                    |
+| name            | string   | Calendar name                            |
+| color           | string   | Hex color code                           |
+| active          | boolean  | Active flag                              |
+| external_uid    | string   | UID from external source (null if local) |
+| external_source | string   | Source identifier (null if local)        |
+| tags            | array    | Attached tags                            |
+| principles      | array    | Attached principles                      |
+| created_at      | datetime | When created                             |
+| updated_at      | datetime | When last modified                       |

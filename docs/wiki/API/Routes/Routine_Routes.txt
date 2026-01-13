@@ -1,0 +1,151 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T18:43:17-06:00
+
+====== Routine Routes ======
+
+===== Overview =====
+
+API endpoints for managing routines. Routines are templates for recurring activities (habits, workouts, scheduled tasks). They define what the activity is and when it recurs, but actual occurrences (sessions) are generated separately.
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Routine Endpoints =====
+
+==== List Routines ====
+
+**GET /api/routines**
+
+Returns all routines for the authenticated user.
+
+| Parameter   | Type    | Location | Required | Description                                        |
+|-------------|---------|----------|----------|----------------------------------------------------|
+| active_only | boolean | query    | no       | If true (default), only returns active routines.   |
+
+**Response:** Array of routine objects
+
+
+==== Create Routine ====
+
+**POST /api/routines**
+
+Creates a new routine.
+
+| Field                | Type    | Required | Description                                              |
+|----------------------|---------|----------|----------------------------------------------------------|
+| title                | string  | yes      | Routine name (max 200 chars)                             |
+| description          | text    | no       | Details about the routine                                |
+| rrule                | string  | no       | iCalendar recurrence rule (e.g., "FREQ=WEEKLY;BYDAY=MO") |
+| start_time           | string  | no       | Time of day routine starts (HH:MM format)                |
+| end_time             | string  | no       | Time of day routine ends (HH:MM format)                  |
+| active               | boolean | no       | Default true                                             |
+| calendar_id          | integer | no       | Parent calendar ID                                       |
+| external_uid         | string  | no       | UID from external source                                 |
+| external_source      | string  | no       | Source identifier (e.g., "caldav")                       |
+| external_source_name | string  | no       | Human-readable source name                               |
+
+**Response:** Created routine object (201)
+
+
+==== Get Routine ====
+
+**GET /api/routines/<routine_id>**
+
+Returns a specific routine by ID.
+
+**Response:** Routine object, or 404 if not found
+
+
+==== Update Routine ====
+
+**PUT /api/routines/<routine_id>**
+
+Updates a routine's properties.
+
+| Field                  | Type    | Location | Description                                              |
+|------------------------|---------|----------|----------------------------------------------------------|
+| title                  | string  | body     | Routine name (cannot be empty)                           |
+| description            | text    | body     | Details about the routine                                |
+| rrule                  | string  | body     | iCalendar recurrence rule                                |
+| start_time             | string  | body     | Time of day (HH:MM format)                               |
+| end_time               | string  | body     | Time of day (HH:MM format)                               |
+| active                 | boolean | body     | Active flag                                              |
+| delete_future_sessions | boolean | query    | If true and deactivating, deletes future incomplete sessions |
+
+**Business Logic:**
+* Editing rrule or times does NOT affect already-generated sessions
+* When setting active=false with delete_future_sessions=true, all future incomplete sessions are deleted
+* Future = start_time > now; Incomplete = completed=false
+
+**Response:** Updated routine object, or 404 if not found
+
+
+==== Delete Routine ====
+
+**DELETE /api/routines/<routine_id>**
+
+Permanently deletes a routine and all its sessions.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== Session Generation =====
+
+==== Generate Sessions ====
+
+**POST /api/routines/<routine_id>/generate**
+
+Generates sessions for a routine within a date range based on its recurrence rule.
+
+| Field      | Type   | Required | Description                           |
+|------------|--------|----------|---------------------------------------|
+| start_date | string | yes      | Start of range (ISO datetime)         |
+| end_date   | string | yes      | End of range (ISO datetime)           |
+
+**Business Logic:**
+* Requires routine to have an rrule and start_time
+* Uses RRULE to calculate occurrences within the date range
+* Skips dates where a session already exists (duplicate detection by time window)
+* Each generated session auto-creates an associated Commitment
+* Session times are derived from routine's start_time/end_time applied to each occurrence date
+
+**Response:** Array of created session objects
+
+**Errors:**
+* 400 if routine has no rrule or start_time
+* 404 if routine not found
+
+
+===== Routine Object =====
+
+| Field                | Type     | Description                               |
+|----------------------|----------|-------------------------------------------|
+| id                   | integer  | Primary key                               |
+| user_id              | integer  | Owner                                     |
+| title                | string   | Routine name                              |
+| description          | text     | Details about the routine                 |
+| rrule                | string   | iCalendar recurrence rule                 |
+| start_time           | string   | Time of day (HH:MM format)                |
+| end_time             | string   | Time of day (HH:MM format)                |
+| active               | boolean  | Active flag                               |
+| calendar_id          | integer  | Parent calendar ID (null if standalone)   |
+| external_uid         | string   | UID from external source                  |
+| external_source      | string   | Source identifier                         |
+| external_source_name | string   | Human-readable source name                |
+| tags                 | array    | Attached tags                             |
+| principles           | array    | Attached principles                       |
+| created_at           | datetime | When created                              |
+| updated_at           | datetime | When last modified                        |
+
+
+===== RRULE Examples =====
+
+| Pattern              | RRULE                           |
+|----------------------|---------------------------------|
+| Every day            | FREQ=DAILY                      |
+| Every Monday         | FREQ=WEEKLY;BYDAY=MO            |
+| Mon, Wed, Fri        | FREQ=WEEKLY;BYDAY=MO,WE,FR      |
+| Every 2 weeks        | FREQ=WEEKLY;INTERVAL=2          |
+| First of each month  | FREQ=MONTHLY;BYMONTHDAY=1       |
+| Every weekday        | FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR|
