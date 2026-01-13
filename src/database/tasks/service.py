@@ -105,3 +105,13 @@ class TaskService:
     def mark_incomplete(self, task: Task) -> Task:
         """Mark a task as incomplete"""
         return self.uncomplete_task(task)
+
+
+    def attach_to_project(self, task: Task, project_id: int) -> Task:
+        """Attach a task to a project"""
+        return self.repository.set_project(task, project_id)
+
+    def detach_from_project(self, task: Task) -> Task:
+        """Detach a task from its project (make it standalone)"""
+        return self.repository.set_project(task, None)
+

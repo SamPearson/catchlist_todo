@@ -96,6 +96,24 @@ Marks a task as not completed. Clears the completed_at timestamp.
 **Response:** Updated task object, or 404 if not found
 
 
+==== Attach Task to Project ====
+
+**POST /api/tasks/<task_id>/attach/<project_id>**
+
+Associates a standalone task with a project, making it a subtask.
+
+**Response:** Updated task object with project_id set, or 404 if task not found
+
+
+==== Detach Task from Project ====
+
+**POST /api/tasks/<task_id>/detach**
+
+Removes a task's association with its project. The task becomes standalone; it is not deleted.
+
+**Response:** Updated task object with project_id cleared, or 404 if task not found
+
+
 ===== Task Object =====
 
 | Field | Type | Description |

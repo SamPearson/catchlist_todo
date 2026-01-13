@@ -99,3 +99,26 @@ def uncomplete_task(task_id):
     uncompleted_task = task_service.uncomplete_task(task)
     return jsonify(uncompleted_task.as_dict())
 
+@jwt_required()
+def attach_to_project(task_id, project_id):
+    """Attach a task to a project"""
+    user_id = get_jwt_identity()
+    task = task_service.get_task(task_id=task_id, user_id=user_id)
+    if not task:
+        return ('', 404)
+
+    # Optionally verify project exists and belongs to user
+    attached_task = task_service.attach_to_project(task, project_id)
+    return jsonify(attached_task.as_dict())
+
+
+@jwt_required()
+def detach_from_project(task_id):
+    """Detach a task from its project"""
+    user_id = get_jwt_identity()
+    task = task_service.get_task(task_id=task_id, user_id=user_id)
+    if not task:
+        return ('', 404)
+
+    detached_task = task_service.detach_from_project(task)
+    return jsonify(detached_task.as_dict())
