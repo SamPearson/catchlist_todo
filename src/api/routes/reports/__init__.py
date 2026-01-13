@@ -1,43 +1,37 @@
 from flask import Blueprint
-from . import day_reports, week_reports, month_reports, season_reports, year_reports
+from . import reports, metric_types, templates
 
 reports_bp = Blueprint('reports', __name__)
 
-# Day Report Routes
-reports_bp.add_url_rule('/api/reports/day/<date>', view_func=day_reports.get_report, endpoint='day_get_report', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/day', view_func=day_reports.list_reports, endpoint='day_list_reports', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/day', view_func=day_reports.create_report, endpoint='day_create_report', methods=['POST'])
-reports_bp.add_url_rule('/api/reports/day/<date>/get_or_create', view_func=day_reports.get_or_create_report, endpoint='day_get_or_create_report', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/day/<int:report_id>', view_func=day_reports.update_report, endpoint='day_update_report', methods=['PUT'])
-reports_bp.add_url_rule('/api/reports/day/<int:report_id>', view_func=day_reports.delete_report, endpoint='day_delete_report', methods=['DELETE'])
+# Report Routes
+reports_bp.add_url_rule('/api/reports', view_func=reports.list_reports, endpoint='list_reports', methods=['GET'])
+reports_bp.add_url_rule('/api/reports', view_func=reports.create_report, endpoint='create_report', methods=['POST'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>', view_func=reports.get_report, endpoint='get_report', methods=['GET'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>', view_func=reports.update_report, endpoint='update_report', methods=['PUT'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>', view_func=reports.delete_report, endpoint='delete_report', methods=['DELETE'])
+reports_bp.add_url_rule('/api/reports/for-date', view_func=reports.get_or_create_for_date, endpoint='get_or_create_for_date', methods=['POST'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>/metrics', view_func=reports.get_report_metrics, endpoint='get_report_metrics', methods=['GET'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>/metrics', view_func=reports.set_report_metrics, endpoint='set_report_metrics', methods=['PUT'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>/metrics/<int:metric_type_id>', view_func=reports.set_metric_value, endpoint='set_metric_value', methods=['PUT'])
+reports_bp.add_url_rule('/api/reports/<int:report_id>/metrics/<int:metric_type_id>', view_func=reports.remove_metric_value, endpoint='remove_metric_value', methods=['DELETE'])
 
-# Week Report Routes
-reports_bp.add_url_rule('/api/reports/week/<date>', view_func=week_reports.get_report, endpoint='week_get_report', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/week', view_func=week_reports.list_reports, endpoint='week_list_reports', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/week', view_func=week_reports.create_report, endpoint='week_create_report', methods=['POST'])
-reports_bp.add_url_rule('/api/reports/week/<date>/get_or_create', view_func=week_reports.get_or_create_report, endpoint='week_get_or_create_report', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/week/<int:report_id>', view_func=week_reports.update_report, endpoint='week_update_report', methods=['PUT'])
-reports_bp.add_url_rule('/api/reports/week/<int:report_id>', view_func=week_reports.delete_report, endpoint='week_delete_report', methods=['DELETE'])
+# Metric Type Routes
+reports_bp.add_url_rule('/api/metric-types', view_func=metric_types.list_metric_types, endpoint='list_metric_types', methods=['GET'])
+reports_bp.add_url_rule('/api/metric-types', view_func=metric_types.create_metric_type, endpoint='create_metric_type', methods=['POST'])
+reports_bp.add_url_rule('/api/metric-types/<int:metric_type_id>', view_func=metric_types.get_metric_type, endpoint='get_metric_type', methods=['GET'])
+reports_bp.add_url_rule('/api/metric-types/<int:metric_type_id>', view_func=metric_types.update_metric_type, endpoint='update_metric_type', methods=['PUT'])
+reports_bp.add_url_rule('/api/metric-types/<int:metric_type_id>', view_func=metric_types.delete_metric_type, endpoint='delete_metric_type', methods=['DELETE'])
+reports_bp.add_url_rule('/api/metric-types/<int:metric_type_id>/archive', view_func=metric_types.archive_metric_type, endpoint='archive_metric_type', methods=['POST'])
+reports_bp.add_url_rule('/api/metric-types/<int:metric_type_id>/reactivate', view_func=metric_types.reactivate_metric_type, endpoint='reactivate_metric_type', methods=['POST'])
 
-# Month Report Routes
-reports_bp.add_url_rule('/api/reports/month/<date>', view_func=month_reports.get_report, endpoint='month_get_report', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/month', view_func=month_reports.list_reports, endpoint='month_list_reports', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/month', view_func=month_reports.create_report, endpoint='month_create_report', methods=['POST'])
-reports_bp.add_url_rule('/api/reports/month/<int:report_id>', view_func=month_reports.update_report, endpoint='month_update_report', methods=['PUT'])
-reports_bp.add_url_rule('/api/reports/month/<int:report_id>', view_func=month_reports.delete_report, endpoint='month_delete_report', methods=['DELETE'])
-
-# Season Report Routes
-reports_bp.add_url_rule('/api/reports/season/<date>', view_func=season_reports.get_report, endpoint='season_get_report', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/season/<int:year>/<string:season>', view_func=season_reports.get_report_by_year_season, endpoint='season_get_report_by_year_season', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/season', view_func=season_reports.list_reports, endpoint='season_list_reports', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/season', view_func=season_reports.create_report, endpoint='season_create_report', methods=['POST'])
-reports_bp.add_url_rule('/api/reports/season/<int:report_id>', view_func=season_reports.update_report, endpoint='season_update_report', methods=['PUT'])
-reports_bp.add_url_rule('/api/reports/season/<int:report_id>', view_func=season_reports.delete_report, endpoint='season_delete_report', methods=['DELETE'])
-
-# Year Report Routes
-reports_bp.add_url_rule('/api/reports/year/<date>', view_func=year_reports.get_report, endpoint='year_get_report_by_date', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/year/<int:year>', view_func=year_reports.get_report_by_year, endpoint='year_get_report_by_year', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/year', view_func=year_reports.list_reports, endpoint='year_list_reports', methods=['GET'])
-reports_bp.add_url_rule('/api/reports/year', view_func=year_reports.create_report, endpoint='year_create_report', methods=['POST'])
-reports_bp.add_url_rule('/api/reports/year/<int:report_id>', view_func=year_reports.update_report, endpoint='year_update_report', methods=['PUT'])
-reports_bp.add_url_rule('/api/reports/year/<int:report_id>', view_func=year_reports.delete_report, endpoint='year_delete_report', methods=['DELETE'])
+# Template Routes
+reports_bp.add_url_rule('/api/report-templates', view_func=templates.list_templates, endpoint='list_templates', methods=['GET'])
+reports_bp.add_url_rule('/api/report-templates', view_func=templates.create_template, endpoint='create_template', methods=['POST'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>', view_func=templates.get_template, endpoint='get_template', methods=['GET'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>', view_func=templates.update_template, endpoint='update_template', methods=['PUT'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>', view_func=templates.delete_template, endpoint='delete_template', methods=['DELETE'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>/set-default', view_func=templates.set_default_template, endpoint='set_default_template', methods=['POST'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>/metrics', view_func=templates.get_template_metrics, endpoint='get_template_metrics', methods=['GET'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>/metrics', view_func=templates.add_metric_to_template, endpoint='add_metric_to_template', methods=['POST'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>/metrics', view_func=templates.reorder_template_metrics, endpoint='reorder_template_metrics', methods=['PUT'])
+reports_bp.add_url_rule('/api/report-templates/<int:template_id>/metrics/<int:metric_type_id>', view_func=templates.remove_metric_from_template, endpoint='remove_metric_from_template', methods=['DELETE'])

@@ -1,0 +1,185 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T21:07:32-06:00
+
+====== Report Routes ======
+
+===== Overview =====
+
+API endpoints for managing reports. Reports are timeframe-connected documents for planning, tracking metrics, and reflecting on a time period.
+
+A report has a 1:1 relationship with a Timeframe. The timeframe determines the "kind" of report (day, week, month, season, year).
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Endpoints =====
+
+==== List Reports ====
+
+**GET /api/reports**
+
+Returns all reports for the authenticated user.
+
+| Parameter | Type   | Location | Required | Description                                              |
+|-----------|--------|----------|----------|----------------------------------------------------------|
+| kind      | string | query    | no       | Filter by timeframe kind: day, week, month, season, year |
+
+**Response:** Array of report objects, ordered by timeframe start date (newest first)
+
+
+==== Create Report ====
+
+**POST /api/reports**
+
+Creates a new report for an existing timeframe. For most use cases, prefer the get-or-create endpoint.
+
+| Field        | Type    | Required | Description                                    |
+|--------------|---------|----------|------------------------------------------------|
+| timeframe_id | integer | yes      | ID of the timeframe to attach to               |
+| template_id  | integer | no       | Template to apply (creates metric value slots) |
+| plan         | text    | no       | What you intend to accomplish                  |
+| reason       | text    | no       | Why this matters                               |
+| pre_notes    | text    | no       | Thoughts before the timeframe begins           |
+| post_notes   | text    | no       | Reflection after the timeframe ends            |
+
+**Response:** Created report object (201)
+
+**Errors:**
+* 400 if timeframe_id missing
+* 400 if report already exists for that timeframe
+
+
+==== Get or Create Report for Date ====
+
+**POST /api/reports/for-date**
+
+Primary workflow for accessing reports. Gets an existing report or creates a new one for the specified date and timeframe kind.
+
+| Field                | Type    | Required | Description                                     |
+|----------------------|---------|----------|-------------------------------------------------|
+| kind                 | string  | yes      | Timeframe kind: day, week, month, season, year  |
+| date                 | string  | yes      | ISO date (YYYY-MM-DD)                           |
+| timezone             | string  | yes      | User's timezone (e.g., "America/Chicago")       |
+| template_id          | integer | no       | Specific template to use if creating            |
+| use_default_template | boolean | no       | Use default template if creating (default true) |
+
+**Response:** Report object (200 if existing, 201 if created)
+
+**Example Request:**
+	kind: "day"
+	date: "2026-01-12"
+	timezone: "America/Chicago"
+
+
+==== Get Report ====
+
+**GET /api/reports/<report_id>**
+
+Returns a specific report by ID.
+
+**Response:** Report object, or 404 if not found
+
+
+==== Update Report ====
+
+**PUT /api/reports/<report_id>**
+
+Updates a report's text fields.
+
+| Field      | Type | Description                          |
+|------------|------|--------------------------------------|
+| plan       | text | What you intend to accomplish        |
+| reason     | text | Why this matters                     |
+| pre_notes  | text | Thoughts before the timeframe begins |
+| post_notes | text | Reflection after the timeframe ends  |
+
+**Response:** Updated report object, or 404 if not found
+
+
+==== Delete Report ====
+
+**DELETE /api/reports/<report_id>**
+
+Permanently deletes a report and its metric values. Does NOT delete the timeframe.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+==== Get Report Metrics ====
+
+**GET /api/reports/<report_id>/metrics**
+
+Returns all metric values recorded on this report.
+
+**Response:** Array of metric value objects, or 404 if report not found
+
+
+==== Bulk Set Report Metrics ====
+
+**PUT /api/reports/<report_id>/metrics**
+
+Set multiple metric values at once.
+
+**Request Body:** Object with metric_type_id keys and values
+
+**Example:**
+	"1": 8
+	"2": 7.5
+	"3": true
+
+**Response:** Array of updated metric value objects, or 404 if report not found
+
+
+==== Set Single Metric Value ====
+
+**PUT /api/reports/<report_id>/metrics/<metric_type_id>**
+
+Set a single metric value on a report.
+
+| Field | Type                | Required | Description      |
+|-------|---------------------|----------|------------------|
+| value | int/float/bool/null | yes      | The metric value |
+
+**Response:** Metric value object, or 404 if report not found
+
+
+==== Remove Metric Value ====
+
+**DELETE /api/reports/<report_id>/metrics/<metric_type_id>**
+
+Remove a metric value from a report.
+
+**Response:** 204 No Content, or 404 if report not found
+
+
+===== Report Object =====
+
+| Field         | Type     | Description                          |
+|---------------|----------|--------------------------------------|
+| id            | integer  | Primary key                          |
+| user_id       | integer  | Owner                                |
+| timeframe_id  | integer  | Linked timeframe                     |
+| plan          | text     | What you intend to accomplish        |
+| reason        | text     | Why this matters                     |
+| pre_notes     | text     | Thoughts before the timeframe begins |
+| post_notes    | text     | Reflection after the timeframe ends  |
+| timeframe     | object   | Embedded timeframe object            |
+| metric_values | array    | Embedded metric values               |
+| created_at    | datetime | When created                         |
+| updated_at    | datetime | When last modified                   |
+
+
+===== Metric Value Object =====
+
+| Field          | Type     | Description                    |
+|----------------|----------|--------------------------------|
+| id             | integer  | Primary key                    |
+| report_id      | integer  | Parent report                  |
+| metric_type_id | integer  | Metric definition              |
+| value_int      | integer  | Value for integer/rating types |
+| value_float    | float    | Value for float types          |
+| value_bool     | boolean  | Value for boolean types        |
+| metric_type    | object   | Embedded metric type object    |
+| created_at     | datetime | When created                   |
+| updated_at     | datetime | When last modified             |
