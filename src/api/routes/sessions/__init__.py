@@ -8,3 +8,5 @@ sessions_bp.add_url_rule("/api/routines/<int:routine_id>/sessions", view_func=se
 sessions_bp.add_url_rule("/api/sessions/<int:session_id>", view_func=sessions.get_session, methods=["GET"])
 sessions_bp.add_url_rule("/api/sessions/<int:session_id>", view_func=sessions.update_session, methods=["PUT"])
 sessions_bp.add_url_rule("/api/sessions/<int:session_id>", view_func=sessions.delete_session, methods=["DELETE"])
+sessions_bp.add_url_rule("/api/sessions/<int:session_id>/complete", view_func=sessions.complete_session, methods=["POST"])
+sessions_bp.add_url_rule("/api/sessions/<int:session_id>/uncomplete", view_func=sessions.uncomplete_session, methods=["POST"])
