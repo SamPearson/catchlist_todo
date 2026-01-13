@@ -42,7 +42,7 @@ class TaskService:
 
     def get_task(self, task_id: int, user_id: int) -> Optional[Task]:
         """Get a specific task, ensuring user ownership"""
-        return self.repository.get(task_id=task_id, user_id=user_id)
+        return self.repository.get(id=task_id, user_id=user_id)
 
     def list_tasks(self, user_id: int, include_completed: bool = False) -> List[Task]:
         """List all tasks for a user"""
