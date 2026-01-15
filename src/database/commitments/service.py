@@ -148,27 +148,24 @@ class CommitmentService:
             user_id: int,
             target_type: str,
             target_id: int,
+            timeframe_id: int,
             due_at_utc: datetime,
             start_at_utc: datetime | None = None,
-            local_date: date,
-            user_tz: str,
             status: str | None = None,
             notes: str | None = None,
     ) -> Commitment:
         """
-        Create a hard commitment (specific time, auto-derives DAY timeframe).
+        Create a hard commitment (specific time with exact timestamps).
 
-        All datetime parameters should already be in UTC. The local_date and user_tz
-        are needed to determine which DAY timeframe to attach to.
+        All datetime parameters should already be in UTC.
 
         Args:
             user_id: Owner of the commitment
             target_type: One of task, project, routine, session
             target_id: ID of the target entity
+            timeframe_id: ID of the DAY timeframe this commitment belongs to
             due_at_utc: When the commitment is due (UTC)
             start_at_utc: Optional start time (UTC)
-            local_date: The local calendar date for timeframe derivation
-            user_tz: User's timezone (for timeframe creation)
             status: Optional status (defaults to 'planned')
             notes: Optional notes
         """
@@ -176,20 +173,13 @@ class CommitmentService:
         status = self._normalize_status(status)
 
         self._ensure_target_exists(user_id=user_id, target_type=target_type, target_id=int(target_id))
-
-        # Hard commitments always attach to the derived DAY timeframe.
-        day_tf = self.timeframe_service.get_or_create_for_local_date(
-            user_id=user_id,
-            kind=TimeframeService.KIND_DAY,
-            local_day=local_date,
-            user_tz=user_tz,
-        )
+        self._ensure_timeframe_exists(user_id=user_id, timeframe_id=int(timeframe_id))
 
         existing = self.repo.find_by_unique(
             user_id=user_id,
             target_type=target_type,
             target_id=target_id,
-            timeframe_id=day_tf.id,
+            timeframe_id=timeframe_id,
         )
         if existing is not None:
             raise CommitmentConflict("Hard commitment already exists for this target on that day.")
@@ -198,22 +188,22 @@ class CommitmentService:
             user_id=user_id,
             target_type=target_type,
             target_id=target_id,
-            timeframe_id=day_tf.id,
+            timeframe_id=timeframe_id,
             status=status,
             notes=notes,
             start_at_utc=start_at_utc,
             due_at_utc=due_at_utc,
         )
 
+
     def create_for_session(
             self,
             *,
             user_id: int,
             session_id: int,
+            timeframe_id: int,
             start_at_utc: datetime,
             due_at_utc: datetime,
-            local_date: date,
-            user_tz: str,
     ) -> Commitment:
         """
         Create a hard commitment for a session. Convenience method for auto-generation.
@@ -221,22 +211,20 @@ class CommitmentService:
         Args:
             user_id: Owner of the commitment
             session_id: ID of the session
+            timeframe_id: ID of the DAY timeframe
             start_at_utc: Session start time (UTC)
             due_at_utc: Session end time (UTC) - used as due time
-            local_date: The local calendar date for timeframe derivation
-            user_tz: User's timezone
 
         Returns:
-            The created commitment, or None if commitment already exists
+            The created commitment
         """
         return self.create_hard(
             user_id=user_id,
             target_type="session",
             target_id=session_id,
+            timeframe_id=timeframe_id,
             due_at_utc=due_at_utc,
             start_at_utc=start_at_utc,
-            local_date=local_date,
-            user_tz=user_tz,
             status="planned",
             notes=None,
         )
