@@ -50,6 +50,14 @@ def update_project(project_id: int):
 
     try:
         data = request.get_json() or {}
+
+        # Check for disallowed fields
+        disallowed_fields = {'status', 'active', 'completed', 'completed_at'}
+        if any(field in data for field in disallowed_fields):
+            return jsonify({
+                'error': 'Cannot update status, active, or completed via this endpoint. Use dedicated endpoints instead.'
+            }), 400
+
         updated = service.update_project(project, data)
         return jsonify(updated.as_dict())
     except ProjectValidationError as e:
@@ -99,6 +107,40 @@ def uncomplete_project(project_id: int):
     uncompleted = service.uncomplete_project(project)
     return jsonify(uncompleted.as_dict())
 
+
+
+@jwt_required()
+def activate_project(project_id: int):
+    """Activate a project (set active=true) - requires win_condition and reason"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    try:
+        activated = service.activate_project(project)
+        return jsonify(activated.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def deactivate_project(project_id: int):
+    """Deactivate a project (set active=false)"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    try:
+        deactivated = service.deactivate_project(project)
+        return jsonify(deactivated.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({"error": e.message}), 400
 
 # --- Subtask Routes ---
 
