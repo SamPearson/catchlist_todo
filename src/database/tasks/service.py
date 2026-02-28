@@ -135,9 +135,39 @@ class TaskService:
         """Mark a task as incomplete"""
         return self.uncomplete_task(task)
 
+    def activate_task(self, task: Task) -> Task:
+        """Activate a task (set active=true)"""
+        if task.active:
+            return task
+        return self.repository.update(task, active=True)
 
-    def attach_to_project(self, task: Task, project_id: int) -> Task:
-        """Attach a task to a project"""
+    def deactivate_task(self, task: Task) -> Task:
+        """Deactivate a task (set active=false)"""
+        if not task.active:
+            return task
+        return self.repository.update(task, active=False)
+
+    def change_status(self, task: Task, new_status: str) -> Task:
+        """Change a task's status"""
+        if new_status not in VALID_STATUSES:
+            raise TaskValidationError(f"Invalid status: {new_status}. Must be one of: {', '.join(VALID_STATUSES)}")
+        
+        if task.status == new_status:
+            return task
+        
+        return self.repository.update(task, status=new_status)
+
+    def attach_to_project(self, task: Task, project_id: int, user_id: int) -> Task:
+        """Attach a task to a project with ownership validation"""
+        from src.database.projects.repository import ProjectRepository
+        from src.database.db import db
+
+        project_repo = ProjectRepository(db.session)
+        project = project_repo.get(id=project_id, user_id=user_id)
+
+        if not project:
+            raise TaskValidationError(f"Project not found or access denied")
+
         return self.repository.set_project(task, project_id)
 
     def detach_from_project(self, task: Task) -> Task:
