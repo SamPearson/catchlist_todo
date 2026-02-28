@@ -47,7 +47,7 @@ def create_task():
 
 @jwt_required()
 def update_task(task_id):
-    """Update a task"""
+    """Update a task (excludes completion, active, and status)"""
     user_id = get_jwt_identity()
     task = task_service.get_task(task_id=task_id, user_id=user_id)
     if not task:
@@ -56,6 +56,13 @@ def update_task(task_id):
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No update data provided'}), 400
+
+    # Check for disallowed fields
+    disallowed_fields = {'status', 'active', 'completed', 'completed_at'}
+    if any(field in data for field in disallowed_fields):
+        return jsonify({
+            'error': 'Cannot update status, active, or completed via this endpoint. Use dedicated endpoints instead.'
+        }), 400
 
     try:
         updated_task = task_service.update_task(task, data)
