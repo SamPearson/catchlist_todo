@@ -15,6 +15,7 @@ projects_bp.add_url_rule("/api/projects/<int:project_id>/complete", view_func=pr
 projects_bp.add_url_rule("/api/projects/<int:project_id>/uncomplete", view_func=projects.uncomplete_project, methods=["PATCH"])
 projects_bp.add_url_rule("/api/projects/<int:project_id>/activate", view_func=projects.activate_project, methods=["PATCH"])
 projects_bp.add_url_rule("/api/projects/<int:project_id>/deactivate", view_func=projects.deactivate_project, methods=["PATCH"])
+projects_bp.add_url_rule("/api/projects/<int:project_id>/status", view_func=projects.change_project_status, methods=["PATCH"])
 
 # Project Task Routes
 projects_bp.add_url_rule("/api/projects/<int:project_id>/tasks", view_func=projects.get_project_tasks, methods=["GET"])

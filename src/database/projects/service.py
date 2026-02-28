@@ -136,6 +136,17 @@ class ProjectService:
         return self.repository.update(project, active=False)
 
 
+    def change_status(self, project: Project, new_status: str) -> Project:
+        """Change a project's status"""
+        if new_status not in VALID_STATUSES:
+            raise ProjectValidationError(f"Invalid status: {new_status}. Must be one of: {', '.join(VALID_STATUSES)}")
+
+        if project.status == new_status:
+            return project
+
+        return self.repository.update(project, status=new_status)
+
+
     def delete_project(self, project: Project) -> None:
         self.repository.delete(project)
 

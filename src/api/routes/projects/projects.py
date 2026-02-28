@@ -65,19 +65,6 @@ def update_project(project_id: int):
 
 
 @jwt_required()
-def delete_project(project_id: int):
-    user_id = int(get_jwt_identity())
-    service = ProjectService(ProjectRepository(db.session))
-
-    project = service.get_project(project_id, user_id)
-    if not project:
-        return ('', 404)
-
-    service.delete_project(project)
-    return ('', 204)
-
-
-@jwt_required()
 def complete_project(project_id: int):
     """Mark a project as completed"""
     user_id = int(get_jwt_identity())
@@ -141,6 +128,41 @@ def deactivate_project(project_id: int):
         return jsonify(deactivated.as_dict())
     except ProjectValidationError as e:
         return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def change_project_status(project_id: int):
+    """Change a project's status"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({'error': 'status is required'}), 400
+
+    try:
+        updated = service.change_status(project, data['status'])
+        return jsonify(updated.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({'error': e.message}), 400
+
+
+@jwt_required()
+def delete_project(project_id: int):
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    service.delete_project(project)
+    return ('', 204)
+
 
 # --- Subtask Routes ---
 
