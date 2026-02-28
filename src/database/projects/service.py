@@ -108,6 +108,34 @@ class ProjectService:
             completed_at=None
         )
 
+
+    def activate_project(self, project: Project) -> Project:
+        """
+        Activate a project (set active=true).
+        - Validates that both win_condition and reason are populated
+        - Returns validation error if either is missing
+        """
+        if project.active:
+            return project  # Already active, no-op
+
+        if not project.win_condition or not project.reason:
+            raise ProjectValidationError(
+                "Cannot activate project; win_condition and reason are required."
+            )
+
+        return self.repository.update(project, active=True)
+
+    def deactivate_project(self, project: Project) -> Project:
+        """
+        Deactivate a project (set active=false).
+        - No validation required
+        """
+        if not project.active:
+            return project  # Already inactive, no-op
+
+        return self.repository.update(project, active=False)
+
+
     def delete_project(self, project: Project) -> None:
         self.repository.delete(project)
 
