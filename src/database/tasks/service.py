@@ -1,8 +1,9 @@
 from typing import List, Optional, Dict
-from datetime import datetime
 from .repository import TaskRepository
 from .models import Task
 from src.database.base.exceptions import ValidationError
+from src.database.checkins.service import CheckinService
+from src.database.db import db
 
 
 class TaskValidationError(ValidationError):
@@ -76,7 +77,35 @@ class TaskService:
         )
 
     def delete_task(self, task: Task) -> None:
-        """Delete a task"""
+        """Delete a task and cascade delete all associated records"""
+
+        
+        # Delete all checkins for this task
+        checkin_service = CheckinService(db.session)
+        checkin_service.delete_for_target(
+            user_id=task.user_id,
+            target_type='task',
+            target_id=task.id,
+        )
+        
+        # Delete all tag associations for this task
+        from src.database.tags.models import TagAssociation
+        db.session.query(TagAssociation).filter_by(
+            entity_id=task.id,
+            entity_type='task',
+        ).delete()
+        
+        # Delete all principle associations for this task
+        from src.database.principles.models import PrincipleAssociation
+        db.session.query(PrincipleAssociation).filter_by(
+            entity_id=task.id,
+            entity_type='task',
+        ).delete()
+        
+        # Commit association deletions
+        db.session.commit()
+        
+        # Delete the task itself
         self.repository.delete(task)
 
     def complete_task(self, task: Task) -> Task:
