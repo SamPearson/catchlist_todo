@@ -13,6 +13,8 @@ All endpoints require authentication via JWT Bearer token.
 
 Timeframes use half-open intervals: [start_at_utc, end_at_utc) — start is inclusive, end is exclusive.
 
+**Important:** Timeframes are permanent historical records. Once created, they persist indefinitely. There is no DELETE operation for timeframes.
+
 
 ===== Utility Endpoints =====
 
@@ -42,7 +44,7 @@ Returns timeframes for the authenticated user.
 | kind      | string | query    | no*      | Filter by kind (day, week, month, season, year)  |
 | start     | string | query    | no       | Start of date range (YYYY-MM-DD)                 |
 | end       | string | query    | no       | End of date range (YYYY-MM-DD)                   |
-| tz        | string | query    | no       | Timezone for date interpretation. Default UTC    |
+| tz        | string | query    | no       | Timezone for date interpretation. Default: user's timezone or UTC |
 
 *kind is required when using start/end window queries.
 
@@ -63,15 +65,13 @@ Creates a timeframe using get-or-create semantics. Returns existing timeframe if
 | date  | string | no       | Local date (YYYY-MM-DD). Defaults to today     |
 | tz    | string | no       | Timezone for date. Defaults to user's timezone |
 
-**Response:**
-| Field     | Type    | Description                          |
-|-----------|---------|--------------------------------------|
-| created   | boolean | True if new, false if already existed|
-| timeframe | object  | The timeframe object                 |
+**Response:** Timeframe object
 
-**Status:** 201 if created, 200 if already existed
+**Status:** 201 (always - even if timeframe already existed)
 
 **Errors:** 400 if kind or timezone is invalid
+
+**Note:** This endpoint always returns the timeframe whether it's newly created or already existed. Use this for programmatic timeframe creation.
 
 
 ==== Get Timeframe by ID ====
@@ -83,34 +83,31 @@ Returns a specific timeframe by ID.
 **Response:** Timeframe object, or 404 if not found
 
 
-==== Delete Timeframe ====
-
-**DELETE /api/timeframes/<timeframe_id>**
-
-Permanently deletes a timeframe.
-
-**Response:** 204 No Content, or 404 if not found
-
-
 ===== Convenience Endpoints =====
+
+All convenience endpoints use **get-or-create semantics** - they will create the timeframe if it doesn't exist. This ensures these endpoints always succeed for valid inputs.
 
 ==== Get Timeframe for Today ====
 
 **GET /api/timeframes/<kind>**
 
-Returns the existing timeframe of the specified kind containing today's date.
+Returns the timeframe of the specified kind containing today's date. Creates it if it doesn't exist.
 
 | Parameter | Type   | Location | Required | Description                                    |
 |-----------|--------|----------|----------|------------------------------------------------|
 | kind      | string | path     | yes      | One of: day, week, month, season, year         |
 | tz        | string | query    | no       | Timezone for "today". Defaults to user's timezone |
 
-**Response:** Timeframe object, or 404 if not found
+**Response:** Timeframe object (always succeeds for valid kind)
+
+**Errors:** 400 if kind or timezone is invalid
 
 
 ==== Get or Create Timeframe for Today ====
 
 **GET /api/timeframes/<kind>/get_or_create**
+
+Alias for `GET /api/timeframes/<kind>`. Kept for backward compatibility.
 
 Returns the timeframe of the specified kind containing today's date, creating it if necessary.
 
@@ -126,7 +123,7 @@ Returns the timeframe of the specified kind containing today's date, creating it
 
 **GET /api/timeframes/<kind>/<date>**
 
-Returns the existing timeframe of the specified kind containing the given date.
+Returns the timeframe of the specified kind containing the given date. Creates it if it doesn't exist.
 
 | Parameter | Type   | Location | Required | Description                                    |
 |-----------|--------|----------|----------|------------------------------------------------|
@@ -134,12 +131,16 @@ Returns the existing timeframe of the specified kind containing the given date.
 | date      | string | path     | yes      | Local date (YYYY-MM-DD)                        |
 | tz        | string | query    | no       | Timezone for date. Defaults to user's timezone |
 
-**Response:** Timeframe object, or 404 if not found
+**Response:** Timeframe object (always succeeds for valid kind and date)
+
+**Errors:** 400 if kind is invalid, timezone is invalid, or date format is incorrect
 
 
 ==== Get or Create Timeframe for Date ====
 
 **GET /api/timeframes/<kind>/<date>/get_or_create**
+
+Alias for `GET /api/timeframes/<kind>/<date>`. Kept for backward compatibility.
 
 Returns the timeframe of the specified kind containing the given date, creating it if necessary.
 
@@ -150,6 +151,17 @@ Returns the timeframe of the specified kind containing the given date, creating 
 | tz        | string | query    | no       | Timezone for date. Defaults to user's timezone |
 
 **Response:** Timeframe object (always succeeds for valid kind and date)
+
+
+===== Timezone Handling =====
+
+All endpoints that accept a `tz` parameter use the following fallback order:
+
+1. Explicitly provided `tz` query parameter
+2. User's configured timezone (from User.timezone)
+3. UTC (if no user timezone is configured)
+
+Valid timezone values are IANA timezone names (e.g., "America/Chicago", "Europe/London", "UTC").
 
 
 ===== Timeframe Kinds =====
@@ -171,7 +183,7 @@ Returns the timeframe of the specified kind containing the given date, creating 
 | Summer | June, July, August        |
 | Autumn | September, October, November |
 
-Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1).
+Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1). Winter is identified by the year of its December.
 
 
 ===== Timeframe Object =====
@@ -186,3 +198,27 @@ Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1).
 | label       | string   | Human-readable label                  |
 | created_at  | datetime | When created                          |
 | updated_at  | datetime | When last modified                    |
+
+
+===== Design Notes =====
+
+==== Get-or-Create Semantics ====
+
+Most timeframe endpoints use get-or-create semantics, meaning they will return an existing timeframe if one matches the criteria, or create a new one if it doesn't exist. This design choice ensures:
+
+* Endpoints are idempotent - calling them multiple times produces the same result
+* Consumers don't need to handle 404 errors for missing timeframes
+* Timeframes are created on-demand when needed
+* Historical continuity is maintained (same timeframe returned for same period)
+
+The uniqueness constraint `(user_id, kind, start_at_utc)` ensures only one timeframe exists for each user/kind/period combination.
+
+==== No Deletion ====
+
+Timeframes cannot be deleted via the API. They are permanent historical records that:
+
+* Anchor commitments to specific time periods
+* Form the basis for reports and historical analysis
+* Should not be removed even if they contain no commitments
+
+Timeframes are only deleted when the user account itself is deleted (cascade delete).

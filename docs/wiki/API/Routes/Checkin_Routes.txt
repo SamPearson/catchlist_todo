@@ -8,10 +8,6 @@ Creation-Date: 2026-01-12T19:00:00-06:00
 
 API endpoints for managing checkins. Checkins are timestamped notes attached to entities, providing a chronological record of thoughts, progress, and reflections.
 
-All endpoints require authentication via JWT Bearer token.
-
-All datetime values are returned in the user's configured timezone. Input datetimes can be in any timezone (with offset) or naive (interpreted as user's timezone).
-
 
 ===== Checkin Endpoints =====
 
@@ -19,19 +15,37 @@ All datetime values are returned in the user's configured timezone. Input dateti
 
 **GET /api/checkins**
 
-Returns checkins for a specific target entity.
+Returns checkins for a specific target entity, ordered by occurred_at descending (most recent first), then by created_at descending.
 
-| Parameter   | Type    | Location | Required | Description                              |
-|-------------|---------|----------|----------|------------------------------------------|
-| target_type | string  | query    | yes      | Entity type (see target types)           |
-| target_id   | integer | query    | yes      | ID of the target entity                  |
-| limit       | integer | query    | no       | Max results to return. Default 50        |
-| offset      | integer | query    | no       | Number of results to skip. Default 0     |
+**Query Parameters:**
 
-**Response:** Array of checkin objects (newest first)
+| Parameter   | Type    | Required | Description                              |
+|-------------|---------|----------|------------------------------------------|
+| target_type | string  | yes      | Entity type (see target types)           |
+| target_id   | integer | yes      | ID of the target entity                  |
+| limit       | integer | no       | Max results to return. Default 50        |
+| offset      | integer | no       | Number of results to skip. Default 0     |
+
+**Response:** Array of checkin objects
+
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+[
+  {
+    "id": 123,
+    "user_id": 1,
+    "target_type": "task",
+    "target_id": 456,
+    "note": "Made good progress on this today",
+    "occurred_at": "2026-03-12T14:30:00-06:00",
+    "created_at": "2026-03-12T14:35:00-06:00",
+    "updated_at": "2026-03-12T14:35:00-06:00"
+  }
+]
+}}}
 
 **Errors:**
-* 400 if target_type or target_id missing/invalid
+* 400 if target_type or target_id missing/invalid, or limit/offset not integers
 * 404 if target not found
 
 
@@ -39,24 +53,39 @@ Returns checkins for a specific target entity.
 
 **POST /api/checkins**
 
-Creates a new checkin.
+Creates a new checkin attached to a target entity.
+
+**Request Body:**
 
 | Field       | Type    | Required | Description                                  |
 |-------------|---------|----------|----------------------------------------------|
 | target_type | string  | yes      | Entity type (see target types)               |
 | target_id   | integer | yes      | ID of the target entity                      |
-| note        | text    | yes      | The checkin content (cannot be empty)        |
-| occurred_at | string  | no       | When this happened (ISO datetime). Defaults to now |
+| note        | text    | yes      | The checkin content (cannot be empty/blank)  |
+| occurred_at | string  | no       | When this happened (ISO 8601). Defaults to now |
 
 **Business Logic:**
 * Validates target exists and belongs to user
 * occurred_at defaults to current time if not specified
-* Allows backdating notes ("this happened yesterday")
+* Allows backdating notes: occurred_at represents "when did this happen," while created_at represents "when did I record it"
+* Note text is required and cannot be empty or only whitespace
 
 **Response:** Created checkin object (201)
 
+**Example Request:**
+{{{code: lang="json" linenumbers="True"
+{
+  "target_type": "task",
+  "target_id": 456,
+  "note": "Completed initial research phase",
+  "occurred_at": "2026-03-11T16:00:00"
+}
+}}}
+
 **Errors:**
-* 400 if required fields missing or note is empty
+* 400 if required fields missing
+* 400 if occurred_at format is invalid
+* 400 if validation fails (e.g., empty note)
 * 404 if target not found
 
 
@@ -68,23 +97,54 @@ Returns a specific checkin by ID.
 
 **Response:** Checkin object, or 404 if not found
 
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+{
+  "id": 123,
+  "user_id": 1,
+  "target_type": "project",
+  "target_id": 789,
+  "note": "Project milestone reached",
+  "occurred_at": "2026-03-10T10:00:00-06:00",
+  "created_at": "2026-03-10T10:05:00-06:00",
+  "updated_at": "2026-03-10T10:05:00-06:00"
+}
+}}}
+
 
 ==== Update Checkin ====
 
 **PUT /api/checkins/<checkin_id>**
 
-Updates a checkin's properties.
+Updates a checkin's note and/or occurred_at timestamp.
 
-| Field       | Type   | Description                                  |
-|-------------|--------|----------------------------------------------|
-| note        | text   | The checkin content (cannot be empty)        |
-| occurred_at | string | When this happened (ISO datetime)            |
+**Request Body:**
+
+| Field       | Type   | Required | Description                                  |
+|-------------|--------|----------|----------------------------------------------|
+| note        | text   | no       | The checkin content (cannot be empty)        |
+| occurred_at | string | no       | When this happened (ISO 8601)                |
 
 At least one field must be provided.
 
+**Business Logic:**
+* Note cannot be empty or only whitespace if provided
+* occurred_at allows correcting when the checkin actually occurred
+* Target type and target ID cannot be changed (requires delete + recreate)
+
 **Response:** Updated checkin object, or 404 if not found
 
-**Errors:** 400 if note is empty or no valid fields provided
+**Example Request:**
+{{{code: lang="json" linenumbers="True"
+{
+  "note": "Updated: Project milestone reached with minor delays"
+}
+}}}
+
+**Errors:**
+* 400 if note is empty or no valid fields provided
+* 400 if occurred_at format is invalid
+* 404 if not found
 
 
 ==== Delete Checkin ====
@@ -98,6 +158,8 @@ Permanently deletes a checkin.
 
 ===== Target Types =====
 
+Checkins can be attached to the following entity types:
+
 | Type      | Description           |
 |-----------|-----------------------|
 | task      | A task                |
@@ -107,6 +169,8 @@ Permanently deletes a checkin.
 | report    | A report              |
 | tag       | A tag                 |
 | principle | A principle           |
+
+**Note:** Checkins are attached to primary entities, not to commitments. To leave notes about progress on a commitment, attach the checkin to the target entity itself (task/project/routine/session).
 
 
 ===== Checkin Object =====
@@ -118,16 +182,20 @@ Permanently deletes a checkin.
 | target_type | string   | Entity type being checked in on               |
 | target_id   | integer  | ID of the target entity                       |
 | note        | text     | The checkin content                           |
-| occurred_at | datetime | When this happened (ISO format, user TZ)      |
-| created_at  | datetime | When record was created                       |
-| updated_at  | datetime | When record was last modified                 |
+| occurred_at | datetime | When this happened (ISO format, user timezone)|
+| created_at  | datetime | When record was created (ISO format, user TZ) |
+| updated_at  | datetime | When record was last modified (ISO format, user TZ) |
 
 
-===== Timezone Handling =====
+===== Design Notes =====
 
-* All datetimes are stored in UTC internally
-* Input datetimes are converted from user's timezone to UTC
-* Output datetimes are converted from UTC to user's timezone
-* User's timezone is configured in their profile
-* If no timezone is configured, UTC is used as default
-* occurred_at vs created_at: allows backdating notes
+**Backdating Use Case**
+* occurred_at vs created_at distinction allows backdating
+* occurred_at: "when did this happen" (the event time)
+* created_at: "when did I record it" (system time)
+* Example: "I'm recording this now, but it happened yesterday"
+
+**Flexibility**
+* Checkins are freeform by design—meant to be flexible and low-friction
+* No enforced structure; users decide what's worth noting
+* Note can be brief ("On track") or lengthy (multi-paragraph reflection)

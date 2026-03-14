@@ -6,9 +6,11 @@ Creation-Date: 2026-01-12T18:43:17-06:00
 
 ===== Overview =====
 
-API endpoints for managing routines. Routines are templates for recurring activities (habits, workouts, scheduled tasks). They define what the activity is and when it recurs, but actual occurrences (sessions) are generated separately.
+API endpoints for managing routines. Routines are templates for recurring or ad-hoc activities (habits, workouts, scheduled tasks). They define what the activity is and when it recurs (if RRULE exists), but actual occurrences (sessions) are generated separately.
 
 All endpoints require authentication via JWT Bearer token.
+
+All datetime fields in responses are localized to the user's timezone for display.
 
 
 ===== Routine Endpoints =====
@@ -23,7 +25,29 @@ Returns all routines for the authenticated user.
 |-------------|---------|----------|----------|----------------------------------------------------|
 | active_only | boolean | query    | no       | If true (default), only returns active routines.   |
 
-**Response:** Array of routine objects
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+[
+  {
+    "id": 1,
+    "user_id": 5,
+    "title": "Leg Day",
+    "description": "Lower body strength training",
+    "rrule": "FREQ=WEEKLY;BYDAY=MO",
+    "start_time": "18:00",
+    "end_time": "19:30",
+    "active": true,
+    "calendar_id": 3,
+    "external_uid": null,
+    "external_source": null,
+    "external_source_name": null,
+    "tags": [],
+    "principles": [],
+    "created_at": "2026-01-10T14:00:00-06:00",
+    "updated_at": "2026-01-10T14:00:00-06:00"
+  }
+]
+}}}
 
 
 ==== Create Routine ====
@@ -32,11 +56,13 @@ Returns all routines for the authenticated user.
 
 Creates a new routine.
 
+**Request Body:**
+
 | Field                | Type    | Required | Description                                              |
 |----------------------|---------|----------|----------------------------------------------------------|
 | title                | string  | yes      | Routine name (max 200 chars)                             |
 | description          | text    | no       | Details about the routine                                |
-| rrule                | string  | no       | iCalendar recurrence rule (e.g., "FREQ=WEEKLY;BYDAY=MO") |
+| rrule                | string  | no       | iCalendar recurrence rule (e.g., "FREQ=WEEKLY;BYDAY=MO"). If absent, sessions must be created manually |
 | start_time           | string  | no       | Time of day routine starts (HH:MM format)                |
 | end_time             | string  | no       | Time of day routine ends (HH:MM format)                  |
 | active               | boolean | no       | Default true                                             |
@@ -45,7 +71,23 @@ Creates a new routine.
 | external_source      | string  | no       | Source identifier (e.g., "caldav")                       |
 | external_source_name | string  | no       | Human-readable source name                               |
 
+**Example Request:**
+{{{code: lang="json" linenumbers="True"
+{
+  "title": "Morning Yoga",
+  "description": "Daily yoga practice",
+  "rrule": "FREQ=DAILY",
+  "start_time": "07:00",
+  "end_time": "07:30",
+  "active": true,
+  "calendar_id": 2
+}
+}}}
+
 **Response:** Created routine object (201)
+
+**Errors:**
+* 400 if validation fails (e.g., missing title, invalid RRULE format)
 
 
 ==== Get Routine ====
@@ -54,67 +96,170 @@ Creates a new routine.
 
 Returns a specific routine by ID.
 
-**Response:** Routine object, or 404 if not found
+**Response:** Routine object, or 404 if not found or not owned by user
 
 
 ==== Update Routine ====
 
-**PUT /api/routines/<routine_id>**
+**PATCH /api/routines/<routine_id>**
 
-Updates a routine's properties.
+Updates a routine's properties with optional cascading to existing sessions.
 
-| Field                  | Type    | Location | Description                                              |
-|------------------------|---------|----------|----------------------------------------------------------|
-| title                  | string  | body     | Routine name (cannot be empty)                           |
-| description            | text    | body     | Details about the routine                                |
-| rrule                  | string  | body     | iCalendar recurrence rule                                |
-| start_time             | string  | body     | Time of day (HH:MM format)                               |
-| end_time               | string  | body     | Time of day (HH:MM format)                               |
-| active                 | boolean | body     | Active flag                                              |
-| delete_future_sessions | boolean | query    | If true and deactivating, deletes future incomplete sessions |
+**Request Body:**
+
+| Field       | Type    | Description                                              |
+|-------------|---------|----------------------------------------------------------|
+| title       | string  | Routine name (cannot be empty)                           |
+| description | text    | Details about the routine                                |
+| rrule       | string  | iCalendar recurrence rule                                |
+| start_time  | string  | Time of day (HH:MM format)                               |
+| end_time    | string  | Time of day (HH:MM format)                               |
+| active      | boolean | Active flag                                              |
+
+**Query Parameters:**
+
+| Parameter      | Type    | Default | Description                                              |
+|----------------|---------|---------|----------------------------------------------------------|
+| cascade_future | boolean | false   | If true, cascade title/time changes to future sessions   |
+| cascade_past   | boolean | false   | If true, cascade title/time changes to past sessions     |
+
+**Read-Only Fields (Cannot Update):**
+* id, user_id, created_at, updated_at
+* calendar_id, external_uid, external_source, external_source_name
 
 **Business Logic:**
-* Editing rrule or times does NOT affect already-generated sessions
-* When setting active=false with delete_future_sessions=true, all future incomplete sessions are deleted
-* Future = start_time > now; Incomplete = completed=false
+* Editing rrule, description, or active status does NOT affect already-generated sessions
+* Editing title, start_time, or end_time CAN cascade to existing sessions based on query parameters
+* When cascading title: updates routine_name field on sessions
+* When cascading times: updates start_time/end_time fields on sessions
+* Future sessions = start_time > now; Past sessions = start_time <= now
+* Use DELETE `/api/routines/{id}/sessions/{future|past}` endpoints to manage session deletion
+
+**Example Request:**
+{{{code: lang="json" linenumbers="True"
+{
+  "title": "Evening Yoga",
+  "start_time": "19:00",
+  "end_time": "19:45"
+}
+}}}
 
 **Response:** Updated routine object, or 404 if not found
+
+**Errors:**
+* 400 if updating read-only fields
+* 400 if validation fails (e.g., empty title, invalid RRULE)
 
 
 ==== Delete Routine ====
 
 **DELETE /api/routines/<routine_id>**
 
-Permanently deletes a routine and all its sessions.
+Permanently deletes a routine and all its associated sessions.
 
 **Response:** 204 No Content, or 404 if not found
 
 
-===== Session Generation =====
+===== Session Management Endpoints =====
 
 ==== Generate Sessions ====
 
-**POST /api/routines/<routine_id>/generate**
+**POST /api/routines/<routine_id>/sessions/generate**
 
-Generates sessions for a routine within a date range based on its recurrence rule.
+Generates sessions for a routine within a date range based on its RRULE.
 
-| Field      | Type   | Required | Description                           |
-|------------|--------|----------|---------------------------------------|
-| start_date | string | yes      | Start of range (ISO datetime)         |
-| end_date   | string | yes      | End of range (ISO datetime)           |
+**Request Body:**
+
+| Field               | Type    | Required | Description                                              |
+|---------------------|---------|----------|----------------------------------------------------------|
+| start_date          | string  | yes      | Start of range (ISO format: YYYY-MM-DD or YYYY-MM-DDThh:mm:ss) |
+| end_date            | string  | yes      | End of range (ISO format: YYYY-MM-DD or YYYY-MM-DDThh:mm:ss) |
+| inherit_tags        | boolean | no       | If true (default), sessions inherit tags from routine    |
+| inherit_principles  | boolean | no       | If true (default), sessions inherit principles from routine |
 
 **Business Logic:**
-* Requires routine to have an rrule and start_time
+* Requires routine to have an RRULE and start_time
 * Uses RRULE to calculate occurrences within the date range
-* Skips dates where a session already exists (duplicate detection by time window)
-* Each generated session auto-creates an associated Commitment
+* Skips dates where a session already exists (duplicate detection)
+* Each generated session auto-creates an associated hard Commitment (due_at = session's end_time)
 * Session times are derived from routine's start_time/end_time applied to each occurrence date
+* If end_date is just a date (no time component), it's set to end of day (23:59:59)
+* Tags and principles can be inherited from the parent routine based on request parameters
 
-**Response:** Array of created session objects
+**Example Request:**
+{{{code: lang="json" linenumbers="True"
+{
+  "start_date": "2026-03-01",
+  "end_date": "2026-03-31",
+  "inherit_tags": true,
+  "inherit_principles": true
+}
+}}}
+
+**Response:** Array of created session objects (201)
 
 **Errors:**
-* 400 if routine has no rrule or start_time
+* 400 if routine has no RRULE or start_time
+* 400 if invalid date format
 * 404 if routine not found
+
+
+==== Delete Future Sessions ====
+
+**DELETE /api/routines/<routine_id>/sessions/future**
+
+Deletes future sessions for a routine.
+
+**Query Parameters:**
+
+| Parameter       | Type    | Default | Description                                              |
+|-----------------|---------|---------|----------------------------------------------------------|
+| incomplete_only | boolean | true    | If true, only delete sessions with status='scheduled'; if false, delete all future sessions |
+
+**Business Logic:**
+* Future = start_time > now
+* If incomplete_only=true: only deletes sessions with status='scheduled'
+* If incomplete_only=false: deletes all future sessions regardless of status
+* Cascade deletes associated commitments
+
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+{
+  "message": "Deleted 12 future sessions",
+  "deleted_count": 12
+}
+}}}
+
+**Response:** 200 with deletion summary, or 404 if routine not found
+
+
+==== Delete Past Sessions ====
+
+**DELETE /api/routines/<routine_id>/sessions/past**
+
+Deletes past sessions for a routine.
+
+**Query Parameters:**
+
+| Parameter       | Type    | Default | Description                                              |
+|-----------------|---------|---------|----------------------------------------------------------|
+| incomplete_only | boolean | true    | If true, only delete sessions with status='scheduled'; if false, delete all past sessions |
+
+**Business Logic:**
+* Past = start_time <= now
+* If incomplete_only=true: only deletes sessions with status='scheduled'
+* If incomplete_only=false: deletes all past sessions regardless of status
+* Cascade deletes associated commitments
+
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+{
+  "message": "Deleted 5 past sessions",
+  "deleted_count": 5
+}
+}}}
+
+**Response:** 200 with deletion summary, or 404 if routine not found
 
 
 ===== Routine Object =====
@@ -125,7 +270,7 @@ Generates sessions for a routine within a date range based on its recurrence rul
 | user_id              | integer  | Owner                                     |
 | title                | string   | Routine name                              |
 | description          | text     | Details about the routine                 |
-| rrule                | string   | iCalendar recurrence rule                 |
+| rrule                | string   | iCalendar recurrence rule (optional)      |
 | start_time           | string   | Time of day (HH:MM format)                |
 | end_time             | string   | Time of day (HH:MM format)                |
 | active               | boolean  | Active flag                               |
@@ -135,8 +280,8 @@ Generates sessions for a routine within a date range based on its recurrence rul
 | external_source_name | string   | Human-readable source name                |
 | tags                 | array    | Attached tags                             |
 | principles           | array    | Attached principles                       |
-| created_at           | datetime | When created                              |
-| updated_at           | datetime | When last modified                        |
+| created_at           | datetime | When created (localized to user timezone) |
+| updated_at           | datetime | When last modified (localized to user timezone) |
 
 
 ===== RRULE Examples =====
@@ -149,3 +294,26 @@ Generates sessions for a routine within a date range based on its recurrence rul
 | Every 2 weeks        | FREQ=WEEKLY;INTERVAL=2          |
 | First of each month  | FREQ=MONTHLY;BYMONTHDAY=1       |
 | Every weekday        | FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR|
+
+
+===== Common Workflows =====
+
+==== Creating and Scheduling a Recurring Routine ====
+1. POST `/api/routines` with title, rrule, start_time, end_time
+2. POST `/api/routines/{id}/sessions/generate` with date range to create sessions
+3. Sessions are auto-created with associated commitments
+
+==== Managing Ad-Hoc Routines (No RRULE) ====
+1. POST `/api/routines` with title but no rrule
+2. Manually create sessions via session endpoints as activities occur
+3. Use routine as a category/template for manual session tracking
+
+==== Updating Routine Times with Cascade ====
+1. PATCH `/api/routines/{id}?cascade_future=true` with new start_time/end_time
+2. All future sessions are updated with new times
+3. Past sessions remain unchanged
+
+==== Cleaning Up Sessions ====
+1. DELETE `/api/routines/{id}/sessions/future?incomplete_only=true` to remove unstarted future sessions
+2. DELETE `/api/routines/{id}/sessions/past?incomplete_only=false` to remove all past sessions
+3. Useful when changing routine schedule or deactivating routine

@@ -21,14 +21,37 @@ All datetime values are returned in the user's configured timezone. Input dateti
 
 Returns all sessions within a time window for the authenticated user.
 
-| Parameter | Type   | Location | Required | Description                      |
-|-----------|--------|----------|----------|----------------------------------|
-| start     | string | query    | yes      | Start of window (ISO datetime)   |
-| end       | string | query    | yes      | End of window (ISO datetime)     |
+**Query Parameters:**
 
-**Response:** Array of session objects
+| Parameter | Type   | Required | Description                      |
+|-----------|--------|----------|----------------------------------|
+| start     | string | yes      | Start of window (ISO datetime)   |
+| end       | string | yes      | End of window (ISO datetime)     |
 
-**Errors:** 400 if start or end is missing or invalid
+**Example Response:** Array of session objects
+{{{code: lang="json" linenumbers="true"
+[
+  {
+    "id": 123,
+    "user_id": 1,
+    "routine_id": 45,
+    "start_time": "2026-03-15T14:00:00-06:00",
+    "end_time": "2026-03-15T15:30:00-06:00",
+    "status": "scheduled",
+    "notes": "Leg day workout",
+    "rpe": null,
+    "duration_minutes": 90,
+    "tags": [],
+    "principles": [],
+    "created_at": "2026-03-01T10:00:00-06:00",
+    "updated_at": "2026-03-01T10:00:00-06:00"
+  }
+]
+}}}
+
+**Errors:**
+* 400 if start or end is missing or invalid
+* 500 for unexpected server errors
 
 
 ==== Create Session ====
@@ -37,22 +60,50 @@ Returns all sessions within a time window for the authenticated user.
 
 Creates a new session for a routine.
 
+**Request Body:**
+
 | Field      | Type    | Required | Description                                                |
 |------------|---------|----------|------------------------------------------------------------|
 | start_time | string  | yes      | When session starts (ISO datetime)                         |
 | end_time   | string  | yes      | When session ends (ISO datetime)                           |
-| completed  | boolean | no       | Default false                                              |
 | status     | string  | no       | Default "scheduled"; see status values                     |
 | notes      | text    | no       | Freeform notes                                             |
 | rpe        | integer | no       | Rate of Perceived Exertion (1-10)                          |
 
+**Query Parameters:**
+
+| Parameter          | Type    | Default | Description                                              |
+|--------------------|---------|---------|----------------------------------------------------------|
+| inherit_tags       | boolean | true    | If true, session inherits tags from parent routine       |
+| inherit_principles | boolean | true    | If true, session inherits principles from parent routine |
+
 **Business Logic:**
 * Auto-creates a hard Commitment for the session (due_at = end_time)
 * Commitment is attached to the DAY timeframe containing the session
+* Tags and principles can be inherited from parent routine based on query parameters
 
-**Response:** Created session object (201)
+**Example Response (201 Created):**
+{{{code: lang="json" linenumbers="true"
+{
+  "id": 124,
+  "user_id": 1,
+  "routine_id": 45,
+  "start_time": "2026-03-16T14:00:00-06:00",
+  "end_time": "2026-03-16T15:30:00-06:00",
+  "status": "scheduled",
+  "notes": "",
+  "rpe": null,
+  "duration_minutes": 90,
+  "tags": [{"id": 5, "name": "fitness"}],
+  "principles": [],
+  "created_at": "2026-03-12T09:30:00-06:00",
+  "updated_at": "2026-03-12T09:30:00-06:00"
+}
+}}}
 
-**Errors:** 400 if start_time or end_time missing
+**Errors:**
+* 400 if start_time or end_time missing or validation fails
+* 400 for invalid field values
 
 
 ==== Get Session ====
@@ -61,26 +112,116 @@ Creates a new session for a routine.
 
 Returns a specific session by ID.
 
-**Response:** Session object, or 404 if not found
+**Example Response:**
+{{{code: lang="json" linenumbers="true"
+{
+  "id": 123,
+  "user_id": 1,
+  "routine_id": 45,
+  "start_time": "2026-03-15T14:00:00-06:00",
+  "end_time": "2026-03-15T15:30:00-06:00",
+  "status": "completed",
+  "notes": "Great workout today",
+  "rpe": 8,
+  "duration_minutes": 90,
+  "tags": [{"id": 5, "name": "fitness"}],
+  "principles": [{"id": 2, "name": "consistency"}],
+  "created_at": "2026-03-01T10:00:00-06:00",
+  "updated_at": "2026-03-15T15:35:00-06:00"
+}
+}}}
+
+**Errors:**
+* 404 if session not found or doesn't belong to authenticated user
 
 
 ==== Update Session ====
 
-**PUT /api/sessions/<session_id>**
+**PATCH /api/sessions/<session_id>**
 
-Updates a session's properties. Does not handle completion—use the complete/uncomplete endpoints.
+Updates a session's properties. Does not handle status changes—use the status endpoint.
+
+**Request Body:**
 
 | Field      | Type    | Description                            |
 |------------|---------|----------------------------------------|
 | start_time | string  | When session starts (ISO datetime)     |
 | end_time   | string  | When session ends (ISO datetime)       |
-| status     | string  | Status value (see below)               |
 | notes      | text    | Freeform notes                         |
 | rpe        | integer | Rate of Perceived Exertion (1-10)      |
 
-**Note:** The `completed` field cannot be set via update; use the complete/uncomplete endpoints.
+**Field Restrictions:**
+* **Cannot update via this endpoint:** status, routine_id, user_id, id, created_at, updated_at
+* To change status, use **PATCH /api/sessions/<session_id>/status**
 
-**Response:** Updated session object, or 404 if not found
+**Example Response:**
+{{{code: lang="json" linenumbers="true"
+{
+  "id": 123,
+  "user_id": 1,
+  "routine_id": 45,
+  "start_time": "2026-03-15T15:00:00-06:00",
+  "end_time": "2026-03-15T16:30:00-06:00",
+  "status": "scheduled",
+  "notes": "Rescheduled to later in day",
+  "rpe": null,
+  "duration_minutes": 90,
+  "tags": [{"id": 5, "name": "fitness"}],
+  "principles": [],
+  "created_at": "2026-03-01T10:00:00-06:00",
+  "updated_at": "2026-03-12T10:15:00-06:00"
+}
+}}}
+
+**Errors:**
+* 400 if attempting to update disallowed fields
+* 400 if no update data provided
+* 400 for validation errors
+* 404 if session not found
+
+
+==== Set Session Status ====
+
+**PATCH /api/sessions/<session_id>/status**
+
+Changes a session's status. This is the only endpoint that can modify the status field.
+
+**Request Body:**
+
+| Field  | Type   | Required | Description                                    |
+|--------|--------|----------|------------------------------------------------|
+| status | string | yes      | New status value (see Status Values below)     |
+
+**Example Request:**
+{{{code: lang="json" linenumbers="true"
+{
+  "status": "completed"
+}
+}}}
+
+**Example Response:**
+{{{code: lang="json" linenumbers="true"
+{
+  "id": 123,
+  "user_id": 1,
+  "routine_id": 45,
+  "start_time": "2026-03-15T14:00:00-06:00",
+  "end_time": "2026-03-15T15:30:00-06:00",
+  "status": "completed",
+  "notes": "Great workout today",
+  "rpe": 8,
+  "duration_minutes": 90,
+  "tags": [{"id": 5, "name": "fitness"}],
+  "principles": [],
+  "created_at": "2026-03-01T10:00:00-06:00",
+  "updated_at": "2026-03-15T15:35:00-06:00"
+}
+}}}
+
+**Errors:**
+* 400 if status field is missing
+* 400 if status value is invalid (not one of: scheduled, completed, skipped, cancelled)
+* 404 if session not found
 
 
 ==== Delete Session ====
@@ -89,41 +230,20 @@ Updates a session's properties. Does not handle completion—use the complete/un
 
 Permanently deletes a session and its associated Commitment.
 
-**Response:** 204 No Content, or 404 if not found
+**Response:** 204 No Content
 
-
-==== Complete Session ====
-
-**POST /api/sessions/<session_id>/complete**
-
-Marks a session as completed.
-
-* Sets completed=true
-* Sets status="completed"
-
-**Response:** Updated session object, or 404 if not found
-
-
-==== Uncomplete Session ====
-
-**POST /api/sessions/<session_id>/uncomplete**
-
-Marks a session as not completed.
-
-* Sets completed=false
-* Sets status="scheduled"
-
-**Response:** Updated session object, or 404 if not found
+**Errors:**
+* 404 if session not found
 
 
 ===== Status Values =====
 
-Status is a flexible string field. Common values by convention:
+Status is the authoritative indicator of session execution. There is no separate `completed` boolean field.
 
 | Status    | Meaning                                     |
 |-----------|---------------------------------------------|
-| scheduled | Default; session is planned                 |
-| completed | Session was done (set automatically via /complete) |
+| scheduled | Default; session is planned but not yet completed |
+| completed | Session was done/completed                  |
 | skipped   | Intentionally not done this occurrence      |
 | cancelled | Removed from schedule                       |
 
@@ -137,8 +257,7 @@ Status is a flexible string field. Common values by convention:
 | routine_id       | integer  | Parent routine                                |
 | start_time       | datetime | When session starts (ISO format, user TZ)     |
 | end_time         | datetime | When session ends (ISO format, user TZ)       |
-| completed        | boolean  | Completion status                             |
-| status           | string   | Current status                                |
+| status           | string   | Current status (scheduled/completed/skipped/cancelled) |
 | notes            | text     | Freeform notes                                |
 | rpe              | integer  | Rate of Perceived Exertion (1-10)             |
 | duration_minutes | number   | Computed: minutes between start and end       |
@@ -155,3 +274,11 @@ Status is a flexible string field. Common values by convention:
 * Output datetimes are converted from UTC to user's timezone
 * User's timezone is configured in their profile
 * If no timezone is configured, UTC is used as default
+
+
+===== Related Endpoints =====
+
+For bulk session management and generation, see the Routine endpoints:
+* **POST /api/routines/<routine_id>/sessions/generate** - Generate sessions from RRULE
+* **DELETE /api/routines/<routine_id>/sessions/future** - Delete future sessions
+* **DELETE /api/routines/<routine_id>/sessions/past** - Delete past sessions
