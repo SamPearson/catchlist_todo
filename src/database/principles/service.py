@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from src.database.base.exceptions import ValidationError
-from .models import Principle
+from .models import Principle, PrincipleAssociation
 from .repository import PrincipleRepo
 
 
@@ -29,6 +29,7 @@ class PrincipleService:
             user_id=user_id,
             title=title,
             description=data.get('description'),
+            reason=data.get('reason'),
             color=data.get('color', '#ffd700')
         )
 
@@ -43,8 +44,12 @@ class PrincipleService:
                 raise PrincipleValidationError("Title cannot be empty.")
             update_data['title'] = data['title'].strip()
 
-        if 'description' in data: update_data['description'] = data['description']
-        if 'color' in data: update_data['color'] = data['color']
+        if 'description' in data:
+            update_data['description'] = data['description']
+        if 'reason' in data:
+            update_data['reason'] = data['reason']
+        if 'color' in data:
+            update_data['color'] = data['color']
 
         return self.repo.update(principle, **update_data)
 
@@ -80,11 +85,21 @@ class PrincipleService:
         return True
 
     def detach_from_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
+
         principle = self.get_principle(principle_id, user_id)
-        if not principle or not hasattr(entity, 'principles'):
+        if not principle:
             return False
 
-        if principle in entity.principles:
-            entity.principles.remove(principle)
+        # Directly delete the association instead of relying on relationship management
+        association = self.session.query(PrincipleAssociation).filter_by(
+            principle_id=principle.id,
+            entity_id=entity.id,
+            entity_type=entity.__class__.__name__.lower()
+        ).first()
+
+        if association:
+            self.session.delete(association)
             self.session.commit()
-        return True
+            return True
+        
+        return False
