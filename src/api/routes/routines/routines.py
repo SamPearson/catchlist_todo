@@ -7,6 +7,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.routines.service import RoutineService, RoutineValidationError
+from src.database.sessions.service import SessionService
 from src.api.utils.caldav_client import CalDAVClient
 from src.database.users.user import User
 
@@ -79,12 +80,36 @@ def create_routine():
 
 @jwt_required()
 def update_routine(routine_id: int):
+    """PATCH /api/routines/{id} - Update routine with optional cascade to sessions"""
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     service = RoutineService(db.session)
 
+    if not data:
+        return jsonify({'error': 'No update data provided'}), 400
+
+    # Check for disallowed fields
+    disallowed_fields = {'id', 'user_id', 'created_at', 'updated_at', 'calendar_id', 'external_uid', 'external_source',
+                         'external_source_name'}
+    if any(field in data for field in disallowed_fields):
+        return jsonify({
+            'error': 'Cannot update read-only fields (id, user_id, created_at, updated_at, calendar_id, external_*). '
+                     'Use DELETE /api/routines/{id}/sessions/{future|past} to manage sessions.'
+        }), 400
+
     try:
-        updated = service.update_routine(routine_id, user_id, data)
+        # Parse cascade parameters (default: both false for safety)
+        cascade_future = request.args.get('cascade_future', 'false').lower() == 'true'
+        cascade_past = request.args.get('cascade_past', 'false').lower() == 'true'
+
+        updated = service.update_routine(
+            routine_id,
+            user_id,
+            data,
+            cascade_future=cascade_future,
+            cascade_past=cascade_past
+        )
+
         if not updated:
             return '', 404
 
@@ -104,6 +129,73 @@ def delete_routine(routine_id: int):
     service = RoutineService(db.session)
     return ('', 204) if service.delete_routine(routine_id, user_id) else ('', 404)
 
+@jwt_required()
+def delete_future_sessions(routine_id: int):
+    """DELETE /api/routines/{id}/sessions/future - Delete future sessions for a routine"""
+    user_id = int(get_jwt_identity())
+    service = RoutineService(db.session)
+
+    try:
+        # Parse parameters
+        incomplete_only = request.args.get('incomplete_only', 'true').lower() == 'true'
+
+        routine = service.get_routine(routine_id, user_id)
+        if not routine:
+            return '', 404
+
+        deleted_count = service.delete_future_sessions(
+            routine_id,
+            user_id,
+            incomplete_only=incomplete_only
+        )
+
+        return jsonify({
+            'message': f'Deleted {deleted_count} future sessions',
+            'deleted_count': deleted_count
+        }), 200
+    except Exception as e:
+        logging.error(f"Error deleting future sessions: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@jwt_required()
+def delete_past_sessions(routine_id: int):
+    """DELETE /api/routines/{id}/sessions/past - Delete past sessions for a routine"""
+    user_id = int(get_jwt_identity())
+    service = RoutineService(db.session)
+
+    try:
+        # Parse parameters
+        incomplete_only = request.args.get('incomplete_only', 'true').lower() == 'true'
+
+        routine = service.get_routine(routine_id, user_id)
+        if not routine:
+            return '', 404
+
+        # Get past sessions and delete them
+        if incomplete_only:
+            sessions_to_delete = [s for s in service.get_past_sessions(routine_id, user_id)
+                                  if s.status == 'scheduled']
+        else:
+            sessions_to_delete = service.get_past_sessions(routine_id, user_id)
+
+        deleted_count = 0
+        for session in sessions_to_delete:
+            if service.session_repo.delete(session):
+                deleted_count += 1
+
+        logging.info(f"Deleted {deleted_count} past sessions for routine {routine_id}")
+
+        return jsonify({
+            'message': f'Deleted {deleted_count} past sessions',
+            'deleted_count': deleted_count
+        }), 200
+    except Exception as e:
+        logging.error(f"Error deleting past sessions: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+
 
 @jwt_required()
 def generate_routine_sessions(routine_id: int):
@@ -117,6 +209,9 @@ def generate_routine_sessions(routine_id: int):
     try:
         service = RoutineService(db.session)
         
+        # Get user timezone
+        user_timezone = get_user_timezone(user_id)
+        
         # Parse dates (assuming ISO format)
         start_date = datetime.fromisoformat(data['start_date'])
         end_date = datetime.fromisoformat(data['end_date'])
@@ -125,7 +220,19 @@ def generate_routine_sessions(routine_id: int):
         if len(data['end_date']) <= 10:  # Just YYYY-MM-DD
             end_date = end_date.replace(hour=23, minute=59, second=59)
 
-        sessions = service.generate_sessions(user_id, routine_id, start_date, end_date)
+        # Parse inheritance parameters (default: both true)
+        inherit_tags = data.get('inherit_tags', True)
+        inherit_principles = data.get('inherit_principles', True)
+
+        session_service = SessionService(db.session)
+        sessions = session_service.create_sessions_for_period(
+            user_id,
+            routine_id,
+            start_date,
+            end_date,
+            inherit_tags=inherit_tags,
+            inherit_principles=inherit_principles
+        )
         
         # Convert sessions to dicts for response
         session_dicts = [session.as_dict() for session in sessions]
