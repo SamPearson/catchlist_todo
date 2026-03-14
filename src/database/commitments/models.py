@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 
-from src.database.base.models import UserOwnedModel
+from src.database.base.base_models import UserOwnedModel
 
 
 class Commitment(UserOwnedModel):
