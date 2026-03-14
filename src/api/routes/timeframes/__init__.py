@@ -31,12 +31,6 @@ timeframes_bp.add_url_rule(
     methods=["GET"],
 )
 
-timeframes_bp.add_url_rule(
-    "/api/timeframes/<int:timeframe_id>",
-    view_func=timeframes.delete_timeframe,
-    endpoint="delete_timeframe",
-    methods=["DELETE"],
-)
 
 timeframes_bp.add_url_rule(
     "/api/timeframes/<string:kind>",
