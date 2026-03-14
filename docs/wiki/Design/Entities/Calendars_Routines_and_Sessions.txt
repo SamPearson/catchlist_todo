@@ -6,23 +6,27 @@ Creation-Date: 2026-01-10T14:37:00-06:00
 
 ===== Overview =====
 
-The **Calendar/Routine/Session** system handles recurring activities—habits, workouts, scheduled cleaning, regular reviews, etc.
+The **Calendar/Routine/Session** system handles recurring and ad-hoc activities—habits, workouts, scheduled cleaning, regular reviews, practice sessions, etc.
 
-* **Calendar**: An organizational container for routines (often imported from CalDAV)
-* **Routine**: A template for a recurring activity (e.g., "Leg Day every Monday")
-* **Session**: A concrete occurrence of a routine at a specific date/time (e.g., "Leg Day on Monday, June 8th")
+* **Calendar**: An organizational container for related routines (created manually or imported from CalDAV)
+* **Routine**: A scheduling template for a recurring or ad-hoc activity (e.g., "Leg Day", "Guitar Practice", "Cleaning"). May have an RRULE for automatic scheduling, or sessions may be created manually.
+* **Session**: A concrete occurrence of a routine at a specific date/time (e.g., "Leg Day on Monday, June 8th" or "Practiced guitar for an hour on June 9th")
 
 The typical workflow:
-1. Import a calendar from CalDAV (or create one manually)
-2. Routines are created within the calendar (or imported with it)
-3. Sessions are generated on-demand for a specified date range
-4. Sessions auto-generate associated Timeframes and Commitments (see [[Commitments_Timeframes_and_Checkins]])
+1. Create or import a calendar (manually or from CalDAV)
+2. Create routines within the calendar (with optional RRULE for recurrence)
+3. Generate sessions for a specified date range (if RRULE exists) or create sessions manually
+4. Sessions auto-generate associated hard commitments to their day
 
 
 ===== Calendars =====
 
 ==== Purpose ====
-Calendars are organizational groupings for routines. The primary use case is importing from external calendar software (Google Calendar, CalDAV server), but they can also be created manually.
+Calendars are organizational containers for grouping related routines. They have no inherent time boundaries; a calendar simply groups routines by theme or context.
+
+Examples: "Spring Workouts", "Daily Habits", "Work Reviews", "Music Practice"
+
+Calendars can be created manually or imported from external calendar sources (CalDAV servers like Google Calendar).
 
 ==== Properties ====
 
@@ -45,18 +49,30 @@ Calendars are organizational groupings for routines. The primary use case is imp
 * Name is required
 * Color defaults to #767676 (gray)
 * Active defaults to true
+* Can be created manually or populated via CalDAV import
 
 **Update**
-* All fields except id, user_id, created_at are updatable
-* Setting active to false should cascade to contained routines
+* Via PUT `/api/calendars/{id}`
+* Updatable fields: name, color, active
+* Read-only fields (cannot be updated): id, user_id, created_at, updated_at, external_uid, external_source
+* Calendar name cannot be empty
+* Optional URL parameter `cascade_deactivation` (default: true):
+  - If true and active is set to false, all contained routines are set to active=false
+  - If false, deactivates the calendar without affecting contained routines
+
+**Activate/Deactivate**
+* Setting active to true makes the calendar visible; setting may cascade to contained routines based on url param
+* Setting active to false may set all contained routines to active=false (cascade), again according to url param
+* Useful for temporarily disabling a whole category (e.g., "outdoor activities" during winter)
 
 **Delete**
 * Hard delete
-* Cascade deletes all contained routines (and their sessions)
+* Cascade deletes all contained routines and their sessions
 
 **CalDAV Import**
 * Creates calendar with external_uid and external_source populated
 * Creates routines for each recurring event in the calendar
+* Each routine receives the event's RRULE, start_time, and end_time
 
 ==== Relationships ====
 * Belongs to one User (required)
@@ -68,7 +84,14 @@ Calendars are organizational groupings for routines. The primary use case is imp
 ===== Routines =====
 
 ==== Purpose ====
-Routines are templates for recurring activities. They define what the activity is and optionally when it recurs, but the actual occurrences (sessions) are generated separately.
+Routines are scheduling templates for activities that recur or are tracked as a category. A routine defines *what* the activity is and *when* it typically happens (if recurring), but actual occurrences (sessions) are generated separately.
+
+Routines are simple scheduling data blobs; they have no completion status or lifecycle. They are either active (available for scheduling) or inactive (hidden, not used for session generation).
+
+Examples:
+* "Leg Day" (occurs every Monday, with start/end times)
+* "Guitar Practice" (no fixed schedule; sessions created manually as they happen)
+* "Cleaning" (ad-hoc; sessions created whenever you spend time cleaning)
 
 ==== Properties ====
 
@@ -78,42 +101,66 @@ Routines are templates for recurring activities. They define what the activity i
 | user_id              | integer     | auto     | Owner of the routine                                     |
 | title                | string(200) | yes      | Name of the routine                                      |
 | description          | text        | no       | Details about the routine                                |
-| rrule                | string(200) | no       | iCalendar recurrence rule (e.g., "FREQ=WEEKLY;BYDAY=MO") |
-| start_time           | time        | no       | Time of day the routine starts (HH:MM)                   |
-| end_time             | time        | no       | Time of day the routine ends (HH:MM)                     |
-| active               | boolean     | no       | Default true; false hides from views                     |
-| calendar_id          | integer     | no       | Parent calendar (optional)                               |
-| external_uid         | string(100) | no       | UID from external source                                 |
+| rrule                | string(200) | no       | iCalendar recurrence rule (e.g., "FREQ=WEEKLY;BYDAY=MO"). Optional; if absent, sessions are created manually |
+| start_time           | time        | no       | Time of day the routine typically starts (HH:MM)         |
+| end_time             | time        | no       | Time of day the routine typically ends (HH:MM)           |
+| active               | boolean     | no       | Default true; false hides routine and prevents automatic session generation |
+| calendar_id          | integer     | no       | Parent calendar (optional; routine can exist without a calendar) |
+| external_uid         | string(100) | no       | UID from external source (for sync)                      |
 | external_source      | string(50)  | no       | Source identifier (e.g., "caldav")                       |
 | external_source_name | string(100) | no       | Human-readable source name                               |
 | created_at           | datetime    | auto     | When created                                             |
 | updated_at           | datetime    | auto     | When last modified                                       |
 
-
 ==== Behaviors ====
 
 **Create**
 * Title is required
-* RRULE is optional—routines without RRULE can have sessions added manually
+* RRULE is optional
+  - If provided: routine has automatic recurrence; sessions can be bulk-generated from the RRULE
+  - If absent: routine is a category/template; sessions must be created manually
+* start_time and end_time are optional (used when generating sessions from RRULE)
 * Active defaults to true
+* Can be created manually or imported from CalDAV
 
 **Update**
-* All fields except id, user_id, created_at are updatable
-* Editing rrule or times does NOT affect already-generated sessions
+* All fields except id, user_id, created_at are updatable via PATCH `/api/routines/{id}`
+* Editing RRULE, description, or active status does NOT cascade to existing sessions
+* Editing title, start_time, or end_time CAN optionally cascade to existing sessions via URL parameters:
+  - `cascade_future` (default: false): If true, cascade changes to all future sessions
+  - `cascade_past` (default: false): If true, cascade changes to all past sessions
+  - When cascading title: updates `routine_name` field on sessions
+  - When cascading start_time/end_time: updates the corresponding time fields on sessions
+* RRULE changes only affect future session generation (do not affect existing sessions)
 
-**Deactivate**
-* Setting active to false should offer option to delete future (incomplete) sessions
-* Inactive routines are hidden from normal views but retained
+**Activate/Deactivate**
+* Setting active to true: routine is visible and can be used for session generation
+* Setting active to false: routine is hidden from normal views; prevents new session generation
+* To delete existing sessions when deactivating, use the separate session deletion endpoints
+
+**Delete Sessions**
+* Endpoint: DELETE `/api/routines/{id}/sessions/future`
+  - Deletes future sessions for the routine
+  - Query param `incomplete_only` (default: true): If true, only delete sessions with status='scheduled'; if false, delete all future sessions
+* Endpoint: DELETE `/api/routines/{id}/sessions/past`
+  - Deletes past sessions for the routine
+  - Query param `incomplete_only` (default: true): If true, only delete sessions with status='scheduled'; if false, delete all past sessions
 
 **Delete**
 * Hard delete
 * Cascade deletes all associated sessions
 
 **Session Generation**
-* Endpoint: generate sessions for routine X between dates Y and Z
-* Uses RRULE to calculate occurrences within the date range
-* Each generated session auto-creates an associated Commitment
-* Routines without RRULE cannot use automatic generation; sessions must be created manually
+* Endpoint: POST `/api/routines/{id}/sessions/generate`
+* Only works if routine has an RRULE
+* Request body parameters:
+  - `start_date` (required): ISO date string (YYYY-MM-DD or YYYY-MM-DDThh:mm:ss)
+  - `end_date` (required): ISO date string (YYYY-MM-DD or YYYY-MM-DDThh:mm:ss)
+  - `inherit_tags` (optional, default: true): If true, sessions inherit tags from the routine
+  - `inherit_principles` (optional, default: true): If true, sessions inherit principles from the routine
+* Uses RRULE to calculate all occurrences within the date range
+* Each generated session auto-creates an associated hard commitment (due_at = session's end_time)
+* Routines without RRULE cannot use automatic generation; sessions must be created manually via the create session endpoint
 
 ==== Relationships ====
 * Belongs to one User (required)
@@ -121,12 +168,21 @@ Routines are templates for recurring activities. They define what the activity i
 * Has many Sessions
 * Can have many Tags
 * Can have many Principles
+* Can receive many Checkins (progress updates, reflections, etc)
+
 
 
 ===== Sessions =====
 
 ==== Purpose ====
-Sessions are concrete occurrences of routines—the actual scheduled events that get completed, skipped, or rescheduled.
+Sessions are concrete occurrences of routines—actual scheduled or ad-hoc events that you participate in. They track whether you showed up, how much effort you exerted, and any notes about the occurrence.
+
+Sessions are the unit of execution; a session represents "I did this activity at this time" or "I scheduled to do this but didn't."
+
+Examples:
+* "Leg Day on Monday, June 8th at 6pm" (generated from routine)
+* "Practiced guitar for 1 hour on June 9th" (manually created)
+* "Cleaned the house for 2 hours on June 12th" (manually created)
 
 ==== Properties ====
 
@@ -135,45 +191,61 @@ Sessions are concrete occurrences of routines—the actual scheduled events that
 | id         | integer  | auto     | Primary key                                                       |
 | user_id    | integer  | auto     | Owner of the session                                              |
 | routine_id | integer  | yes      | Parent routine                                                    |
-| start_time | datetime | yes      | When the session starts (UTC)                                     |
-| end_time   | datetime | yes      | When the session ends (UTC)                                       |
-| completed  | boolean  | no       | Default false; true when session is done                          |
-| status     | string   | no       | Flexible status field (e.g., "scheduled", "skipped", "cancelled") |
+| start_time | datetime | yes      | When the session starts (UTC, displayed in user's timezone)       |
+| end_time | datetime | yes      | When the session ends (UTC, displayed in user's timezone)         |
+| status     | string   | yes      | Current state of the session; see Status Values below             |
 | notes      | text     | no       | Freeform notes about this session                                 |
-| rpe        | integer  | no       | Rate of Perceived Exertion (1-10); how hard was this?             |
+| rpe        | integer  | no       | Rate of Perceived Exertion (1-10); measure of effort expended     |
 | created_at | datetime | auto     | When created                                                      |
 | updated_at | datetime | auto     | When last modified                                                |
 
 
-==== Status Values (Convention) ====
-Status is not strictly validated, but common values:
+==== Status Values ====
 
 | Status    | Meaning                                     |
 |-----------|---------------------------------------------|
-| scheduled | Default; session is planned                 |
-| completed | Session was done (also sets completed=true) |
+| scheduled | Default; session is planned but not yet completed |
+| completed | Session was done/completed                  |
 | skipped   | Intentionally not done this occurrence      |
 | cancelled | Removed from schedule                       |
 
+Status is the authoritative indicator of session execution. There is no separate `completed` boolean; `status` field alone determines session state.
 
 ==== Behaviors ====
 
 **Create**
 * routine_id, start_time, and end_time are required
-* Sessions are typically generated via the routine's session generation endpoint
-* Manual creation is allowed
-* Creating a session should auto-create an associated Commitment
+* status defaults to "scheduled"
+* Sessions can be generated via the routine's session generation endpoint (if routine has RRULE)
+* Sessions can be manually created at any time via POST `/api/routines/{routine_id}/sessions`
+* Creating a session auto-creates an associated hard commitment (due_at = session's end_time)
+* Optional query parameters on session creation:
+  - `inherit_tags` (default: true): If true, session inherits tags from its parent routine
+  - `inherit_principles` (default: true): If true, session inherits principles from its parent routine
 
 **Update**
-* Times can be edited independently (rescheduling is allowed)
-* All fields except id, user_id, routine_id, created_at are updatable
+* Via PATCH `/api/sessions/{id}` 
+* Updatable fields: start_time, end_time, notes, rpe
+* status, routine_id, and read-only fields (id, user_id, created_at, updated_at) cannot be updated via this endpoint
+* start_time and end_time can be edited independently (allows rescheduling a session)
+* notes and rpe can be updated
 
-**Complete**
-* Setting completed to true should set status to "completed" if not already set
+**Change Status**
+* Via PATCH `/api/sessions/{id}/status`
+* Request body: `{"status": "completed"}` (or "skipped"/"cancelled"/"scheduled")
+* Validates that status is one of: scheduled, completed, skipped, cancelled
+
+**Tag & Principle Inheritance**
+* When a session is created, it can optionally inherit tags and principles from its parent routine
+* Query param `inherit_tags` (default true) on session creation determines tag inheritance
+* Query param `inherit_principles` (default true) on session creation determines principle inheritance
+* If true: session is tagged/principled same as routine at time of creation
+* If false: session starts untagged/unprincipaled
+* Tags and principles can be independently modified on a session after creation
 
 **Delete**
-* Hard delete
-* Should also delete associated Commitment
+* Hard delete via DELETE `/api/sessions/{id}`
+* Cascade deletes the associated Commitment
 
 ==== Computed Properties ====
 * **duration_minutes**: Calculated from end_time - start_time
@@ -181,6 +253,57 @@ Status is not strictly validated, but common values:
 ==== Relationships ====
 * Belongs to one User (required)
 * Belongs to one Routine (required)
-* Has one Commitment (auto-generated)
-* Can have many Tags
-* Can have many Principles
+* Has one Commitment (auto-generated hard commitment)
+* Can have many Tags (optionally inherited from routine)
+* Can have many Principles (optionally inherited from routine)
+* Can receive many Checkins (execution notes, progress updates, reflections)
+
+
+===== System Interactions =====
+
+==== Calendar → Routine → Session Flow ====
+
+**Scenario 1: Imported Recurring Schedule**
+1. Import a CalDAV calendar (e.g., Google Calendar with "Workouts")
+2. Each recurring event becomes a Routine (e.g., "Monday Leg Day" with RRULE)
+3. Generate sessions for a date range (e.g., "next 3 months") via POST `/api/routines/{id}/sessions/generate`
+4. Each session auto-creates a commitment to its day
+5. As you complete sessions, update status via PATCH `/api/sessions/{id}/status` and optionally add checkins for notes/reflection
+
+**Scenario 2: Manual Ad-Hoc Activity**
+1. Create a Routine with no RRULE (e.g., "Guitar Practice")
+2. Whenever you practice, manually create a session with start/end times via POST `/api/routines/{id}/sessions`
+3. Session auto-creates a commitment; you can update status/notes/RPE via PATCH
+4. Checkins capture reflections ("made progress on fingerpicking today")
+
+**Scenario 3: Seasonal Activity Management**
+1. Create a Calendar (e.g., "Outdoor Activities")
+2. Create multiple Routines within it (e.g., "Trail Running", "Rock Climbing")
+3. In winter, set calendar active=false → all routines become inactive → no new sessions generated
+4. Come spring, set calendar active=true → routines reactivate → generate sessions as usual
+
+**Scenario 4: Updating Routine Details**
+1. Update a routine's title: PATCH `/api/routines/{id}?cascade_future=true&cascade_past=true` with `{"title": "New Name"}`
+2. This updates the routine and cascades the name change to all sessions' `routine_name` field
+3. Update times without cascading: PATCH `/api/routines/{id}` with `{"start_time": "10:00"}` (no cascade params)
+4. This updates the routine but leaves existing sessions unchanged
+
+**Scenario 5: Cleaning Up Sessions**
+1. Delete all future incomplete sessions: DELETE `/api/routines/{id}/sessions/future?incomplete_only=true`
+2. Delete all past sessions: DELETE `/api/routines/{id}/sessions/past?incomplete_only=false`
+
+==== Sessions & Commitments ====
+
+Every session auto-creates a hard commitment to its day:
+* The commitment's due_at = session's end_time
+* The commitment's timeframe = the DAY containing end_time
+* The commitment's status can be updated independently to track planning vs. execution
+* Example: Session scheduled for 6pm Monday, commitment created for Monday; if you reschedule or skip, update the commitment status
+
+==== Sessions & Checkins ====
+
+Checkins can be attached to sessions to capture execution notes and reflections:
+* "Did a tough leg day; feeling sore but good" (positive reflection)
+* "Skipped due to injury" (reason tracking)
+* "Lighter effort today; back pain" (contextual notes)
+* Multiple checkins can be added over time

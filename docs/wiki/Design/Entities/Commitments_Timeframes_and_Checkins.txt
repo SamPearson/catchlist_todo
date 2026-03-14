@@ -1,28 +1,27 @@
 Content-Type: text/x-zim-wiki
 Wiki-Format: zim 0.6
-Creation-Date: 2026-01-10T14:37:21-06:00
-
+Creation-Date: 2026-01-10T14:37:00-06:00
 ====== Commitments, Timeframes, and Checkins ======
 
 ===== Overview =====
 
 The **accountability system** provides structure for planning, tracking, and reflecting on work over time.
 
-* **Timeframe**: A container representing a time period (day, week, month, season, year)
-* **Commitment**: Links an entity to a timeframe—"I will do X during Y"
-* **Checkin**: A timestamped note attached to any entity
+* **Timeframe**: A container representing a time period (day, week, month, season, year). Timeframes are permanent historical records and anchor commitments and reports.
+* **Commitment**: Links an entity (task, project, routine, session) to a timeframe—"I will attempt to do X during Y." Commitments track your *attempt* to complete work; they are distinct from the work itself.
+* **Checkin**: A timestamped note attached to any entity, providing a chronological record of thoughts, progress, and reflections.
 
 Together, these enable:
 * Scheduling work within specific time periods
-* Distinguishing between precise appointments (hard) and flexible goals (soft)
-* Tracking what was planned vs. accomplished
+* Distinguishing between flexible goals (soft commitments) and specific appointments (hard commitments)
+* Tracking what was planned vs. what was accomplished
 * Leaving notes and reflections over time
 
 
 ===== Timeframes =====
 
 ==== Purpose ====
-Timeframes are containers representing bounded periods of time. They exist primarily to anchor commitments and organize reports.
+Timeframes are bounded periods of time that serve as containers for commitments and reports. They form the historical backbone of the system—once created, they persist as permanent records of planning and execution.
 
 ==== Kinds ====
 
@@ -35,14 +34,15 @@ Timeframes are containers representing bounded periods of time. They exist prima
 | year | A calendar year | "2025" |
 
 **Season Definitions:**
-| Season | Months |
-|--------|--------|
-| Winter | December, January, February |
-| Spring | March, April, May |
-| Summer | June, July, August |
-| Autumn | September, October, November |
 
-Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1).
+| Season | Months | Example |
+|--------|--------|---------|
+| Winter | Dec, Jan, Feb | Winter 2025 = Dec 2025, Jan 2026, Feb 2026 |
+| Spring | Mar, Apr, May | Spring 2025 = Mar-May 2025 |
+| Summer | Jun, Jul, Aug | Summer 2025 = Jun-Aug 2025 |
+| Autumn | Sep, Oct, Nov | Autumn 2025 = Sep-Nov 2025 |
+
+*Note: The Winter season is identified by the year of its December. Winter 2025 includes December 2025 and extends into early 2026.*
 
 ==== Properties ====
 
@@ -51,53 +51,79 @@ Note: Winter crosses the year boundary (Dec of year N through Feb of year N+1).
 | id | integer | auto | Primary key |
 | user_id | integer | auto | Owner |
 | kind | string(16) | yes | day, week, month, season, year |
-| start_at_utc | datetime | yes | Start of period (inclusive) |
-| end_at_utc | datetime | yes | End of period (exclusive) |
+| start_at_utc | datetime | yes | Start of period (inclusive, UTC) |
+| end_at_utc | datetime | yes | End of period (exclusive, UTC) |
 | label | string(32) | no | Human-readable label for display |
 | created_at | datetime | auto | When created |
 | updated_at | datetime | auto | When last modified |
 
 ==== Interval Semantics ====
-Timeframes use half-open intervals: ''[start_at_utc, end_at_utc)''
+Timeframes use half-open intervals: `[start_at_utc, end_at_utc)`
 * Start is inclusive
 * End is exclusive
 * This prevents overlap between adjacent timeframes
 
+==== Uniqueness Constraint ====
+**Unique constraint**: `(user_id, kind, start_at_utc)`
+
+A user may have only one timeframe of each kind that starts at a given time. For example:
+* One "June 2025" timeframe (kind=month, start=2025-06-01)
+* One "Friday, June 8, 2025" timeframe (kind=day, start=2025-06-08)
+* If you later need the June 8 timeframe again, the system retrieves the existing one (get-or-create pattern)
+
 ==== Behaviors ====
 
-**Create**
-* Can be created explicitly via API
-* Can be auto-created when needed (e.g., hard commitments derive their day timeframe)
-* Unique constraint: one timeframe per (user, kind, start_at_utc)
+**Create or Get**
+* Use get-or-create endpoints to retrieve an existing timeframe or create one if it doesn't exist
+* Specified by kind and appropriate boundary info (e.g., date for day, year+month for month, year for year, year for season)
+* Returns the matching timeframe if found; creates and returns new one otherwise
+
+**Manual Creation**
+* Timeframes can be created explicitly via API if needed
+* Typically auto-created on-demand by other operations
+
+**Update**
+* label and other display fields can be updated
+* start_at_utc and end_at_utc should not be changed (would break historical continuity)
 
 **Delete**
-* Should cascade delete associated commitments
-* Consider: prevent deletion if commitments exist? (TBD)
+* **Deletion is not supported**
+* Timeframes are permanent historical containers; deleting a timeframe would erase
+  the record of commitments and planning within that period
+* Timeframes are only deleted when a user account is deleted
+* There is no DELETE endpoint for timeframes
 
 ==== Relationships ====
 * Belongs to one User (required)
 * Has many Commitments
-* Has one Report (1:1 relationship; covered in [[Reports]])
+* Has one Report (1:1 relationship)
 
 
 ===== Commitments =====
 
 ==== Purpose ====
-Commitments attach an entity to a timeframe, representing a plan or intention to complete something within that period.
+Commitments represent your *attempt* to complete a piece of work during a specific timeframe. They are distinct from tasks/projects (which represent the work itself) and track planning, scheduling, and execution.
+
+Commitments can be:
+* **Soft**: "I'll do this sometime during this timeframe" (flexible, no specific time)
+* **Hard**: "I'll do this at this specific time" (appointment-like, tied to a specific datetime)
 
 ==== Two Types ====
 
 **Soft Commitment**
-* "I'll do this sometime during this timeframe"
-* Requires an existing timeframe to be specified
-* No specific due time
+* Represents flexible work scheduled within a timeframe
 * Example: "Clean garage sometime this month"
+* No `due_at` or `start_at` timestamp
+* Requires an existing timeframe to be specified
+* Typical targets: tasks, projects, routines
 
 **Hard Commitment**
-* "I'll do this at this specific time"
-* Requires a due_at timestamp; start_at is optional
-* Timeframe is auto-derived as the DAY containing the due time
+* Represents a specific appointment or deadline
 * Example: "Dentist appointment at 2pm on Tuesday"
+* Requires a `due_at` timestamp (when the commitment is due)
+* `start_at` is optional (when it starts)
+* Timeframe is auto-derived as the DAY containing the due_at time (in user's timezone)
+* Typical targets: tasks, sessions
 
 ==== Properties ====
 
@@ -115,14 +141,23 @@ Commitments attach an entity to a timeframe, representing a plan or intention to
 | created_at | datetime | auto | When created |
 | updated_at | datetime | auto | When last modified |
 
+==== Inferring Type ====
+The system infers commitment type from populated fields:
+* **Soft Commitment**: `start_at_utc` and `due_at_utc` are both null
+* **Hard Commitment**: `due_at_utc` is populated; `start_at_utc` may or may not be populated
+
+No explicit `commitment_type` field is needed; the presence/absence of datetime fields is sufficient.
+
 ==== Target Types ====
 
 | Type | Description |
 |------|-------------|
 | task | A task (standalone or subtask) |
-| project | A project |
+| project | A project (soft commitments only; see note below) |
 | routine | A routine template |
 | session | A specific session occurrence |
+
+**Project Commitment Restriction:** Projects can only receive soft commitments. Hard commitments are for tasks and sessions, not containers. This reinforces that projects are containers; the real work happens at the task level with its own hard commitments.
 
 ==== Status Values ====
 
@@ -137,45 +172,109 @@ Commitments attach an entity to a timeframe, representing a plan or intention to
 ==== Behaviors ====
 
 **Create Soft Commitment**
+
+Soft commitments can be created in two ways:
+
+**Option 1: Direct Timeframe Reference**
 * Required: target_type, target_id, timeframe_id
-* Validates target exists and belongs to user
 * Validates timeframe exists and belongs to user
+* Timeframe must already exist
+
+**Option 2: Implicit Timeframe Creation**
+* Required: target_type, target_id, timeframe_kind, reference_date
+* The system fetches or creates the appropriate timeframe for the given kind and date
+* reference_date is provided in user's local timezone (ISO 8601 format)
+* Timeframe boundaries are automatically derived based on kind
+* Examples:
+  - `timeframe_kind="week"`, `reference_date="2025-06-08"` → creates/fetches week containing June 8
+  - `timeframe_kind="month"`, `reference_date="2025-06-15"` → creates/fetches June 2025
+
+**Both options:**
+* Validate target exists and belongs to user
 * Status defaults to "planned"
-* Prevents duplicate: same target cannot be committed to same timeframe twice
+* Cannot provide both timeframe_id AND (timeframe_kind + reference_date)
+* **Duplicate Prevention**: A target cannot be committed to the same timeframe twice.
+  If a commitment already exists for this target+timeframe pair, return 409 Conflict
+  with message: "This entity is already committed to this timeframe."
 
 **Create Hard Commitment**
-* Required: target_type, target_id, due_at
-* Optional: start_at, status, notes
+* Required: target_type, target_id, due_at_utc
+* Optional: start_at_utc, status, notes
 * Validates target exists and belongs to user
-* Auto-creates DAY timeframe if needed (based on due_at in user's timezone)
-* Prevents duplicate: same target cannot be committed to same day twice
+* Auto-creates or retrieves the DAY timeframe containing due_at_utc (based on user's timezone)
+* **Duplicate Prevention**: Same target cannot be committed to the same day twice. Returns 409 Conflict if duplicate detected.
+* Creates the commitment linked to the derived day timeframe
+* Status defaults to "planned"
 
 **Update Status**
-* Status can be changed to any valid value
-* No automatic status transitions (manual control)
+* Status can be changed to any valid value (planned/done/skipped/canceled/missed)
+* No automatic status transitions; status is manually controlled
+* Use a dedicated update endpoint (or PATCH operation) to change status
+
+**Update Commitment**
+* Notes can be updated
+* Start_at and due_at can be edited (allows rescheduling hard commitments)
+* Status can be changed (see above)
+* Cannot change target_type, target_id, or timeframe_id; these would require deletion and recreation
 
 **Delete**
 * Hard delete
+* No cascade effects; only removes the commitment record itself
+
+**Bulk Delete for Target**
+* All commitments for a specific target can be deleted in one operation
+* Used when deleting the target entity itself (e.g., deleting a task deletes all its commitments)
+* Specify user_id, target_type, and target_id
+* Returns count of commitments deleted
+
+**Search and Filter**
+
+Commitments support flexible filtering via a search endpoint/method:
+
+**Filter Dimensions:**
+* **timeframe_id** - Single timeframe to filter by
+* **timeframe_ids** - Multiple timeframes (OR condition)
+* **target_type** - Single target type (task, project, routine, session)
+* **target_types** - Multiple target types (OR condition)
+* **target_id** - Specific target entity
+* **status** - Single status value
+* **statuses** - Multiple status values (OR condition)
+* **is_hard** - Boolean filter: true=hard commitments only, false=soft only, null/omitted=both
+* **due_after** - Filter for commitments due on or after this UTC datetime
+* **due_before** - Filter for commitments due before this UTC datetime
+* **include_targets** - Boolean flag to eagerly load target entities (performance optimization)
+
+**Filter Combination:**
+All provided filters are combined with AND logic (except within multi-value filters like timeframe_ids, which use OR).
+
+**Ordering:**
+Results are ordered by due_at_utc (nulls last), then created_at.
+
+**Performance Notes:**
+* Use `include_targets=true` when you need to display target entity details to avoid N+1 query problems
+* When enabled, each commitment will have a `.target` attribute containing the full target entity
+* Target entities are batch-fetched in groups by type for efficiency
 
 **Auto-Generation**
 * When Sessions are generated from a Routine, a hard commitment is auto-created for each session
 * The commitment's due_at matches the session's end_time
+* The commitment's timeframe is auto-derived from that end_time
 
 ==== Constraints ====
-* Unique: (user_id, target_type, target_id, timeframe_id)
-* One entity can have multiple commitments to different timeframes
-* One entity cannot have duplicate commitments to the same timeframe
+* Unique: `(user_id, target_type, target_id, timeframe_id)` for soft commitments
+* Unique: `(user_id, target_type, target_id, timeframe_id)` for hard commitments (where timeframe is the derived day)
+* A soft commitment cannot be converted to hard or vice versa; delete and recreate if needed
 
 ==== Relationships ====
 * Belongs to one User (required)
 * Belongs to one Timeframe (required)
-* References one target entity (polymorphic)
+* References one target entity (polymorphic: task, project, routine, or session)
 
 
 ===== Checkins =====
 
 ==== Purpose ====
-Checkins are timestamped notes attached to entities. They provide a chronological record of thoughts, progress, and reflections.
+Checkins are timestamped notes attached to entities, providing a chronological record of thoughts, progress updates, and reflections. They're meant to be flexible and freeform—a place to capture what's happening with any piece of work.
 
 ==== Properties ====
 
@@ -185,8 +284,8 @@ Checkins are timestamped notes attached to entities. They provide a chronologica
 | user_id | integer | auto | Owner |
 | target_type | string(32) | yes | Entity type being checked in on |
 | target_id | integer | yes | ID of the target entity |
-| note | text | yes | The checkin content |
-| occurred_at_utc | datetime | yes | When this happened (defaults to now) |
+| note | text | yes | The checkin content (brief update or longer reflection) |
+| occurred_at_utc | datetime | yes | When this happened (defaults to now; UTC) |
 | created_at | datetime | auto | When record was created |
 | updated_at | datetime | auto | When record was last modified |
 
@@ -202,24 +301,84 @@ Checkins are timestamped notes attached to entities. They provide a chronologica
 | tag | A tag |
 | principle | A principle |
 
+Note: Checkins are attached to the primary entity, not to commitments.
+To leave notes about progress on a commitment, attach the checkin to the
+target entity (task/project/routine/session).
+
 ==== Behaviors ====
 
 **Create**
 * Required: target_type, target_id, note
 * occurred_at_utc defaults to current time if not specified
 * Validates target exists and belongs to user
+* Note can be brief ("On track") or lengthy (multi-paragraph reflection)
 
 **Update**
-* Note and occurred_at_utc can be updated
+* Note text can be updated
+* occurred_at_utc can be updated (allows correcting when you recorded the checkin)
+* Cannot change target_type, target_id (would require deletion and recreation)
 
 **Delete**
 * Hard delete
 
+**Bulk Delete for Target**
+* All checkins for a specific target can be deleted in one operation
+* Used when deleting the target entity itself (e.g., deleting a task deletes all its checkins)
+* Specify user_id, target_type, and target_id
+* Returns count of checkins deleted
+
+**Retrieve**
+* List endpoint retrieves checkins for a specific target
+* Required filters: target_type, target_id
+* Optional pagination: limit (default 50), offset (default 0)
+* Ordered by occurred_at_utc descending (most recent first), then created_at descending
+* Returns array of checkin records
+
 ==== Design Notes ====
-* Freeform by design—meant to be flexible
-* occurred_at_utc vs created_at: allows backdating notes ("this happened yesterday")
-* May add additional fields later (mood, metrics, etc.)
+* Freeform by design—meant to be flexible and low-friction
+* No enforced structure; users decide what's worth noting
+* occurred_at_utc vs created_at: occurred_at_utc is "when did this happen," created_at is "when did I record it"
+* Future enhancement: If need arises, checkins can be tagged or categorized without schema changes
 
 ==== Relationships ====
 * Belongs to one User (required)
 * References one target entity (polymorphic)
+
+
+===== System Interactions =====
+
+==== Commitment Lifecycle ====
+
+1. **Creation**: User creates a commitment (soft or hard) to complete a task/project/routine/session during a timeframe
+2. **Tracking**: Commitment status can be updated (planned → done/skipped/canceled/missed) as work progresses
+3. **Reflection**: Checkins can be added to the commitment or its target entity to track progress
+4. **Completion**: When the timeframe ends, commitments show how you did against your plan
+5. **History**: Timeframe and commitment records persist indefinitely for historical analysis
+
+==== Timeframe & Report Connection ====
+
+* Each timeframe has a 1:1 associated Report
+* Report queries commitments within its timeframe
+* Different report kinds show different commitment slices:
+  - Daily report: shows all commitments for that day
+  - Weekly report: typically shows soft commitments for the week (with links to daily commitments if needed)
+  - Monthly/seasonal/yearly reports: typically show soft commitments (with drill-down capability)
+* Reports can derive data from commitments without storing it redundantly
+
+==== Key Distinctions ====
+
+**Commitment Status vs. Task/Project Status**
+
+These are *independent*:
+* A **Task** has `status` (open/waiting/deferred/declined/stale) representing its mode
+* A **Commitment** has `status` (planned/done/skipped/canceled/missed) representing your attempt to complete it during a timeframe
+
+Example: A task might be `status="waiting"` (blocked externally) while a commitment to it is `status="planned"` (you still intend to attempt it this week).
+
+**Soft Commitment vs. Hard Commitment**
+
+* **Soft**: "Sometime during this timeframe" — flexible scheduling, no deadline
+* **Hard**: "At this specific time" — appointment-like, tied to a datetime
+* Sessions always generate hard commitments (they have specific times)
+* Tasks can have either (soft = "do it this month", hard = "finish by Friday 5pm")
+* Projects can only have soft commitments (they're containers; the real work is in subtasks)
