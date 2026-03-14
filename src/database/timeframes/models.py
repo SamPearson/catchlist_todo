@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Index, String, UniqueConstraint
 
-from src.database.base.models import UserOwnedModel
+from src.database.base.base_models import UserOwnedModel
 from src.database.db import db
 
 

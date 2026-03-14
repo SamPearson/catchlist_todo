@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
-from src.database.base.models import PrincipledMixin
+from src.database.base.base_models import PrincipledMixin
 from src.database.db import db
-from src.database.base.models import UserOwnedModel, TaggableMixin
+from src.database.base.base_models import UserOwnedModel, TaggableMixin
 
 
 class Task(UserOwnedModel, TaggableMixin, PrincipledMixin):
