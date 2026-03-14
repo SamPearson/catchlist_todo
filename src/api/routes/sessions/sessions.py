@@ -74,13 +74,23 @@ def create_session(routine_id: int):
     try:
         user_timezone = get_user_timezone(user_id)
 
+        # Parse the inheritance query parameters (default: both true)
+        inherit_tags = request.args.get('inherit_tags', 'true').lower() == 'true'
+        inherit_principles = request.args.get('inherit_principles', 'true').lower() == 'true'
+
         # Convert input times from user timezone to UTC
         if 'start_time' in data:
             data['start_time'] = to_utc(parse_dt(data['start_time'], user_timezone), user_timezone)
         if 'end_time' in data:
             data['end_time'] = to_utc(parse_dt(data['end_time'], user_timezone), user_timezone)
 
-        session_obj = service.create_session(user_id, routine_id, data)
+        session_obj = service.create_session(
+            user_id,
+            routine_id,
+            data,
+            inherit_tags=inherit_tags,
+            inherit_principles=inherit_principles
+        )
 
         # Convert response times back to user timezone
         session_dict = session_obj.as_dict()
@@ -94,9 +104,22 @@ def create_session(routine_id: int):
 
 @jwt_required()
 def update_session(session_id: int):
+    """PATCH /api/sessions/{id} - Update session properties (excludes status)"""
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     service = SessionService(db.session)
+
+    if not data:
+        return jsonify({'error': 'No update data provided'}), 400
+
+    # Check for disallowed fields
+    disallowed_fields = {'status', 'routine_id', 'user_id', 'id', 'created_at', 'updated_at'}
+    if any(field in data for field in disallowed_fields):
+        return jsonify({
+            'error': 'Cannot update status via this endpoint. Use PATCH /api/sessions/{id}/status instead. '
+                     'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
+        }), 400
+
     try:
         user_timezone = get_user_timezone(user_id)
 
@@ -122,45 +145,39 @@ def update_session(session_id: int):
 
 
 @jwt_required()
+def set_session_status(session_id: int):
+    """PATCH /api/sessions/{id}/status - Set session status to one of: scheduled, completed, skipped, cancelled"""
+    user_id = int(get_jwt_identity())
+    data = request.get_json() or {}
+    service = SessionService(db.session)
+
+    if 'status' not in data:
+        return jsonify({'error': 'status field is required'}), 400
+
+    status = data['status']
+
+    try:
+        session_obj = service.set_session_status(session_id, user_id, status)
+
+        if not session_obj:
+            return '', 404
+
+        # Convert UTC times to user timezone
+        user_timezone = get_user_timezone(user_id)
+        session_dict = session_obj.as_dict()
+        session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
+        session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+
+        return jsonify(session_dict)
+    except SessionValidationError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@jwt_required()
 def delete_session(session_id: int):
     user_id = int(get_jwt_identity())
     service = SessionService(db.session)
     return ('', 204) if service.delete_session(session_id, user_id) else ('', 404)
 
 
-@jwt_required()
-def complete_session(session_id: int):
-    """Mark a session as completed."""
-    user_id = int(get_jwt_identity())
-    service = SessionService(db.session)
-    
-    session_obj = service.complete_session(session_id, user_id)
-    if not session_obj:
-        return '', 404
 
-    # Convert UTC times to user timezone
-    user_timezone = get_user_timezone(user_id)
-    session_dict = session_obj.as_dict()
-    session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-    session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
-
-    return jsonify(session_dict)
-
-
-@jwt_required()
-def uncomplete_session(session_id: int):
-    """Mark a session as not completed."""
-    user_id = int(get_jwt_identity())
-    service = SessionService(db.session)
-    
-    session_obj = service.uncomplete_session(session_id, user_id)
-    if not session_obj:
-        return '', 404
-
-    # Convert UTC times to user timezone
-    user_timezone = get_user_timezone(user_id)
-    session_dict = session_obj.as_dict()
-    session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-    session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
-
-    return jsonify(session_dict)
