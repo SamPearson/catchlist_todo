@@ -195,3 +195,36 @@ class CheckinService:
             limit=limit,
             offset=offset,
         )
+
+    def delete_for_target(
+            self,
+            *,
+            user_id: int,
+            target_type: str,
+            target_id: int,
+    ) -> int:
+        """
+        Delete all checkins for a specific target.
+
+        Args:
+            user_id: The user ID (for ownership verification)
+            target_type: One of the allowed target types
+            target_id: ID of the target entity
+
+        Returns:
+            Number of checkins deleted
+
+        Raises:
+            CheckinValidationError: If target_type is invalid
+            CheckinTargetNotFound: If target doesn't exist or doesn't belong to user
+        """
+        ttype = self._normalize_target_type(target_type)
+
+        if not self._target_exists(user_id=user_id, target_type=ttype, target_id=int(target_id)):
+            raise CheckinTargetNotFound(f"Target not found for {ttype} id={target_id}")
+
+        return self.repo.delete_for_target(
+            user_id=user_id,
+            target_type=ttype,
+            target_id=int(target_id),
+        )
