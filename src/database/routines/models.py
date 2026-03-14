@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Text, Boolean, Integer, ForeignKey, Time
 from sqlalchemy.orm import relationship
 
-from database.base.models import PrincipledMixin
+from database.base.base_models import PrincipledMixin
 from src.database.db import db
-from src.database.base.models import UserOwnedModel, TaggableMixin
+from src.database.base.base_models import UserOwnedModel, TaggableMixin
 
 
 class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
