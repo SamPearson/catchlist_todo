@@ -13,7 +13,7 @@ def list_calendars():
     items = service.list_calendars(user_id, include_inactive=include_inactive)
     return jsonify([c.as_dict() for c in items])
 
-    
+
 @jwt_required()
 def discover_calendars():
     """POST /api/calendars/discover - List remote calendars"""
@@ -51,12 +51,19 @@ def sync_calendar():
     except ValidationError as e:
         return jsonify({"error": e.message}), 400
 
+
 @jwt_required()
-def list_calendars():
+def get_calendar(calendar_id):
+    """GET /api/calendars/<calendar_id> - Get a specific calendar"""
     user_id = int(get_jwt_identity())
     service = CalendarService(db.session)
-    items = service.list_calendars(user_id)
-    return jsonify([c.as_dict() for c in items])
+
+    calendar = service.get_calendar(calendar_id, user_id)
+    if not calendar:
+        return jsonify({"error": "Calendar not found"}), 404
+
+    return jsonify(calendar.as_dict())
+
 
 @jwt_required()
 def create_calendar():
@@ -67,6 +74,7 @@ def create_calendar():
     return jsonify(cal.as_dict()), 201
 
 
+
 @jwt_required()
 def update_calendar(calendar_id):
     """PUT /api/calendars/<calendar_id> - Update a calendar"""
@@ -75,7 +83,10 @@ def update_calendar(calendar_id):
     service = CalendarService(db.session)
 
     try:
-        calendar = service.update_calendar(user_id, calendar_id, data)
+        # Parse cascade parameter (default: true)
+        cascade_deactivation = request.args.get('cascade_deactivation', 'true').lower() == 'true'
+
+        calendar = service.update_calendar(user_id, calendar_id, data, cascade_deactivation=cascade_deactivation)
         if not calendar:
             return jsonify({"error": "Calendar not found"}), 404
         return jsonify(calendar.as_dict())

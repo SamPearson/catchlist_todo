@@ -5,23 +5,37 @@ from src.database.principles.service import PrincipleService, PrincipleValidatio
 
 
 def _get_target_entity(session, user_id, target_type, target_id):
-    """Helper to resolve polymorphic targets for principles"""
+    """Helper to resolve polymorphic targets for principles
+    
+    Returns:
+        tuple: (entity, error_dict) where error_dict is None if successful,
+               or contains error details if target_type is invalid
+    """
+    valid_types = {"task", "project", "calendar", "routine", "session"}
+    
+    if target_type not in valid_types:
+        return None, {
+            "error": f"Invalid target type '{target_type}'. Valid types are: {', '.join(sorted(valid_types))}",
+            "code": "INVALID_TARGET_TYPE"
+        }
+    
     if target_type == "task":
         from src.database.tasks.models import Task
-        return session.query(Task).filter_by(id=target_id, user_id=user_id).first()
-    if target_type == "project":
+        entity = session.query(Task).filter_by(id=target_id, user_id=user_id).first()
+    elif target_type == "project":
         from src.database.projects.models import Project
-        return session.query(Project).filter_by(id=target_id, user_id=user_id).first()
-    if target_type == "calendar":
+        entity = session.query(Project).filter_by(id=target_id, user_id=user_id).first()
+    elif target_type == "calendar":
         from src.database.calendars.models import Calendar
-        return session.query(Calendar).filter_by(id=target_id, user_id=user_id).first()
-    if target_type == "routine":
+        entity = session.query(Calendar).filter_by(id=target_id, user_id=user_id).first()
+    elif target_type == "routine":
         from src.database.routines.models import Routine
-        return session.query(Routine).filter_by(id=target_id, user_id=user_id).first()
-    if target_type == "session":
+        entity = session.query(Routine).filter_by(id=target_id, user_id=user_id).first()
+    elif target_type == "session":
         from src.database.sessions.models import RoutineSession
-        return session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first()
-    return None
+        entity = session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first()
+    
+    return entity, None
 
 @jwt_required()
 def list_principles():
@@ -85,7 +99,11 @@ def attach_principle():
         return jsonify({"error": "principle_id, target_type, and target_id required"}), 400
 
     service = PrincipleService(db.session)
-    entity = _get_target_entity(db.session, user_id, t_type, t_id)
+    entity, error = _get_target_entity(db.session, user_id, t_type, t_id)
+    
+    if error:
+        return jsonify(error), 422
+    
     if not entity:
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
@@ -108,7 +126,11 @@ def detach_principle():
         return jsonify({"error": "principle_id, target_type, and target_id required"}), 400
 
     service = PrincipleService(db.session)
-    entity = _get_target_entity(db.session, user_id, t_type, t_id)
+    entity, error = _get_target_entity(db.session, user_id, t_type, t_id)
+    
+    if error:
+        return jsonify(error), 422
+    
     if not entity:
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 

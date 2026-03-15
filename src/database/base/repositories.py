@@ -1,6 +1,6 @@
 from typing import TypeVar, Generic, Optional, List, Type, Any
 from sqlalchemy.orm import Session
-from .models import BaseModel
+from .base_models import BaseModel
 from .exceptions import RepositoryError
 
 T = TypeVar('T', bound=BaseModel)

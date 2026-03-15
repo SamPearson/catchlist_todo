@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Index, Integer, String, Text
 
-from src.database.base.models import UserOwnedModel
+from src.database.base.base_models import UserOwnedModel
 
 
 class CheckinRecord(UserOwnedModel):

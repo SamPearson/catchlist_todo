@@ -127,13 +127,25 @@ class CalendarService:
             calendars = [c for c in calendars if c.active]
         return calendars
 
-    def update_calendar(self, user_id: int, calendar_id: int, data: Dict[str, Any]) -> Optional[Calendar]:
+    def get_calendar(self, calendar_id: int, user_id: int) -> Optional[Calendar]:
+        """Get a specific calendar, ensuring user ownership"""
+        return self.repo.get(id=calendar_id, user_id=user_id)
+
+    def update_calendar(self, user_id: int, calendar_id: int, data: Dict[str, Any],
+                        cascade_deactivation: bool = True) -> Optional[Calendar]:
         """
         Update a calendar's properties.
         Only allows updating: name, color, active
         Prevents updating: external_uid, external_source
-        
-        If active is set to False, cascades deactivation to all contained routines.
+
+        Args:
+            user_id: ID of the user who owns the calendar
+            calendar_id: ID of the calendar to update
+            data: Dictionary of fields to update
+            cascade_deactivation: If True and active is set to False, cascade to all routines (default: True)
+
+        Returns:
+            Updated calendar or None if not found
         """
         calendar = self.repo.get(calendar_id, user_id)
         if not calendar:
@@ -146,12 +158,14 @@ class CalendarService:
         if 'name' in update_data and not update_data['name']:
             raise ValidationError("Calendar name cannot be empty.")
 
-        # Cascade deactivation to routines if calendar is being deactivated
-        if 'active' in update_data and update_data['active'] is False and calendar.active:
+        # Cascade deactivation to routines if requested
+        if cascade_deactivation and 'active' in update_data and update_data['active'] is False and calendar.active:
             for routine in calendar.routines:
                 routine.active = False
+            logging.info(f"Cascaded deactivation to {len(calendar.routines)} routines for calendar {calendar_id}")
 
         return self.repo.update(calendar, **update_data)
+
 
     def delete_calendar(self, user_id: int, calendar_id: int) -> bool:
         """

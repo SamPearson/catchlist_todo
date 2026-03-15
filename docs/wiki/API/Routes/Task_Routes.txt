@@ -1,0 +1,205 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T16:50:35-06:00
+
+====== Task Routes ======
+
+===== Overview =====
+
+API endpoints for managing standalone tasks. Tasks can also exist as subtasks of projects (see [[Project Routes]]).
+
+All endpoints require authentication via JWT Bearer token.
+
+For business logic, validation rules, and state management details, see [[Tasks_and_Projects]].
+
+
+===== Endpoints =====
+
+==== List Tasks ====
+
+**GET /api/tasks**
+
+Returns all tasks for the authenticated user.
+
+| Parameter | Type | Location | Required | Description |
+|-----------|------|----------|----------|-------------|
+| include_completed | boolean | query | no | If "true" (case-insensitive string), includes completed tasks. Default false. |
+
+**Response:** Array of task objects (200)
+
+
+==== Create Task ====
+
+**POST /api/tasks**
+
+Creates a new standalone task.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| title | string | yes | Task title (max 200 chars) |
+| description | text | no | Additional details |
+| status | string | no | One of: open, waiting, deferred, declined, stale. Default "open" |
+| active | boolean | no | Default true; false moves to backlog |
+| project_id | integer | no | Associate with a project as subtask |
+
+**Response:** Created task object (201)
+
+**Error Responses:**
+* 400 if title is missing or validation fails
+
+
+==== Get Task ====
+
+**GET /api/tasks/<task_id>**
+
+Returns a specific task by ID. Only returns tasks owned by the authenticated user.
+
+**Response:** Task object (200), or 404 if not found or not owned by user
+
+
+==== Update Task ====
+
+**PUT /api/tasks/<task_id>**
+
+Updates a task's fields. **Does not handle completion, active status, or status changes**—use the dedicated state management endpoints instead.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| title | string | Task title (cannot be empty) |
+| description | text | Additional details |
+| project_id | integer | Change project association (null to make standalone) |
+
+**Disallowed Fields:** status, active, completed, completed_at
+
+**Response:** Updated task object (200), or 404 if not found
+
+**Error Responses:**
+* 400 if no update data provided
+* 400 if attempting to update disallowed fields (status, active, completed, completed_at)
+* 400 if validation fails
+
+
+==== Delete Task ====
+
+**DELETE /api/tasks/<task_id>**
+
+Permanently deletes a task.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+===== State Management Endpoints =====
+
+==== Complete Task ====
+
+**PATCH /api/tasks/<task_id>/complete**
+
+Marks a task as completed. Automatically sets completed_at timestamp.
+
+| Parameter | Type | Location | Required | Description |
+|-----------|------|----------|----------|-------------|
+| toggle | boolean | query | no | If "true" (case-insensitive string), toggles completion status instead of always setting to completed |
+
+**Response:** Updated task object (200), or 404 if not found
+
+**Error Responses:**
+* 400 if validation fails
+
+
+==== Uncomplete Task ====
+
+**PATCH /api/tasks/<task_id>/uncomplete**
+
+Marks a task as not completed. Clears the completed_at timestamp.
+
+**Response:** Updated task object (200), or 404 if not found
+
+**Error Responses:**
+* 400 if validation fails
+
+
+==== Activate Task ====
+
+**PATCH /api/tasks/<task_id>/activate**
+
+Sets active to true, moving the task into the active working set.
+
+**Response:** Updated task object (200), or 404 if not found
+
+**Error Responses:**
+* 400 if validation fails
+
+
+==== Deactivate Task ====
+
+**PATCH /api/tasks/<task_id>/deactivate**
+
+Sets active to false, moving the task to the someday/maybe pile.
+
+**Response:** Updated task object (200), or 404 if not found
+
+**Error Responses:**
+* 400 if validation fails
+
+
+==== Change Status ====
+
+**PATCH /api/tasks/<task_id>/status**
+
+Changes a task's status (open, waiting, deferred, declined, stale).
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| status | string | yes | New status value: open, waiting, deferred, declined, or stale |
+
+**Response:** Updated task object (200), or 404 if not found
+
+**Error Responses:**
+* 400 if status field is missing in request body
+* 400 if status value is invalid
+
+
+===== Project Association Endpoints =====
+
+==== Attach Task to Project ====
+
+**PATCH /api/tasks/<task_id>/attach/<project_id>**
+
+Associates a standalone task with a project, making it a subtask. Validates that the project exists and is owned by the authenticated user.
+
+**Response:** Updated task object with project_id set (200), or 404 if task not found
+
+**Error Responses:**
+* 400 if project doesn't exist or isn't owned by user
+
+
+==== Detach Task from Project ====
+
+**PATCH /api/tasks/<task_id>/detach**
+
+Removes a task's association with its project. The task becomes standalone; it is not deleted.
+
+**Response:** Updated task object with project_id cleared (200), or 404 if task not found
+
+**Error Responses:**
+* 400 if validation fails
+
+
+===== Task Object =====
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | integer | Primary key |
+| user_id | integer | Owner |
+| title | string | Task title |
+| description | text | Additional details |
+| completed | boolean | Completion status |
+| completed_at | datetime | When completed (ISO format, null if not completed) |
+| status | string | Current status (open, waiting, deferred, declined, stale) |
+| active | boolean | Active flag |
+| project_id | integer | Parent project ID (null if standalone) |
+| tags | array | Attached tags |
+| principles | array | Attached principles |
+| created_at | datetime | When created |
+| updated_at | datetime | When last modified |

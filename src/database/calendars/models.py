@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from src.database.db import db
-from src.database.base.models import UserOwnedModel
+from src.database.base.base_models import UserOwnedModel, TaggableMixin, PrincipledMixin
 
 
 class Calendar(UserOwnedModel, TaggableMixin, PrincipledMixin):

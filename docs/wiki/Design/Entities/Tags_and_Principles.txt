@@ -43,12 +43,12 @@ Examples: "work", "home", "urgent", "health", "learning", "errands"
 
 **Delete**
 * Hard delete
-* Cascade deletes all associations (removes tag from all entities)
+* Cascade deletes all tag associations
 
 **Attach to Entity**
 * Creates association between tag and entity
 * Idempotent: attaching same tag twice has no effect
-* Entity must support tags (have TaggableMixin)
+* Entity must support tags
 
 **Detach from Entity**
 * Removes association between tag and entity
@@ -58,6 +58,7 @@ Examples: "work", "home", "urgent", "health", "learning", "errands"
 The following entities can have tags attached:
 * Tasks
 * Projects
+* Reports
 * Calendars
 * Routines
 * Sessions
@@ -74,7 +75,7 @@ Principles represent high-level values, aspirations, or "why" statements. They'r
 
 The idea: define what kind of person you want to be, then connect tasks/projects/routines to those ideals without them getting lost in a sea of low-level tags.
 
-Examples: "Be more reliable", "Prioritize health", "Continuous learning", "Financial independence"
+Examples: "Be dependable", "Prioritize health", "Continuous learning", "Financial independence"
 
 ==== Properties ====
 
@@ -82,8 +83,9 @@ Examples: "Be more reliable", "Prioritize health", "Continuous learning", "Finan
 |----------|------|----------|-------------|
 | id | integer | auto | Primary key |
 | user_id | integer | auto | Owner |
-| title | string(100) | yes | The principle statement |
-| description | text | no | Elaboration on what this principle means |
+| title | string(100) | yes | The principle statement (e.g., "Be dependable") |
+| description | text | no | What this principle means to you; clarification of your personal definition |
+| reason | text | no | Why this principle matters to you; motivation and inspiration |
 | color | string(10) | no | Hex color; defaults to #ffd700 (gold) |
 | created_at | datetime | auto | When created |
 | updated_at | datetime | auto | When last modified |
@@ -92,20 +94,21 @@ Examples: "Be more reliable", "Prioritize health", "Continuous learning", "Finan
 
 **Create**
 * Title is required (cannot be empty/whitespace)
+* Description and reason are optional but encouraged
 * Color defaults to gold (#ffd700)
 
 **Update**
-* Title, description, and color can be updated
+* Title, description, reason, and color can be updated
 * Title cannot be set to empty
 
 **Delete**
 * Hard delete
-* Cascade deletes all associations (removes principle from all entities)
+* Cascade deletes all principle associations
 
 **Attach to Entity**
 * Creates association between principle and entity
 * Idempotent: attaching same principle twice has no effect
-* Entity must support principles (have PrincipledMixin)
+* Entity must support principles
 
 **Detach from Entity**
 * Removes association between principle and entity
@@ -115,6 +118,7 @@ Examples: "Be more reliable", "Prioritize health", "Continuous learning", "Finan
 The following entities can have principles attached:
 * Tasks
 * Projects
+* Reports
 * Calendars
 * Routines
 * Sessions
@@ -124,46 +128,27 @@ The following entities can have principles attached:
 * Can be attached to many entities (polymorphic many-to-many)
 
 
-===== Association Model =====
-
-Both Tags and Principles use the same polymorphic association pattern:
-
-==== TagAssociation ====
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | integer | Primary key |
-| tag_id | integer | FK to tags table |
-| entity_id | integer | ID of the tagged entity |
-| entity_type | string(50) | Type name (e.g., "task", "project") |
-
-==== PrincipleAssociation ====
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | integer | Primary key |
-| principle_id | integer | FK to principles table |
-| entity_id | integer | ID of the principled entity |
-| entity_type | string(50) | Type name (e.g., "task", "routine") |
-
-==== Behavior Notes ====
-* Associations are created/deleted through the Tag/Principle services, not directly
-* Deleting a Tag or Principle cascades to delete all its associations
-* Deleting an entity should clean up its associations (handled by entity's cascade)
-* entity_type is stored lowercase (e.g., "task" not "Task")
 
 
 ===== Design Philosophy =====
 
 **Why Two Systems?**
 
-A single tagging system could technically handle both use cases, but separating them:
+A single tagging system could technically handle both use cases, but separating them serves important purposes:
 
 1. **Prevents clutter**: Principles won't get buried among dozens of organizational tags
-2. **Encourages intentionality**: Having a dedicated "principles" concept prompts reflection on values
-3. **Enables different UI treatment**: Principles can be displayed prominently; tags can be compact
-4. **Supports different queries**: "Show me everything tied to this principle" vs "filter by these tags"
+2. **Encourages intentionality**: Having a dedicated "principles" concept prompts reflection on values and motivations
+3. **Enables different UI treatment**: Principles can be displayed prominently as motivational anchors; tags can remain more utilitarian
+4. **Supports different queries**: "Show me everything tied to this principle" enables alignment checking; "filter by these tags" enables practical organization
 
 **Intended Usage Pattern**
-* Tags: Create freely as needed, use for filtering and organization
-* Principles: Define thoughtfully (maybe 5-10 total), attach to reinforce motivation and alignment
+
+* **Tags**: Create freely as needed; use for filtering, organization, and categorization. Common, numerous, low-friction.
+* **Principles**: Define thoughtfully; they represent aspirational values or ideals. Use to anchor work to what matters most. Fewer in number, higher in intent.
+
+**Using Principles for Motivation**
+
+Principles come with description and reason fields designed to be motivational touchstones:
+* **Description**: Clarifies what the principle means in your own words
+* **Reason**: Captures why this principle matters—motivation to draw on when planning or reviewing
+* Together, they create a pocket motivation statement you can reference when work feels misaligned or uncertain

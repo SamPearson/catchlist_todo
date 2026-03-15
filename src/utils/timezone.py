@@ -4,7 +4,7 @@ Timezone utilities for handling datetime conversions.
 Simple, explicit functions to convert between UTC and user timezones.
 """
 
-from datetime import datetime, time
+from datetime import datetime, time, date, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 import logging
@@ -69,6 +69,41 @@ def from_utc(dt: datetime, to_timezone: str) -> datetime:
         logging.error(f"Error converting from UTC: {str(e)}")
         # Return UTC time as fallback
         return dt_with_tz
+
+
+def validate_timezone(tz: str) -> Optional[str]:
+    """
+    Validate a timezone string.
+    
+    Args:
+        tz: The timezone to validate
+        
+    Returns:
+        None if valid, error message string if invalid
+    """
+    try:
+        ZoneInfo(tz)
+        return None
+    except Exception:
+        return f"Invalid timezone '{tz}'. Expected an IANA timezone like 'America/Chicago'."
+
+
+def utc_to_local_date(utc_dt: datetime, user_tz: str) -> date:
+    """
+    Convert a UTC datetime to the user's local date.
+    
+    Args:
+        utc_dt: The UTC datetime
+        user_tz: The user's timezone
+        
+    Returns:
+        The local date
+        
+    Raises:
+        ValueError: If timezone is invalid
+    """
+    local_dt = from_utc(utc_dt, user_tz)
+    return local_dt.date()
 
 
 def parse_dt(date_string: str, timezone: Optional[str] = None) -> datetime:
@@ -181,3 +216,102 @@ def localize_dict(data: dict, timezone: str) -> dict:
                 result[field] = None
 
     return result
+
+
+def compute_timeframe_bounds(
+        kind: str,
+        local_day: date,
+        user_tz: str,
+) -> tuple[datetime, datetime, str]:
+    """
+    Compute UTC bounds for a timeframe given a local date.
+
+    Args:
+        kind: Timeframe kind ('day', 'week', 'month', 'season', 'year')
+        local_day: The local calendar date
+        user_tz: The user's timezone (e.g., 'America/Chicago')
+
+    Returns:
+        Tuple of (start_utc, end_utc, label)
+
+    Raises:
+        ValueError: If timezone or kind is invalid
+    """
+    try:
+        tz = ZoneInfo(user_tz)
+    except Exception:
+        raise ValueError(f"Invalid timezone: {user_tz}")
+
+    utc = ZoneInfo("UTC")
+
+    if kind == "day":
+        start_local = datetime.combine(local_day, time.min, tzinfo=tz)
+        end_local = start_local + timedelta(days=1)
+        label = local_day.isoformat()
+
+    elif kind == "week":
+        # ISO week: Monday start
+        start_of_week = local_day - timedelta(days=local_day.weekday())
+        start_local = datetime.combine(start_of_week, time.min, tzinfo=tz)
+        end_local = start_local + timedelta(days=7)
+        iso_year, iso_week, _ = local_day.isocalendar()
+        label = f"{iso_year}-W{iso_week:02d}"
+
+    elif kind == "month":
+        start_local = datetime.combine(local_day.replace(day=1), time.min, tzinfo=tz)
+        if local_day.month == 12:
+            next_month = date(local_day.year + 1, 1, 1)
+        else:
+            next_month = date(local_day.year, local_day.month + 1, 1)
+        end_local = datetime.combine(next_month, time.min, tzinfo=tz)
+        label = f"{local_day.year:04d}-{local_day.month:02d}"
+
+    elif kind == "season":
+        # Meteorological seasons:
+        # Winter: Dec/Jan/Feb
+        # Spring: Mar/Apr/May
+        # Summer: Jun/Jul/Aug
+        # Autumn: Sep/Oct/Nov
+        m = local_day.month
+        if m in (12, 1, 2):
+            season_name = "Winter"
+            start_year = local_day.year if m == 12 else local_day.year - 1
+            start_month = 12
+            end_year = start_year + 1
+            end_month = 3
+        elif m in (3, 4, 5):
+            season_name = "Spring"
+            start_year = local_day.year
+            start_month = 3
+            end_year = local_day.year
+            end_month = 6
+        elif m in (6, 7, 8):
+            season_name = "Summer"
+            start_year = local_day.year
+            start_month = 6
+            end_year = local_day.year
+            end_month = 9
+        else:
+            season_name = "Autumn"
+            start_year = local_day.year
+            start_month = 9
+            end_year = local_day.year
+            end_month = 12
+
+        start_local = datetime.combine(date(start_year, start_month, 1), time.min, tzinfo=tz)
+        end_local = datetime.combine(date(end_year, end_month, 1), time.min, tzinfo=tz)
+        label = f"{season_name} {start_year:04d}"
+
+    elif kind == "year":
+        start_local = datetime.combine(date(local_day.year, 1, 1), time.min, tzinfo=tz)
+        end_local = datetime.combine(date(local_day.year + 1, 1, 1), time.min, tzinfo=tz)
+        label = f"{local_day.year:04d}"
+
+    else:
+        raise ValueError(f"Unsupported timeframe kind: {kind}")
+
+    return (
+        start_local.astimezone(utc),
+        end_local.astimezone(utc),
+        label,
+    )

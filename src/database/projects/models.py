@@ -3,7 +3,7 @@ from typing import Dict, Any
 from sqlalchemy import Column, String, Text, Boolean
 from sqlalchemy.orm import relationship
 from src.database.db import db
-from src.database.base.models import UserOwnedModel, TaggableMixin, PrincipledMixin
+from src.database.base.base_models import UserOwnedModel, TaggableMixin, PrincipledMixin
 
 
 class Project(UserOwnedModel, TaggableMixin, PrincipledMixin):

@@ -36,8 +36,8 @@ Creates a new project.
 |---------------|---------|----------|------------------------------------------------------------------|
 | title         | string  | yes      | Project name (max 200 chars)                                     |
 | description   | text    | no       | Overview of the project                                          |
-| win_condition | text    | no       | Definition of done                                               |
-| reason        | text    | no       | Why this project matters                                         |
+| win_condition | text    | no       | Definition of done (required to activate)                        |
+| reason        | text    | no       | Why this project matters (required to activate)                  |
 | next_step     | string  | no       | The immediate next action (max 200 chars)                        |
 | status        | string  | no       | One of: open, waiting, deferred, declined, stale. Default "open" |
 | active        | boolean | no       | Default true; false means "not on deck"                          |
@@ -58,19 +58,19 @@ Returns a specific project by ID.
 
 **PUT /api/projects/<project_id>**
 
-Updates a project's fields. Does not handle completion—use the complete/uncomplete endpoints.
+Updates a project's basic fields. Does not handle state changes (status, active, completed)—use dedicated endpoints instead.
 
-| Field         | Type    | Description                                      |
-|---------------|---------|--------------------------------------------------|
-| title         | string  | Project name (cannot be empty)                   |
-| description   | text    | Overview of the project                          |
-| win_condition | text    | Definition of done                               |
-| reason        | text    | Why this project matters                         |
-| next_step     | string  | The immediate next action                        |
-| status        | string  | One of: open, waiting, deferred, declined, stale |
-| active        | boolean | Active flag                                      |
+| Field         | Type   | Description                           |
+|---------------|--------|---------------------------------------|
+| title         | string | Project name (cannot be empty)        |
+| description   | text   | Overview of the project               |
+| win_condition | text   | Definition of done                    |
+| reason        | text   | Why this project matters              |
+| next_step     | string | The immediate next action             |
 
-**Response:** Updated project object, or 404 if not found
+**Note:** The fields `status`, `active`, `completed`, and `completed_at` cannot be updated via this endpoint. Attempting to include these fields will return a 400 error. Use the dedicated state-change endpoints below.
+
+**Response:** Updated project object, or 404 if not found, or 400 if disallowed fields are included
 
 
 ==== Delete Project ====
@@ -82,13 +82,16 @@ Permanently deletes a project and all its subtasks.
 **Response:** 204 No Content, or 404 if not found
 
 
+===== Project State Management =====
+
 ==== Complete Project ====
 
-**POST /api/projects/<project_id>/complete**
+**PATCH /api/projects/<project_id>/complete**
 
 Marks a project as completed.
 
-* Fails if there are incomplete subtasks
+* Validates that all subtasks have completed=true
+* Returns 400 error if any subtasks are incomplete
 * Sets completed=true, completed_at=now
 * Automatically sets active=false
 
@@ -97,7 +100,7 @@ Marks a project as completed.
 
 ==== Uncomplete Project ====
 
-**POST /api/projects/<project_id>/uncomplete**
+**PATCH /api/projects/<project_id>/uncomplete**
 
 Marks a project as not completed.
 
@@ -105,6 +108,45 @@ Marks a project as not completed.
 * Does NOT automatically set active=true
 
 **Response:** Updated project object, or 404 if not found
+
+
+==== Activate Project ====
+
+**PATCH /api/projects/<project_id>/activate**
+
+Activates a project (sets active=true).
+
+* Validates that both win_condition and reason are populated
+* Returns 400 error if either field is missing
+* Sets active=true on success
+
+**Response:** Updated project object, or 400 if validation fails, or 404 if not found
+
+
+==== Deactivate Project ====
+
+**PATCH /api/projects/<project_id>/deactivate**
+
+Deactivates a project (sets active=false).
+
+* No validation required
+* Sets active=false
+
+**Response:** Updated project object, or 404 if not found
+
+
+==== Change Project Status ====
+
+**PATCH /api/projects/<project_id>/status**
+
+Changes a project's status field.
+
+**Request Body:**
+| Field  | Type   | Required | Description                                              |
+|--------|--------|----------|----------------------------------------------------------|
+| status | string | yes      | One of: open, waiting, deferred, declined, stale         |
+
+**Response:** Updated project object, or 400 if status is missing or invalid, or 404 if not found
 
 
 ===== Subtask Endpoints =====
@@ -135,27 +177,17 @@ Creates a new task as a subtask of this project.
 | status      | string  | no       | One of: open, waiting, deferred, declined, stale. Default "open" |
 | active      | boolean | no       | Default true                                                     |
 
-**Response:** Created task object (201), or 404 if project not found
+**Response:** Created task object (201), or 400 if title is missing or validation fails, or 404 if project not found
 
 
-==== Add Task to Project ====
+==== Attach/Detach Tasks ====
 
-**PUT /api/projects/<project_id>/tasks/<task_id>**
+To attach an existing task to a project or detach a task from a project, use the Task endpoints:
 
-Associates an existing standalone task with this project.
+* **POST /api/tasks/<task_id>/attach/<project_id>** - Attach task to project
+* **POST /api/tasks/<task_id>/detach** - Detach task from project (makes it standalone)
 
-**Response:** Updated task object, or 404 if project or task not found
-
-
-==== Remove Task from Project ====
-
-**DELETE /api/projects/<project_id>/tasks/<task_id>**
-
-Removes a task's association with this project. The task becomes standalone; it is not deleted.
-
-To permanently delete a subtask, use **DELETE /api/tasks/<task_id>** instead.
-
-**Response:** Updated task object (now standalone), or 404 if task not found or not associated with this project
+See [[Task Routes]] for details.
 
 
 ===== Project Object =====
@@ -177,6 +209,3 @@ To permanently delete a subtask, use **DELETE /api/tasks/<task_id>** instead.
 | principles    | array    | Attached principles                                |
 | created_at    | datetime | When created                                       |
 | updated_at    | datetime | When last modified                                 |
-
-
-

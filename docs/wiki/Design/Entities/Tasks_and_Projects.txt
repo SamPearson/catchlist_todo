@@ -1,55 +1,69 @@
 Content-Type: text/x-zim-wiki
 Wiki-Format: zim 0.6
-Creation-Date: 2026-01-10T14:36:48-06:00
 
 ====== Tasks and Projects ======
-Created Saturday 10 January 2026
-
-Content-Type: text/x-zim-wiki
-Wiki-Format: zim 0.6
-Creation-Date: 2026-01-09T10:00:00-06:00
-
 
 ===== Overview =====
 
-**Tasks** and **Projects** are the core task management entities, based on GTD (Getting Things Done) methodology.
+**Tasks** and **Projects** are the core task management entities, following GTD (Getting Things Done) principles.
 
-* **Task**: An atomic, standalone action—something completable in a single sitting
-* **Project**: A larger outcome requiring multiple tasks; must have a defined next action and purpose
+* **Task**: An atomic unit of work—a single, concrete action completable in one sitting. Tasks can be standalone or subtasks of a project.
+* **Project**: A larger outcome requiring multiple actions. Projects are containers for related tasks and should have a clear purpose and next step.
 
-Tasks can exist independently or as subtasks of a project. Subtasks are simply tasks with a project association.
+Both tasks and projects use the same lifecycle model: they can be active or in a someday/maybe pile, they can be completed, and they track their current mode (open/waiting/blocked/etc).
+
+
+===== Attributes: Active, Completed, and Status =====
+
+Both Tasks and Projects use three related attributes to express their state. Understanding the distinction is important:
+
+| Attribute     | Type    | Purpose                                                                                                                                         |
+|---------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| **active**    | boolean | Is this item in your active working set right now? Default true. When false, item is in "someday/maybe" and typically hidden from normal views. |
+| **completed** | boolean | Is this item finished? Default false. When true, also auto-sets completed_at timestamp.                                                         |
+| **status**    | enum    | Why is this item not immediately actionable? See Status Values below.                                                                           |
+
+**Status Values** (for both Tasks and Projects):
+
+| Status   | Meaning                                                           |
+|----------|-------------------------------------------------------------------|
+| open     | Ready to work on; no blockers                                     |
+| waiting  | Blocked on something external (delivery, coworker response, etc.) |
+| deferred | Intentionally postponed; you plan to return to it                 |
+| declined | You've decided not to do this; kept for record                    |
+| stale    | No action taken recently; needs review                            |
+
+**Valid Combinations:**
+
+* A task can be `active=true, status="waiting"` (you're committed but blocked)
+* A task can be `active=false, status="open"` (in someday/maybe, but conceptually ready)
+* A task with `completed=true` should typically have `active=false` and `status` should be "completed" (or a terminal status)
+* The system does not enforce these combinations, but treat them as conventions; API logic should respect them
 
 
 ===== Tasks =====
 
 ==== Purpose ====
-Tasks represent the smallest unit of actionable work. They should be concrete and completable—not vague intentions.
+Tasks represent the smallest unit of actionable work. They should be concrete, specific, and completable in a single focused sitting—not vague intentions or aspirations.
+
+Examples: "Buy new shoes", "Reply to email from Sarah", "Write section 3 of proposal"
 
 ==== Properties ====
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| user_id | integer | auto | Owner of the task |
-| title | string(200) | yes | Brief description of the action |
-| description | text | no | Additional details or context |
-| completed | boolean | no | Default false; true when task is done |
-| completed_at | datetime | no | Auto-set when completed becomes true |
-| status | enum | no | See status values below; default "open" |
-| active | boolean | no | Default true; false moves task to backlog |
-| project_id | integer | no | If set, task is a subtask of that project |
-| created_at | datetime | auto | When task was created |
-| updated_at | datetime | auto | When task was last modified |
+| Property     | Type        | Required | Description                                                                                     |
+|--------------|-------------|----------|-------------------------------------------------------------------------------------------------|
+| id           | integer     | auto     | Primary key                                                                                     |
+| user_id      | integer     | auto     | Owner of the task                                                                               |
+| title        | string(200) | yes      | Brief, specific description of the action                                                       |
+| description  | text        | no       | Additional context or details                                                                   |
+| completed    | boolean     | no       | Default false; true when task is done                                                           |
+| completed_at | datetime    | no       | Auto-set to current timestamp when completed becomes true; cleared when completed becomes false |
+| status       | string(20)  | no       | Current mode: open, waiting, deferred, declined, stale. Default "open"                          |
+| active       | boolean     | no       | Default true; false means task is in someday/maybe pile                                         |
+| project_id   | integer     | no       | If set, this task is a subtask of that project; if null, task is standalone                     |
+| created_at   | datetime    | auto     | When task was created                                                                           |
+| updated_at   | datetime    | auto     | When task was last modified                                                                     |
 
-==== Status Values ====
-
-| Status | Meaning |
-|--------|---------|
-| open | Defined and ready for action |
-| waiting | Blocked on something external (delivery, coworker, etc.) |
-| deferred | "Someday/maybe" — not committed to doing it now |
-| declined | Decided not to do; kept for record but inactive |
-| stale | No action in a while; needs review |
 
 ==== Behaviors ====
 
@@ -58,55 +72,88 @@ Tasks represent the smallest unit of actionable work. They should be concrete an
 * Status defaults to "open"
 * Active defaults to true
 * completed defaults to false
+* project_id defaults to null (task is standalone)
 
 **Update**
 * All fields except id, user_id, created_at are updatable
+* **Note**: status, active, and completed fields cannot be modified via the standard update endpoint
+* Use dedicated state-change endpoints instead (see below)
+
+**Change Completion Status**
+* Endpoint: `PATCH /tasks/{id}/complete` 
+* Accepts "toggle=true" as a url parameter
+* Sets completed to true and auto-sets completed_at to current timestamp
+* Or sets completed to false and clears completed_at
+
+**Change Active Status**
+* Endpoint: `PATCH /tasks/{id}/activate` or `PATCH /tasks/{id}/deactivate`
+* Sets active to true or false
+* Optionally validates that required fields are present if activating
+
+**Change Status**
+* Endpoint: `PATCH /tasks/{id}/status`
+* Accepts new status value (open, waiting, deferred, declined, stale)
+* Applies any business logic or validation for status transitions
+* Can be changed independently of active/completed
 
 **Complete**
 * Setting completed to true must auto-set completed_at to current timestamp
-* Setting completed to false should clear completed_at
+* Setting completed to false must clear completed_at
+* Completing a task does not automatically change its status; status reflects the mode before completion
 
 **Delete**
 * Hard delete (no soft delete)
-* If task is a subtask, it is simply removed from the project
+* Cascade deletes:
+  - All tag associations
+  - All principle associations
+  - All checkin records
+* Does NOT delete tags or principles themselves, only the associations
 
 **Subtask Association**
-* A task becomes a subtask by setting project_id
+* A task becomes a subtask by setting project_id to a valid project
 * A subtask can be detached by setting project_id to null
 * A subtask can be moved to a different project by changing project_id
+* Deleting a project deletes all its subtasks (see Projects section)
 
 ==== Relationships ====
 * Belongs to one User (required)
-* Optionally belongs to one Project
-* Can have many Tags
-* Can have many Principles
+* Optionally belongs to one Project (as a subtask)
+* Can have many Tags (through TagAssociation)
+* Can have many Principles (through PrincipleAssociation)
+* Can be the target of many Commitments
+* Can receive many Checkins
 
 
 ===== Projects =====
 
 ==== Purpose ====
-Projects represent outcomes that require multiple actions. Per GTD, a project should have:
-* A clear **win condition** (how do you know it's done?)
-* A **reason** (why does this matter?)
-* A **next step** (what's the very next action?)
+Projects represent outcomes that require multiple tasks and some planning. Per GTD, projects should have:
+* A clear **win condition**: how do you know the project is done?
+* A **reason** or **purpose**: why does this project matter?
+* A **next step**: what is the immediate next action to move the project forward?
+
+A project is a container for related subtasks. All work within a project is done through its subtasks, not directly on the project itself.
+
+Examples: "Build a deck", "Learn guitar", "Write thesis chapter 2"
 
 ==== Properties ====
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| user_id | integer | auto | Owner of the project |
-| title | string(200) | yes | Name of the project |
-| description | text | no | Overview of the project |
-| win_condition | text | no | Definition of done |
-| reason | text | no | Why this project matters |
-| next_step | string(200) | no | The immediate next action |
-| completed | boolean | no | Default false; true when project is done |
-| completed_at | datetime | no | Auto-set when completed becomes true |
-| status | enum | no | See status values below; default "open" |
-| active | boolean | no | Default true; false means "not on deck" |
-| created_at | datetime | auto | When project was created |
-| updated_at | datetime | auto | When project was last modified |
+| Property      | Type        | Required | Description                                                                                                               |
+|---------------|-------------|----------|---------------------------------------------------------------------------------------------------------------------------|
+| id            | integer     | auto     | Primary key                                                                                                               |
+| user_id       | integer     | auto     | Owner of the project                                                                                                      |
+| title         | string(200) | yes      | Name of the project                                                                                                       |
+| description   | text        | no       | Overview or context                                                                                                       |
+| win_condition | text        | no       | Definition of done; how will you know this project is complete? (Soft requirement on creation; enforced when active=true) |
+| reason        | text        | no       | Why this project matters; the purpose and motivation (Soft requirement on creation; enforced when active=true)            |
+| next_step     | string(200) | no       | The immediate next action to move the project forward                                                                     |
+| completed     | boolean     | no       | Default false; true when project is done                                                                                  |
+| completed_at  | datetime    | no       | Auto-set to current timestamp when completed becomes true; cleared when completed becomes false                           |
+| status        | string(20)  | no       | Current mode: open, waiting, deferred, declined, stale. Default "open"                                                    |
+| active        | boolean     | no       | Default true; false means project is in someday/maybe pile                                                                |
+| created_at    | datetime    | auto     | When project was created                                                                                                  |
+| updated_at    | datetime    | auto     | When project was last modified                                                                                            |
+
 
 ==== Status Values ====
 Same as Tasks: open, waiting, deferred, declined, stale
@@ -118,27 +165,141 @@ Same as Tasks: open, waiting, deferred, declined, stale
 * Status defaults to "open"
 * Active defaults to true
 * completed defaults to false
-* GTD fields (win_condition, reason, next_step) are optional but encouraged
+* win_condition, reason, and next_step are optional on creation (soft requirement)
 
 **Update**
 * All fields except id, user_id, created_at are updatable
+* **Note**: status, active, and completed fields cannot be modified via the standard update endpoint
+* Use dedicated state-change endpoints instead (see below)
+
+**Activate (set active=true)**
+* Endpoint: `PATCH /projects/{id}/activate`
+* Sets active to true
+* Validates that both win_condition and reason are populated
+* Returns validation error if either is missing: "Cannot activate project; win_condition and reason are required."
+
+**Deactivate (set active=false)**
+* Endpoint: `PATCH /projects/{id}/deactivate`
+* Sets active to false
+* No validation required
+
+**Change Status**
+* Endpoint: `PATCH /projects/{id}/status`
+* Accepts new status value (open, waiting, deferred, declined, stale)
+* Applies business logic as needed
 
 **Complete**
-* Cannot complete a project that has incomplete subtasks
-* Setting completed to true must auto-set completed_at to current timestamp
-* Setting completed to false should clear completed_at
-* Completing a project should set active to false
+* Endpoint: `PATCH /projects/{id}/complete`
+* Validates that no subtasks have completed=false
+* Returns validation error if any subtasks are incomplete: "Cannot complete project; {count} subtasks are incomplete. Complete all subtasks first."
+* On success:
+  - Sets completed to true
+  - Auto-sets completed_at to current timestamp
+  - Typically also sets active to false (recommended but not enforced at the model level)
+
+**Uncomplete**
+* Endpoint: `DELETE /projects/{id}/complete`
+* Sets completed to false
+* Clears completed_at
 
 **Delete**
 * Hard delete
-* Cascade deletes all associated subtasks
+* Cascade deletes:
+  - All subtasks (and their associated tags, principles, checkins, commitments)
+  - All tag associations on the project
+  - All principle associations on the project
+  - All checkin records on the project
+* Does NOT delete tags, principles, or other entities themselves, only associations
+* Note: Use deactivation (active=false) for "soft" project removal; deletion is permanent
 
 **Subtask Management**
-* Tasks can be attached/detached via the task's project_id field
+* Subtasks are managed through the Task entity (setting task.project_id)
+* Cannot directly set subtasks in project creation; create project first, then create/attach tasks
 * Deleting a project deletes all its subtasks
+
 
 ==== Relationships ====
 * Belongs to one User (required)
-* Has many Tasks (subtasks)
-* Can have many Tags
-* Can have many Principles
+* Has many Tasks (subtasks, accessed through Task.project_id)
+* Can have many Tags (through TagAssociation)
+* Can have many Principles (through PrincipleAssociation)
+* Can be the target of many soft Commitments only (not hard commitments; see note below)
+* Can receive many Checkins
+
+**Note on Commitments:** Projects can only have soft commitments (e.g., "complete this project sometime this month"). Hard commitments (with specific due times) are for tasks, not projects. The project's timeline is defined by the hard commitments on its subtasks.
+
+
+===== Interactions & Workflows =====
+
+==== Converting a Task to a Project ====
+
+**Scenario:** You started with a simple task ("Buy new shoes"), but it turns out the task is more complex than expected. You need to break it into steps and plan it properly.
+
+**Workflow:**
+1. Create a new Project with a descriptive title, win_condition, and reason
+2. Create subtasks within the project for each step
+3. Delete or archive the original standalone task
+4. The project is now your new container for this work
+
+**Design note:** There is no automatic "convert" operation; instead, create the project and optionally delete the task. This gives you flexibility (e.g., you might want to keep a reference to the original task).
+
+==== Planning a Project ====
+
+**Scenario:** You've created a project. Now you need to break it down and make progress.
+
+**Workflow:**
+1. Create the project with a basic title (win_condition and reason can be added now or later)
+2. Brainstorm and create subtasks for the major steps
+3. Optionally attach Tags or Principles to the project to categorize it or tie it to your values
+4. When ready to activate the project (active=true), ensure win_condition and reason are filled in
+5. Define the next_step—the immediate action you'll take
+
+==== Completing a Project ====
+
+**Scenario:** You've finished all the work. The project is ready to be marked done.
+
+**Workflow:**
+1. Complete all subtasks (set completed=true on each)
+2. Mark the project as completed (set completed=true)
+3. The system validates that no subtasks have completed=false and rejects if any do
+4. completed_at is auto-set
+5. Project automatically moves to completed status
+
+==== Tracking Progress with Commitments ====
+
+**Scenario:** You have a project and want to commit to finishing it by a specific timeframe (e.g., "by end of month").
+
+**Workflow:**
+1. Create a soft Commitment linking the project to a Timeframe (e.g., the "April 2026" timeframe)
+2. The project is now tracked in that timeframe's Report
+3. Subtasks can have hard commitments (specific deadlines), creating fine-grained scheduling
+4. When reviewing the timeframe's report, you'll see the project and its subtasks' progress
+
+==== Someday/Maybe Pile ====
+
+**Scenario:** You have several projects but you're not ready to commit to all of them right now.
+
+**Workflow:**
+1. Create projects as normal (with or without details)
+2. Set active=false on projects you're deferring
+3. These projects are hidden from normal views (only show when explicitly asked to "show all")
+4. When you're ready to commit, set active=true (and ensure win_condition and reason are filled in)
+5. Projects reappear in your active working set
+
+==== Moving Between Statuses ====
+
+**Scenario:** You're working on a project, but you get blocked waiting on external input.
+
+**Workflow:**
+1. Change status from "open" to "waiting"
+2. Optionally add a note to clarify what you're waiting on (via Checkin)
+3. The project remains active (active=true) but is not immediately actionable
+4. When the blocker clears, change status back to "open"
+
+Alternatively:
+
+**Scenario:** You want to defer a project to someday/maybe without committing to it.
+
+**Workflow:**
+1. Set active=false (moves to someday/maybe pile, regardless of status)
+2. Later, when ready, set active=true to bring it back

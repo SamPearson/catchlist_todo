@@ -39,8 +39,8 @@ commitments_bp.add_url_rule(
 )
 
 commitments_bp.add_url_rule(
-    "/api/commitments/<int:commitment_id>/status",
-    view_func=commitments.update_commitment_status,
-    endpoint="update_commitment_status",
-    methods=["PUT"],
+    "/api/commitments/<int:commitment_id>",
+    view_func=commitments.update_commitment,
+    endpoint="update_commitment",
+    methods=["PATCH"],
 )

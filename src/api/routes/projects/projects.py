@@ -50,23 +50,18 @@ def update_project(project_id: int):
 
     try:
         data = request.get_json() or {}
+
+        # Check for disallowed fields
+        disallowed_fields = {'status', 'active', 'completed', 'completed_at'}
+        if any(field in data for field in disallowed_fields):
+            return jsonify({
+                'error': 'Cannot update status, active, or completed via this endpoint. Use dedicated endpoints instead.'
+            }), 400
+
         updated = service.update_project(project, data)
         return jsonify(updated.as_dict())
     except ProjectValidationError as e:
         return jsonify({"error": e.message}), 400
-
-
-@jwt_required()
-def delete_project(project_id: int):
-    user_id = int(get_jwt_identity())
-    service = ProjectService(ProjectRepository(db.session))
-
-    project = service.get_project(project_id, user_id)
-    if not project:
-        return ('', 404)
-
-    service.delete_project(project)
-    return ('', 204)
 
 
 @jwt_required()
@@ -98,6 +93,75 @@ def uncomplete_project(project_id: int):
 
     uncompleted = service.uncomplete_project(project)
     return jsonify(uncompleted.as_dict())
+
+
+
+@jwt_required()
+def activate_project(project_id: int):
+    """Activate a project (set active=true) - requires win_condition and reason"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    try:
+        activated = service.activate_project(project)
+        return jsonify(activated.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def deactivate_project(project_id: int):
+    """Deactivate a project (set active=false)"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    try:
+        deactivated = service.deactivate_project(project)
+        return jsonify(deactivated.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def change_project_status(project_id: int):
+    """Change a project's status"""
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({'error': 'status is required'}), 400
+
+    try:
+        updated = service.change_status(project, data['status'])
+        return jsonify(updated.as_dict())
+    except ProjectValidationError as e:
+        return jsonify({'error': e.message}), 400
+
+
+@jwt_required()
+def delete_project(project_id: int):
+    user_id = int(get_jwt_identity())
+    service = ProjectService(ProjectRepository(db.session))
+
+    project = service.get_project(project_id, user_id)
+    if not project:
+        return ('', 404)
+
+    service.delete_project(project)
+    return ('', 204)
 
 
 # --- Subtask Routes ---
@@ -136,36 +200,3 @@ def create_project_task(project_id: int):
     except (ProjectValidationError, TaskValidationError) as e:
         return jsonify({"error": e.message}), 400
 
-
-@jwt_required()
-def add_task_to_project(project_id: int, task_id: int):
-    """Associate an existing standalone task with this project"""
-    user_id = int(get_jwt_identity())
-    service = ProjectService(ProjectRepository(db.session))
-    task_service = TaskService(TaskRepository(db.session))
-
-    project = service.get_project(project_id, user_id)
-    if not project:
-        return ('', 404)
-
-    task = task_service.get_task(task_id, user_id)
-    if not task:
-        return ('', 404)
-
-    updated_task = service.add_task_to_project(project, task)
-    return jsonify(updated_task.as_dict())
-
-
-@jwt_required()
-def remove_task_from_project(project_id: int, task_id: int):
-    """Remove a task from this project (makes it standalone, does not delete)"""
-    user_id = int(get_jwt_identity())
-    service = ProjectService(ProjectRepository(db.session))
-    task_service = TaskService(TaskRepository(db.session))
-
-    task = task_service.get_task(task_id, user_id)
-    if not task or task.project_id != project_id:
-        return ('', 404)
-
-    updated_task = service.remove_task_from_project(task)
-    return jsonify(updated_task.as_dict())

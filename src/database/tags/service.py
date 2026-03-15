@@ -71,6 +71,8 @@ class TagService:
 
     def remove_tag_from_entity(self, tag_id: int, user_id: int, entity: any) -> bool:
         """Remove a tag from any entity that supports tags"""
+        from src.database.tags.models import TagAssociation
+        
         tag = self.get_tag(tag_id, user_id)
         if not tag:
             return False
@@ -78,7 +80,16 @@ class TagService:
         if not hasattr(entity, 'tags'):
             raise TagValidationError(f"Entity {type(entity).__name__} does not support tags")
 
-        if tag in entity.tags:
-            entity.tags.remove(tag)
+        # Directly delete the association instead of relying on relationship management
+        association = self.session.query(TagAssociation).filter_by(
+            tag_id=tag.id,
+            entity_id=entity.id,
+            entity_type=entity.__class__.__name__.lower()
+        ).first()
+
+        if association:
+            self.session.delete(association)
             self.session.commit()
-        return True
+            return True
+        
+        return False

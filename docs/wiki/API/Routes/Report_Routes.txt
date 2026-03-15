@@ -1,0 +1,311 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-14T14:50:37-05:00
+
+====== Report Routes ======
+
+===== Overview =====
+
+API endpoints for managing reports. Reports are timeframe-connected documents for planning, reflection, and tracking work. They consolidate planning text, commitments, and statistics into a unified view for any time period.
+
+All endpoints require authentication via JWT Bearer token.
+
+Reports have a 1:1 relationship with timeframes. All commitment and statistical data is queried dynamically at fetch time—nothing is cached.
+
+
+===== Report Endpoints =====
+
+==== Get or Create Report for Date ====
+
+**GET /api/reports/<kind>/<date>**
+
+Returns the report for the specified timeframe kind and date. Creates the timeframe and report if they don't exist.
+
+| Parameter         | Type    | Location | Required | Description                                    |
+|-------------------|---------|----------|----------|------------------------------------------------|
+| kind              | string  | path     | yes      | One of: day, week, month, season, year         |
+| date              | string  | path     | yes      | ISO date string (YYYY-MM-DD)                   |
+| timezone          | string  | query    | no       | User's timezone. Defaults to user's stored timezone |
+| full              | boolean | query    | no       | Include full metadata (id, timestamps, etc.). Default false |
+| commitment_scope  | string  | query    | no       | How to include commitments (see Commitment Scopes). Default 'window' |
+
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+{
+  "plan": "Complete Q2 planning and project kickoff",
+  "reason": "Critical for product roadmap alignment",
+  "pre_notes": "Team is ready; all dependencies identified",
+  "post_notes": null,
+  "label": "Spring 2026",
+  "report_type": "season",
+  "commitments": [
+    {
+      "id": 1,
+      "status": "planned",
+      "target_type": "task",
+      "target_id": 5,
+      "timeframe_id": 2,
+      "due_at_utc": "2026-03-16T18:00:00+00:00",
+      "target": {
+        "id": 5,
+        "title": "Write project proposal",
+        "status": "open",
+        "completed": false
+      }
+    }
+  ],
+  "stats": {
+    "total": 5,
+    "planned": 3,
+    "completed": 2,
+    "by_status": {
+      "planned": 3,
+      "done": 2
+    },
+    "by_type": {
+      "task": 4,
+      "session": 1
+    }
+  }
+}
+}}}
+
+**Response:** Report object (200)
+
+**Errors:**
+* 400 if kind is invalid, date format is incorrect, or timezone is invalid
+
+
+==== Get Report ====
+
+**GET /api/reports/<report_id>**
+
+Returns a specific report by ID.
+
+| Parameter         | Type    | Location | Required | Description                                    |
+|-------------------|---------|----------|----------|------------------------------------------------|
+| full              | boolean | query    | no       | Include full metadata. Default false           |
+| commitment_scope  | string  | query    | no       | How to include commitments. Default 'window'   |
+
+**Response:** Report object, or 404 if not found
+
+
+==== List Reports ====
+
+**GET /api/reports**
+
+Returns all reports for the authenticated user.
+
+| Parameter         | Type    | Location | Required | Description                                    |
+|-------------------|---------|----------|----------|------------------------------------------------|
+| timeframe_ids     | string  | query    | no       | Comma-separated list of timeframe IDs to filter by |
+| full              | boolean | query    | no       | Include full metadata. Default false           |
+| commitment_scope  | string  | query    | no       | How to include commitments. Default 'none' for performance |
+
+**Example Response (with commitment_scope=none):**
+{{{code: lang="json" linenumbers="True"
+[
+  {
+    "plan": "Complete Q2 planning",
+    "reason": "Critical milestone",
+    "pre_notes": "Ready to start",
+    "post_notes": "Accomplished most goals"
+  },
+  {
+    "plan": "Focus on health",
+    "reason": "Need to prioritize wellness",
+    "pre_notes": null,
+    "post_notes": null
+  }
+]
+}}}
+
+**Response:** Array of report objects
+
+**Errors:**
+* 400 if timeframe_ids format is invalid
+
+
+==== Update Report ====
+
+**PUT /api/reports/<report_id>**
+
+Updates a report's text fields.
+
+| Parameter         | Type    | Location | Required | Description                                    |
+|-------------------|---------|----------|----------|------------------------------------------------|
+| full              | boolean | query    | no       | Include full metadata in response. Default false |
+| commitment_scope  | string  | query    | no       | How to include commitments in response. Default 'window' |
+
+**Request Body:**
+
+| Field      | Type | Description                                  |
+|------------|------|----------------------------------------------|
+| plan       | text | What you intend to accomplish                |
+| reason     | text | Why this timeframe matters                   |
+| pre_notes  | text | Thoughts before the timeframe begins         |
+| post_notes | text | Reflection after the timeframe ends          |
+
+All fields are optional; only provided fields are updated.
+
+**Example Request:**
+{{{code: lang="json" linenumbers="True"
+{
+  "plan": "Launch new feature and complete retrospective",
+  "reason": "Critical milestone for product roadmap",
+  "pre_notes": "Team energized; dependencies clear"
+}
+}}}
+
+**Response:** Updated report object, or 404 if not found
+
+**Errors:**
+* 400 if no update data provided
+
+
+==== Delete Report ====
+
+**DELETE /api/reports/<report_id>**
+
+Permanently deletes a report. Does NOT delete the timeframe or associated commitments.
+
+**Response:** 204 No Content, or 404 if not found
+
+
+==== Regenerate Content (Deprecated) ====
+
+**POST /api/reports/<report_id>/regenerate**
+
+Exists for backward compatibility only. Since data is now queried dynamically (not cached), this simply returns the report with fresh data. Equivalent to GET with default parameters.
+
+| Parameter         | Type    | Location | Required | Description                                    |
+|-------------------|---------|----------|----------|------------------------------------------------|
+| full              | boolean | query    | no       | Include full metadata. Default false           |
+| commitment_scope  | string  | query    | no       | How to include commitments. Default 'window'   |
+
+**Response:** Report object with current data, or 404 if not found
+
+
+===== Commitment Scopes =====
+
+The ''commitment_scope'' query parameter controls what commitment data is included in the response:
+
+**window (default for single-report endpoints)**
+* Queries **all commitments within the timeframe's time boundaries**
+* Includes soft commitments to nested timeframes (months within seasons, weeks within months, etc.)
+* Includes hard commitments with due dates falling within the timeframe
+* Most comprehensive view; shows everything happening during the timeframe
+
+**direct**
+* Queries **only commitments directly to this exact timeframe**
+* Excludes commitments to nested timeframes
+* Useful for seeing high-level planning separate from execution details
+
+**none (default for list endpoint)**
+* Does not query commitments at all
+* Omits ''commitments'' and ''stats'' fields entirely
+* Performance optimization for listing many reports
+* Returns only stored text fields (plan, reason, pre_notes, post_notes)
+
+
+===== Report Object =====
+
+**Minimal Response (commitment_scope=none):**
+
+| Field      | Type | Description                          |
+|------------|------|--------------------------------------|
+| plan       | text | Planning text                        |
+| reason     | text | Why this timeframe matters           |
+| pre_notes  | text | Thoughts before timeframe begins     |
+| post_notes | text | Reflection after timeframe ends      |
+
+**Full Response (commitment_scope=window or direct):**
+
+Includes all minimal fields plus:
+
+| Field       | Type     | Description                                  |
+|-------------|----------|----------------------------------------------|
+| label       | string   | Timeframe label (e.g., "Spring 2026")        |
+| report_type | string   | Timeframe kind (day/week/month/season/year)  |
+| commitments | array    | Array of commitment objects with targets     |
+| stats       | object   | Aggregated statistics                        |
+
+**With full=true:**
+
+Adds metadata fields:
+
+| Field        | Type     | Description              |
+|--------------|----------|--------------------------|
+| id           | integer  | Report ID                |
+| user_id      | integer  | Owner ID                 |
+| timeframe_id | integer  | Associated timeframe ID  |
+| created_at   | datetime | When created             |
+| updated_at   | datetime | When last modified       |
+| timeframe    | object   | Full timeframe object    |
+
+
+===== Stats Object Structure =====
+
+| Field     | Type    | Description                                |
+|-----------|---------|--------------------------------------------|
+| total     | integer | Total number of commitments                |
+| planned   | integer | Count with status='planned'                |
+| completed | integer | Count with status='done'                   |
+| by_status | object  | Map of status values to counts             |
+| by_type   | object  | Map of target types to counts              |
+
+**Example:**
+{{{code: lang="json" linenumbers="True"
+{
+  "total": 5,
+  "planned": 2,
+  "completed": 3,
+  "by_status": {
+    "planned": 2,
+    "done": 3
+  },
+  "by_type": {
+    "task": 4,
+    "session": 1
+  }
+}
+}}}
+
+
+===== Common Workflows =====
+
+==== Creating and Planning a Report ====
+1. GET ''/api/reports/week/2026-03-15'' (creates report if needed)
+2. PUT ''/api/reports/{id}'' with plan, reason, pre_notes
+3. Create commitments via Commitment API
+4. Commitments appear automatically in subsequent fetches
+
+==== Viewing Different Scopes ====
+
+**See everything in a season:**
+GET ''/api/reports/season/2026-03-01?commitment_scope=window''
+
+**See only high-level seasonal plans:**
+GET ''/api/reports/season/2026-03-01?commitment_scope=direct''
+
+**List reports without loading commitments:**
+GET ''/api/reports?commitment_scope=none''
+
+==== Weekly Review Workflow ====
+1. GET ''/api/reports/week/2026-03-15?commitment_scope=window''
+2. Review commitments and stats
+3. PUT ''/api/reports/{id}'' with post_notes reflecting on the week
+4. GET ''/api/reports/week/2026-03-22'' to create next week's report
+5. PUT ''/api/reports/{id}'' with plan for upcoming week
+
+
+===== Design Notes =====
+
+**Dynamic Querying**
+All commitment and statistical data is computed at fetch time. This ensures data is always current and allows flexible views via the ''commitment_scope'' parameter.
+
+**Nested Timeframes**
+The ''commitment_scope=window'' query includes nested timeframes, allowing you to see all activity within a period regardless of how commitments were created. A seasonal report shows commitments to the season, to months within it, to weeks, and to specific days.
+
+**Performance**
+The default ''commitment_scope=none'' for list endpoints prevents expensive queries when browsing. Use ''commitment_scope=window'' only when viewing individual reports.

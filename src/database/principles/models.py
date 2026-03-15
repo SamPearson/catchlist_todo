@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Text
 from sqlalchemy.orm import relationship
-from src.database.base.models import UserOwnedModel
+from src.database.base.base_models import UserOwnedModel
 from src.database.db import db
 
 class PrincipleAssociation(db.Model):
@@ -18,13 +18,14 @@ class PrincipleAssociation(db.Model):
 
 class Principle(UserOwnedModel):
     """
-    Principle model representing high-level 'Platonic Ideals'.
-    Similar to tags, but used for high-order behavioral alignment.
+    Principle model representing high-level values, aspirations, or 'why' statements.
+    Used for aligning work with personal values and motivations.
     """
     __tablename__ = 'principles'
 
     title = Column(String(100), nullable=False)
     description = Column(Text)
+    reason = Column(Text)
     color = Column(String(10), default='#ffd700')  # Default to gold
 
     associations = relationship("PrincipleAssociation",
@@ -36,6 +37,7 @@ class Principle(UserOwnedModel):
         data.update({
             'title': self.title,
             'description': self.description,
+            'reason': self.reason,
             'color': self.color
         })
         return data

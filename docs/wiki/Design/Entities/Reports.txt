@@ -1,3 +1,4 @@
+
 Content-Type: text/x-zim-wiki
 Wiki-Format: zim 0.6
 Creation-Date: 2026-01-10T14:37:33-06:00
@@ -6,289 +7,196 @@ Creation-Date: 2026-01-10T14:37:33-06:00
 
 ===== Overview =====
 
-**Reports** are timeframe-connected documents for planning, tracking metrics, and reflecting on a time period. They're the primary output of the accountability system—meant to be viewable, printable, and useful for review.
+**Reports** are timeframe-connected documents for planning, reflection, and tracking work over a period of time. They serve as both a journal (for planning and reflection) and a view into your commitments (the to-do aspect).
 
 A report consolidates:
-* **Planning**: What you intend to do and why
-* **Metrics**: Configurable measurements you're tracking
-* **Commitments**: What's scheduled for this timeframe (queried from Commitments)
-* **Execution notes**: Checkins recorded during the timeframe
+* **Planning**: What you intend to accomplish and why
+* **Commitments**: All tasks, projects, and sessions you've committed to during this timeframe (queried dynamically)
+* **Statistics**: Aggregated metrics computed from commitments (counts by status, by type, etc.)
+* **Reflection**: What happened and what you learned
 
-Reports have a 1:1 relationship with Timeframes. A daily report is simply a report attached to a day timeframe; a weekly report is attached to a week timeframe, etc.
+Reports have a 1:1 relationship with Timeframes. A daily report is attached to a day timeframe; a weekly report to a week timeframe, etc. The timeframe kind (day/week/month/season/year) determines the time boundaries for querying commitments.
 
 
 ===== Report =====
 
 ==== Purpose ====
-The report is the container for a timeframe's planning and reflection content.
+The report is the container for a timeframe's planning and reflection content. All commitment and statistical data is computed dynamically at query time—nothing is cached or stored.
 
 ==== Properties ====
 
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| user_id | integer | auto | Owner |
-| timeframe_id | integer | yes | 1:1 link to a timeframe (unique) |
-| plan | text | no | What you intend to accomplish |
-| reason | text | no | Why this matters; motivation and purpose |
-| pre_notes | text | no | Thoughts/intentions before the timeframe begins |
-| post_notes | text | no | Reflection after the timeframe ends |
-| created_at | datetime | auto | When created |
-| updated_at | datetime | auto | When last modified |
+| Property     | Type     | Required | Description                                                    |
+|--------------|----------|----------|----------------------------------------------------------------|
+| id           | integer  | auto     | Primary key                                                    |
+| user_id      | integer  | auto     | Owner                                                          |
+| timeframe_id | integer  | yes      | 1:1 link to a timeframe (unique constraint)                    |
+| plan         | text     | no       | What you intend to accomplish during this timeframe            |
+| reason       | text     | no       | Why this timeframe and its work matter; motivation and purpose |
+| pre_notes    | text     | no       | Thoughts and intentions before the timeframe begins            |
+| post_notes   | text     | no       | Reflection and observations after the timeframe ends           |
+| created_at   | datetime | auto     | When created                                                   |
+| updated_at   | datetime | auto     | When last modified                                             |
+
 
 ==== Behaviors ====
 
 **Create**
-* Requires a timeframe_id (or parameters to get_or_create a timeframe)
-* One report per timeframe (unique constraint)
-* Can optionally specify a template to pre-populate metrics
+* Requires a timeframe_id (or parameters to get-or-create a timeframe)
+* One report per timeframe (unique constraint enforced)
+* All text fields (plan, reason, pre_notes, post_notes) are optional on creation
+* Reports can be created individually or via get-or-create pattern
 
 **Get or Create**
-* Given timeframe info, returns existing report or creates new one
-* If creating, can apply a template to populate metric values
+* Given timeframe kind and date, returns existing report or creates new one
+* Auto-creates the associated timeframe if it doesn't exist
+* Useful for programmatic report generation
 
 **Update**
 * Text fields (plan, reason, pre_notes, post_notes) can be updated freely
+* Other fields (timeframe_id, user_id, created_at) are immutable
 
 **Delete**
 * Hard delete
-* Cascade deletes associated MetricValues
 * Does NOT delete the timeframe (timeframe can exist without a report)
+* Does NOT delete associated commitments or checkins (they remain in their respective tables)
 
-==== Derived Data (Queried, Not Stored) ====
-* **Commitments**: All commitments linked to this report's timeframe
-* **Execution notes**: All checkins where target_type="report" and target_id=this report
+==== Commitment Scopes ====
+
+Reports can include commitments and statistics in three different ways:
+
+**window (default for single-report views)**
+* Queries **all commitments within the timeframe's time boundaries**
+* Includes:
+	* Soft commitments to nested timeframes (e.g., a seasonal report shows commitments to months/weeks/days within that season)
+	* Hard commitments with due dates falling within the timeframe's start/end times
+* This is the most comprehensive view and shows everything happening during the timeframe
+* Example: A monthly report shows all commitments for that month, regardless of whether they were committed to the month itself, a specific week, or a specific day
+
+**direct**
+* Queries **only commitments directly to this exact timeframe**
+* Example: A monthly report shows only commitments explicitly made to that month, not to weeks or days within it
+* Useful for seeing high-level planning separate from day-to-day execution
+
+**none (default for list views)**
+* Does not query commitments at all
+* Omits ''commitments'' and ''stats'' fields from response entirely
+* Performance optimization for listing many reports
+* Returns only the stored planning/reflection text fields
+
+==== Computed Fields ====
+
+The following fields are computed dynamically when ''commitment_scope'' is not 'none':
+
+**label (string)**
+* Copied from the associated timeframe's label
+* Human-readable name for the timeframe (e.g., "Spring 2026", "2026-03-15")
+
+**report_type (string)**
+* Copied from the associated timeframe's kind
+* One of: day, week, month, season, year
+
+**commitments (array)**
+* List of commitment objects with their target entities eagerly loaded
+* Each commitment includes a ''target'' object with full details of the task/project/routine/session
+* Filtered and ordered based on ''commitment_scope''
+
+**stats (object)**
+* Aggregated statistics computed from the commitments list
+* Structure:
+	* ''total'': Total number of commitments
+	* ''planned'': Count of commitments with status='planned'
+	* ''completed'': Count of commitments with status='done'
+	* ''by_status'': Object mapping status values to counts
+	* ''by_type'': Object mapping target types to counts
 
 ==== Relationships ====
 * Belongs to one User (required)
 * Belongs to one Timeframe (required, 1:1)
-* Has many MetricValues
-* Can receive Checkins (as execution notes)
-* Can have Tags attached
-* Can have Principles attached
-
-
-===== MetricType =====
-
-==== Purpose ====
-MetricTypes define what measurements a user wants to track. They're a user-configured pool of available metrics that can be added to reports via templates.
-
-Examples: "Sleep Hours", "Work RPE", "Diet Adherence", "Exercise Completed"
-
-==== Properties ====
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| user_id | integer | auto | Owner |
-| name | string(100) | yes | Display name |
-| value_type | string(20) | yes | Data type: integer, float, rating, boolean |
-| unit | string(20) | no | Label for display (e.g., "hours", "1-10") |
-| min_value | integer | no | Minimum valid value (for rating/bounded types) |
-| max_value | integer | no | Maximum valid value (for rating/bounded types) |
-| active | boolean | no | Default true; false = archived |
-| sort_order | integer | no | Default display ordering |
-| created_at | datetime | auto | When created |
-| updated_at | datetime | auto | When last modified |
-
-==== Value Types ====
-
-| Type | Description | Example |
-|------|-------------|---------|
-| integer | Whole number | Sleep hours: 7 |
-| float | Decimal number | Weight: 185.5 |
-| rating | Bounded integer (uses min/max) | Work RPE: 8 (1-10 scale) |
-| boolean | Yes/no | Exercise completed: true |
-
-==== Behaviors ====
-
-**Create**
-* Name and value_type are required
-* Active defaults to true
-
-**Update**
-* All fields except id, user_id, created_at are updatable
-
-**Archive**
-* Set active=false to archive
-* Archived metrics are hidden from templates but historical data is preserved
-* Can be reactivated by setting active=true
-
-**Delete**
-* Should archive instead of delete to preserve historical data
-* If hard deleted, cascade deletes all MetricValues using this type
-
-==== Relationships ====
-* Belongs to one User (required)
-* Referenced by many MetricValues
-* Referenced by many ReportTemplateMetrics
-
-
-===== MetricValue =====
-
-==== Purpose ====
-MetricValues store the actual measurements recorded on a specific report.
-
-==== Properties ====
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| report_id | integer | yes | FK to report |
-| metric_type_id | integer | yes | FK to metric type |
-| value_int | integer | no | Value for integer/rating types |
-| value_float | float | no | Value for float types |
-| value_bool | boolean | no | Value for boolean types |
-| created_at | datetime | auto | When created |
-| updated_at | datetime | auto | When last modified |
-
-Unique constraint: (report_id, metric_type_id) — one value per metric per report
-
-==== Behaviors ====
-
-**Create**
-* Created when a report is generated from a template
-* Initial value can be null (to be filled in later)
-
-**Update**
-* Value fields can be updated
-* Only the appropriate value field should be set based on metric_type's value_type
-
-**Delete**
-* Deleted when parent report is deleted (cascade)
-* Can be individually removed from a report
-
-==== Relationships ====
-* Belongs to one Report (required)
-* Belongs to one MetricType (required)
-
-
-===== ReportTemplate =====
-
-==== Purpose ====
-Templates define which metrics should be included when creating a report for a specific timeframe kind. Users can have multiple templates per kind (e.g., "Weekday Daily", "Weekend Daily") and mark one as default.
-
-==== Properties ====
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| user_id | integer | auto | Owner |
-| name | string(100) | yes | Template name (e.g., "Daily Standard v2") |
-| timeframe_kind | string(16) | yes | day, week, month, season, year |
-| is_default | boolean | no | Default false; if true, used when no template specified |
-| created_at | datetime | auto | When created |
-| updated_at | datetime | auto | When last modified |
-
-==== Behaviors ====
-
-**Create**
-* Name and timeframe_kind are required
-* If is_default=true, unset default on other templates of same kind for this user
-
-**Update**
-* Name, timeframe_kind, is_default can be updated
-* Changing is_default=true unsets other defaults for that kind
-
-**Delete**
-* Hard delete
-* Cascade deletes ReportTemplateMetrics
-* Does NOT affect existing reports created from this template
-
-**Set Default**
-* Only one template per (user, timeframe_kind) can be default
-* Setting a new default unsets the previous one
-
-==== Relationships ====
-* Belongs to one User (required)
-* Has many ReportTemplateMetrics
-
-
-===== ReportTemplateMetric =====
-
-==== Purpose ====
-Join table linking templates to the metrics they include.
-
-==== Properties ====
-
-| Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| id | integer | auto | Primary key |
-| template_id | integer | yes | FK to ReportTemplate |
-| metric_type_id | integer | yes | FK to MetricType |
-| sort_order | integer | no | Order within this template |
-
-Unique constraint: (template_id, metric_type_id)
-
-==== Behaviors ====
-
-**Add Metric to Template**
-* Creates association with optional sort_order
-
-**Remove Metric from Template**
-* Deletes association
-* Does NOT delete the MetricType
-
-**Reorder**
-* Update sort_order values
-
-==== Relationships ====
-* Belongs to one ReportTemplate (required)
-* Belongs to one MetricType (required)
+* Can have many Tags (through TagAssociation)
+* Can have many Principles (through PrincipleAssociation)
+* Can receive many Checkins (execution notes and reflections)
+* Queries many Commitments dynamically (not a stored relationship; computed at fetch time based on timeframe boundaries)
 
 
 ===== Workflows =====
 
 ==== Creating a Report ====
 
-**Simple (no template)**
-1. Get or create timeframe for the desired period
-2. Create report linked to timeframe
-3. Manually add metric values as needed
+1. Call get-or-create endpoint with timeframe kind and date
+2. System creates timeframe if needed, then creates report
+3. Optionally populate plan, reason, pre_notes via update endpoint
+4. The report is ready to use; commitments will appear automatically as you create them
 
-**From Template**
-1. Get or create timeframe for the desired period
-2. Find template (specified or default for that timeframe kind)
-3. Create report linked to timeframe
-4. For each metric in template, create MetricValue with null value
-5. User fills in values over time
+==== Planning a Timeframe ====
 
-**Bulk Creation**
-Example: "Create daily reports for next week from my standard template"
-1. Determine date range (7 days)
-2. For each day:
-   a. Get or create day timeframe
-   b. Get or create report from template
-3. Result: 7 reports ready to be filled in
+1. Create or fetch the report for a timeframe
+2. Update the planning fields (plan, reason, pre_notes)
+3. Create commitments separately (via the Commitment API)
+4. Commitments automatically appear in the report when you fetch it
 
-==== Viewing a Report ====
+==== Tracking Progress ====
 
-A complete report view includes:
-* Report text fields (plan, reason, pre_notes, post_notes)
-* MetricValues with their MetricType names/units
-* Commitments for this timeframe (queried from Commitments table)
-* Checkins attached to this report (execution notes)
+During the timeframe:
+1. Fetch the report to see current commitments
+2. Update commitment statuses as work progresses (via Commitment API)
+3. Add checkins to capture progress notes (via Checkin API, targeting the report or individual tasks)
+4. Stats update automatically based on current commitment statuses
 
-==== Archiving Metrics ====
+==== Reflecting After the Timeframe ====
 
-When tracking needs change:
-1. Set active=false on MetricType
-2. Metric disappears from templates (won't be added to new reports)
-3. Historical MetricValues remain intact and queryable
-4. Metric can be reactivated later if needed
+After the timeframe ends:
+1. Fetch the report to see what was accomplished
+2. Review commitments and stats to see planned vs. completed work
+3. Update post_notes with reflections
+4. The completed report becomes part of your historical record
+
+==== Understanding Nested Timeframes ====
+
+When you create commitments at different granularities, they all appear in the appropriate reports when using ''commitment_scope=window'':
+
+**Example Scenario:**
+* You commit Task A to "Spring 2026" (soft commitment to season)
+* You commit Task B to "April 2026" (soft commitment to month)
+* You commit Task C to "April 15, 2026 at 2pm" (hard commitment to specific day/time)
+
+**When you view the Spring 2026 report with commitment_scope=window:**
+* Shows Task A (committed to season)
+* Shows Task B (committed to month within season)
+* Shows Task C (hard commitment with due date in season)
+
+**When you view the April 2026 report with commitment_scope=window:**
+* Shows Task B (committed to month)
+* Shows Task C (hard commitment with due date in month)
+* Does NOT show Task A (committed to larger timeframe)
+
+**When you view the April 15, 2026 report with commitment_scope=window:**
+* Shows Task C (hard commitment with due date on this day)
+* Does NOT show Task A or B (committed to larger timeframes)
+
+This allows you to plan at multiple levels of granularity while maintaining a clear view at each level.
 
 
 ===== Design Notes =====
 
-**Why a single Report model instead of five?**
-The timeframe determines the "kind" of report. A report attached to a day timeframe is a daily report. This simplifies the codebase and makes all reports queryable from one table.
+**Why a single Report model for all timeframe kinds?**
+The timeframe determines the "kind" of report. This simplifies the codebase and makes all reports queryable from one table. Different views (daily vs. seasonal) are generated by querying the same report model with different commitment scopes.
 
-**Why separate MetricType and MetricValue?**
-* Flexibility: Users can add/remove/archive metrics without migrations
-* Queryability: Can aggregate metrics across reports (e.g., "average sleep this month")
-* Reusability: Same metric definition used across many reports
+**Why no explicit metrics or goals?**
+Goals and measurements are already captured by the task/project/routine system. A task or project can be tagged, tracked, and committed to. This is more flexible than rigid metric definitions and keeps the schema lean. If future use cases require explicit metrics, they can be added without breaking the current structure.
 
-**Why templates?**
-* Convenience: Don't manually add the same 10 metrics to every daily report
-* Flexibility: Different templates for different contexts (weekday vs weekend)
-* Evolution: Change your template, new reports get new metrics, old reports unchanged
+**Why dynamic commitment queries instead of storing them?**
+Commitments are authoritative in their own table. Storing a copy in the report would create redundancy and staleness. Instead, reports query commitments at fetch time, ensuring always-current data. This also allows flexible views via the ''commitment_scope'' parameter.
+
+**Why both pre_notes and post_notes?**
+* ''pre_notes'': Capture your intentions and mindset before the timeframe begins
+* ''post_notes'': Capture reflection and learning after it ends
+* Together they create a before/after snapshot, useful for retrospectives and learning over time
+
+**Why can reports have tags and principles?**
+Reports represent meaningful periods of work. Tagging a report (e.g., "high-stress month" or "vacation") allows categorization and later analysis. Principles can be attached to reinforce why a timeframe mattered and what values guided the work during that period.
+
+**Performance Considerations**
+* The ''commitment_scope=none'' default for list views prevents expensive queries when browsing many reports
+* The ''commitment_scope=window'' query includes nested timeframe lookups, which may be slower for large date ranges but provides the most complete view
+* Target entities are eagerly loaded in a single batch query to avoid N+1 problems
+* For very large commitment sets, consider pagination (future enhancement)

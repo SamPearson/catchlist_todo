@@ -6,6 +6,9 @@ from .repository import RoutineRepo
 from src.database.base.exceptions import ValidationError
 from src.database.sessions.models import RoutineSession
 from src.database.sessions.repository import SessionRepo
+from src.database.timeframes.service import TimeframeService
+from src.database.commitments.service import CommitmentService
+from src.utils.timezone import compute_timeframe_bounds, utc_to_local_date
 from dateutil.rrule import rrulestr
 import logging
 
@@ -19,6 +22,8 @@ class RoutineService:
         self.session = session
         self.repo = RoutineRepo(session)
         self.session_repo = SessionRepo(session)
+        self.timeframe_service = TimeframeService(session)
+        self.commitment_service = CommitmentService(session)
 
     def get_routine(self, routine_id: int, user_id: int) -> Optional[Routine]:
         return self.repo.get(routine_id, user_id)
@@ -66,8 +71,154 @@ class RoutineService:
             calendar_id=data.get('calendar_id')
         )
 
+
+    def get_future_sessions(self, routine_id: int, user_id: int,
+                            reference_time: Optional[datetime] = None) -> List[RoutineSession]:
+        """
+        Get all future sessions for a routine (excluding passed sessions).
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user who owns the routine
+            reference_time: Time to compare against (default: now in UTC)
+
+        Returns:
+            List of sessions with start_time >= reference_time, ordered by start_time
+        """
+        if reference_time is None:
+            reference_time = datetime.utcnow()
+
+        routine = self.get_routine(routine_id, user_id)
+        if not routine:
+            return []
+
+        return [s for s in routine.sessions if s.start_time >= reference_time]
+
+
+    def get_past_sessions(self, routine_id: int, user_id: int,
+                          reference_time: Optional[datetime] = None) -> List[RoutineSession]:
+        """
+        Get all past sessions for a routine (excluding future sessions).
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user who owns the routine
+            reference_time: Time to compare against (default: now in UTC)
+
+        Returns:
+            List of sessions with start_time < reference_time, ordered by start_time (newest first)
+        """
+        if reference_time is None:
+            reference_time = datetime.utcnow()
+
+        routine = self.get_routine(routine_id, user_id)
+        if not routine:
+            return []
+
+        return sorted(
+            [s for s in routine.sessions if s.start_time < reference_time],
+            key=lambda s: s.start_time,
+            reverse=True
+        )
+
+
+    def get_incomplete_sessions(self, routine_id: int, user_id: int,
+                                reference_time: Optional[datetime] = None) -> List[RoutineSession]:
+        """
+        Get all incomplete (not completed/skipped/cancelled) future sessions for a routine.
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user who owns the routine
+            reference_time: Time to compare against (default: now in UTC)
+
+        Returns:
+            List of future sessions with status='scheduled'
+        """
+        future_sessions = self.get_future_sessions(routine_id, user_id, reference_time)
+        return [s for s in future_sessions if s.status == 'scheduled']
+
+
+    def delete_future_sessions(self, routine_id: int, user_id: int,
+                               incomplete_only: bool = True,
+                               reference_time: Optional[datetime] = None) -> int:
+        """
+        Delete future sessions for a routine.
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user who owns the routine
+            incomplete_only: If True, only delete 'scheduled' sessions; if False, delete all
+            reference_time: Time to compare against (default: now in UTC)
+
+        Returns:
+            Number of sessions deleted
+        """
+        if incomplete_only:
+            sessions_to_delete = self.get_incomplete_sessions(routine_id, user_id, reference_time)
+        else:
+            sessions_to_delete = self.get_future_sessions(routine_id, user_id, reference_time)
+
+        deleted_count = 0
+        for session in sessions_to_delete:
+            if self.session_repo.delete(session):
+                deleted_count += 1
+
+        logging.info(f"Deleted {deleted_count} future sessions for routine {routine_id}")
+        return deleted_count
+
+
+    def cascade_routine_name_to_sessions(self, routine_id: int, user_id: int,
+                                         new_name: str,
+                                         scope: str = 'all') -> int:
+        """
+        Update routine_name on associated sessions.
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user who owns the routine
+            new_name: The new routine name
+            scope: 'all' = all sessions, 'future' = only future sessions, 'past' = only past sessions
+
+        Returns:
+            Number of sessions updated
+        """
+        routine = self.get_routine(routine_id, user_id)
+        if not routine:
+            return 0
+
+        if scope == 'future':
+            sessions_to_update = self.get_future_sessions(routine_id, user_id)
+        elif scope == 'past':
+            sessions_to_update = self.get_past_sessions(routine_id, user_id)
+        else:  # 'all'
+            sessions_to_update = routine.sessions
+
+        updated_count = 0
+        for session in sessions_to_update:
+            self.session_repo.update(session, routine_name=new_name)
+            updated_count += 1
+
+        logging.info(f"Updated routine_name for {updated_count} sessions (scope: {scope})")
+        return updated_count
+
     def update_routine(self, routine_id: int, user_id: int, data: Dict[str, Any],
-                       delete_future_sessions: bool = False) -> Optional[Routine]:
+                       cascade_future: bool = False, cascade_past: bool = False) -> Optional[Routine]:
+        """
+        Update routine properties with optional cascade to sessions.
+
+        Cascade behavior:
+        - title: Updates routine_name in sessions
+        - start_time/end_time: Updates start_time/end_time in sessions
+        - Other fields (description, rrule, active): No cascade
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user who owns the routine
+            data: Dictionary of fields to update
+            cascade_future: If True, cascade cascadeable fields to future sessions
+            cascade_past: If True, cascade cascadeable fields to past sessions
+        """
         routine = self.get_routine(routine_id, user_id)
         if not routine:
             return None
@@ -94,84 +245,79 @@ class RoutineService:
             except ValueError:
                 raise RoutineValidationError("end_time must be in HH:MM format")
 
-        # If deactivating and delete_future_sessions is True, remove future incomplete sessions
-        if update_data.get('active') is False and routine.active and delete_future_sessions:
-            self._delete_future_incomplete_sessions(routine)
+        # Determine which fields are cascadeable and being updated
+        cascadeable_fields = {'title', 'start_time', 'end_time'}
+        fields_to_cascade = set(update_data.keys()) & cascadeable_fields
 
+        # Cascade changes to sessions if requested
+        if fields_to_cascade:
+            if cascade_future:
+                self._cascade_to_sessions(routine_id, user_id, update_data, scope='future',
+                                          cascade_fields=fields_to_cascade)
+            if cascade_past:
+                self._cascade_to_sessions(routine_id, user_id, update_data, scope='past',
+                                          cascade_fields=fields_to_cascade)
+
+        # Update the routine itself
         return self.repo.update(routine, **update_data)
 
-    def _delete_future_incomplete_sessions(self, routine: Routine) -> int:
+    def _cascade_to_sessions(self, routine_id: int, user_id: int, update_data: Dict[str, Any],
+                             scope: str = 'future', cascade_fields: Optional[set] = None) -> int:
         """
-        Delete all future incomplete sessions for a routine.
+        Cascade routine updates to sessions.
+
+        Args:
+            routine_id: ID of the routine
+            user_id: ID of the user
+            update_data: Dictionary of fields being updated
+            scope: 'future', 'past', or 'all'
+            cascade_fields: Set of field names to cascade (title, start_time, end_time)
 
         Returns:
-            Number of sessions deleted
+            Number of sessions updated
         """
-        now = datetime.utcnow()
-        deleted_count = 0
+        if cascade_fields is None:
+            cascade_fields = {'title', 'start_time', 'end_time'}
 
-        for session in routine.sessions:
-            if session.start_time > now and not session.completed:
-                self.session_repo.delete(session)
-                deleted_count += 1
+        # Get sessions based on scope
+        if scope == 'future':
+            sessions_to_update = self.get_future_sessions(routine_id, user_id)
+        elif scope == 'past':
+            sessions_to_update = self.get_past_sessions(routine_id, user_id)
+        else:  # 'all'
+            routine = self.get_routine(routine_id, user_id)
+            sessions_to_update = routine.sessions if routine else []
 
-        return deleted_count
+        updated_count = 0
 
-    def generate_sessions(self, user_id: int, routine_id: int, start_date: datetime,
-                         end_date: datetime) -> List[RoutineSession]:
-        """
-        Generate sessions for a routine based on its recurrence rule within a date range.
-        """
-        routine = self.get_routine(routine_id, user_id)
-        if not routine:
-            raise RoutineValidationError(f"Routine with ID {routine_id} not found")
+        for session in sessions_to_update:
+            session_update_data = {}
 
-        if not routine.rrule:
-            raise RoutineValidationError("Routine has no recurrence rule")
+            # Map routine fields to session fields
+            if 'title' in cascade_fields and 'title' in update_data:
+                session_update_data['routine_name'] = update_data['title']
 
-        if not routine.start_time:
-            raise RoutineValidationError("Routine has no start time")
+            # For start_time: combine routine's time with session's existing date
+            if 'start_time' in cascade_fields and 'start_time' in update_data:
+                new_time = update_data['start_time']  # This is a time object
+                # Combine with the session's existing date
+                new_start_datetime = datetime.combine(session.start_time.date(), new_time)
+                session_update_data['start_time'] = new_start_datetime
 
-        # Create base datetime for rrule using start_date's date and routine's time
-        base_dt = datetime.combine(start_date.date(), routine.start_time)
-        
-        # Create rule for generating occurrences
-        rule = rrulestr(routine.rrule, dtstart=base_dt)
+            # For end_time: combine routine's time with session's existing date
+            if 'end_time' in cascade_fields and 'end_time' in update_data:
+                new_time = update_data['end_time']  # This is a time object
+                # Combine with the session's existing date
+                new_end_datetime = datetime.combine(session.end_time.date(), new_time)
+                session_update_data['end_time'] = new_end_datetime
 
-        try:
-            # Generate occurrences within the specified range
-            occurrences = rule.between(start_date, end_date, inc=True)
-            
-            # Create sessions for each occurrence
-            created_sessions = []
-            for occurrence_date in occurrences:
-                # Combine occurrence date with routine times
-                session_start = datetime.combine(occurrence_date.date(), routine.start_time)
-                session_end = datetime.combine(occurrence_date.date(), routine.end_time)
+            if session_update_data:
+                self.session_repo.update(session, **session_update_data)
+                updated_count += 1
 
-                # Check if session already exists
-                existing = self.session_repo.list_for_window(
-                    user_id=user_id,
-                    start=session_start,
-                    end=session_end
-                )
+        logging.info(f"Cascaded updates to {updated_count} {scope} sessions for routine {routine_id}")
+        return updated_count
 
-                if not existing:
-                    session = self.session_repo.create(
-                        user_id=user_id,
-                        routine_id=routine_id,
-                        start_time=session_start,
-                        end_time=session_end,
-                        notes='Auto-generated from routine',
-                        completed=False
-                    )
-                    created_sessions.append(session)
-
-            return created_sessions
-
-        except Exception as e:
-            logging.error(f"Error generating sessions: {str(e)}")
-            raise RoutineValidationError(f"Failed to generate sessions: {str(e)}")
 
     def delete_routine(self, routine_id: int, user_id: int) -> bool:
         """

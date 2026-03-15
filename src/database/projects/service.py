@@ -108,6 +108,45 @@ class ProjectService:
             completed_at=None
         )
 
+
+    def activate_project(self, project: Project) -> Project:
+        """
+        Activate a project (set active=true).
+        - Validates that both win_condition and reason are populated
+        - Returns validation error if either is missing
+        """
+        if project.active:
+            return project  # Already active, no-op
+
+        if not project.win_condition or not project.reason:
+            raise ProjectValidationError(
+                "Cannot activate project; win_condition and reason are required."
+            )
+
+        return self.repository.update(project, active=True)
+
+    def deactivate_project(self, project: Project) -> Project:
+        """
+        Deactivate a project (set active=false).
+        - No validation required
+        """
+        if not project.active:
+            return project  # Already inactive, no-op
+
+        return self.repository.update(project, active=False)
+
+
+    def change_status(self, project: Project, new_status: str) -> Project:
+        """Change a project's status"""
+        if new_status not in VALID_STATUSES:
+            raise ProjectValidationError(f"Invalid status: {new_status}. Must be one of: {', '.join(VALID_STATUSES)}")
+
+        if project.status == new_status:
+            return project
+
+        return self.repository.update(project, status=new_status)
+
+
     def delete_project(self, project: Project) -> None:
         self.repository.delete(project)
 
@@ -120,10 +159,3 @@ class ProjectService:
         data['project_id'] = project.id
         return self.task_service.create_task(user_id, title, data)
 
-    def add_task_to_project(self, project: Project, task: Task) -> Task:
-        """Associate an existing task with this project."""
-        return self.task_service.update_task(task, {'project_id': project.id})
-
-    def remove_task_from_project(self, task: Task) -> Task:
-        """Remove a task's project association (make it standalone)."""
-        return self.task_service.update_task(task, {'project_id': None})

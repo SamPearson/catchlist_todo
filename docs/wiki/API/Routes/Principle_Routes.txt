@@ -6,11 +6,11 @@ Creation-Date: 2026-01-12T19:47:18-06:00
 
 ===== Overview =====
 
-API endpoints for managing principles. Principles represent high-level values, aspirations, or "why" statements. They're meant to be few in number (5-10 total) and represent core motivations that can be linked to actions.
+API endpoints for managing principles. Principles represent high-level values, aspirations, or "why" statements. They're meant to be few in number and represent core motivations that can be linked to actions.
 
-The idea: define what kind of person you want to be, then connect tasks/projects/routines to those ideals.
+The idea: define what kind of person you want to be, then connect tasks/projects/routines to those ideals without them getting lost in a sea of low-level tags.
 
-Examples: "Be more reliable", "Prioritize health", "Continuous learning", "Financial independence"
+Examples: "Be dependable", "Prioritize health", "Continuous learning", "Financial independence"
 
 All endpoints require authentication via JWT Bearer token.
 
@@ -23,7 +23,7 @@ All endpoints require authentication via JWT Bearer token.
 
 Returns all principles for the authenticated user.
 
-**Response:** Array of principle objects
+**Response:** Array of principle objects (200)
 
 
 ==== Create Principle ====
@@ -32,11 +32,12 @@ Returns all principles for the authenticated user.
 
 Creates a new principle.
 
-| Field       | Type   | Required | Description                                  |
-|-------------|--------|----------|----------------------------------------------|
-| title       | string | yes      | Principle statement (max 100 chars)          |
-| description | text   | no       | Elaboration on what this principle means     |
-| color       | string | no       | Hex color code. Default "#ffd700" (gold)     |
+| Field       | Type   | Required | Description                                      |
+|-------------|--------|----------|--------------------------------------------------|
+| title       | string | yes      | Principle statement (max 100 chars)              |
+| description | text   | no       | What this principle means to you; clarification of your personal definition |
+| reason      | text   | no       | Why this principle matters to you; motivation and inspiration |
+| color       | string | no       | Hex color code. Default "#ffd700" (gold)         |
 
 **Response:** Created principle object (201)
 
@@ -49,7 +50,7 @@ Creates a new principle.
 
 Returns a specific principle by ID.
 
-**Response:** Principle object, or 404 if not found
+**Response:** Principle object (200), or 404 if not found
 
 
 ==== Update Principle ====
@@ -58,13 +59,14 @@ Returns a specific principle by ID.
 
 Updates a principle's properties.
 
-| Field       | Type   | Description                               |
-|-------------|--------|-------------------------------------------|
+| Field       | Type   | Description                                       |
+|-------------|--------|---------------------------------------------------|
 | title       | string | Principle statement (cannot be empty if provided) |
-| description | text   | Elaboration text                          |
-| color       | string | Hex color code                            |
+| description | text   | What this principle means to you                  |
+| reason      | text   | Why this principle matters to you                 |
+| color       | string | Hex color code                                    |
 
-**Response:** Updated principle object, or 404 if not found
+**Response:** Updated principle object (200), or 404 if not found
 
 **Errors:** 400 if title is set to empty
 
@@ -95,12 +97,14 @@ Attaches a principle to an entity.
 **Business Logic:**
 * Idempotent: attaching the same principle twice has no effect
 * Entity must support principles (have PrincipledMixin)
+* Valid target types: task, project, calendar, routine, session
 
 **Response:** { "success": true } (200)
 
 **Errors:**
 * 400 if required fields missing
 * 404 if principle or target entity not found
+* 422 if target_type is invalid (returns { "error": "...", "code": "INVALID_TARGET_TYPE" })
 
 
 ==== Detach Principle from Entity ====
@@ -117,47 +121,62 @@ Removes a principle from an entity.
 
 **Business Logic:**
 * Idempotent: detaching a non-attached principle has no effect
+* Valid target types: task, project, calendar, routine, session
 
 **Response:** { "success": true } (200)
 
 **Errors:**
 * 400 if required fields missing
 * 404 if principle or target entity not found
+* 422 if target_type is invalid (returns { "error": "...", "code": "INVALID_TARGET_TYPE" })
 
 
 ===== Principled Entities =====
 
-| Entity Type | Description                |
-|-------------|----------------------------|
-| task        | A task (standalone or subtask) |
-| project     | A project                  |
-| routine     | A routine template         |
-| session     | A specific session occurrence |
-| calendar    | A calendar container       |
+The following entities can have principles attached:
+
+| Entity Type | Description                        |
+|-------------|------------------------------------|
+| task        | A task (standalone or subtask)     |
+| project     | A project                          |
+| calendar    | A calendar container               |
+| routine     | A routine template                 |
+| session     | A specific routine session occurrence |
 
 
 ===== Principle Object =====
 
-| Field       | Type     | Description                         |
-|-------------|----------|-------------------------------------|
-| id          | integer  | Primary key                         |
-| user_id     | integer  | Owner                               |
-| title       | string   | Principle statement                 |
-| description | text     | Elaboration on the principle        |
-| color       | string   | Hex color code                      |
-| created_at  | datetime | When created                        |
-| updated_at  | datetime | When last modified                  |
+| Field       | Type     | Description                                  |
+|-------------|----------|----------------------------------------------|
+| id          | integer  | Primary key                                  |
+| user_id     | integer  | Owner                                        |
+| title       | string   | The principle statement (e.g., "Be dependable") |
+| description | text     | What this principle means to you; clarification of your personal definition |
+| reason      | text     | Why this principle matters to you; motivation and inspiration |
+| color       | string   | Hex color code (default: #ffd700)            |
+| created_at  | datetime | When created                                 |
+| updated_at  | datetime | When last modified                           |
 
 
 ===== Design Philosophy =====
 
-**Why separate Tags and Principles?**
+**Why Two Systems?**
 
-* **Prevents clutter**: Principles won't get buried among dozens of organizational tags
-* **Encourages intentionality**: Having a dedicated "principles" concept prompts reflection on values
-* **Enables different UI treatment**: Principles can be displayed prominently; tags can be compact
-* **Supports different queries**: "Show me everything tied to this principle" vs "filter by these tags"
+A single tagging system could technically handle both use cases, but separating them serves important purposes:
+
+1. **Prevents clutter**: Principles won't get buried among dozens of organizational tags
+2. **Encourages intentionality**: Having a dedicated "principles" concept prompts reflection on values and motivations
+3. **Enables different UI treatment**: Principles can be displayed prominently as motivational anchors; tags can remain more utilitarian
+4. **Supports different queries**: "Show me everything tied to this principle" enables alignment checking; "filter by these tags" enables practical organization
 
 **Intended Usage Pattern**
-* Tags: Create freely as needed, use for filtering and organization
-* Principles: Define thoughtfully (maybe 5-10 total), attach to reinforce motivation and alignment
+
+* **Tags**: Create freely as needed; use for filtering, organization, and categorization. Common, numerous, low-friction.
+* **Principles**: Define thoughtfully; they represent aspirational values or ideals. Use to anchor work to what matters most. Fewer in number, higher in intent.
+
+**Using Principles for Motivation**
+
+Principles come with description and reason fields designed to be motivational touchstones:
+* **Description**: Clarifies what the principle means in your own words
+* **Reason**: Captures why this principle matters—motivation to draw on when planning or reviewing
+* Together, they create a pocket motivation statement you can reference when work feels misaligned or uncertain

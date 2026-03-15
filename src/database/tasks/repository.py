@@ -56,6 +56,13 @@ class TaskRepository(UserOwnedRepository[Task]):
         
         return super().update(task, **update_data)
 
+    def set_project(self, task: Task, project_id: Optional[int]) -> Task:
+        """Set or clear the task's project association"""
+        task.project_id = project_id
+        task.updated_at = datetime.utcnow()
+        self.session.commit()
+        return task
+
     def mark_completed(self, task: Task) -> Task:
         """Mark a task as completed with timestamp"""
         return super().update(task, completed=True, completed_at=datetime.utcnow())

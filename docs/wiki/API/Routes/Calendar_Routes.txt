@@ -1,3 +1,4 @@
+
 Content-Type: text/x-zim-wiki
 Wiki-Format: zim 0.6
 Creation-Date: 2026-01-12T18:43:10-06:00
@@ -24,7 +25,24 @@ Returns all calendars for the authenticated user.
 |------------------|---------|----------|----------|------------------------------------------------------|
 | include_inactive | boolean | query    | no       | If true, includes inactive calendars. Default false. |
 
-**Response:** Array of calendar objects
+**Example Response:**
+''[''
+  ''{''
+    ''"id": 1,''
+    ''"user_id": 42,''
+    ''"name": "Workout Calendar",''
+    ''"color": "#ff5733",''
+    ''"active": true,''
+    ''"external_uid": "google-cal-123",''
+    ''"external_source": "caldav",''
+    ''"tags": [],''
+    ''"principles": [],''
+    ''"created_at": "2026-01-10T14:30:00Z",''
+    ''"updated_at": "2026-01-10T14:30:00Z"''
+  ''}''
+'']''
+
+**Response:** 200 - Array of calendar objects
 
 
 ==== Create Calendar ====
@@ -33,6 +51,8 @@ Returns all calendars for the authenticated user.
 
 Creates a new calendar manually.
 
+**Request Body:**
+
 | Field           | Type   | Required | Description                                          |
 |-----------------|--------|----------|------------------------------------------------------|
 | name            | string | yes      | Calendar name (max 200 chars)                        |
@@ -40,7 +60,13 @@ Creates a new calendar manually.
 | external_uid    | string | no       | UID from external source (for sync)                  |
 | external_source | string | no       | Source identifier (e.g., "caldav")                   |
 
-**Response:** Created calendar object (201)
+**Example Request:**
+''{''
+  ''"name": "My Workout Calendar",''
+  ''"color": "#ff5733"''
+''}''
+
+**Response:** 201 - Created calendar object
 
 
 ==== Get Calendar ====
@@ -49,7 +75,7 @@ Creates a new calendar manually.
 
 Returns a specific calendar by ID.
 
-**Response:** Calendar object, or 404 if not found
+**Response:** 200 - Calendar object, or 404 if not found or not owned by user
 
 
 ==== Update Calendar ====
@@ -58,17 +84,37 @@ Returns a specific calendar by ID.
 
 Updates a calendar's properties.
 
-| Field  | Type    | Description                                            |
-|--------|---------|--------------------------------------------------------|
-| name   | string  | Calendar name (cannot be empty)                        |
-| color  | string  | Hex color code                                         |
-| active | boolean | Active flag; setting to false cascades to all routines |
+**Query Parameters:**
+
+| Parameter             | Type    | Location | Required | Description                                                              |
+|-----------------------|---------|----------|----------|--------------------------------------------------------------------------|
+| cascade_deactivation  | boolean | query    | no       | If true and active is set to false, deactivates all contained routines. Default true. |
+
+**Request Body:**
+
+| Field  | Type    | Required | Description                                            |
+|--------|---------|----------|--------------------------------------------------------|
+| name   | string  | no       | Calendar name (cannot be empty)                        |
+| color  | string  | no       | Hex color code                                         |
+| active | boolean | no       | Active flag; deactivation behavior controlled by cascade_deactivation param |
+
+**Example Request:**
+''{''
+  ''"name": "Updated Calendar Name",''
+  ''"active": false''
+''}''
 
 **Business Logic:**
-* Setting active to false will also deactivate all routines within the calendar
-* external_uid and external_source cannot be updated after creation
+* Setting active to false will also deactivate all routines within the calendar if cascade_deactivation=true (default)
+* Setting cascade_deactivation=false allows deactivating the calendar without affecting routines
+* external_uid and external_source cannot be updated after creation (read-only)
+* Calendar name cannot be empty (validation error)
 
-**Response:** Updated calendar object, or 404 if not found
+**Response:** 200 - Updated calendar object, 404 if not found, or 400 if validation fails
+
+**Errors:**
+* 400 - Validation error (e.g., empty name)
+* 404 - Calendar not found or not owned by user
 
 
 ==== Delete Calendar ====
@@ -77,7 +123,7 @@ Updates a calendar's properties.
 
 Permanently deletes a calendar and all its routines (and their sessions).
 
-**Response:** 204 No Content, or 404 if not found
+**Response:** 204 No Content, or 404 if not found or not owned by user
 
 
 ===== CalDAV Integration =====
@@ -86,7 +132,9 @@ Permanently deletes a calendar and all its routines (and their sessions).
 
 **POST /api/calendars/discover**
 
-Tests CalDAV credentials and returns available remote calendars without saving.
+Tests CalDAV credentials and returns available remote calendars without saving anything to the database.
+
+**Request Body:**
 
 | Field    | Type   | Required | Description       |
 |----------|--------|----------|-------------------|
@@ -94,9 +142,34 @@ Tests CalDAV credentials and returns available remote calendars without saving.
 | username | string | yes      | CalDAV username   |
 | password | string | yes      | CalDAV password   |
 
-**Response:** Array of remote calendar info objects with fields: name, uid, url, color
+**Example Request:**
+''{''
+  ''"url": "https://caldav.google.com/",''
+  ''"username": "user@example.com",''
+  ''"password": "app-password"''
+''}''
 
-**Errors:** 400 if connection fails
+**Example Response:**
+''[''
+  ''{''
+    ''"name": "Work Calendar",''
+    ''"uid": "google-cal-abc123",''
+    ''"url": "https://caldav.google.com/calendars/work/",''
+    ''"color": "#1a73e8"''
+  ''},''
+  ''{''
+    ''"name": "Personal",''
+    ''"uid": "google-cal-xyz789",''
+    ''"url": "https://caldav.google.com/calendars/personal/",''
+    ''"color": "#e67c73"''
+  ''}''
+'']''
+
+**Response:** 200 - Array of remote calendar info objects with fields: name, uid, url, color
+
+**Errors:**
+* 400 - Validation error (missing required fields)
+* 401 - CalDAV connection/authentication failure
 
 
 ==== Sync Calendar ====
@@ -105,6 +178,8 @@ Tests CalDAV credentials and returns available remote calendars without saving.
 
 Imports or syncs a remote calendar. Creates local Calendar record if needed, then imports recurring events as Routines.
 
+**Request Body:**
+
 | Field      | Type   | Required | Description                          |
 |------------|--------|----------|--------------------------------------|
 | url        | string | yes      | CalDAV server URL                    |
@@ -112,29 +187,57 @@ Imports or syncs a remote calendar. Creates local Calendar record if needed, the
 | password   | string | yes      | CalDAV password                      |
 | remote_uid | string | yes      | UID of the specific calendar to sync |
 
+**Example Request:**
+''{''
+  ''"url": "https://caldav.google.com/",''
+  ''"username": "user@example.com",''
+  ''"password": "app-password",''
+  ''"remote_uid": "google-cal-abc123"''
+''}''
+
+**Example Response:**
+''{''
+  ''"calendar_id": 5,''
+  ''"created_routines": 12''
+''}''
+
 **Business Logic:**
-* Creates Calendar record with external_uid and external_source='caldav' if not exists
+* Creates Calendar record with external_uid and external_source='caldav' if it doesn't exist
+* If calendar already exists (by external_uid), uses the existing calendar
 * Imports recurring events (those with RRULE) as Routines
-* Duplicate detection: skips routines with matching (title, external_source, rrule)
-* Non-recurring events are ignored
+* Duplicate detection: skips routines with matching (title, external_source, rrule) combination
+* Non-recurring events are ignored (not imported)
+* Each imported routine receives the event's RRULE, start_time, and end_time
 
-**Response:** Object with fields: calendar_id (integer), created_routines (integer)
+**Response:** 200 - Object with fields:
+* calendar_id (integer): ID of the created or existing calendar
+* created_routines (integer): Number of new routines created during this sync
 
-**Errors:** 400 if connection fails or remote calendar not found
+**Errors:**
+* 400 - Validation error (missing remote_uid or other required fields)
+* 401 - CalDAV connection/authentication failure
 
 
 ===== Calendar Object =====
+
+Standard calendar object returned by all endpoints:
 
 | Field           | Type     | Description                              |
 |-----------------|----------|------------------------------------------|
 | id              | integer  | Primary key                              |
 | user_id         | integer  | Owner                                    |
-| name            | string   | Calendar name                            |
-| color           | string   | Hex color code                           |
-| active          | boolean  | Active flag                              |
+| name            | string   | Calendar name (max 200 chars)            |
+| color           | string   | Hex color code (7 chars including #)     |
+| active          | boolean  | Active flag (true = visible)             |
 | external_uid    | string   | UID from external source (null if local) |
 | external_source | string   | Source identifier (null if local)        |
-| tags            | array    | Attached tags                            |
-| principles      | array    | Attached principles                      |
-| created_at      | datetime | When created                             |
-| updated_at      | datetime | When last modified                       |
+| tags            | array    | Attached tags (array of tag objects)     |
+| principles      | array    | Attached principles (array of principle objects) |
+| created_at      | datetime | When created (ISO 8601 UTC)              |
+| updated_at      | datetime | When last modified (ISO 8601 UTC)        |
+
+**Notes:**
+* All datetime fields are in ISO 8601 format (UTC)
+* external_uid and external_source are read-only after creation
+* color defaults to "#767676" (gray) if not specified
+* active defaults to true if not specified

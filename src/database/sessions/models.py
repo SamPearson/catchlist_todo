@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Text, Boolean, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from src.database.db import db
-from src.database.base.models import UserOwnedModel, TaggableMixin, PrincipledMixin
+from src.database.base.base_models import UserOwnedModel, TaggableMixin, PrincipledMixin
 
 
 class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
@@ -12,13 +12,13 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
     __tablename__ = "sessions"
 
     routine_id = Column(Integer, ForeignKey('routines.id'), nullable=False)
+    routine_name = Column(String(255), nullable=True)
 
     # Timing (stored in UTC)
     start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
 
     # Tracking
-    completed = Column(Boolean, default=False)
     status = Column(String(20), default='scheduled')  # scheduled, completed, skipped, cancelled
     notes = Column(Text)
     rpe = Column(Integer)  # Rate of Perceived Exertion (1-10)
@@ -42,9 +42,9 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
         data = super().as_dict()
         data.update({
             'routine_id': self.routine_id,
+            'routine_name': self.routine_name,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
-            'completed': self.completed,
             'status': self.status,
             'notes': self.notes,
             'rpe': self.rpe,
