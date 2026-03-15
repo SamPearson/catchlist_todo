@@ -3,112 +3,212 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 
 from src.database.db import db
-from src.database.reports.report_service import ReportService, ReportValidationError
+from src.database.reports.service import ReportService, ReportValidationError
+from src.database.timeframes.service import TimeframeService
+from src.database.users.user import User
+from src.utils.timezone import compute_timeframe_bounds
 
 
 def get_report_service():
     return ReportService(db.session)
 
 
+def get_timeframe_service():
+    return TimeframeService(db.session)
+
+
+def get_user_timezone(user_id):
+    """Get the user's timezone or return UTC as default"""
+    user = User.query.get(user_id)
+    return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
+
+
 @jwt_required()
 def get_report(report_id):
-    """Get a specific report"""
-    user_id = get_jwt_identity()
+    """
+    Get a specific report by ID
+    
+    Query params:
+    - full (optional): If true, returns full representation with metadata (default: false)
+    - commitment_scope (optional): How to include commitments:
+        - 'window': All commitments in timeframe boundaries (default)
+        - 'direct': Only commitments to this exact timeframe
+        - 'none': Don't include commitments or stats
+    """
+    user_id = int(get_jwt_identity())
     service = get_report_service()
     report = service.get_report(report_id, user_id)
-    return jsonify(report.as_dict()) if report else ('', 404)
+    
+    if not report:
+        return ('', 404)
+    
+    # Parse query params
+    full = request.args.get('full', 'false').lower() == 'true'
+    commitment_scope = request.args.get('commitment_scope', 'window')
+    
+    # Validate commitment_scope
+    if commitment_scope not in ('window', 'direct', 'none'):
+        return jsonify({'error': "commitment_scope must be 'window', 'direct', or 'none'"}), 400
+    
+    return jsonify(service.build_report_dict(
+        report,
+        full=full,
+        commitment_scope=commitment_scope,
+    ))
 
 
 @jwt_required()
 def list_reports():
-    """List all reports for the current user"""
-    user_id = get_jwt_identity()
-    kind = request.args.get('kind')
+    """
+    List reports for the current user.
+    
+    Query params:
+    - timeframe_ids: Comma-separated list of timeframe IDs to filter by
+    - full (optional): If true, returns full representation with metadata (default: false)
+    - commitment_scope (optional): How to include commitments:
+        - 'window': All commitments in timeframe boundaries (default)
+        - 'direct': Only commitments to this exact timeframe
+        - 'none': Don't include commitments or stats (recommended for list views)
+    """
+    user_id = int(get_jwt_identity())
     service = get_report_service()
-    reports = service.list_reports(user_id, kind=kind)
-    return jsonify([report.as_dict() for report in reports])
+    
+    # Optional filtering by timeframe IDs
+    timeframe_ids_param = request.args.get('timeframe_ids')
+    if timeframe_ids_param:
+        try:
+            timeframe_ids = [int(id.strip()) for id in timeframe_ids_param.split(',')]
+            reports = service.repo.list_by_timeframes(user_id=user_id, timeframe_ids=timeframe_ids)
+        except ValueError:
+            return jsonify({'error': 'Invalid timeframe_ids format'}), 400
+    else:
+        reports = service.repo.list_for_user(user_id)
+    
+    # Parse query params
+    full = request.args.get('full', 'false').lower() == 'true'
+    commitment_scope = request.args.get('commitment_scope', 'none')  # Default to 'none' for list views
+    
+    # Validate commitment_scope
+    if commitment_scope not in ('window', 'direct', 'none'):
+        return jsonify({'error': "commitment_scope must be 'window', 'direct', or 'none'"}), 400
+    
+    return jsonify([
+        service.build_report_dict(
+            report,
+            full=full,
+            commitment_scope=commitment_scope,
+        )
+        for report in reports
+    ])
 
 
 @jwt_required()
-def create_report():
+def get_or_create_for_date(kind, date):
     """
-    Create a new report for an existing timeframe.
-
-    Body:
-    - timeframe_id (required): ID of the timeframe
-    - template_id (optional): Template to apply
-    - plan, reason, pre_notes, post_notes (optional): Text fields
+    Get or create a report for a specific date and timeframe kind.
+    
+    URL params:
+    - kind: day, week, month, season, year
+    - date: ISO date string (YYYY-MM-DD)
+    
+    Query params:
+    - timezone (optional): User's timezone (e.g., "America/Chicago"). Defaults to user's stored timezone.
+    - full (optional): If true, returns full representation with metadata (default: false)
+    - commitment_scope (optional): How to include commitments:
+        - 'window': All commitments in timeframe boundaries (default)
+        - 'direct': Only commitments to this exact timeframe
+        - 'none': Don't include commitments or stats
+    
+    Examples:
+    - GET /api/reports/day/2026-01-17
+    - GET /api/reports/day/2026-01-17?timezone=America/Chicago
+    - GET /api/reports/week/2026-01-17
+    - GET /api/reports/month/2026-01-17?commitment_scope=direct
+    - GET /api/reports/season/2026-03-15?commitment_scope=none
     """
-    user_id = get_jwt_identity()
-    data = request.get_json()
-
-    if not data or 'timeframe_id' not in data:
-        return jsonify({'error': 'timeframe_id is required'}), 400
-
-    service = get_report_service()
+    user_id = int(get_jwt_identity())
+    
+    # Get timezone from query params or use user's default
+    timezone = request.args.get('timezone')
+    if not timezone:
+        timezone = get_user_timezone(user_id)
+    
+    # Parse date
     try:
-        template_id = data.pop('template_id', None)
-        timeframe_id = data.pop('timeframe_id')
-        report = service.create_report(
-            user_id=user_id,
-            timeframe_id=timeframe_id,
-            data=data,
-            template_id=template_id
+        local_day = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+    
+    # Validate kind
+    valid_kinds = ['day', 'week', 'month', 'season', 'year']
+    if kind not in valid_kinds:
+        return jsonify({'error': f'Invalid kind. Must be one of: {", ".join(valid_kinds)}'}), 400
+    
+    # Compute timeframe bounds
+    try:
+        start_utc, end_utc, label = compute_timeframe_bounds(
+            kind=kind,
+            local_day=local_day,
+            user_tz=timezone
         )
-        return jsonify(report.as_dict()), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    
+    # Get or create timeframe
+    timeframe_service = get_timeframe_service()
+    timeframe = timeframe_service.get_or_create_for_bounds(
+        user_id=user_id,
+        kind=kind,
+        start_utc=start_utc,
+        end_utc=end_utc,
+        label=label,
+    )
+    
+    # Get or create report
+    report_service = get_report_service()
+    
+    try:
+        report = report_service.get_or_create_for_timeframe(
+            user_id=user_id,
+            timeframe_id=timeframe.id,
+        )
+        
+        # Parse query params
+        full = request.args.get('full', 'false').lower() == 'true'
+        commitment_scope = request.args.get('commitment_scope', 'window')
+        
+        # Validate commitment_scope
+        if commitment_scope not in ('window', 'direct', 'none'):
+            return jsonify({'error': "commitment_scope must be 'window', 'direct', or 'none'"}), 400
+        
+        return jsonify(report_service.build_report_dict(
+            report,
+            full=full,
+            commitment_scope=commitment_scope,
+        ))
     except ReportValidationError as e:
         return jsonify({'error': e.message}), 400
 
 
 @jwt_required()
-def get_or_create_for_date():
-    """
-    Get or create a report for a specific date and timeframe kind.
-    This is the primary workflow for accessing reports.
-
-    Body:
-    - kind (required): day, week, month, season, year
-    - date (required): ISO date string (YYYY-MM-DD)
-    - timezone (required): User's timezone (e.g., "America/Chicago")
-    - template_id (optional): Specific template to use if creating
-    - use_default_template (optional): Whether to use default template if creating (default true)
-    """
-    user_id = get_jwt_identity()
-    data = request.get_json()
-
-    if not data:
-        return jsonify({'error': 'Request body is required'}), 400
-
-    required_fields = ['kind', 'date', 'timezone']
-    missing = [f for f in required_fields if f not in data]
-    if missing:
-        return jsonify({'error': f'Missing required fields: {", ".join(missing)}'}), 400
-
-    try:
-        local_day = datetime.strptime(data['date'], '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
-
-    service = get_report_service()
-    try:
-        report, created = service.get_or_create_report(
-            user_id=user_id,
-            kind=data['kind'],
-            local_day=local_day,
-            user_tz=data['timezone'],
-            template_id=data.get('template_id'),
-            use_default_template=data.get('use_default_template', True)
-        )
-        status_code = 201 if created else 200
-        return jsonify(report.as_dict()), status_code
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
-
-
-@jwt_required()
 def update_report(report_id):
-    """Update a report's text fields"""
-    user_id = get_jwt_identity()
+    """
+    Update a report's text fields.
+    
+    Body:
+    - plan (optional): Planning text
+    - reason (optional): Reason/motivation text
+    - pre_notes (optional): Notes before the timeframe
+    - post_notes (optional): Notes after the timeframe
+    
+    Query params:
+    - full (optional): If true, returns full representation with metadata (default: false)
+    - commitment_scope (optional): How to include commitments:
+        - 'window': All commitments in timeframe boundaries (default)
+        - 'direct': Only commitments to this exact timeframe
+        - 'none': Don't include commitments or stats
+    """
+    user_id = int(get_jwt_identity())
     service = get_report_service()
     report = service.get_report(report_id, user_id)
     if not report:
@@ -119,8 +219,28 @@ def update_report(report_id):
         return jsonify({'error': 'No update data provided'}), 400
 
     try:
-        updated_report = service.update_report(report, data)
-        return jsonify(updated_report.as_dict())
+        updated_report = service.update_report(
+            report_id=report_id,
+            user_id=user_id,
+            plan=data.get('plan'),
+            reason=data.get('reason'),
+            pre_notes=data.get('pre_notes'),
+            post_notes=data.get('post_notes'),
+        )
+        
+        # Parse query params
+        full = request.args.get('full', 'false').lower() == 'true'
+        commitment_scope = request.args.get('commitment_scope', 'window')
+        
+        # Validate commitment_scope
+        if commitment_scope not in ('window', 'direct', 'none'):
+            return jsonify({'error': "commitment_scope must be 'window', 'direct', or 'none'"}), 400
+        
+        return jsonify(service.build_report_dict(
+            updated_report,
+            full=full,
+            commitment_scope=commitment_scope,
+        ))
     except ReportValidationError as e:
         return jsonify({'error': e.message}), 400
 
@@ -128,88 +248,9 @@ def update_report(report_id):
 @jwt_required()
 def delete_report(report_id):
     """Delete a report"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     service = get_report_service()
-    report = service.get_report(report_id, user_id)
-    if not report:
-        return ('', 404)
+    
+    deleted = service.delete_report(report_id, user_id)
+    return ('', 204) if deleted else ('', 404)
 
-    service.delete_report(report)
-    return ('', 204)
-
-
-@jwt_required()
-def get_report_metrics(report_id):
-    """Get all metric values for a report"""
-    user_id = get_jwt_identity()
-    service = get_report_service()
-    report = service.get_report(report_id, user_id)
-    if not report:
-        return ('', 404)
-
-    metrics = service.get_metric_values(report_id, user_id)
-    return jsonify([m.as_dict() for m in metrics])
-
-
-@jwt_required()
-def set_report_metrics(report_id):
-    """
-    Bulk set metric values on a report.
-
-    Body: Object with metric_type_id keys and values
-    Example: {"1": 8, "2": 7.5, "3": true}
-    """
-    user_id = get_jwt_identity()
-    service = get_report_service()
-    report = service.get_report(report_id, user_id)
-    if not report:
-        return ('', 404)
-
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'No metric data provided'}), 400
-
-    try:
-        # Convert string keys to int
-        values = {int(k): v for k, v in data.items()}
-        metrics = service.bulk_set_metric_values(report, values, user_id)
-        return jsonify([m.as_dict() for m in metrics])
-    except (ValueError, ReportValidationError) as e:
-        return jsonify({'error': str(e)}), 400
-
-
-@jwt_required()
-def set_metric_value(report_id, metric_type_id):
-    """
-    Set a single metric value on a report.
-
-    Body: {"value": <int|float|bool|null>}
-    """
-    user_id = get_jwt_identity()
-    service = get_report_service()
-    report = service.get_report(report_id, user_id)
-    if not report:
-        return ('', 404)
-
-    data = request.get_json()
-    if data is None or 'value' not in data:
-        return jsonify({'error': 'value field is required'}), 400
-
-    try:
-        metric = service.set_metric_value(report, metric_type_id, data['value'], user_id)
-        return jsonify(metric.as_dict())
-    except ReportValidationError as e:
-        return jsonify({'error': e.message}), 400
-
-
-@jwt_required()
-def remove_metric_value(report_id, metric_type_id):
-    """Remove a metric value from a report"""
-    user_id = get_jwt_identity()
-    service = get_report_service()
-    report = service.get_report(report_id, user_id)
-    if not report:
-        return ('', 404)
-
-    service.remove_metric_value(report, metric_type_id, user_id)
-    return ('', 204)
