@@ -36,14 +36,22 @@ class TaskService:
         if status not in VALID_STATUSES:
             raise TaskValidationError(f"Invalid status: {status}. Must be one of: {', '.join(VALID_STATUSES)}")
         
-        return self.repository.create(
+        # Create the task without project association
+        task = self.repository.create(
             user_id=user_id,
             title=normalized,
             description=data.get('description'),
             status=status,
             active=data.get('active', True),
-            project_id=data.get('project_id')
+            project_id=None
         )
+        
+        # If project_id provided, attach it using the existing validation logic
+        project_id = data.get('project_id')
+        if project_id is not None:
+            task = self.attach_to_project(task, project_id, user_id)
+        
+        return task
 
     def get_task(self, task_id: int, user_id: int) -> Optional[Task]:
         """Get a specific task, ensuring user ownership"""
