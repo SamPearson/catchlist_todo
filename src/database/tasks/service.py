@@ -13,6 +13,7 @@ class TaskValidationError(ValidationError):
 
 
 VALID_STATUSES = {'open', 'waiting', 'deferred', 'declined', 'stale'}
+MAX_TITLE_LENGTH = 200
 
 
 class TaskService:
@@ -26,7 +27,10 @@ class TaskService:
         normalized = (title or "").strip()
         if not normalized:
             raise TaskValidationError("title is required.")
-        
+
+        if len(normalized) > MAX_TITLE_LENGTH:
+            raise TaskValidationError(f"title cannot exceed {MAX_TITLE_LENGTH} characters.")
+
         data = data or {}
         status = data.get('status', 'open')
         if status not in VALID_STATUSES:
@@ -54,26 +58,30 @@ class TaskService:
 
     def update_task(self, task: Task, data: Dict) -> Task:
         """Update a task with the given data (excluding completion status)"""
+        # Check for disallowed fields
+        disallowed_fields = {'status', 'active', 'completed', 'completed_at', 'project_id'}
+        provided_disallowed = disallowed_fields.intersection(data.keys())
+        if provided_disallowed:
+            raise TaskValidationError(
+                f"Cannot update {', '.join(sorted(provided_disallowed))} via update_task. Use dedicated methods instead."
+            )
+        
         if "title" in data:
             title = str(data.get("title") or "").strip()
             if not title:
                 raise TaskValidationError("title cannot be empty.")
+            if len(title) > MAX_TITLE_LENGTH:
+                raise TaskValidationError(f"title cannot exceed {MAX_TITLE_LENGTH} characters.")
         else:
             title = None
 
         if "content" in data and "title" not in data:
             raise TaskValidationError("content is deprecated; use title.")
-        
-        if "status" in data and data["status"] not in VALID_STATUSES:
-            raise TaskValidationError(f"Invalid status: {data['status']}. Must be one of: {', '.join(VALID_STATUSES)}")
 
         return self.repository.update(
             task,
             title=title,
-            description=data.get("description"),
-            status=data.get("status"),
-            active=data.get("active"),
-            project_id=data.get("project_id")
+            description=data.get("description")
         )
 
     def delete_task(self, task: Task) -> None:

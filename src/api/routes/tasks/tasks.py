@@ -57,13 +57,6 @@ def update_task(task_id):
     if not data:
         return jsonify({'error': 'No update data provided'}), 400
 
-    # Check for disallowed fields
-    disallowed_fields = {'status', 'active', 'completed', 'completed_at'}
-    if any(field in data for field in disallowed_fields):
-        return jsonify({
-            'error': 'Cannot update status, active, or completed via this endpoint. Use dedicated endpoints instead.'
-        }), 400
-
     try:
         updated_task = task_service.update_task(task, data)
         return jsonify(updated_task.as_dict())
