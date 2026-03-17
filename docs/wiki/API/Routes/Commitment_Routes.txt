@@ -1,4 +1,3 @@
-
 Content-Type: text/x-zim-wiki
 Wiki-Format: zim 0.6
 Creation-Date: 2026-01-12T19:38:25-06:00
