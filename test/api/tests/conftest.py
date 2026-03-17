@@ -38,8 +38,8 @@ def test_user(api_client):
 
 
 @pytest.fixture
-def isolated_auth_client(env_manager):
-    """Provide a completely isolated authenticated client with fresh user for each test"""
+def auth_client(env_manager):
+    """Provide an authenticated client with fresh user for each test"""
     user = APIUserFactory.create()
     client = APIClient(env_manager.base_url)
     client.register(user)
@@ -53,8 +53,8 @@ def isolated_auth_client(env_manager):
         print(f"Failed to delete isolated user {user.username}: {e}")
 
 @pytest.fixture
-def auth_client(api_client, test_user):
-    """Provide authenticated client for primary test user"""
+def session_auth_client(api_client, test_user):
+    """Provide persistent session-scoped authenticated client"""
     api_client.login(test_user)
     yield api_client
     api_client.logout()
