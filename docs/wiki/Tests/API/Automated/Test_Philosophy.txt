@@ -1,0 +1,96 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-15T18:46:16-05:00
+
+====== Test Philosophy ======
+Created Sunday 15 March 2026
+
+
+
+===== Test Philosophy =====
+
+==== Testing Goals ====
+
+The purpose of this API testing is to **validate critical functionality** and **catch regressions** without becoming a maintenance burden.
+
+**Key Principles:**
+
+* **Pragmatic coverage over completeness** - 100% test coverage is not the goal and would create technical debt any time application code changed
+* **Fast feedback** - Tests should run quickly and report clearly
+* **Maintainability** - Tests should be easy to update when the API evolves
+* **Targeted execution** - Marker combinations should make it easy to run only relevant tests
+
+
+==== What We Test ====
+
+**Priority 1: Critical Path (Smoke Tests)**
+* Basic CRUD operations for each entity
+* Authentication flows (register, login, logout)
+* Smoke test failure should mean an entity is entirely unusable
+
+**Priority 2: Extended Functionality**
+* Thorough CRUD testing
+* Endpoint URL Parameters
+* Field-specific updates and validations
+* Edge cases and boundary conditions
+* Cross-entity relationships
+* Filtering and search capabilities
+
+**What We Don't Test:**
+* Exhaustive permutations of field combinations
+* Implementation details that may change
+* Third-party library functionality
+
+
+==== Test Coverage Strategy ====
+
+Tests should be **targeted and intentional**, not exhaustive. When adding new tests, consider:
+
+1. **Does this test validate critical functionality?** If the feature is rarely used or cosmetic, it may not need a test.
+2. **Will this test catch real regressions?** Tests should protect against realistic failures, not theoretical ones.
+3. **Is this already covered by another test?** Avoid redundant tests that verify the same behavior.
+4. **How often will this test need updating?** If it will break with every minor change, reconsider the approach.
+
+
+==== Using Markers for Targeted Testing ====
+
+Markers enable **efficient testing workflows** by running only the tests relevant to your changes:
+
+**Example workflows:**
+
+* **Working on task endpoints** → ''pytest -m tasks''
+* **Changed authentication logic** → ''pytest -m auth''
+* **Quick sanity check** → ''pytest -m smoke_test''
+* **Validating project CRUD** → ''pytest -m "projects and crud"''
+* **Pre-deployment verification** → ''pytest -m "smoke_test or auth"''
+
+This approach allows developers to get **fast, relevant feedback** without running the entire test suite for every change while still getting reasonable depth and coverage relative to the features being worked on.
+
+
+==== Clear and Diagnostic Test Results ====
+
+Test results should provide **immediate clarity** on what failed and why:
+
+**Command-line output:**
+* Clear pass/fail status
+* Concise error messages
+* Failed assertion context
+
+**Allure reports:**
+* Step-by-step test execution flow
+* Full request/response bodies for API calls
+* Error diagnostics with stack traces
+
+The goal is to **diagnose issues from the test results alone** without needing to manually reproduce the failure or add debug logging.
+
+
+==== Maintenance and Evolution ====
+
+As the API evolves, tests should be **updated or removed**, not accumulated indefinitely:
+
+* **Deprecated endpoints** - Remove associated tests
+* **Changed behavior** - Update tests to match new expectations
+* **Broken tests** - Fix or remove, never ignore or skip long-term
+* **Flaky tests** - Investigate and fix root cause, or remove if not providing value
+
+**A smaller suite of reliable tests is better than a large suite of unreliable ones.**

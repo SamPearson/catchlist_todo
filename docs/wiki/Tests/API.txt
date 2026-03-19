@@ -5,3 +5,15 @@ Creation-Date: 2026-01-10T14:38:40-06:00
 ====== API ======
 Created Saturday 10 January 2026
 
+API tests are grouped in a few ways:
+
+Firstly, Manual or Automated.
+Secondly, tests are split up by entity aka domain object. (Tasks, Projects, Tags, Routines, etc)
+Finally, we have test categories. Smoke tests, CRUD tests, Integration tests, Search tests
+
+
+Manual testing doesn't require much documentation; essentially just a test plan.
+Check the API>Routes documentation on what endpoints to hit and what kind of payloads/url params they take. 
+
+Automated testing requires code to be written or run, and requires more documentation.
+The automated test documentation in this wiki will briefly cover how to write that code and thus create new tests.

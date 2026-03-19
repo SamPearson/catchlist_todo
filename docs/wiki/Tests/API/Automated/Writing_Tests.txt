@@ -1,0 +1,537 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-15T18:46:23-05:00
+
+
+====== Writing Tests ======
+
+===== Test Anatomy =====
+
+Understanding the structure of a well-formed test is essential for writing effective, maintainable tests.
+
+==== Basic Test Structure ====
+
+All tests follow the **Arrange-Act-Assert** pattern within Allure steps:
+
+{{{code: lang="python" linenumbers="True"
+@allure.feature('Tasks')
+@allure.story('CRUD Operations')
+@pytest.mark.tasks
+@pytest.mark.crud
+@pytest.mark.smoke_test
+@allure.severity(allure.severity_level.CRITICAL)
+def test_create_task(auth_client):
+    """Create task with only required field (title)"""
+
+    with allure.step("Prepare test data"):
+        # ARRANGE: Set up test data
+        data = {"title": "Test task title"}
+
+    with allure.step("Create new task"):
+        # ACT: Perform the action being tested
+        response = auth_client.post('/api/tasks', data)
+
+    with allure.step("Verify response structure and values"):
+        # ASSERT: Validate the results
+        assert response['id']
+        assert response['title'] == data['title']
+        assert response['completed'] is False
+}}}
+
+==== Component Breakdown ====
+
+**1. Allure Decorators (Lines 1-2)**
+* ''@allure.feature()'' - High-level grouping (entity name)
+* ''@allure.story()'' - Specific functionality being tested
+* These organize tests in the Allure report
+
+**2. Pytest Markers (Lines 3-5)**
+* ''@pytest.mark.<entity>'' - Entity marker (required)
+* ''@pytest.mark.<function>'' - Functional marker (crud, auth, etc.)
+* ''@pytest.mark.smoke_test'' - Depth marker (only for critical tests)
+
+**3. Severity Level (Line 6)**
+* ''CRITICAL'' - Smoke tests, core functionality
+* ''NORMAL'' - Extended tests, important but not critical
+* ''MINOR'' - Edge cases, nice-to-have validations
+
+**4. Function Signature (Line 7)**
+* Descriptive name: ''test_<action>_<entity>'' or ''test_<entity>_<scenario>''
+* Fixture parameter: Determines authentication and isolation level
+
+**5. Docstring (Line 8)**
+* Brief description of what the test validates
+* Appears in test reports and test lists
+
+**6. Allure Steps (Lines 10, 13, 16)**
+* Break test into logical phases
+* Provide clear execution flow in reports
+* Help diagnose failures quickly
+
+
+==== Smoke Test vs Extended Test ====
+
+**Smoke Test (Minimal, Critical Path):**
+{{{code: lang="python" linenumbers="True"
+@allure.feature('Tasks')
+@allure.story('CRUD Operations')
+@pytest.mark.tasks
+@pytest.mark.crud
+@pytest.mark.smoke_test
+@allure.severity(allure.severity_level.CRITICAL)
+def test_create_task(auth_client):
+    """Create task with only required field (title)"""
+    with allure.step("Prepare test data"):
+        data = {"title": "Test task title"}
+
+    with allure.step("Create new task"):
+        response = auth_client.post('/api/tasks', data)
+
+    with allure.step("Verify response structure and values"):
+        assert response['id']
+        assert response['title'] == data['title']
+        assert response['completed'] is False
+}}}
+
+**Extended Test (Specific Scenario, More Detailed):**
+{{{code: lang="python" linenumbers="True"
+@allure.feature('Tasks')
+@allure.story('CRUD Operations')
+@pytest.mark.tasks
+@pytest.mark.crud
+@allure.severity(allure.severity_level.NORMAL)
+def test_update_task_description(auth_client):
+    """Update task description while preserving other fields"""
+    with allure.step("Create task with description"):
+        created = auth_client.post('/api/tasks', {
+            "title": "Test task",
+            "description": "Original description"
+        })
+        task_id = created['id']
+
+    with allure.step("Update description"):
+        updated = auth_client.put(f'/api/tasks/{task_id}', {
+            "description": "New description"
+        })
+
+    with allure.step("Verify description updated and title unchanged"):
+        assert updated['description'] == "New description"
+        assert updated['title'] == created['title']
+}}}
+
+**Key Differences:**
+* Smoke tests have ''@pytest.mark.smoke_test'' and ''CRITICAL'' severity
+* Smoke tests verify basic functionality only
+* Extended tests validate specific scenarios and edge cases
+* Extended tests use ''NORMAL'' severity (or ''MINOR'' for edge cases)
+
+
+===== Test Structure Patterns =====
+
+==== Arrange-Act-Assert with Allure Steps ====
+
+Always wrap each phase in an ''allure.step()'' context:
+
+{{{code: lang="python" linenumbers="True"
+def test_example(auth_client):
+    """Test description"""
+    with allure.step("Arrange: Prepare test data and preconditions"):
+        # Set up data
+        # Create prerequisite resources
+        pass
+
+    with allure.step("Act: Perform the action being tested"):
+        # Make the API call being tested
+        response = auth_client.post('/api/endpoint', data)
+
+    with allure.step("Assert: Verify results"):
+        # Check response values
+        # Verify state changes
+        assert response['field'] == expected_value
+}}}
+
+==== Using handle_response=False ====
+
+By default, the API client returns parsed JSON. Use ''handle_response=False'' when you need to check status codes directly:
+
+{{{code: lang="python" linenumbers="True"
+def test_delete_task(auth_client):
+    """Delete task returns 204 No Content"""
+    with allure.step("Create task to delete"):
+        created = auth_client.post('/api/tasks', {"title": "Delete me"})
+        task_id = created['id']
+
+    with allure.step("Delete task"):
+        response = auth_client.delete(f'/api/tasks/{task_id}',
+                                      handle_response=False)
+
+    with allure.step("Verify 204 response"):
+        assert response.status_code == 204
+}}}
+
+**Common scenarios for handle_response=False:**
+* Verifying 204 No Content responses
+* Testing error status codes (404, 401, 400)
+* Checking specific HTTP headers
+* Validating non-JSON responses
+
+==== Multi-Step Tests ====
+
+Some tests require multiple operations:
+
+{{{code: lang="python" linenumbers="True"
+def test_update_preserves_timestamps(auth_client):
+    """Verify created_at doesn't change on update"""
+    with allure.step("Create task"):
+        created = auth_client.post('/api/tasks', {"title": "Test"})
+        original_created_at = created['created_at']
+
+    with allure.step("Update task"):
+        updated = auth_client.put(f'/api/tasks/{created["id"]}', {
+            "title": "Updated"
+        })
+
+    with allure.step("Verify timestamps"):
+        assert updated['created_at'] == original_created_at
+        assert updated['updated_at'] >= original_created_at
+}}}
+
+
+==== Cleanup Considerations ====
+
+**Fixtures handle cleanup automatically:**
+* ''auth_client'' - Shared user cleaned up at session end
+* ''isolated_auth_client'' - User deleted after each test
+* ''secondary_auth_client'' - Secondary user deleted after each test
+
+**Manual cleanup is rarely needed**, but if you create resources outside fixture scope, use the API's deletion endpoints:
+
+{{{code: lang="python" linenumbers="True"
+def test_with_manual_cleanup(auth_client):
+    """Example with explicit cleanup"""
+    task_id = None
+    try:
+        with allure.step("Create task"):
+            created = auth_client.post('/api/tasks', {"title": "Test"})
+            task_id = created['id']
+
+        with allure.step("Test operations"):
+            # Test code here
+            pass
+
+    finally:
+        if task_id:
+            auth_client.delete(f'/api/tasks/{task_id}', handle_response=False)
+}}}
+
+
+===== Adding Tests =====
+
+Test files can be found in 
+(project root)/test/api/tests
+
+Under that directory, tests are grouped into subfolders based on entity or test type.
+Files that contain tests MUST end with "_test" in order for the tests they contain to be recognized. 
+Generally, the naming should be: 
+''<entity>_<test group/action>_test.py''
+
+Use pytest markers to add tests to a group.
+If new markers need to be registered, they can be added to test/api/pytest.ini
+
+
+===== Common Testing Scenarios =====
+
+==== Basic CRUD Operations ====
+NOTE: these are GUIDELINES and SYNTAX HINTS, not necessarily a guarantee that these endpoints exist.
+CRUD endpoints may be formatted differently or some of them may not exist. 
+Check the API Documentation to ensure the endpoints you want to use actually exist.
+
+**Create:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Create entity"):
+    response = auth_client.post('/api/entities', {
+        "required_field": "value"
+    })
+    assert response['id']
+    assert response['required_field'] == "value"
+}}}
+
+**Read:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Retrieve entity"):
+    response = auth_client.get(f'/api/entities/{entity_id}')
+    assert response['id'] == entity_id
+}}}
+
+**Update:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Update entity"):
+    response = auth_client.patch(f'/api/entities/{entity_id}', {
+        "field": "new_value"
+    })
+    assert response['field'] == "new_value"
+}}}
+
+**Delete:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Delete entity"):
+    response = auth_client.delete(f'/api/entities/{entity_id}',
+                                  handle_response=False)
+    assert response.status_code == 204
+}}}
+
+**List:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("List entities"):
+    response = auth_client.get('/api/entities')
+    assert isinstance(response, list)
+    assert len(response) >= expected_count
+}}}
+
+
+==== Testing Error Conditions ====
+
+**404 Not Found:**
+{{{code: lang="python" linenumbers="True"
+def test_get_nonexistent_task_returns_404(auth_client):
+    """Attempt to retrieve non-existent task"""
+    with allure.step("Request non-existent task"):
+        response = auth_client.get('/api/tasks/999999',
+                                   handle_response=False)
+
+    with allure.step("Verify 404 response"):
+        assert response.status_code == 404
+}}}
+
+**401 Unauthorized:**
+{{{code: lang="python" linenumbers="True"
+@pytest.mark.auth
+def test_list_tasks_requires_authentication(unauthenticated_client):
+    """Unauthenticated request returns 401"""
+    with allure.step("Request tasks without authentication"):
+        response = unauthenticated_client.get('/api/tasks',
+                                               handle_response=False)
+
+    with allure.step("Verify 401 response"):
+        assert response.status_code == 401
+}}}
+
+**400 Bad Request:**
+{{{code: lang="python" linenumbers="True"
+def test_create_task_without_required_field(auth_client):
+    """Create task without title returns 400"""
+    with allure.step("Attempt to create task without title"):
+        response = auth_client.post('/api/tasks', {},
+                                    handle_response=False)
+
+    with allure.step("Verify 400 response"):
+        assert response.status_code == 400
+}}}
+
+==== Testing with Multiple Users ====
+
+**Testing isolation between users:**
+{{{code: lang="python" linenumbers="True"
+@pytest.mark.auth
+def test_user_cannot_access_other_user_tasks(auth_client, secondary_auth_client):
+    """Verify users can only see their own tasks"""
+    with allure.step("Primary user creates task"):
+        primary_task = auth_client.post('/api/tasks', {
+            "title": "Primary user task"
+        })
+
+    with allure.step("Secondary user lists tasks"):
+        secondary_tasks = secondary_auth_client.get('/api/tasks')
+
+    with allure.step("Verify primary task not in secondary user's list"):
+        secondary_ids = [task['id'] for task in secondary_tasks]
+        assert primary_task['id'] not in secondary_ids
+}}}
+
+**Testing with completely isolated client:**
+{{{code: lang="python" linenumbers="True"
+@pytest.mark.auth
+def test_fresh_user_has_no_tasks(isolated_auth_client):
+    """Newly created user should have empty task list"""
+    with allure.step("List tasks for new user"):
+        tasks = isolated_auth_client.get('/api/tasks')
+
+    with allure.step("Verify task list is empty"):
+        assert len(tasks) == 0
+}}}
+
+
+===== Choosing the Right Fixture =====
+
+Different fixtures provide different levels of authentication and isolation:
+
+==== Fixture Reference ====
+
+=== **auth_client** (DEFAULT) ===
+* **Purpose:** Fresh authenticated client for each test
+* **User:** New user created per test
+* **Isolation:** Complete isolation between tests
+* **Cleanup:** User deleted immediately after test
+* **When to use:** Most tests - default choice for standard CRUD operations
+
+{{{code: lang="python" linenumbers="True"
+def test_create_task(auth_client):
+    response = auth_client.post('/api/tasks', {"title": "Test"})
+}}}
+
+=== **session_auth_client** ===
+* **Purpose:** Persistent authenticated client shared across tests
+* **User:** Shared session user (''test_user'')
+* **Isolation:** Data persists across tests in session
+* **Cleanup:** User deleted at session end
+* **When to use:** Tests that need to verify accumulated state, performance tests
+
+{{{code: lang="python" linenumbers="True"
+def test_accumulated_tasks(session_auth_client):
+    # Data from previous tests using this fixture will still exist
+    tasks = session_auth_client.get('/api/tasks')
+}}}
+
+=== **secondary_auth_client** ===
+* **Purpose:** Second authenticated user for multi-user scenarios
+* **User:** Different user than primary test user (''secondary_user'')
+* **Isolation:** Separate from other fixtures
+* **Cleanup:** User deleted at session end
+* **When to use:** Testing data isolation between users, authorization tests
+
+{{{code: lang="python" linenumbers="True"
+def test_user_isolation(auth_client, secondary_auth_client):
+    # Primary user creates task
+    task = auth_client.post('/api/tasks', {"title": "Primary"})
+
+    # Secondary user cannot see it
+    secondary_tasks = secondary_auth_client.get('/api/tasks')
+    ids = [t['id'] for t in secondary_tasks]
+    assert task['id'] not in ids
+}}}
+
+=== **unauthenticated_client** ===
+* **Purpose:** Client without authentication
+* **User:** None
+* **Isolation:** No authentication state
+* **Cleanup:** None needed
+* **When to use:** Testing authentication requirements, public endpoints
+
+{{{code: lang="python" linenumbers="True"
+@pytest.mark.auth
+def test_tasks_require_authentication(unauthenticated_client):
+    response = unauthenticated_client.get('/api/tasks',
+                                          handle_response=False)
+    assert response.status_code == 401
+}}}
+
+==== Quick Reference Table ====
+
+| **Fixture**            | **Authenticated** | **Scope**   | **Isolation Level** | **Use Case**             |
+|------------------------|-------------------|-------------|---------------------|--------------------------|
+| auth_client            | Yes               | Per test    | Complete            | Standard tests (DEFAULT) |
+| session_auth_client    | Yes               | Per session | Shared state        | Accumulated state tests  |
+| secondary_auth_client  | Yes               | Per session | Separate user       | Multi-user scenarios     |
+| unauthenticated_client | No                | Per test    | N/A                 | Auth requirement tests   |
+
+
+===== Best Practices =====
+
+==== Descriptive Test Names ====
+
+**Good:**
+* ''test_create_task_with_title''
+* ''test_update_project_description''
+* ''test_delete_task_returns_404_when_not_found''
+* ''test_user_cannot_access_other_user_tasks''
+
+**Avoid:**
+* ''test_task_1''
+* ''test_api''
+* ''test_success''
+
+==== Clear Docstrings ====
+
+Every test should have a brief docstring explaining what it validates:
+
+{{{code: lang="python" linenumbers="True"
+def test_create_task(auth_client):
+    """Create task with only required field (title)"""
+}}}
+
+
+==== Appropriate Allure Step Granularity ====
+
+**Good - Clear logical phases:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Create test task"):
+    task = auth_client.post('/api/tasks', {"title": "Test"})
+
+with allure.step("Update task title"):
+    updated = auth_client.put(f'/api/tasks/{task["id"]}', {
+        "title": "Updated"
+    })
+
+with allure.step("Verify title changed"):
+    assert updated['title'] == "Updated"
+}}}
+
+**Too granular - Steps for every line:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Prepare data"):
+    data = {"title": "Test"}
+
+with allure.step("Call post endpoint"):
+    task = auth_client.post('/api/tasks', data)
+
+with allure.step("Extract task ID"):
+    task_id = task['id']
+
+with allure.step("Prepare update data"):
+    update_data = {"title": "Updated"}
+# etc...
+}}}
+
+**Too broad - Everything in one step:**
+{{{code: lang="python" linenumbers="True"
+with allure.step("Test task update"):
+    task = auth_client.post('/api/tasks', {"title": "Test"})
+    updated = auth_client.put(f'/api/tasks/{task["id"]}', {
+        "title": "Updated"
+    })
+    assert updated['title'] == "Updated"
+}}}
+
+
+==== Assertion Messages ====
+
+For complex assertions, add descriptive messages:
+
+{{{code: lang="python" linenumbers="True"
+# Good
+assert task['id'] in retrieved_ids, \
+    f"Task {task['id']} not found in list: {retrieved_ids}"
+
+# Good for type checks
+assert isinstance(response['tags'], list), \
+    f"Expected tags to be list, got {type(response['tags'])}"
+}}}
+
+==== Test Data Management ====
+
+**Use descriptive, unique test data:**
+{{{code: lang="python" linenumbers="True"
+# Good - Clear what's being tested
+data = {"title": "Task with special characters: !@#$%"}
+
+# Avoid - Generic data
+data = {"title": "test"}
+}}}
+
+**Include test identifiers in data when helpful:**
+{{{code: lang="python" linenumbers="True"
+# Helpful for debugging
+task = auth_client.post('/api/tasks', {
+    "title": f"Test task {i+1} for filtering"
+})
+}}}
