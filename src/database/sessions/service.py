@@ -9,7 +9,7 @@ from src.database.commitments.service import CommitmentService, CommitmentConfli
 from src.database.tags.service import TagService
 from src.database.principles.service import PrincipleService
 from src.database.timeframes.service import TimeframeService
-from src.database.users.user import User
+from src.database.users.models import User
 from src.utils.timezone import from_utc
 from dateutil.rrule import rrulestr, YEARLY, MONTHLY, WEEKLY, DAILY, HOURLY, MO, TU, WE, TH, FR, SA, SU
 import logging

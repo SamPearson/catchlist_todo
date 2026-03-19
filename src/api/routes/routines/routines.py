@@ -9,7 +9,7 @@ from src.database.db import db
 from src.database.routines.service import RoutineService, RoutineValidationError
 from src.database.sessions.service import SessionService
 from src.api.utils.caldav_client import CalDAVClient
-from src.database.users.user import User
+from src.database.users.models import User
 
 # Import the timezone utilities
 from src.utils.timezone import parse_dt, to_utc, from_utc, localize_dict

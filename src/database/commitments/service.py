@@ -446,7 +446,7 @@ class CommitmentService:
                 # Option 2: Store timezone on commitment
                 # Option 3: Look up user's timezone
                 # Let's go with Option 3 for now
-                from src.database.users.user import User
+                from src.database.users.models import User
                 user = self.session.query(User).filter_by(id=user_id).first()
                 if user and user.timezone:
                     new_day_timeframe = self.timeframe_service.get_or_create_day_for_instant(

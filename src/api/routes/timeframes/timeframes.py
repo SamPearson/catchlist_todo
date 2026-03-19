@@ -7,7 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.db import db
 from src.database.timeframes.service import TimeframeService, validate_kind, SUPPORTED_KINDS, UnsupportedTimeframeKind
-from src.database.users.user import User
+from src.database.users.models import User
 
 
 def _parse_local_date(date_str: str):
