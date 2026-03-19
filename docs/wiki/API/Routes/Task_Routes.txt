@@ -12,6 +12,8 @@ All endpoints require authentication via JWT Bearer token.
 
 For business logic, validation rules, and state management details, see [[Documentation:Design:Entities:Tasks_and_Projects|Tasks and Projects]].
 
+**Timezone Handling:** All timestamp fields in responses are converted to the authenticated user's timezone (configured in their user profile). Timestamps are returned in ISO 8601 format with timezone information.
+
 
 ===== Endpoints =====
 
@@ -195,11 +197,13 @@ Removes a task's association with its project. The task becomes standalone; it i
 | title        | string   | Task title                                                |
 | description  | text     | Additional details                                        |
 | completed    | boolean  | Completion status                                         |
-| completed_at | datetime | When completed (ISO format, null if not completed)        |
+| completed_at | datetime | When completed (ISO 8601 format in user's timezone, null if not completed)        |
 | status       | string   | Current status (open, waiting, deferred, declined, stale) |
 | active       | boolean  | Active flag                                               |
 | project_id   | integer  | Parent project ID (null if standalone)                    |
 | tags         | array    | Attached tags                                             |
 | principles   | array    | Attached principles                                       |
-| created_at   | datetime | When created                                              |
-| updated_at   | datetime | When last modified                                        |
+| created_at   | datetime | When created (ISO 8601 format in user's timezone)                                              |
+| updated_at   | datetime | When last modified (ISO 8601 format in user's timezone)                                        |
+
+**Note:** All datetime fields are stored in UTC on the server but are automatically converted to the user's configured timezone in API responses. The timezone offset is included in the ISO 8601 format (e.g., "2026-03-18T14:30:00-05:00" for Central Time).

@@ -12,6 +12,8 @@ Wiki-Format: zim 0.6
 
 Both tasks and projects use the same lifecycle model: they can be active or in a someday/maybe pile, they can be completed, and they track their current mode (open/waiting/blocked/etc).
 
+**Timezone Handling:** All timestamps are stored in UTC on the server. When returned via the API, timestamps are automatically converted to the user's configured timezone. Users set their timezone during registration (defaults to UTC if not specified) and can update it via their profile. The system assumes any timestamps sent by clients are in the user's local timezone unless otherwise specified.
+
 
 ===== Attributes: Active, Completed, and Status =====
 
@@ -57,12 +59,12 @@ Examples: "Buy new shoes", "Reply to email from Sarah", "Write section 3 of prop
 | title        | string(200) | yes      | Brief, specific description of the action                                                       |
 | description  | text        | no       | Additional context or details                                                                   |
 | completed    | boolean     | no       | Default false; true when task is done                                                           |
-| completed_at | datetime    | no       | Auto-set to current timestamp when completed becomes true; cleared when completed becomes false |
+| completed_at | datetime    | no       | Auto-set to current timestamp when completed becomes true; cleared when completed becomes false. Stored in UTC, returned in user's timezone. |
 | status       | string(20)  | no       | Current mode: open, waiting, deferred, declined, stale. Default "open"                          |
 | active       | boolean     | no       | Default true; false means task is in someday/maybe pile                                         |
 | project_id   | integer     | no       | If set, this task is a subtask of that project; if null, task is standalone                     |
-| created_at   | datetime    | auto     | When task was created                                                                           |
-| updated_at   | datetime    | auto     | When task was last modified                                                                     |
+| created_at   | datetime    | auto     | When task was created. Stored in UTC, returned in user's timezone.                                                                           |
+| updated_at   | datetime    | auto     | When task was last modified. Stored in UTC, returned in user's timezone.                                                                     |
 
 
 ==== Behaviors ====
@@ -97,9 +99,10 @@ Examples: "Buy new shoes", "Reply to email from Sarah", "Write section 3 of prop
 * Can be changed independently of active/completed
 
 **Complete**
-* Setting completed to true must auto-set completed_at to current timestamp
+* Setting completed to true must auto-set completed_at to current timestamp (in UTC)
 * Setting completed to false must clear completed_at
 * Completing a task does not automatically change its status; status reflects the mode before completion
+* The completed_at timestamp is returned to clients in their configured timezone
 
 **Delete**
 * Hard delete (no soft delete)
@@ -148,11 +151,11 @@ Examples: "Build a deck", "Learn guitar", "Write thesis chapter 2"
 | reason        | text        | no       | Why this project matters; the purpose and motivation (Soft requirement on creation; enforced when active=true)            |
 | next_step     | string(200) | no       | The immediate next action to move the project forward                                                                     |
 | completed     | boolean     | no       | Default false; true when project is done                                                                                  |
-| completed_at  | datetime    | no       | Auto-set to current timestamp when completed becomes true; cleared when completed becomes false                           |
+| completed_at  | datetime    | no       | Auto-set to current timestamp when completed becomes true; cleared when completed becomes false. Stored in UTC, returned in user's timezone.                           |
 | status        | string(20)  | no       | Current mode: open, waiting, deferred, declined, stale. Default "open"                                                    |
 | active        | boolean     | no       | Default true; false means project is in someday/maybe pile                                                                |
-| created_at    | datetime    | auto     | When project was created                                                                                                  |
-| updated_at    | datetime    | auto     | When project was last modified                                                                                            |
+| created_at    | datetime    | auto     | When project was created. Stored in UTC, returned in user's timezone.                                                                                  |
+| updated_at    | datetime    | auto     | When project was last modified. Stored in UTC, returned in user's timezone.                                                                            |
 
 
 ==== Status Values ====
@@ -194,8 +197,9 @@ Same as Tasks: open, waiting, deferred, declined, stale
 * Returns validation error if any subtasks are incomplete: "Cannot complete project; {count} subtasks are incomplete. Complete all subtasks first."
 * On success:
   - Sets completed to true
-  - Auto-sets completed_at to current timestamp
+  - Auto-sets completed_at to current timestamp (in UTC)
   - Typically also sets active to false (recommended but not enforced at the model level)
+* The completed_at timestamp is returned to clients in their configured timezone
 
 **Uncomplete**
 * Endpoint: `DELETE /projects/{id}/complete`
