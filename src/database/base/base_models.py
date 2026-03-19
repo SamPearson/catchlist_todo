@@ -6,6 +6,9 @@ from sqlalchemy.ext.declarative import declared_attr
 
 from src.database.db import db
 
+from src.utils.timezone import from_utc
+
+
 class BaseModel(db.Model):
     """
     Abstract base class for all models.
@@ -22,12 +25,18 @@ class BaseModel(db.Model):
         """Generate table name automatically from class name."""
         return cls.__name__.lower()
 
-    def as_dict(self) -> Dict[str, Any]:
-        """Convert model to dictionary representation."""
+    def as_dict(self, user_timezone: str = 'UTC') -> Dict[str, Any]:
+        """
+        Convert model to dictionary representation.
+        
+        Args:
+            user_timezone: User's timezone for timestamp conversion (IANA format)
+        """
+
         return {
             'id': self.id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'created_at': from_utc(self.created_at, user_timezone).isoformat() if self.created_at else None,
+            'updated_at': from_utc(self.updated_at, user_timezone).isoformat() if self.updated_at else None
         }
 
 class UserOwnedModel(BaseModel):
@@ -45,9 +54,14 @@ class UserOwnedModel(BaseModel):
     def user(cls):
         return db.relationship('User')
 
-    def as_dict(self) -> Dict[str, Any]:
-        """Convert model to dictionary representation including user_id."""
-        data = super().as_dict()
+    def as_dict(self, user_timezone: str = 'UTC') -> Dict[str, Any]:
+        """
+        Convert model to dictionary representation including user_id.
+        
+        Args:
+            user_timezone: User's timezone for timestamp conversion (IANA format)
+        """
+        data = super().as_dict(user_timezone=user_timezone)
         data['user_id'] = self.user_id
         return data
 
@@ -73,10 +87,16 @@ class SoftDeleteModel(BaseModel):
         """Check if record is soft-deleted."""
         return self.deleted_at is not None
 
-    def as_dict(self) -> Dict[str, Any]:
-        """Convert model to dictionary representation including deleted_at."""
-        data = super().as_dict()
-        data['deleted_at'] = self.deleted_at.isoformat() if self.deleted_at else None
+    def as_dict(self, user_timezone: str = 'UTC') -> Dict[str, Any]:
+        """
+        Convert model to dictionary representation including deleted_at.
+        
+        Args:
+            user_timezone: User's timezone for timestamp conversion (IANA format)
+        """
+
+        data = super().as_dict(user_timezone=user_timezone)
+        data['deleted_at'] = from_utc(self.deleted_at, user_timezone).isoformat() if self.deleted_at else None
         return data
 
 

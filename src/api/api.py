@@ -6,18 +6,16 @@ from flask_jwt_extended import (
     get_jwt
 )
 
-from src.database.db import db
 
-from src.database.users.user import User, BlacklistedToken
-from src.api.routes.tags import tags_bp
-from .routes.projects import projects_bp
+
 from src.api.utils.caldav_client import CalDAVClient
 
 from src.database.config_db import initialize_database
 from .app_factory import create_app
-from .routes import auth
 
 from .routes.tasks import tasks_bp
+from .routes.projects import projects_bp
+from .routes.tags import tags_bp
 from .routes.reports import reports_bp
 from .routes.timeframes import timeframes_bp
 from .routes.commitments import commitments_bp
@@ -26,11 +24,12 @@ from .routes.routines import routines_bp
 from .routes.sessions import sessions_bp
 from .routes.calendars import calendars_bp
 from .routes.principles import principles_bp
+from .routes.users import users_bp
 
 app = create_app()
 
 # Register all blueprints
-app.register_blueprint(auth.auth_bp)
+app.register_blueprint(users_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(tags_bp)
@@ -49,105 +48,6 @@ def health_check():
     return jsonify({"status": "healthy"}), 200
 
 
-@app.route('/api/auth/register', methods=['POST'])
-def register():
-    data = request.get_json()
-    
-    if not data or not data.get('username') or not data.get('password'):
-        return jsonify({"message": "Missing username or password"}), 400
-
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({"message": "Username already exists"}), 400
-
-    try:
-        user = User()
-        user.username = data['username']
-        user.set_password(data['password'])
-        db.session.add(user)
-        db.session.commit()
-        return jsonify({"message": "User created successfully"}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Database error occurred"}), 500
-
-
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    if not data or not data.get('username') or not data.get('password'):
-        return jsonify({"message": "Missing username or password"}), 400
-
-    user = User.query.filter_by(username=data['username']).first()
-    if user and user.check_password(data['password']):
-        access_token = create_access_token(identity=str(user.id))
-        return jsonify({
-            "message": "Login successful",
-            "access_token": access_token
-        }), 200
-    
-    return jsonify({"message": "Invalid username or password"}), 401
-
-
-@app.route('/api/auth/logout', methods=['POST'])
-@jwt_required()
-def logout():
-    jti = get_jwt()['jti']
-    token = BlacklistedToken(jti=jti)
-    db.session.add(token)
-    BlacklistedToken.clean_expired()
-    db.session.commit()
-    return jsonify({"message": "Successfully logged out"}), 200
-
-
-def check_if_token_revoked(jwt_header, jwt_payload):
-    jti = jwt_payload["jti"]
-    token = BlacklistedToken.query.filter_by(jti=jti).first()
-    return token is not None
-
-
-@app.route('/api/auth/user-info', methods=['GET'])
-@jwt_required()
-def get_user_info():
-    current_user_id = int(get_jwt_identity())
-    user = User.query.get(current_user_id)
-    if user:
-        return jsonify({
-            "id": user.id,
-            "username": user.username
-        })
-    return jsonify({"message": "User not found"}), 404
-
-
-@app.route('/api/auth/delete-account', methods=['POST'])
-@jwt_required()
-def delete_account():
-    current_user_id = int(get_jwt_identity())
-    data = request.get_json()
-
-    # Re-authenticate
-    if not data or not data.get('password'):
-        return jsonify({"message": "Password required for account deletion"}), 400
-
-    user = User.query.get(current_user_id)
-    if not user or not user.check_password(data['password']):
-        return jsonify({"message": "Invalid password"}), 401
-
-    try:
-        # Get the JWT token ID for blacklisting
-        jti = get_jwt()["jti"]
-        # Blacklist the current token
-        token = BlacklistedToken(jti=jti)
-        db.session.add(token)
-
-        # Delete the user
-        db.session.delete(user)
-        db.session.commit()
-
-        return jsonify({"message": "Account deleted successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error deleting account: {str(e)}")
-        return jsonify({"message": f"Error deleting account: {str(e)}"}), 500
 
 
 @app.route('/api/caldav/test-connection', methods=['POST'])

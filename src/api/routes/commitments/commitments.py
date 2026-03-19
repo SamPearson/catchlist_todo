@@ -10,7 +10,7 @@ from src.database.commitments.service import (
     CommitmentTargetNotFound,
     CommitmentTimeframeNotFound,
 )
-from src.database.users.user import User
+from src.database.users.models import User
 from src.utils.timezone import to_utc, validate_timezone
 
 

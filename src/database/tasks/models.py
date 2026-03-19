@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from src.database.base.base_models import PrincipledMixin
 from src.database.db import db
 from src.database.base.base_models import UserOwnedModel, TaggableMixin
+from src.utils.timezone import from_utc
 
 
 class Task(UserOwnedModel, TaggableMixin, PrincipledMixin):
@@ -25,14 +26,26 @@ class Task(UserOwnedModel, TaggableMixin, PrincipledMixin):
     # Relationships
     project = relationship("Project", back_populates="tasks")
 
-    def as_dict(self):
-        """Convert task to dictionary representation"""
-        data = super().as_dict()
+    def as_dict(self, user_timezone: str = 'UTC'):
+        """
+        Convert task to dictionary representation.
+        Timestamps are converted to user's timezone.
+        """
+
+        data = super().as_dict(user_timezone=user_timezone)
+        
+        # Convert completed_at from naive UTC to user timezone
+        completed_at_str = None
+        if self.completed_at:
+            # from_utc expects naive UTC datetime and returns timezone-aware
+            local_dt = from_utc(self.completed_at, user_timezone)
+            completed_at_str = local_dt.isoformat()
+        
         data.update({
             'title': self.title,
             'description': self.description,
             'completed': self.completed,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'completed_at': completed_at_str,
             'status': self.status,
             'active': self.active,
             'project_id': self.project_id,

@@ -5,7 +5,7 @@ from datetime import datetime
 from src.database.db import db
 from src.database.reports.service import ReportService, ReportValidationError
 from src.database.timeframes.service import TimeframeService
-from src.database.users.user import User
+from src.database.users.models import User
 from src.utils.timezone import compute_timeframe_bounds
 
 
