@@ -8,7 +8,7 @@ import allure
 @allure.feature('Tasks')
 @allure.story('Project Association - Attach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_standalone_task_to_project(auth_client):
@@ -38,7 +38,7 @@ def test_attach_standalone_task_to_project(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Attach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_task_already_attached_to_project_a_to_project_b(auth_client):
@@ -73,7 +73,7 @@ def test_attach_task_already_attached_to_project_a_to_project_b(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Attach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_task_to_nonexistent_project(auth_client):
@@ -95,7 +95,7 @@ def test_attach_task_to_nonexistent_project(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Attach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_task_to_another_users_project(auth_client, secondary_auth_client):
@@ -125,7 +125,7 @@ def test_attach_task_to_another_users_project(auth_client, secondary_auth_client
 @allure.feature('Tasks')
 @allure.story('Project Association - Attach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_nonexistent_task(auth_client):
@@ -147,7 +147,7 @@ def test_attach_nonexistent_task(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Attach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_another_users_task(auth_client, secondary_auth_client):
@@ -179,7 +179,7 @@ def test_attach_another_users_task(auth_client, secondary_auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Detach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_detach_task_from_project(auth_client):
@@ -210,7 +210,7 @@ def test_detach_task_from_project(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Detach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_detach_already_standalone_task(auth_client):
@@ -233,7 +233,7 @@ def test_detach_already_standalone_task(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Detach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_detach_nonexistent_task(auth_client):
@@ -249,7 +249,7 @@ def test_detach_nonexistent_task(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Detach')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_detach_another_users_task(auth_client, secondary_auth_client):
@@ -273,7 +273,7 @@ def test_detach_another_users_task(auth_client, secondary_auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - List Subtasks')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_list_project_tasks_returns_only_subtasks(auth_client):
@@ -313,7 +313,7 @@ def test_list_project_tasks_returns_only_subtasks(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - List Subtasks')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_list_project_tasks_excludes_completed_by_default(auth_client):
@@ -350,7 +350,7 @@ def test_list_project_tasks_excludes_completed_by_default(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - List Subtasks')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_list_project_tasks_with_include_completed_true(auth_client):
@@ -388,7 +388,7 @@ def test_list_project_tasks_with_include_completed_true(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - List Subtasks')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_list_project_tasks_returns_empty_array_for_project_with_no_tasks(auth_client):
@@ -410,7 +410,7 @@ def test_list_project_tasks_returns_empty_array_for_project_with_no_tasks(auth_c
 @allure.feature('Tasks')
 @allure.story('Project Association - List Subtasks')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_list_project_tasks_for_nonexistent_project(auth_client):
@@ -426,7 +426,7 @@ def test_list_project_tasks_for_nonexistent_project(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - List Subtasks')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_list_project_tasks_for_another_users_project(auth_client, secondary_auth_client):
@@ -450,7 +450,7 @@ def test_list_project_tasks_for_another_users_project(auth_client, secondary_aut
 @allure.feature('Tasks')
 @allure.story('Project Association - Create Subtask')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_create_subtask_via_project_endpoint(auth_client):
@@ -477,7 +477,7 @@ def test_create_subtask_via_project_endpoint(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Create Subtask')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_create_subtask_with_all_fields(auth_client):
@@ -508,7 +508,7 @@ def test_create_subtask_with_all_fields(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Create Subtask')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_create_subtask_without_title(auth_client):
@@ -530,7 +530,7 @@ def test_create_subtask_without_title(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Create Subtask')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_create_subtask_for_nonexistent_project(auth_client):
@@ -547,7 +547,7 @@ def test_create_subtask_for_nonexistent_project(auth_client):
 @allure.feature('Tasks')
 @allure.story('Project Association - Create Subtask')
 @pytest.mark.tasks
-@pytest.mark.project
+@pytest.mark.projects
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_create_subtask_for_another_users_project(auth_client, secondary_auth_client):
