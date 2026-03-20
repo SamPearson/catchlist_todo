@@ -5,6 +5,7 @@ from src.database.base.repositories import UserOwnedRepository
 from .models import Project
 from ..tasks.models import Task
 
+
 class ProjectRepository(UserOwnedRepository[Project]):
     def __init__(self, session: Session):
         super().__init__(session=session, model_class=Project)
