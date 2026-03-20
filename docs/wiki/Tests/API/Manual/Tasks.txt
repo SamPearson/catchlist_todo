@@ -1,0 +1,128 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-12T22:17:11-06:00
+
+====== Tasks ======
+Created Monday 12 January 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic task functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Create a basic task** - POST /api/tasks with only title
+2. **List tasks** - GET /api/tasks (verify task appears)
+3. **Get task by ID** - GET /api/tasks/{id}
+4. **Update task title** - PUT /api/tasks/{id}
+5. **Delete task** - DELETE /api/tasks/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Tasks (GET /api/tasks) ====
+6. **List tasks excludes completed by default** - Create completed and incomplete tasks, verify only incomplete returned
+7. **List tasks with include_completed=true** - Verify completed tasks included when param is true
+8. **List tasks with include_completed=false** - Verify completed tasks excluded (explicit false)
+9. **List tasks returns empty array** - New user with no tasks gets []
+10. **List tasks only returns user's own tasks** - Create tasks for two different users, verify isolation
+11. **List tasks filters by active status correctly** - Verify active/inactive filtering works
+
+==== ✅️Create Task (POST /api/tasks) ====
+12. **Create task with all fields** - title, description, status, project_id
+13. **Create task verifies defaults** - Verify active=true, status=open, completed=false when not specified
+14. **Create task with status waiting** - Verify status is set correctly
+15. **Create task with status deferred** - Verify status is set correctly
+16. **Create task with status declined** - Verify status is set correctly
+17. **Create task with status stale** - Verify status is set correctly
+18. **Create task with active=false** - Verify someday/maybe pile
+19. **Create task with invalid status** - Verify 400 error
+20. **Create task without title** - Verify 400 error
+21. **Create task with empty title** - Verify 400 error
+22. **Create task with whitespace-only title** - Verify 400 error
+23. **Create task with title exactly 200 chars** - Verify success (boundary)
+24. **Create task with title over 200 chars** - Verify 400 error (boundary)
+25. **Create task with empty request body** - Verify 400 error
+26. **Create task with project_id** - Verify task becomes subtask
+
+==== ✅️Get Task (GET /api/tasks/{id}) ====
+27. **Get task returns full object** - Verify all fields present
+28. **Get nonexistent task** - Verify 404
+29. **Get another user's task** - Verify 404 (not 403; acts as if doesn't exist)
+
+==== ✅️Update Task (PUT /api/tasks/{id}) ====
+30. **Update task title** - Verify change persists
+31. **Update task description** - Verify change persists
+32. **Update task title and description together** - Verify both change
+33. **Update task with empty title** - Verify 400 error
+34. **Update task with no data** - Verify 400 error "No update data provided"
+35. **Update task with disallowed field: status** - Verify 400 error
+36. **Update task with disallowed field: active** - Verify 400 error
+37. **Update task with disallowed field: completed** - Verify 400 error
+38. **Update task with disallowed field: completed_at** - Verify 400 error
+39. **Update task with disallowed field: project_id** - Verify 400 error
+40. **Update nonexistent task** - Verify 404
+41. **Update another user's task** - Verify 404
+
+==== ✅️Delete Task (DELETE /api/tasks/{id}) ====
+42. **Delete task returns 204** - Verify response
+43. **Delete task actually removes it** - Verify GET returns 404 afterward
+44. **Delete nonexistent task** - Verify 404
+45. **Delete another user's task** - Verify 404
+
+
+===== Priority 2: State Management Tests =====
+
+==== ✅️Complete Task (PATCH /api/tasks/{id}/complete) ====
+46. **Complete task sets completed=true** - Verify field changes
+47. **Complete task sets completed_at timestamp** - Verify timestamp is present and recent
+48. **Complete task with toggle=false** - Verify always completes (same as no param)
+49. **Complete task with toggle=true on incomplete task** - Verify completes
+50. **Complete task with toggle=true on completed task** - Verify uncompletes
+51. **Complete already completed task** - Verify idempotent (no error, stays completed)
+52. **Complete nonexistent task** - Verify 404
+53. **Complete another user's task** - Verify 404
+
+==== ✅️Uncomplete Task (PATCH /api/tasks/{id}/uncomplete) ====
+54. **Uncomplete task sets completed=false** - Verify field changes
+55. **Uncomplete task clears completed_at** - Verify timestamp is null
+56. **Uncomplete already incomplete task** - Verify idempotent (no error, stays incomplete)
+57. **Uncomplete nonexistent task** - Verify 404
+58. **Uncomplete another user's task** - Verify 404
+
+==== ✅️Activate Task (PATCH /api/tasks/{id}/activate) ====
+59. **Activate task sets active=true** - Verify field changes
+60. **Activate already active task** - Verify idempotent
+61. **Activate nonexistent task** - Verify 404
+62. **Activate another user's task** - Verify 404
+
+==== ✅️Deactivate Task (PATCH /api/tasks/{id}/deactivate) ====
+63. **Deactivate task sets active=false** - Verify field changes
+64. **Deactivate already inactive task** - Verify idempotent
+65. **Deactivate nonexistent task** - Verify 404
+66. **Deactivate another user's task** - Verify 404
+
+==== ✅️Change Status (PATCH /api/tasks/{id}/status) ====
+67. **Change status to each valid value** - Test open, waiting, deferred, declined, stale
+68. **Change status to invalid value** - Verify 400 error
+69. **Change status without status field** - Verify 400 error "status is required"
+70. **Change status with empty request body** - Verify 400 error
+71. **Change status on nonexistent task** - Verify 404
+72. **Change status on another user's task** - Verify 404
+
+
+===== Priority 2: Project Association Tests =====
+
+==== ✅️Attach to Project (PATCH /api/tasks/{id}/attach/{project_id}) ====
+73. **Attach standalone task to project** - Verify project_id set
+74. **Attach task already attached to project A to project B** - Verify moves to project B
+75. **Attach task to nonexistent project** - Verify 400 error
+76. **Attach task to another user's project** - Verify 400 error
+77. **Attach nonexistent task** - Verify 404
+78. **Attach another user's task** - Verify 404
+
+==== ✅️Detach from Project (PATCH /api/tasks/{id}/detach) ====
+79. **Detach task from project** - Verify project_id is null
+80. **Detach already standalone task** - Verify idempotent (no error)
+81. **Detach nonexistent task** - Verify 404
+82. **Detach another user's task** - Verify 404

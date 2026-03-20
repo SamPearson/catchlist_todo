@@ -1,0 +1,149 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-15
+
+====== API Test Automation Framework ======
+
+===== Overview =====
+
+The API test automation framework provides a simple and repeatable way to confirm that all api endpoints are functioning as expected. It is built with a focus on maintainability, ease of use, and clear reporting.
+
+==== Technologies ====
+
+* **pytest** - Test runner and framework
+* **requests** - The basis for a custom API client
+* **allure** - Advanced test reporting with steps, attachments, and analytics
+
+
+==== Key Features ====
+
+* **Test markers** - Select a subset of tests to run by depth, function, or entity
+* **Environment selection** - Target local/staging/prod environments (facilitates CI/CD Integration)
+* **Session-based authentication** - Automatic token management and user lifecycle
+* **Flexible test isolation** - Shared or isolated user contexts per test
+* **Rich diagnostics** - Automatic request/response logging with Allure integration
+* **Automatic cleanup** - Test users and data removed after execution
+
+
+===== Running Tests =====
+
+==== Virtual Environment Management ====
+**Activate virtual environment:**
+{{{code: lang="bash" linenumbers="False"
+source venv/bin/activate
+}}}
+
+
+**If** the virtual environment doesn't already exist, create it, activate it, then install required libraries
+{{{code: lang="bash" linenumbers="False"
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+}}}
+
+
+==== Common Test Execution Commands ====
+
+**Run tests for a specific entity:**
+{{{code: lang="bash" linenumbers="False"
+pytest -m tasks
+pytest -m projects
+pytest -m calendars
+}}}
+
+**Run only smoke tests (critical path coverage):**
+{{{code: lang="bash" linenumbers="False"
+pytest -m smoke_test
+}}}
+
+**Run CRUD tests across all entities:**
+{{{code: lang="bash" linenumbers="False"
+pytest -m crud
+}}}
+
+**Run tests for specific file:**
+{{{code: lang="bash" linenumbers="False"
+pytest tests/test_task_crud.py
+}}}
+
+**Run specific test function:**
+{{{code: lang="bash" linenumbers="False"
+pytest tests/test_task_crud.py::test_create_task
+}}}
+
+**Run tests with verbose output:**
+{{{code: lang="bash" linenumbers="False"
+pytest -v
+}}}
+
+**Run tests against different environment:**
+{{{code: lang="bash" linenumbers="False"
+pytest --env=staging
+pytest --env=prod
+}}}
+
+**Combine markers (AND logic):**
+{{{code: lang="bash" linenumbers="False"
+pytest -m "tasks and smoke_test"
+}}}
+
+**Combine markers (OR logic):**
+{{{code: lang="bash" linenumbers="False"
+pytest -m "tasks or projects"
+}}}
+
+
+==== Allure Reports ====
+
+By default, test results will be printed to the command line.
+Test results can instead by compiled into a visual report by providing a path to the alluredir flag.
+
+Reports should be generated in the "reports" directory to keep them out of version control.
+You may find it useful to include some kind of date string in the path, like so:
+{{{code: lang="bash" linenumbers="False"
+pytest -m "crud and tasks" --alluredir="./reports/$(date +%Y-%m-%d_%H-%M-%S)"
+}}}
+
+After the test run is complete, you'll be able to view the reports in a browser by calling allure from the command line, like so
+{{{code: lang="bash" linenumbers="False"
+allure serve reports/2026-03-15_16-45-34/
+}}}
+
+
+
+===== Test Markers =====
+
+Test markers are used to organize and filter tests. Every test should have appropriate markers applied.
+This list of markers should be kept up to date, but if you find issue with it, you may refer to the project's pytest.ini file to get the list of markers directly.
+
+==== Test Depth Markers ====
+
+* **@pytest.mark.smoke_test** - Critical happy-path tests that prove basic functionality works
+	* Should be extremely minimal, covering only basic CRUD operations
+	* Essentially only confirms that the service is not catastrophically broken
+
+==== Test Function Markers ====
+
+* **@pytest.mark.crud** - Create, Read, Update, Delete operations
+* **@pytest.mark.auth** - Authentication and authorization tests
+* **@pytest.mark.entity_integration** - Cross-entity behavior and relationships
+* **@pytest.mark.advanced_search** - Complex or specific search queries
+
+==== Entity Markers ====
+
+Each entity type has its own marker:
+
+* **@pytest.mark.tasks**
+* **@pytest.mark.projects**
+* **@pytest.mark.calendars**
+* **@pytest.mark.routines**
+* **@pytest.mark.sessions**
+* **@pytest.mark.timeframes**
+* **@pytest.mark.commitments**
+* **@pytest.mark.checkins**
+* **@pytest.mark.tags**
+* **@pytest.mark.principles**
+* **@pytest.mark.reports**
+* And more (see ''pytest.ini'' for complete list)
+
+
