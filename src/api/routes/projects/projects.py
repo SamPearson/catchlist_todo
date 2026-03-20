@@ -11,9 +11,12 @@ from src.database.tasks.repository import TaskRepository
 def list_projects():
     user_id = int(get_jwt_identity())
     include_completed = request.args.get('include_completed', 'false').lower() == 'true'
+    include_inactive = request.args.get('include_inactive', 'false').lower() == 'true'
     service = ProjectService(ProjectRepository(db.session))
 
-    projects = service.list_projects(user_id=user_id, include_completed=include_completed)
+    projects = service.list_projects(user_id=user_id,
+                                     include_completed=include_completed,
+                                     include_inactive=include_inactive)
     return jsonify([p.as_dict() for p in projects])
 
 
@@ -140,7 +143,7 @@ def change_project_status(project_id: int):
     if not project:
         return ('', 404)
 
-    data = request.get_json()
+    data = request.get_json()  or {}
     if not data or 'status' not in data:
         return jsonify({'error': 'status is required'}), 400
 

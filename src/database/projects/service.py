@@ -45,21 +45,28 @@ class ProjectService:
     def get_project(self, project_id: int, user_id: int) -> Optional[Project]:
         return self.repository.get(project_id, user_id)
 
-    def list_projects(self, user_id: int, include_completed: bool = False) -> List[Project]:
+    def list_projects(self, user_id: int,
+                      include_completed: bool = False,
+                      include_inactive: bool = False) -> List[Project]:
         filters = {}
         if not include_completed:
+            filters['completed'] = False
+        if not include_inactive:
             filters['active'] = True
         return self.repository.list_for_user(user_id, **filters)
 
     def create_project(self, user_id: int, data: Dict[str, Any]) -> Project:
         title = data.get('title', '')
         self._validate_title(title)
-        
+
+        # Activation requires some validation, so we default the false.
+        should_activate = data.pop('active', False)
+
         status = data.get('status', 'open')
         if status not in VALID_STATUSES:
             raise ProjectValidationError(f"Invalid status: {status}. Must be one of: {', '.join(VALID_STATUSES)}")
             
-        return self.repository.create(
+        project = self.repository.create(
             user_id=user_id,
             title=title,
             description=data.get('description'),
@@ -67,15 +74,29 @@ class ProjectService:
             reason=data.get('reason'),
             next_step=data.get('next_step'),
             status=status,
-            active=data.get('active', True),
+            active=False,
             completed=False
         )
+
+        # If user requested active=True, validate and activate
+        if should_activate:
+            try:
+                project = self.activate_project(project)
+            except ProjectValidationError:
+                # If activation fails, delete the created project and re-raise
+                self.repository.delete(project)
+                raise
+
+        return project
 
     def update_project(self, project: Project, data: Dict[str, Any]) -> Project:
         update_data = {}
         for field in ['title', 'description', 'win_condition', 'reason', 'next_step', 'active', 'status']:
             if field in data:
                 update_data[field] = data[field]
+
+        if update_data == {}:
+            raise ProjectValidationError("No fields provided for update")
         
         if 'title' in update_data:
             self._validate_title(update_data['title'])
@@ -124,15 +145,15 @@ class ProjectService:
     def activate_project(self, project: Project) -> Project:
         """
         Activate a project (set active=true).
-        - Validates that both win_condition and reason are populated
-        - Returns validation error if either is missing
+        - Validates that win_condition, reason, and next_step are populated
+        - Returns validation error if any are missing
         """
         if project.active:
             return project  # Already active, no-op
 
-        if not project.win_condition or not project.reason:
+        if not project.win_condition or not project.reason or not project.next_step:
             raise ProjectValidationError(
-                "Cannot activate project; win_condition and reason are required."
+                "Cannot activate project; win_condition, reason, and next_step are required."
             )
 
         return self.repository.update(project, active=True)
@@ -150,7 +171,7 @@ class ProjectService:
 
     def change_status(self, project: Project, new_status: str) -> Project:
         """Change a project's status"""
-        if new_status not in VALID_STATUSES:
+        if not new_status or new_status not in VALID_STATUSES:
             raise ProjectValidationError(f"Invalid status: {new_status}. Must be one of: {', '.join(VALID_STATUSES)}")
 
         if project.status == new_status:
