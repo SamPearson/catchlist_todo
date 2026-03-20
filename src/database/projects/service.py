@@ -15,6 +15,7 @@ class ProjectValidationError(ValidationError):
 
 
 VALID_STATUSES = {'open', 'waiting', 'deferred', 'declined', 'stale'}
+MAX_TITLE_LENGTH = 200
 
 
 class ProjectService:
@@ -30,6 +31,17 @@ class ProjectService:
             self._task_service = TaskService(task_repo)
         return self._task_service
 
+    def _validate_title(self, title: str) -> None:
+        """Validate project title meets requirements"""
+        if not title:
+            raise ProjectValidationError("Project title is required")
+        
+        if not title.strip():
+            raise ProjectValidationError("Project title cannot be empty or whitespace only")
+        
+        if len(title) > MAX_TITLE_LENGTH:
+            raise ProjectValidationError(f"Project title cannot exceed {MAX_TITLE_LENGTH} characters")
+
     def get_project(self, project_id: int, user_id: int) -> Optional[Project]:
         return self.repository.get(project_id, user_id)
 
@@ -40,8 +52,8 @@ class ProjectService:
         return self.repository.list_for_user(user_id, **filters)
 
     def create_project(self, user_id: int, data: Dict[str, Any]) -> Project:
-        if not data.get('title'):
-            raise ProjectValidationError("Project title is required")
+        title = data.get('title', '')
+        self._validate_title(title)
         
         status = data.get('status', 'open')
         if status not in VALID_STATUSES:
@@ -49,7 +61,7 @@ class ProjectService:
             
         return self.repository.create(
             user_id=user_id,
-            title=data['title'],
+            title=title,
             description=data.get('description'),
             win_condition=data.get('win_condition'),
             reason=data.get('reason'),
@@ -65,8 +77,8 @@ class ProjectService:
             if field in data:
                 update_data[field] = data[field]
         
-        if 'title' in update_data and not update_data['title']:
-            raise ProjectValidationError("Title cannot be empty")
+        if 'title' in update_data:
+            self._validate_title(update_data['title'])
         
         if 'status' in update_data and update_data['status'] not in VALID_STATUSES:
             raise ProjectValidationError(f"Invalid status: {update_data['status']}. Must be one of: {', '.join(VALID_STATUSES)}")
