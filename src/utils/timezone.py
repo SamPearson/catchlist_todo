@@ -258,7 +258,7 @@ def compute_timeframe_bounds(
         end_local = start_local + timedelta(days=7)
 
         # Optional: adjust label (ISO week no longer matches Sunday-based weeks)
-        label = start_of_week.strftime("%Y - Week %U")  # %U = week number, Sunday start
+        label = start_of_week.strftime("%Y-W%U")  # %U = week number, Sunday start
 
 
     elif kind == "month":
