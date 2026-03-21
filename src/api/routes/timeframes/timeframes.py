@@ -205,11 +205,6 @@ def get_timeframe_today(kind: str):
         return jsonify({"error": str(e)}), 400
 
 
-@jwt_required()
-def get_or_create_timeframe_today(kind: str):
-    """Same as get_timeframe_today - kept for backward compatibility"""
-    return get_timeframe_today(kind)
-
 
 @jwt_required()
 def get_timeframe(kind: str, date: str):
@@ -245,7 +240,3 @@ def get_timeframe(kind: str, date: str):
         return jsonify({"error": str(e)}), 400
 
 
-@jwt_required()
-def get_or_create_timeframe(kind: str, date: str):
-    """Same as get_timeframe - kept for backward compatibility"""
-    return get_timeframe(kind, date)
