@@ -1,4 +1,3 @@
-
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
@@ -75,6 +74,10 @@ def list_timeframes():
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
+    
+    # If no explicit tz provided, use user's default
+    if not request.args.get("tz"):
+        user_tz = _get_user_timezone(user_id)
 
     start_str = request.args.get("start")
     end_str = request.args.get("end")
@@ -100,14 +103,14 @@ def list_timeframes():
             start_utc=start_utc,
             end_utc=end_utc,
         )
-        return jsonify([tf.as_dict() for tf in items])
+        return jsonify([tf.as_dict(user_timezone=user_tz) for tf in items])
 
     if kind:
         items = service.repo.list_for_user(user_id=user_id, kind=kind)
     else:
         items = service.repo.list_for_user(user_id=user_id)
 
-    return jsonify([tf.as_dict() for tf in items])
+    return jsonify([tf.as_dict(user_timezone=user_tz) for tf in items])
 
 
 @jwt_required()
@@ -164,9 +167,10 @@ def create_timeframe():
 @jwt_required()
 def get_timeframe_by_id(timeframe_id: int):
     user_id = int(get_jwt_identity())
+    user_tz = _get_user_timezone(user_id)
     service = TimeframeService(session=db.session)
     tf = service.get_timeframe(timeframe_id, user_id=user_id)
-    return jsonify(tf.as_dict()) if tf else ("", 404)
+    return jsonify(tf.as_dict(user_timezone=user_tz)) if tf else ("", 404)
 
 
 @jwt_required()
@@ -192,7 +196,7 @@ def get_timeframe_today(kind: str):
             local_date=local_day,
             timezone=user_tz,
         )
-        return jsonify(tf.as_dict())
+        return jsonify(tf.as_dict(user_timezone=user_tz))
     except UnsupportedTimeframeKind as e:
         return jsonify({"error": e.message}), 400
     except ValueError as e:
@@ -232,7 +236,7 @@ def get_timeframe(kind: str, date: str):
             local_date=local_day,
             timezone=user_tz,
         )
-        return jsonify(tf.as_dict())
+        return jsonify(tf.as_dict(user_timezone=user_tz))
     except UnsupportedTimeframeKind as e:
         return jsonify({"error": e.message}), 400
     except ValueError as e:
