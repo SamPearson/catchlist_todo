@@ -268,7 +268,7 @@ def compute_timeframe_bounds(
         else:
             next_month = date(local_day.year, local_day.month + 1, 1)
         end_local = datetime.combine(next_month, time.min, tzinfo=tz)
-        label = f"{local_day.year:04d}-{local_day.month:02d}"
+        label = local_day.strftime("%B %Y")
 
     elif kind == "season":
         # Meteorological seasons:
