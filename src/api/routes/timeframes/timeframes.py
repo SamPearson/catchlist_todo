@@ -176,33 +176,16 @@ def get_timeframe_by_id(timeframe_id: int):
 @jwt_required()
 def get_timeframe_today(kind: str):
     user_id = int(get_jwt_identity())
-
-    kind_error = validate_kind(kind)
-    if kind_error:
-        return jsonify({"error": kind_error}), 400
-
     user_tz = _get_tz_or_user_default(user_id)
+
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
 
     local_day = _today_in_tz(user_tz)
+    date_str = local_day.strftime("%Y-%m-%d")
 
-    service = TimeframeService(session=db.session)
-    try:
-        tf = service.get_or_create_for_date(
-            user_id=user_id,
-            kind=kind,
-            local_date=local_day,
-            timezone=user_tz,
-        )
-        return jsonify(tf.as_dict(user_timezone=user_tz))
-    except UnsupportedTimeframeKind as e:
-        return jsonify({"error": e.message}), 400
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    return get_timeframe(kind, date_str)
 
 
 
