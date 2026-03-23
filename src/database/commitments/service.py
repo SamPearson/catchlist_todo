@@ -390,12 +390,13 @@ class CommitmentService:
             target_id=target_id,
         )
 
-        deleted_any = False
+        count = 0
         for commitment in commitments:
             self.repo.delete(commitment)
-            deleted_any = True
+            count += 1
 
-        return deleted_any
+        return count
+
 
     def get(self, *, user_id: int, commitment_id: int) -> Commitment | None:
         return self.repo.get(commitment_id, user_id=user_id)
