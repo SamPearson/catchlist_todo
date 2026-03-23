@@ -44,3 +44,10 @@ commitments_bp.add_url_rule(
     endpoint="update_commitment",
     methods=["PATCH"],
 )
+
+commitments_bp.add_url_rule(
+    "/api/commitments/bulk-delete",
+    view_func=commitments.delete_commitments_for_target,
+    endpoint="delete_commitments_for_target",
+    methods=["DELETE"],
+)

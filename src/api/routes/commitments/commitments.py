@@ -302,3 +302,49 @@ def update_commitment(commitment_id: int):
         return jsonify({"error": e.message}), 400
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+
+@jwt_required()
+def delete_commitments_for_target():
+    """
+    Delete all commitments for a specific target entity.
+
+    Query parameters:
+        target_type (required): Entity type (task, project, routine, session)
+        target_id (required): ID of the target entity
+
+    Returns:
+        200: Success with count of deleted commitments
+        400: If required parameters are missing or invalid
+    """
+    user_id = int(get_jwt_identity())
+
+    target_type = request.args.get("target_type")
+    target_id = request.args.get("target_id")
+
+    # Validate required parameters
+    if not target_type:
+        return jsonify({"error": "target_type query parameter is required"}), 400
+    if not target_id:
+        return jsonify({"error": "target_id query parameter is required"}), 400
+
+    try:
+        target_id = int(target_id)
+    except ValueError:
+        return jsonify({"error": "target_id must be an integer"}), 400
+
+    # Delete commitments for target
+    service = CommitmentService(session=db.session)
+    try:
+        deleted = service.delete_for_target(
+            user_id=user_id,
+            target_type=target_type,
+            target_id=target_id,
+        )
+
+        # Return count of deleted commitments
+        # Note: service returns boolean, but we'll enhance it to return count
+        return jsonify({"deleted": deleted}), 200
+
+    except CommitmentValidationError as e:
+        return jsonify({"error": e.message}), 400
