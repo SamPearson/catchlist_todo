@@ -106,9 +106,7 @@ class CalendarService:
         return self.repo.create(
             user_id=user_id,
             name=data['name'],
-            color=data.get('color', '#767676'),
-            external_uid=data.get('external_uid'),
-            external_source=data.get('external_source')
+            color=data.get('color', '#767676')
         )
 
     def list_calendars(self, user_id: int, include_inactive: bool = False) -> List[Calendar]:
