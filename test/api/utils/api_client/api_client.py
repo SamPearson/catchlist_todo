@@ -207,14 +207,14 @@ class APIClient:
     def get(self, endpoint: str, params: Optional[Dict] = None, handle_response: bool = True):
         return self.request('get', endpoint, params=params, handle_response=handle_response)
 
-    def post(self, endpoint: str, data: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('post', endpoint, data=data, handle_response=handle_response)
+    def post(self, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None, handle_response: bool = True):
+        return self.request('post', endpoint, data=data, params=params, handle_response=handle_response)
 
-    def put(self, endpoint: str, data: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('put', endpoint, data=data, handle_response=handle_response)
+    def put(self, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None, handle_response: bool = True):
+        return self.request('put', endpoint, data=data, params=params, handle_response=handle_response)
 
-    def patch(self, endpoint: str, data: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('patch', endpoint, data=data, handle_response=handle_response)
+    def patch(self, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None, handle_response: bool = True):
+        return self.request('patch', endpoint, data=data, params=params, handle_response=handle_response)
 
-    def delete(self, endpoint: str, handle_response: bool = True):
-        return self.request('delete', endpoint, handle_response=handle_response)
+    def delete(self, endpoint: str, params: Optional[Dict] = None, handle_response: bool = True):
+        return self.request('delete', endpoint, params=params, handle_response=handle_response)
