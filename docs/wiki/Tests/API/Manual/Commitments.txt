@@ -1,0 +1,148 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-23T00:00:00-06:00
+
+====== Commitments ======
+Created Sunday 23 March 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic commitment functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Create a soft commitment with timeframe_id** - POST /api/commitments/soft with task, timeframe_id
+2. **Create a hard commitment** - POST /api/commitments/hard with task, due_at
+3. **List commitments** - GET /api/commitments (verify commitment appears)
+4. **Get commitment by ID** - GET /api/commitments/{id}
+5. **Update commitment status** - PATCH /api/commitments/{id} with status
+6. **Delete commitment** - DELETE /api/commitments/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Commitments (GET /api/commitments) ====
+7. **List commitments returns empty array** - New user with no commitments gets []
+8. **List commitments only returns user's own commitments** - Create commitments for two users, verify isolation
+9. **List commitments filters by timeframe_id** - Create commitments in different timeframes, filter by one
+10. **List commitments with invalid timeframe_id** - Verify 400 error when timeframe_id is not an integer
+11. **List commitments returns both soft and hard** - Create one of each, verify both returned
+
+==== ✅️Get Commitment (GET /api/commitments/{id}) ====
+12. **Get commitment returns full object** - Verify all fields present including start_at, due_at in local time
+13. **Get soft commitment has null start_at and due_at** - Verify soft commitment timestamps are null
+14. **Get hard commitment has due_at populated** - Verify hard commitment has due_at
+15. **Get nonexistent commitment** - Verify 404
+16. **Get another user's commitment** - Verify 404
+
+==== ✅️Create Soft Commitment - Direct Timeframe (POST /api/commitments/soft) ====
+17. **Create soft commitment with all fields** - target_type, target_id, timeframe_id, status, notes
+18. **Create soft commitment verifies defaults** - Verify status defaults to "planned"
+19. **Create soft commitment with status done** - Verify status is set correctly
+20. **Create soft commitment with status skipped** - Verify status is set correctly
+21. **Create soft commitment with status canceled** - Verify status is set correctly
+22. **Create soft commitment with status missed** - Verify status is set correctly
+23. **Create soft commitment for task target** - Verify target_type="task" works
+24. **Create soft commitment for project target** - Verify target_type="project" works
+25. **Create soft commitment for routine target** - Verify target_type="routine" works
+26. **Create soft commitment for session target** - Verify target_type="session" works
+27. **Create soft commitment without target_type** - Verify 400 error
+28. **Create soft commitment without target_id** - Verify 400 error
+29. **Create soft commitment without timeframe specification** - Verify 400 error
+30. **Create soft commitment with empty request body** - Verify 400 error
+31. **Create soft commitment with nonexistent target** - Verify 404 error
+32. **Create soft commitment with nonexistent timeframe** - Verify 404 error
+33. **Create soft commitment with another user's target** - Verify 404 error
+34. **Create soft commitment with another user's timeframe** - Verify 404 error
+35. **Create soft commitment with invalid status** - Verify 400 error
+36. **Create duplicate soft commitment** - Same target and timeframe, verify 409 conflict
+
+==== ✅️Create Soft Commitment - Implicit Timeframe (POST /api/commitments/soft) ====
+37. **Create soft commitment with timeframe_kind and reference_date** - Verify timeframe auto-created
+38. **Create soft commitment with timeframe_kind="day"** - Verify day timeframe derived
+39. **Create soft commitment with timeframe_kind="week"** - Verify week timeframe derived
+40. **Create soft commitment with timeframe_kind="month"** - Verify month timeframe derived
+41. **Create soft commitment with timeframe_kind="season"** - Verify season timeframe derived
+42. **Create soft commitment with timeframe_kind="year"** - Verify year timeframe derived
+43. **Create soft commitment without reference_date** - Verify 400 error when kind provided but no date
+44. **Create soft commitment without timeframe_kind** - Verify 400 error when date provided but no kind
+45. **Create soft commitment with invalid reference_date format** - Verify 400 error
+46. **Create soft commitment with invalid timeframe_kind** - Verify 400 error
+47. **Create soft commitment with both timeframe_id and timeframe_kind** - Verify 400 error (conflicting approaches)
+48. **Create soft commitment reuses existing timeframe** - Create two commitments with same kind/date, verify same timeframe
+
+==== ✅️Create Hard Commitment (POST /api/commitments/hard) ====
+49. **Create hard commitment with all fields** - target_type, target_id, due_at, start_at, status, notes
+50. **Create hard commitment verifies defaults** - Verify status defaults to "planned"
+51. **Create hard commitment with due_at only** - Verify start_at is optional
+52. **Create hard commitment for task target** - Verify target_type="task" works
+53. **Create hard commitment for routine target** - Verify target_type="routine" works
+54. **Create hard commitment for session target** - Verify target_type="session" works
+55. **Create hard commitment for project target** - Verify 400 error (projects can't have hard commitments)
+56. **Create hard commitment without target_type** - Verify 400 error
+57. **Create hard commitment without target_id** - Verify 400 error
+58. **Create hard commitment without due_at** - Verify 400 error
+59. **Create hard commitment with invalid due_at format** - Verify 400 error
+60. **Create hard commitment with invalid start_at format** - Verify 400 error
+61. **Create hard commitment with nonexistent target** - Verify 404 error
+62. **Create hard commitment with another user's target** - Verify 404 error
+63. **Create hard commitment auto-derives day timeframe** - Verify timeframe_id is day containing due_at
+64. **Create hard commitment with user timezone not configured** - Verify 400 error
+65. **Create duplicate hard commitment** - Same target and day, verify 409 conflict
+66. **Create hard commitment converts local time to UTC** - Verify due_at stored correctly in UTC
+
+==== ✅️Update Commitment (PATCH /api/commitments/{id}) ====
+67. **Update commitment status to each valid value** - Test planned, done, skipped, canceled, missed
+68. **Update commitment notes** - Verify notes field updates
+69. **Update commitment status and notes together** - Verify both update
+70. **Update commitment due_at on hard commitment** - Verify due_at changes
+71. **Update commitment start_at on hard commitment** - Verify start_at changes
+72. **Update commitment due_at and start_at together** - Verify both change
+73. **Update commitment clear due_at with null** - Verify due_at can be cleared
+74. **Update commitment clear start_at with null** - Verify start_at can be cleared
+75. **Update commitment with invalid status** - Verify 400 error
+76. **Update commitment with invalid due_at format** - Verify 400 error
+77. **Update commitment with invalid start_at format** - Verify 400 error
+78. **Update commitment with no data** - Verify 400 error "At least one editable field required"
+79. **Update commitment with empty request body** - Verify 400 error
+80. **Update commitment with user timezone not configured** - Verify 400 error
+81. **Update nonexistent commitment** - Verify 404
+82. **Update another user's commitment** - Verify 404
+
+==== ✅️Delete Commitment (DELETE /api/commitments/{id}) ====
+83. **Delete commitment returns 204** - Verify response
+84. **Delete commitment actually removes it** - Verify GET returns 404 afterward
+85. **Delete nonexistent commitment** - Verify 404
+86. **Delete another user's commitment** - Verify 404
+
+
+===== Priority 2: Business Logic Tests =====
+
+==== Soft vs Hard Commitment Behavior ====
+87. **Soft commitment has no due_at or start_at** - Verify timestamps remain null
+88. **Hard commitment has due_at populated** - Verify due_at is present
+89. **Hard commitment may have start_at** - Verify start_at can be set
+90. **Hard commitment auto-creates day timeframe** - Verify correct day derived from due_at
+
+==== Duplicate Prevention ====
+91. **Cannot commit same target to same timeframe twice (soft)** - Verify 409
+92. **Cannot commit same target to same day twice (hard)** - Verify 409
+93. **Can commit same target to different timeframes** - Verify success
+94. **Can commit different targets to same timeframe** - Verify success
+
+==== Timezone Handling ====
+95. **List commitments converts UTC to local time** - Verify due_at/start_at in response are local
+96. **Get commitment converts UTC to local time** - Verify due_at/start_at in response are local
+97. **Create hard commitment accepts local time** - Verify due_at input is treated as local
+98. **Update commitment accepts local time** - Verify due_at/start_at inputs are treated as local
+
+==== Status Values ====
+99. **Commitment status defaults to planned** - Verify default on creation
+100. **Commitment status can be any valid value** - Verify all status values accepted
+
+==== Target Type Restrictions ====
+101. **Projects cannot receive hard commitments** - Verify 400 error
+102. **Projects can receive soft commitments** - Verify success
+103. **Tasks can receive both soft and hard** - Verify success for both
+104. **Routines can receive both soft and hard** - Verify success for both
+105. **Sessions can receive both soft and hard** - Verify success for both

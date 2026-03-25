@@ -27,6 +27,28 @@ All endpoints require authentication via JWT Bearer token.
 * Example: "Dentist appointment at 2pm on Tuesday"
 
 
+===== Timezone Handling =====
+
+**User Timezone Configuration:**
+* If a user's timezone is not explicitly configured, the system defaults to UTC
+* The user's timezone setting is established when the user account is created
+* You can update a user's timezone through the user profile settings
+
+**Input (Client → API):**
+* All datetime fields (due_at, start_at) are provided in the user's local timezone (or explicitly specified timezone)
+* Dates use ISO 8601 format (e.g., "2025-06-08T14:30:00")
+* Optional timezone parameter allows overriding the user's default timezone (IANA format like "America/Chicago")
+
+**Storage:**
+* All datetimes are stored in the database as naive UTC
+* Internal field names use _utc suffix (e.g., due_at_utc, start_at_utc)
+
+**Output (API → Client):**
+* All datetime fields are converted to the user's local timezone before returning
+* Response field names do NOT include _utc suffix (e.g., due_at, start_at)
+* Timestamps are returned in ISO 8601 format with timezone offset (e.g., "2025-06-08T14:30:00-05:00")
+
+
 ===== Commitment Endpoints =====
 
 ==== List Commitments ====
@@ -39,7 +61,30 @@ Returns commitments for the authenticated user.
 |--------------|---------|----------|----------|---------------------------------------|
 | timeframe_id | integer | query    | no       | Filter by timeframe                   |
 
-**Response:** Array of commitment objects (200)
+**Example Request:**
+{{{code: lang="http" linenumbers="False"
+GET /api/commitments?timeframe_id=42
+Authorization: Bearer <token>
+}}}
+
+**Example Response (200):**
+{{{code: lang="json" linenumbers="False"
+[
+  {
+    "id": 123,
+    "user_id": 456,
+    "timeframe_id": 42,
+    "target_type": "task",
+    "target_id": 101,
+    "status": "planned",
+    "notes": "Focus on the UI improvements",
+    "start_at": null,
+    "due_at": null,
+    "created_at": "2025-06-01T10:30:00-05:00",
+    "updated_at": "2025-06-01T10:30:00-05:00"
+  }
+]
+}}}
 
 
 ==== Get Commitment ====
@@ -48,7 +93,7 @@ Returns commitments for the authenticated user.
 
 Returns a specific commitment by ID.
 
-**Response:** Commitment object (200), or 404 if not found
+**Response:** Commitment object with timestamps in user's local timezone (200), or 404 if not found
 
 
 ==== Create Soft Commitment ====
@@ -76,9 +121,24 @@ Supports two approaches for specifying the timeframe:
 | target_type    | string  | yes      | One of: task, project, routine, session          |
 | target_id      | integer | yes      | ID of the target entity                          |
 | timeframe_kind | string  | yes      | One of: day, week, month, season, year           |
-| reference_date | string  | yes      | ISO datetime in user's local timezone            |
+| reference_date | string  | yes      | Date in YYYY-MM-DD format                        |
 | status         | string  | no       | Default "planned"; see status values             |
 | notes          | text    | no       | Optional notes                                   |
+
+**Example Request (Option 2):**
+{{{code: lang="json" linenumbers="False"
+POST /api/commitments/soft
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "target_type": "project",
+  "target_id": 55,
+  "timeframe_kind": "month",
+  "reference_date": "2025-06-15",
+  "notes": "Complete project this month"
+}
+}}}
 
 **Business Logic:**
 * Cannot provide both timeframe_id AND (timeframe_kind + reference_date)
@@ -87,7 +147,22 @@ Supports two approaches for specifying the timeframe:
 * Validates timeframe exists and belongs to user (Option 1 only)
 * Prevents duplicate: same target cannot be committed to same timeframe twice
 
-**Response:** Created commitment object (201)
+**Example Response (201):**
+{{{code: lang="json" linenumbers="False"
+{
+  "id": 124,
+  "user_id": 456,
+  "timeframe_id": 42,
+  "target_type": "project",
+  "target_id": 55,
+  "status": "planned",
+  "notes": "Complete project this month",
+  "start_at": null,
+  "due_at": null,
+  "created_at": "2025-06-08T14:30:00-05:00",
+  "updated_at": "2025-06-08T14:30:00-05:00"
+}
+}}}
 
 **Errors:**
 * 400 if validation fails or both approaches specified
@@ -107,19 +182,38 @@ Creates a hard commitment (specific time, auto-derives DAY timeframe).
 | target_id   | integer| yes      | ID of the target entity                          |
 | due_at      | string | yes      | When it's due (ISO datetime, local timezone)     |
 | start_at    | string | no       | When it starts (ISO datetime, local timezone)    |
+| timezone    | string | no       | IANA timezone (defaults to user's timezone)      |
 | status      | string | no       | Default "planned"; see status values             |
 | notes       | text   | no       | Optional notes                                   |
 
+**Example Request:**
+{{{code: lang="json" linenumbers="False"
+POST /api/commitments/hard
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "target_type": "task",
+  "target_id": 101,
+  "due_at": "2025-06-08T17:00:00",
+  "start_at": "2025-06-08T09:00:00",
+  "timezone": "America/Chicago",
+  "notes": "Complete UI improvements by 5pm"
+}
+}}}
+
 **Business Logic:**
 * Validates target exists and belongs to user
-* Auto-creates DAY timeframe if needed (based on due_at in user's timezone)
+* If timezone not provided, uses user's default timezone (or UTC if not configured)
+* Converts due_at and start_at from local time to UTC for storage
+* Auto-creates DAY timeframe if needed (based on due_at in specified timezone)
 * Prevents duplicate: same target cannot be committed to same day twice
 * Projects cannot receive hard commitments (use soft commitments only)
 
-**Response:** Created commitment object (201)
+**Response:** Created commitment object with timestamps in user's local timezone (201)
 
 **Errors:**
-* 400 if validation fails or user timezone not configured
+* 400 if validation fails, invalid timezone, or user timezone not configured
 * 404 if target not found
 * 409 if commitment already exists for this target on that day
 
@@ -135,4 +229,105 @@ Updates a commitment's editable fields.
 | status   | string | no       | One of: planned, done, skipped, canceled, missed     |
 | notes    | text   | no       | Update notes                                         |
 | due_at   | string | no       | ISO datetime, local timezone (hard commitments only) |
-| start_at | string | no       | ISO datetime, local timezone (hard commit
+| start_at | string | no       | ISO datetime, local timezone (hard commitments only) |
+| timezone | string | no       | IANA timezone (defaults to user's timezone)          |
+
+**Business Logic:**
+* At least one field must be provided
+* Cannot change target_type, target_id, or timeframe_id
+* If timezone not provided, uses user's default timezone
+* Updating due_at may change the derived day timeframe
+* Pass null for due_at or start_at to clear the value
+
+**Response:** Updated commitment object with timestamps in user's local timezone (200)
+
+**Errors:**
+* 400 if validation fails or invalid timezone
+* 404 if commitment not found
+
+
+==== Bulk Delete Commitments for Target ====
+
+**DELETE /api/commitments/bulk-delete**
+
+Deletes all commitments for a specific target entity. Useful when deleting the target entity itself.
+
+| Parameter    | Type    | Location | Required | Description                           |
+|--------------|---------|----------|----------|---------------------------------------|
+| target_type  | string  | query    | yes      | One of: task, project, routine, session |
+| target_id    | integer | query    | yes      | ID of the target entity               |
+
+**Example Request:**
+{{{code: lang="http" linenumbers="False"
+DELETE /api/commitments/bulk-delete?target_type=task&target_id=101
+Authorization: Bearer <token>
+}}}
+
+**Example Response (200):**
+{{{code: lang="json" linenumbers="False"
+{
+  "deleted": 3
+}
+}}}
+
+**Business Logic:**
+* Validates target_type is valid
+* Deletes all commitments for the specified user+target combination
+* Returns count of commitments deleted (may be 0 if none exist)
+
+**Errors:**
+* 400 if target_type or target_id is missing or invalid
+
+**DELETE /api/commitments/<commitment_id>**
+
+Deletes a commitment.
+
+**Response:** 
+* 204 if successfully deleted
+* 404 if commitment not found
+
+
+===== Commitment Object Structure =====
+
+**Response Format:**
+
+{
+  "id": 123,
+  "user_id": 456,
+  "timeframe_id": 789,
+  "target_type": "task",
+  "target_id": 101,
+  "status": "planned",
+  "notes": "Focus on the UI improvements",
+  "start_at": "2025-06-08T09:00:00-05:00",
+  "due_at": "2025-06-08T17:00:00-05:00",
+  "created_at": "2025-06-01T10:30:00-05:00",
+  "updated_at": "2025-06-01T10:30:00-05:00"
+}
+
+**Notes:**
+* start_at and due_at are null for soft commitments
+* start_at may be null for hard commitments (only due_at is required)
+* All timestamps include timezone offset in the response
+* Internal database uses start_at_utc and due_at_utc, but API response uses start_at and due_at
+
+
+===== Status Values =====
+
+| Status   | Description                              |
+|----------|------------------------------------------|
+| planned  | Scheduled/intended (default)             |
+| done     | Successfully completed                   |
+| skipped  | Intentionally not done                   |
+| canceled | Removed from schedule                    |
+| missed   | Was not done (unintentionally)           |
+
+
+===== Target Types =====
+
+| Type    | Description                    | Hard Commitments? |
+|---------|--------------------------------|-------------------|
+| task    | A task (standalone or subtask) | Yes               |
+| project | A project                      | No (soft only)    |
+| routine | A routine template             | Yes               |
+| session | A specific session occurrence  | Yes               |

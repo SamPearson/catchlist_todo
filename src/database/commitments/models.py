@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 
 from src.database.base.base_models import UserOwnedModel
+from src.utils.timezone import from_utc
 
 
 class Commitment(UserOwnedModel):
@@ -11,6 +12,9 @@ class Commitment(UserOwnedModel):
 
     - Soft commitment: timeframe_id is the chosen timeframe; due_at_utc/start_at_utc are NULL
     - Hard commitment: timeframe_id is the derived DAY timeframe; due_at_utc required; start_at_utc optional
+    
+    Note: Database columns are named start_at_utc/due_at_utc (stored as naive UTC),
+    but as_dict() returns them as start_at/due_at (converted to user's timezone).
     """
     __tablename__ = "commitments"
 
@@ -24,9 +28,9 @@ class Commitment(UserOwnedModel):
 
     notes = Column(Text, nullable=True)
 
-    # Hard timing (UTC instants). Soft commitments keep these NULL.
-    start_at_utc = Column(DateTime(timezone=True), nullable=True, index=True)
-    due_at_utc = Column(DateTime(timezone=True), nullable=True, index=True)
+    # Hard timing (naive UTC). Soft commitments keep these NULL.
+    start_at_utc = Column(DateTime, nullable=True, index=True)
+    due_at_utc = Column(DateTime, nullable=True, index=True)
 
     __table_args__ = (
         UniqueConstraint(
@@ -45,17 +49,31 @@ class Commitment(UserOwnedModel):
         ),
     )
 
-    def as_dict(self):
-        data = super().as_dict()
-        data.update(
-            {
-                "timeframe_id": self.timeframe_id,
-                "target_type": self.target_type,
-                "target_id": self.target_id,
-                "status": self.status,
-                "notes": self.notes,
-                "start_at_utc": self.start_at_utc.isoformat() if self.start_at_utc else None,
-                "due_at_utc": self.due_at_utc.isoformat() if self.due_at_utc else None,
-            }
-        )
+    def as_dict(self, user_timezone: str = 'UTC'):
+        """
+        Convert commitment to dictionary representation.
+        Timestamps are converted to user's timezone.
+        """
+        data = super().as_dict(user_timezone=user_timezone)
+        
+        # Convert start_at_utc and due_at_utc from naive UTC to user timezone
+        start_at_str = None
+        if self.start_at_utc:
+            local_dt = from_utc(self.start_at_utc, user_timezone)
+            start_at_str = local_dt.isoformat()
+        
+        due_at_str = None
+        if self.due_at_utc:
+            local_dt = from_utc(self.due_at_utc, user_timezone)
+            due_at_str = local_dt.isoformat()
+        
+        data.update({
+            "timeframe_id": self.timeframe_id,
+            "target_type": self.target_type,
+            "target_id": self.target_id,
+            "status": self.status,
+            "notes": self.notes,
+            "start_at": start_at_str,
+            "due_at": due_at_str,
+        })
         return data

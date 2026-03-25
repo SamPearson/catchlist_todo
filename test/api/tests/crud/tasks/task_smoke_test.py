@@ -91,13 +91,14 @@ def test_list_tasks(auth_client):
 
     with allure.step("Retrieve all tasks"):
         response = auth_client.get('/api/tasks')
+        tasks = response.json
 
     with allure.step("Verify response structure"):
-        assert isinstance(response, list)
-        assert len(response) >= 3
+        assert isinstance(tasks, list)
+        assert len(tasks) >= 3
 
         # Verify each task has required fields
-        for task in response:
+        for task in tasks:
             assert task['id']
             assert task['title']
             assert 'completed' in task

@@ -250,12 +250,16 @@ def compute_timeframe_bounds(
         label = local_day.isoformat()
 
     elif kind == "week":
-        # ISO week: Monday start
-        start_of_week = local_day - timedelta(days=local_day.weekday())
+        # Sunday start
+        days_since_sunday = (local_day.weekday() + 1) % 7
+        start_of_week = local_day - timedelta(days=days_since_sunday)
+
         start_local = datetime.combine(start_of_week, time.min, tzinfo=tz)
         end_local = start_local + timedelta(days=7)
-        iso_year, iso_week, _ = local_day.isocalendar()
-        label = f"{iso_year}-W{iso_week:02d}"
+
+        # Optional: adjust label (ISO week no longer matches Sunday-based weeks)
+        label = start_of_week.strftime("%Y-W%U")  # %U = week number, Sunday start
+
 
     elif kind == "month":
         start_local = datetime.combine(local_day.replace(day=1), time.min, tzinfo=tz)
@@ -264,7 +268,7 @@ def compute_timeframe_bounds(
         else:
             next_month = date(local_day.year, local_day.month + 1, 1)
         end_local = datetime.combine(next_month, time.min, tzinfo=tz)
-        label = f"{local_day.year:04d}-{local_day.month:02d}"
+        label = local_day.strftime("%B %Y")
 
     elif kind == "season":
         # Meteorological seasons:

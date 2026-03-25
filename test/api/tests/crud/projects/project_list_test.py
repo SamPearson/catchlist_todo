@@ -286,10 +286,11 @@ def test_list_projects_returns_empty_array(auth_client):
     """List projects returns empty array for user with no projects"""
     with allure.step("List projects for fresh user (no projects created yet)"):
         response = auth_client.get('/api/projects')
+        projects = response.json
 
     with allure.step("Verify empty array returned"):
-        assert isinstance(response, list)
-        assert len(response) == 0
+        assert isinstance(projects, list)
+        assert len(projects) == 0
 
 
 @allure.feature('Projects')

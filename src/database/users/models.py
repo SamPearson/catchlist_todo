@@ -25,6 +25,8 @@ class User(UserMixin, db.Model):
     calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
     routine = relationship("Routine", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("RoutineSession", back_populates="user", cascade="all, delete-orphan")
+    timeframes = relationship("Timeframe", back_populates="user", cascade="all, delete-orphan")
+    commitment = relationship("Commitment", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

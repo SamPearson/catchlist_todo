@@ -1,0 +1,119 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-01-13T17:17:18-06:00
+
+====== Timeframes ======
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic timeframe functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **List timeframe kinds** - GET /api/timeframes/kinds
+2. **Create timeframe for today** - POST /api/timeframes with kind only
+3. **List timeframes** - GET /api/timeframes (verify timeframe appears)
+4. **Get timeframe by ID** - GET /api/timeframes/{id}
+5. **Get timeframe for today via convenience endpoint** - GET /api/timeframes/{kind}
+
+
+===== Priority 2: Extended Tests =====
+
+
+==== ✅️List Timeframes (GET /api/timeframes) ====
+6. **List timeframes returns empty array** - New user with no timeframes gets []
+7. **List timeframes only returns user's own timeframes** - Create timeframes for two different users, verify isolation
+8. **List timeframes filters by kind** - Create multiple kinds, filter by kind=day
+9. **List timeframes with invalid kind** - Verify 400 error
+10. **List timeframes with start and end dates** - Create timeframes, filter by date window
+11. **List timeframes with start and end requires kind** - Verify 400 error if kind missing
+12. **List timeframes with invalid start date format** - Verify 400 error
+13. **List timeframes with invalid end date format** - Verify 400 error
+14. **List timeframes with end before start** - Verify 400 error
+15. **List timeframes with invalid timezone** - Verify 400 error
+16. **List timeframes with valid timezone** - Verify tz parameter accepted
+
+==== ✅️Create Timeframe (POST /api/timeframes) ====
+17. **Create timeframe with kind only** - Verify defaults to today in UTC
+18. **Create timeframe with kind and date** - Verify creates for specified date
+19. **Create timeframe with kind, date, and tz** - Verify timezone respected
+20. **Create timeframe without kind** - Verify 400 error
+21. **Create timeframe with invalid kind** - Verify 400 error
+22. **Create timeframe with invalid date format** - Verify 400 error
+23. **Create timeframe with invalid timezone** - Verify 400 error
+24. **Create timeframe with empty request body** - Verify 400 error
+25. **Create timeframe returns 201 always** - Verify status code even if already exists
+26. **Create duplicate timeframe returns existing** - Create same timeframe twice, verify same ID returned
+27. **Create timeframe for each kind** - Test day, week, month, season, year
+
+==== ✅️Get Timeframe by ID (GET /api/timeframes/{id}) ====
+28. **Get timeframe returns full object** - Verify all fields present
+29. **Get nonexistent timeframe** - Verify 404
+30. **Get another user's timeframe** - Verify 404
+
+==== ✅️Get Timeframe for Today (GET /api/timeframes/{kind}) ====
+31. **Get timeframe for today creates if missing** - Verify get-or-create behavior
+32. **Get timeframe for today returns existing** - Call twice, verify same ID
+33. **Get timeframe for today with invalid kind** - Verify 400 error
+34. **Get timeframe for today with tz parameter** - Verify timezone respected
+35. **Get timeframe for today with invalid timezone** - Verify 400 error
+36. **Get timeframe for today for each kind** - Test day, week, month, season, year
+
+
+==== ✅️Get Timeframe for Date (GET /api/timeframes/{kind}/{date}) ====
+37. **Get timeframe for date creates if missing** - Verify get-or-create behavior
+38. **Get timeframe for date returns existing** - Call twice, verify same ID
+39. **Get timeframe for date with invalid kind** - Verify 400 error
+40. **Get timeframe for date with invalid date format** - Verify 400 error
+41. **Get timeframe for date with tz parameter** - Verify timezone respected
+42. **Get timeframe for date with invalid timezone** - Verify 400 error
+43. **Get timeframe for date for each kind** - Test day, week, month, season, year
+
+
+===== Priority 2: Timeframe Kind Boundary Tests =====
+
+==== ✅️Day Boundaries ====
+44. **Day timeframe spans 24 hours** - Verify start to end is exactly 1 day
+45. **Day timeframe label format** - Verify label matches YYYY-MM-DD
+
+==== ✅️Week Boundaries ====
+46. **Week timeframe starts on Sunday** - Verify start_at_utc is Sunday
+47. **Week timeframe ends on Sunday** - Verify end_at_utc is following Sunday
+48. **Week timeframe label format** - Verify label matches YYYY-Wnn format
+
+==== ✅️Month Boundaries ====
+49. **Month timeframe starts on first day** - Verify start_at_utc is day 1
+50. **Month timeframe ends on first of next month** - Verify end_at_utc is first of next month
+51. **Month timeframe label format** - Verify label format
+
+==== ✅️Season Boundaries ====
+52. **Season Winter spans Dec-Jan-Feb** - Verify winter boundaries
+53. **Season Spring spans Mar-Apr-May** - Verify spring boundaries
+54. **Season Summer spans Jun-Jul-Aug** - Verify summer boundaries
+55. **Season Autumn spans Sep-Oct-Nov** - Verify autumn boundaries
+56. **Season label format** - Verify label format (e.g., "Summer 2025")
+57. **Winter crosses year boundary** - Verify Winter 2025 includes Dec 2025 and Jan-Feb 2026
+
+==== ✅️Year Boundaries ====
+58. **Year timeframe spans Jan 1 to Jan 1** - Verify full year coverage
+59. **Year timeframe label format** - Verify label is year number
+
+
+===== Priority 2: Timezone Tests =====
+
+==== Timezone Fallback Logic ====
+60. **Timezone uses explicit tz parameter when provided** - Verify explicit tz honored
+61. **Timezone uses user default when tz not provided** - Verify user timezone fallback
+62. **Timezone uses UTC when no user timezone configured** - Verify UTC fallback
+
+==== Timezone Impact on Boundaries ====
+63. **Day timeframe boundaries vary by timezone** - Create same date in different timezones, verify different UTC boundaries
+64. **Week timeframe boundaries vary by timezone** - Verify timezone affects week start/end
+65. **Today varies by timezone** - Verify "today" calculation respects timezone
+
+
+===== Priority 2: Multi-User Isolation =====
+
+==== User Isolation ====
+66. **Users cannot access each other's timeframes by ID** - Verify 404 when accessing other user's timeframe
+67. **Users can create identical timeframes independently** - Two users create same kind/date, verify separate records
+68. **List timeframes only shows own timeframes** - Verify no cross-user visibility

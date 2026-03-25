@@ -10,6 +10,7 @@ from src.database.commitments.models import Commitment
 from src.database.commitments.repository import CommitmentRepo
 from src.database.timeframes.models import Timeframe
 from src.database.timeframes.service import TimeframeService
+from src.utils.timezone import to_utc
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,14 @@ class CommitmentService:
         self.session = session
         self.repo = CommitmentRepo(session=session)
         self.timeframe_service = TimeframeService(session=session)
+
+    def _get_user_timezone(self, user_id: int) -> str:
+        """Get user's timezone, defaulting to UTC if not set."""
+        from src.database.users.models import User
+        user = self.session.query(User).filter_by(id=user_id).first()
+        if user and getattr(user, "timezone", None):
+            return user.timezone
+        return "UTC"
 
     def _normalize_status(self, status: str | None) -> str:
         if not status:
@@ -125,8 +134,8 @@ class CommitmentService:
             status: Single status to filter by
             statuses: Multiple statuses to filter by (OR condition)
             is_hard: True = has due_at_utc, False = no due_at_utc, None = both
-            due_after: Filter for due_at_utc >= this value
-            due_before: Filter for due_at_utc < this value
+            due_after: Filter for due_at_utc >= this value (expects naive UTC)
+            due_before: Filter for due_at_utc < this value (expects naive UTC)
             include_targets: If True, eagerly load and attach target entities
 
         Returns:
@@ -278,25 +287,25 @@ class CommitmentService:
             user_id: int,
             target_type: str,
             target_id: int,
-            due_at_utc: datetime,
-            timezone: str,
-            start_at_utc: datetime | None = None,
+            due_at: datetime,
+            timezone: str | None = None,
+            start_at: datetime | None = None,
             status: str | None = None,
             notes: str | None = None,
     ) -> Commitment:
         """
         Create a hard commitment (specific time with exact timestamps).
 
-        The day timeframe is automatically derived from due_at_utc in the user's timezone.
+        The day timeframe is automatically derived from due_at in the user's timezone.
         Projects cannot have hard commitments - use create_soft() instead.
 
         Args:
             user_id: Owner of the commitment
-            target_type: One of task, project, routine, session
+            target_type: One of task, routine, session (not project)
             target_id: ID of the target entity
-            due_at_utc: When the commitment is due (UTC datetime)
-            timezone: User's timezone (IANA string like "America/Chicago")
-            start_at_utc: Optional start time (UTC datetime)
+            due_at: When the commitment is due (datetime in user's local timezone)
+            timezone: Optional IANA timezone string (defaults to user's timezone)
+            start_at: Optional start time (datetime in user's local timezone)
             status: Optional status (defaults to 'planned')
             notes: Optional notes
 
@@ -320,6 +329,14 @@ class CommitmentService:
         status = self._normalize_status(status)
 
         self._ensure_target_exists(user_id=user_id, target_type=target_type, target_id=int(target_id))
+
+        # Get timezone (use provided or default to user's timezone)
+        if timezone is None:
+            timezone = self._get_user_timezone(user_id)
+
+        # Convert local times to UTC for storage
+        due_at_utc = to_utc(due_at, timezone)
+        start_at_utc = to_utc(start_at, timezone) if start_at else None
 
         # Auto-derive the day timeframe from due_at_utc
         day_timeframe = self.timeframe_service.get_or_create_day_for_instant(
@@ -373,12 +390,13 @@ class CommitmentService:
             target_id=target_id,
         )
 
-        deleted_any = False
+        count = 0
         for commitment in commitments:
             self.repo.delete(commitment)
-            deleted_any = True
+            count += 1
 
-        return deleted_any
+        return count
+
 
     def get(self, *, user_id: int, commitment_id: int) -> Commitment | None:
         return self.repo.get(commitment_id, user_id=user_id)
@@ -397,13 +415,14 @@ class CommitmentService:
             commitment_id: int,
             status: str | None = None,
             notes: str | None = None,
-            due_at_utc: datetime | None = None,
-            start_at_utc: datetime | None = None,
+            due_at: datetime | None = None,
+            start_at: datetime | None = None,
+            timezone: str | None = None,
     ) -> Commitment | None:
         """
         Update editable fields of a commitment.
 
-        Whitelisted fields: status, notes, due_at_utc, start_at_utc
+        Whitelisted fields: status, notes, due_at, start_at
         Cannot change: target_type, target_id, timeframe_id
 
         Args:
@@ -411,8 +430,9 @@ class CommitmentService:
             commitment_id: ID of the commitment to update
             status: New status (validated)
             notes: New notes text
-            due_at_utc: New due time (UTC) - triggers timeframe recalculation for hard commitments
-            start_at_utc: New start time (UTC)
+            due_at: New due time (local time) - triggers timeframe recalculation for hard commitments
+            start_at: New start time (local time)
+            timezone: Optional IANA timezone string (defaults to user's timezone)
 
         Returns:
             Updated commitment, or None if not found
@@ -424,6 +444,10 @@ class CommitmentService:
         if not c:
             return None
 
+        # Get timezone (use provided or default to user's timezone)
+        if timezone is None:
+            timezone = self._get_user_timezone(user_id)
+
         # Build dict of fields to update
         updates = {}
 
@@ -433,28 +457,21 @@ class CommitmentService:
         if notes is not None:
             updates["notes"] = notes
 
-        if start_at_utc is not None:
-            updates["start_at_utc"] = start_at_utc
+        if start_at is not None:
+            updates["start_at_utc"] = to_utc(start_at, timezone)
 
-        if due_at_utc is not None:
+        if due_at is not None:
+            due_at_utc = to_utc(due_at, timezone)
+            
             # For hard commitments, updating due_at might change the day
-            # We need to recalculate the timeframe if this is a hard commitment
+            # We need to recalculate the timeframe
             if c.due_at_utc is not None:
-                # This is a hard commitment - need to derive new day timeframe
-                # But we don't have the timezone here...
-                # Option 1: Require timezone parameter
-                # Option 2: Store timezone on commitment
-                # Option 3: Look up user's timezone
-                # Let's go with Option 3 for now
-                from src.database.users.models import User
-                user = self.session.query(User).filter_by(id=user_id).first()
-                if user and user.timezone:
-                    new_day_timeframe = self.timeframe_service.get_or_create_day_for_instant(
-                        user_id=user_id,
-                        instant_utc=due_at_utc,
-                        timezone=user.timezone,
-                    )
-                    updates["timeframe_id"] = new_day_timeframe.id
+                new_day_timeframe = self.timeframe_service.get_or_create_day_for_instant(
+                    user_id=user_id,
+                    instant_utc=due_at_utc,
+                    timezone=timezone,
+                )
+                updates["timeframe_id"] = new_day_timeframe.id
 
             updates["due_at_utc"] = due_at_utc
 

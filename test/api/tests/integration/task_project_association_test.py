@@ -300,7 +300,8 @@ def test_list_project_tasks_returns_only_subtasks(auth_client):
         })
 
     with allure.step("List project tasks"):
-        project_tasks = auth_client.get(f'/api/projects/{project_id}/tasks')
+        response = auth_client.get(f'/api/projects/{project_id}/tasks')
+        project_tasks = response.json
 
     with allure.step("Verify only subtasks are returned"):
         task_ids = [task['id'] for task in project_tasks]
@@ -400,7 +401,8 @@ def test_list_project_tasks_returns_empty_array_for_project_with_no_tasks(auth_c
         project_id = project['id']
 
     with allure.step("List project tasks"):
-        project_tasks = auth_client.get(f'/api/projects/{project_id}/tasks')
+        response = auth_client.get(f'/api/projects/{project_id}/tasks')
+        project_tasks = response.json
 
     with allure.step("Verify empty array is returned"):
         assert isinstance(project_tasks, list)

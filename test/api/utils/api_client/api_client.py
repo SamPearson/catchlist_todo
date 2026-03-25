@@ -1,9 +1,51 @@
-
 from typing import Optional, Dict
 import requests
 import json
 import allure
 from utils.data_factories.api_user import APIUser
+
+
+class APIResponse:
+    def __init__(self, response: requests.Response):
+        self._response = response
+        self.status_code = response.status_code
+        self.headers = response.headers
+        self.elapsed = response.elapsed
+
+        self._json = None
+        self._text = response.text
+
+        try:
+            self._json = response.json()
+        except json.JSONDecodeError:
+            pass
+
+    @property
+    def json(self) -> dict | None:
+        return self._json
+
+    @property
+    def text(self) -> str:
+        return self._text
+
+    def __getitem__(self, item):
+        if self._json is None:
+            raise TypeError("Response does not contain JSON")
+        return self._json[item]
+
+    def __contains__(self, key):
+        """Support 'key in response' syntax."""
+        if self._json is None:
+            return False
+        return key in self._json
+
+    def get(self, key, default=None):
+        if self._json is None:
+            return default
+        return self._json.get(key, default)
+
+    def raise_for_status(self):
+        self._response.raise_for_status()
 
 
 class APIClient:
@@ -50,7 +92,7 @@ class APIClient:
         return "\n".join(info)
 
     def request(self, method: str, endpoint: str, data: Optional[Dict] = None,
-                params: Optional[Dict] = None, handle_response: bool = True) -> Dict | requests.Response:
+                params: Optional[Dict] = None, handle_response: bool = True) -> APIResponse:
         """Send request to specified endpoint."""
         url = f"{self.base_url}/{endpoint.lstrip('/')}" if endpoint.startswith('/') else endpoint
 
@@ -76,50 +118,43 @@ class APIClient:
                 params=params
             )
 
+            # Wrap the response
+            api_response = APIResponse(response)
+
             # Log response details
-            try:
-                response_body = response.json()
+            if api_response.json is not None:
                 allure.attach(
-                    json.dumps(response_body, indent=2),
+                    json.dumps(api_response.json, indent=2),
                     name="Response Body",
                     attachment_type=allure.attachment_type.JSON
                 )
-            except json.JSONDecodeError:
+            else:
                 allure.attach(
-                    response.text[:1000] if response.text else "(empty)",
+                    api_response.text[:1000] if api_response.text else "(empty)",
                     name="Response Body",
                     attachment_type=allure.attachment_type.TEXT
                 )
 
             allure.attach(
-                f"Status Code: {response.status_code}\nElapsed Time: {response.elapsed.total_seconds():.3f}s",
+                f"Status Code: {api_response.status_code}\nElapsed Time: {api_response.elapsed.total_seconds():.3f}s",
                 name="Response Info",
                 attachment_type=allure.attachment_type.TEXT
             )
 
-            if not (200 <= response.status_code < 300):
+            if not (200 <= api_response.status_code < 300):
                 allure.attach(
                     self.diagnose_response(response),
                     name="Error Details",
                     attachment_type=allure.attachment_type.TEXT
                 )
 
-            return self._handle_response(response) if handle_response else response
+            if handle_response:
+                api_response.raise_for_status()
+
+            return api_response
 
 
-    def _handle_response(self, response: requests.Response) -> Dict:
-        """Basic response handling and validation."""
-        try:
-            response.raise_for_status()
-            return response.json()
-        except json.JSONDecodeError:
-            diagnostics = self.diagnose_response(response)
-            raise ValueError(f"Response is not valid JSON:\n{diagnostics}")
-        except requests.exceptions.HTTPError as e:
-            diagnostics = self.diagnose_response(response)
-            raise Exception(f"HTTP Error: {e}\n{diagnostics}")
-
-    def login(self, user: APIUser) -> Dict:
+    def login(self, user: APIUser) -> APIResponse:
         """Authenticate user and store user object with token."""
         response = self.post('/api/auth/login', {
             'username': user.username,
@@ -135,7 +170,7 @@ class APIClient:
 
         return response
 
-    def register(self, user: APIUser) -> Dict:
+    def register(self, user: APIUser) -> APIResponse:
         """Register a new user account."""
         response = self.post('/api/auth/register', {
             'username': user.username,
@@ -144,7 +179,7 @@ class APIClient:
 
         return response
 
-    def delete_account(self) -> Dict:
+    def delete_account(self) -> APIResponse:
         """Delete the current user account."""
         if not self.is_authenticated():
             raise ValueError("Must be logged in to delete account")

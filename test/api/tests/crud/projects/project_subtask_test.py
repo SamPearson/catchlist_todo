@@ -17,7 +17,8 @@ def test_list_tasks_for_project_with_no_subtasks(auth_client):
         project_id = project['id']
 
     with allure.step("List tasks for project"):
-        tasks = auth_client.get(f'/api/projects/{project_id}/tasks')
+        response = auth_client.get(f'/api/projects/{project_id}/tasks')
+        tasks = response.json
 
     with allure.step("Verify empty array returned"):
         assert isinstance(tasks, list)
@@ -48,7 +49,8 @@ def test_list_tasks_for_project_with_subtasks(auth_client):
         task2_id = task2['id']
 
     with allure.step("List tasks for project"):
-        tasks = auth_client.get(f'/api/projects/{project_id}/tasks')
+        response = auth_client.get(f'/api/projects/{project_id}/tasks')
+        tasks = response.json
 
     with allure.step("Verify both subtasks returned"):
         assert isinstance(tasks, list)

@@ -11,7 +11,7 @@ users_bp.add_url_rule('/api/auth/logout', view_func=users.logout, endpoint='logo
 
 # User Info Routes
 users_bp.add_url_rule('/api/auth/user-info', view_func=users.get_user_info, endpoint='get_user_info', methods=['GET'])
-users_bp.add_url_rule('/api/auth/user', view_func=users.update_user, endpoint='update_user', methods=['PUT'])
+users_bp.add_url_rule('/api/auth/user', view_func=users.update_user, endpoint='update_user', methods=['PATCH'])
 
 # Account Management Routes
 users_bp.add_url_rule('/api/auth/change-password', view_func=users.change_password, endpoint='change_password', methods=['POST'])

@@ -39,12 +39,6 @@ timeframes_bp.add_url_rule(
     methods=["GET"],
 )
 
-timeframes_bp.add_url_rule(
-    "/api/timeframes/<string:kind>/get_or_create",
-    view_func=timeframes.get_or_create_timeframe_today,
-    endpoint="get_or_create_timeframe_today",
-    methods=["GET"],
-)
 
 timeframes_bp.add_url_rule(
     "/api/timeframes/<string:kind>/<string:date>",
@@ -53,9 +47,3 @@ timeframes_bp.add_url_rule(
     methods=["GET"],
 )
 
-timeframes_bp.add_url_rule(
-    "/api/timeframes/<string:kind>/<string:date>/get_or_create",
-    view_func=timeframes.get_or_create_timeframe,
-    endpoint="get_or_create_timeframe",
-    methods=["GET"],
-)

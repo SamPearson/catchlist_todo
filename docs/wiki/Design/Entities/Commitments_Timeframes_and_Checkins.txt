@@ -18,6 +18,36 @@ Together, these enable:
 * Leaving notes and reflections over time
 
 
+===== Timezone Handling =====
+
+The system uses a consistent timezone strategy across all entities:
+
+**User Timezone Configuration:**
+* When a user account is created, the timezone defaults to UTC if not explicitly set
+* Users can configure their preferred timezone through user profile settings
+* Once configured, this timezone is used for all datetime conversions
+
+**Storage:**
+* All datetimes are stored in the database as **naive UTC** timestamps
+* Database column names use _utc suffix to indicate this (e.g., start_at_utc, due_at_utc, occurred_at_utc)
+
+**Input:**
+* API endpoints accept datetimes in the **user's local timezone** (or explicitly specified timezone)
+* Users can optionally provide a timezone parameter (IANA format like "America/Chicago")
+* If no timezone specified, system uses the user's configured timezone (or UTC as fallback)
+* Dates use ISO 8601 format (e.g., "2025-06-08T14:30:00")
+
+**Output:**
+* API responses convert all timestamps to the **user's local timezone**
+* Response field names do NOT include _utc suffix (e.g., start_at, due_at, created_at)
+* Timestamps are returned in ISO 8601 format with timezone offset (e.g., "2025-06-08T14:30:00-05:00")
+
+**Example:**
+* User in Chicago (UTC-5) creates commitment due at "2025-06-08T14:30:00"
+* System converts to UTC: stored as "2025-06-08T19:30:00" (naive)
+* When retrieved, converted back to "2025-06-08T14:30:00-05:00"
+
+
 ===== Timeframes =====
 
 ==== Purpose ====
@@ -51,20 +81,26 @@ Timeframes are bounded periods of time that serve as containers for commitments 
 | id | integer | auto | Primary key |
 | user_id | integer | auto | Owner |
 | kind | string(16) | yes | day, week, month, season, year |
-| start_at_utc | datetime | yes | Start of period (inclusive, UTC) |
-| end_at_utc | datetime | yes | End of period (exclusive, UTC) |
+| start_at_utc | datetime | yes | Start of period (inclusive, naive UTC) |
+| end_at_utc | datetime | yes | End of period (exclusive, naive UTC) |
 | label | string(32) | no | Human-readable label for display |
-| created_at | datetime | auto | When created |
-| updated_at | datetime | auto | When last modified |
+| created_at | datetime | auto | When created (naive UTC) |
+| updated_at | datetime | auto | When last modified (naive UTC) |
+
+**API Response Fields:**
+* start_at - Start time converted to user's timezone
+* end_at - End time converted to user's timezone
+* created_at - Creation time converted to user's timezone
+* updated_at - Update time converted to user's timezone
 
 ==== Interval Semantics ====
-Timeframes use half-open intervals: `[start_at_utc, end_at_utc)`
+Timeframes use half-open intervals: [start_at_utc, end_at_utc)
 * Start is inclusive
 * End is exclusive
 * This prevents overlap between adjacent timeframes
 
 ==== Uniqueness Constraint ====
-**Unique constraint**: `(user_id, kind, start_at_utc)`
+**Unique constraint**: (user_id, kind, start_at_utc)
 
 A user may have only one timeframe of each kind that starts at a given time. For example:
 * One "June 2025" timeframe (kind=month, start=2025-06-01)
@@ -88,8 +124,7 @@ A user may have only one timeframe of each kind that starts at a given time. For
 
 **Delete**
 * **Deletion is not supported**
-* Timeframes are permanent historical containers; deleting a timeframe would erase
-  the record of commitments and planning within that period
+* Timeframes are permanent historical containers; deleting a timeframe would erase the record of commitments and planning within that period
 * Timeframes are only deleted when a user account is deleted
 * There is no DELETE endpoint for timeframes
 
@@ -113,15 +148,15 @@ Commitments can be:
 **Soft Commitment**
 * Represents flexible work scheduled within a timeframe
 * Example: "Clean garage sometime this month"
-* No `due_at` or `start_at` timestamp
+* No due_at or start_at timestamp
 * Requires an existing timeframe to be specified
 * Typical targets: tasks, projects, routines
 
 **Hard Commitment**
 * Represents a specific appointment or deadline
 * Example: "Dentist appointment at 2pm on Tuesday"
-* Requires a `due_at` timestamp (when the commitment is due)
-* `start_at` is optional (when it starts)
+* Requires a due_at timestamp (when the commitment is due)
+* start_at is optional (when it starts)
 * Timeframe is auto-derived as the DAY containing the due_at time (in user's timezone)
 * Typical targets: tasks, sessions
 
@@ -136,17 +171,23 @@ Commitments can be:
 | target_id | integer | yes | ID of the target entity |
 | status | string(16) | yes | Default "planned"; see status values |
 | notes | text | no | Optional notes about this commitment |
-| start_at_utc | datetime | no | Hard commitments: when it starts (optional) |
-| due_at_utc | datetime | no | Hard commitments: when it's due (required for hard) |
-| created_at | datetime | auto | When created |
-| updated_at | datetime | auto | When last modified |
+| start_at_utc | datetime | no | Hard commitments: when it starts (naive UTC, optional) |
+| due_at_utc | datetime | no | Hard commitments: when it's due (naive UTC, required for hard) |
+| created_at | datetime | auto | When created (naive UTC) |
+| updated_at | datetime | auto | When last modified (naive UTC) |
+
+**API Response Fields:**
+* start_at - Start time converted to user's timezone (null for soft commitments)
+* due_at - Due time converted to user's timezone (null for soft commitments)
+* created_at - Creation time converted to user's timezone
+* updated_at - Update time converted to user's timezone
 
 ==== Inferring Type ====
 The system infers commitment type from populated fields:
-* **Soft Commitment**: `start_at_utc` and `due_at_utc` are both null
-* **Hard Commitment**: `due_at_utc` is populated; `start_at_utc` may or may not be populated
+* **Soft Commitment**: start_at_utc and due_at_utc are both null
+* **Hard Commitment**: due_at_utc is populated; start_at_utc may or may not be populated
 
-No explicit `commitment_type` field is needed; the presence/absence of datetime fields is sufficient.
+No explicit commitment_type field is needed; the presence/absence of datetime fields is sufficient.
 
 ==== Target Types ====
 
@@ -183,25 +224,26 @@ Soft commitments can be created in two ways:
 **Option 2: Implicit Timeframe Creation**
 * Required: target_type, target_id, timeframe_kind, reference_date
 * The system fetches or creates the appropriate timeframe for the given kind and date
-* reference_date is provided in user's local timezone (ISO 8601 format)
-* Timeframe boundaries are automatically derived based on kind
+* reference_date is provided as YYYY-MM-DD format
+* Timeframe boundaries are automatically derived based on kind and user's timezone
 * Examples:
-  - `timeframe_kind="week"`, `reference_date="2025-06-08"` → creates/fetches week containing June 8
-  - `timeframe_kind="month"`, `reference_date="2025-06-15"` → creates/fetches June 2025
+  - timeframe_kind="week", reference_date="2025-06-08" → creates/fetches week containing June 8
+  - timeframe_kind="month", reference_date="2025-06-15" → creates/fetches June 2025
 
 **Both options:**
 * Validate target exists and belongs to user
 * Status defaults to "planned"
 * Cannot provide both timeframe_id AND (timeframe_kind + reference_date)
-* **Duplicate Prevention**: A target cannot be committed to the same timeframe twice.
-  If a commitment already exists for this target+timeframe pair, return 409 Conflict
-  with message: "This entity is already committed to this timeframe."
+* **Duplicate Prevention**: A target cannot be committed to the same timeframe twice. If a commitment already exists for this target+timeframe pair, return 409 Conflict with message: "This entity is already committed to this timeframe."
 
 **Create Hard Commitment**
-* Required: target_type, target_id, due_at_utc
-* Optional: start_at_utc, status, notes
+* Required: target_type, target_id, due_at
+* Optional: start_at, timezone, status, notes
+* due_at and start_at are provided in user's local timezone (or specified timezone)
+* If timezone parameter not provided, uses user's default timezone
+* System converts local times to UTC for storage
 * Validates target exists and belongs to user
-* Auto-creates or retrieves the DAY timeframe containing due_at_utc (based on user's timezone)
+* Auto-creates or retrieves the DAY timeframe containing due_at (based on specified timezone)
 * **Duplicate Prevention**: Same target cannot be committed to the same day twice. Returns 409 Conflict if duplicate detected.
 * Creates the commitment linked to the derived day timeframe
 * Status defaults to "planned"
@@ -213,8 +255,12 @@ Soft commitments can be created in two ways:
 
 **Update Commitment**
 * Notes can be updated
-* Start_at and due_at can be edited (allows rescheduling hard commitments)
+* start_at and due_at can be edited (allows rescheduling hard commitments)
+  - Provided in local timezone (or explicitly specified timezone)
+  - System converts to UTC for storage
+  - Updating due_at may change the derived day timeframe
 * Status can be changed (see above)
+* Optional timezone parameter allows specifying timezone for datetime conversions
 * Cannot change target_type, target_id, or timeframe_id; these would require deletion and recreation
 
 **Delete**
@@ -232,17 +278,17 @@ Soft commitments can be created in two ways:
 Commitments support flexible filtering via a search endpoint/method:
 
 **Filter Dimensions:**
-* **timeframe_id** - Single timeframe to filter by
-* **timeframe_ids** - Multiple timeframes (OR condition)
-* **target_type** - Single target type (task, project, routine, session)
-* **target_types** - Multiple target types (OR condition)
-* **target_id** - Specific target entity
-* **status** - Single status value
-* **statuses** - Multiple status values (OR condition)
-* **is_hard** - Boolean filter: true=hard commitments only, false=soft only, null/omitted=both
-* **due_after** - Filter for commitments due on or after this UTC datetime
-* **due_before** - Filter for commitments due before this UTC datetime
-* **include_targets** - Boolean flag to eagerly load target entities (performance optimization)
+* timeframe_id - Single timeframe to filter by
+* timeframe_ids - Multiple timeframes (OR condition)
+* target_type - Single target type (task, project, routine, session)
+* target_types - Multiple target types (OR condition)
+* target_id - Specific target entity
+* status - Single status value
+* statuses - Multiple status values (OR condition)
+* is_hard - Boolean filter: true=hard commitments only, false=soft only, null/omitted=both
+* due_after - Filter for commitments due on or after this datetime (expects naive UTC)
+* due_before - Filter for commitments due before this datetime (expects naive UTC)
+* include_targets - Boolean flag to eagerly load target entities (performance optimization)
 
 **Filter Combination:**
 All provided filters are combined with AND logic (except within multi-value filters like timeframe_ids, which use OR).
@@ -251,8 +297,8 @@ All provided filters are combined with AND logic (except within multi-value filt
 Results are ordered by due_at_utc (nulls last), then created_at.
 
 **Performance Notes:**
-* Use `include_targets=true` when you need to display target entity details to avoid N+1 query problems
-* When enabled, each commitment will have a `.target` attribute containing the full target entity
+* Use include_targets=true when you need to display target entity details to avoid N+1 query problems
+* When enabled, each commitment will have a .target attribute containing the full target entity
 * Target entities are batch-fetched in groups by type for efficiency
 
 **Auto-Generation**
@@ -261,8 +307,8 @@ Results are ordered by due_at_utc (nulls last), then created_at.
 * The commitment's timeframe is auto-derived from that end_time
 
 ==== Constraints ====
-* Unique: `(user_id, target_type, target_id, timeframe_id)` for soft commitments
-* Unique: `(user_id, target_type, target_id, timeframe_id)` for hard commitments (where timeframe is the derived day)
+* Unique: (user_id, target_type, target_id, timeframe_id) for soft commitments
+* Unique: (user_id, target_type, target_id, timeframe_id) for hard commitments (where timeframe is the derived day)
 * A soft commitment cannot be converted to hard or vice versa; delete and recreate if needed
 
 ==== Relationships ====
@@ -285,9 +331,14 @@ Checkins are timestamped notes attached to entities, providing a chronological r
 | target_type | string(32) | yes | Entity type being checked in on |
 | target_id | integer | yes | ID of the target entity |
 | note | text | yes | The checkin content (brief update or longer reflection) |
-| occurred_at_utc | datetime | yes | When this happened (defaults to now; UTC) |
-| created_at | datetime | auto | When record was created |
-| updated_at | datetime | auto | When record was last modified |
+| occurred_at_utc | datetime | yes | When this happened (naive UTC, defaults to now) |
+| created_at | datetime | auto | When record was created (naive UTC) |
+| updated_at | datetime | auto | When record was last modified (naive UTC) |
+
+**API Response Fields:**
+* occurred_at - When the checkin happened, converted to user's timezone
+* created_at - When the record was created, converted to user's timezone
+* updated_at - When the record was updated, converted to user's timezone
 
 ==== Target Types ====
 
@@ -302,20 +353,22 @@ Checkins are timestamped notes attached to entities, providing a chronological r
 | principle | A principle |
 
 Note: Checkins are attached to the primary entity, not to commitments.
-To leave notes about progress on a commitment, attach the checkin to the
-target entity (task/project/routine/session).
+To leave notes about progress on a commitment, attach the checkin to the target entity (task/project/routine/session).
 
 ==== Behaviors ====
 
 **Create**
 * Required: target_type, target_id, note
-* occurred_at_utc defaults to current time if not specified
+* occurred_at defaults to current time if not specified (provided in user's local timezone)
+* System converts occurred_at to UTC for storage
 * Validates target exists and belongs to user
 * Note can be brief ("On track") or lengthy (multi-paragraph reflection)
 
 **Update**
 * Note text can be updated
-* occurred_at_utc can be updated (allows correcting when you recorded the checkin)
+* occurred_at can be updated (allows correcting when you recorded the checkin)
+  - Provided in user's local timezone
+  - System converts to UTC for storage
 * Cannot change target_type, target_id (would require deletion and recreation)
 
 **Delete**
@@ -332,12 +385,12 @@ target entity (task/project/routine/session).
 * Required filters: target_type, target_id
 * Optional pagination: limit (default 50), offset (default 0)
 * Ordered by occurred_at_utc descending (most recent first), then created_at descending
-* Returns array of checkin records
+* Returns array of checkin records with timestamps converted to user's timezone
 
 ==== Design Notes ====
 * Freeform by design—meant to be flexible and low-friction
 * No enforced structure; users decide what's worth noting
-* occurred_at_utc vs created_at: occurred_at_utc is "when did this happen," created_at is "when did I record it"
+* occurred_at vs created_at: occurred_at is "when did this happen," created_at is "when did I record it"
 * Future enhancement: If need arises, checkins can be tagged or categorized without schema changes
 
 ==== Relationships ====
@@ -370,10 +423,10 @@ target entity (task/project/routine/session).
 **Commitment Status vs. Task/Project Status**
 
 These are *independent*:
-* A **Task** has `status` (open/waiting/deferred/declined/stale) representing its mode
-* A **Commitment** has `status` (planned/done/skipped/canceled/missed) representing your attempt to complete it during a timeframe
+* A **Task** has status (open/waiting/deferred/declined/stale) representing its mode
+* A **Commitment** has status (planned/done/skipped/canceled/missed) representing your attempt to complete it during a timeframe
 
-Example: A task might be `status="waiting"` (blocked externally) while a commitment to it is `status="planned"` (you still intend to attempt it this week).
+Example: A task might be status="waiting" (blocked externally) while a commitment to it is status="planned" (you still intend to attempt it this week).
 
 **Soft Commitment vs. Hard Commitment**
 

@@ -1,4 +1,3 @@
-
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
@@ -75,6 +74,10 @@ def list_timeframes():
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
+    
+    # If no explicit tz provided, use user's default
+    if not request.args.get("tz"):
+        user_tz = _get_user_timezone(user_id)
 
     start_str = request.args.get("start")
     end_str = request.args.get("end")
@@ -100,14 +103,14 @@ def list_timeframes():
             start_utc=start_utc,
             end_utc=end_utc,
         )
-        return jsonify([tf.as_dict() for tf in items])
+        return jsonify([tf.as_dict(user_timezone=user_tz) for tf in items])
 
     if kind:
         items = service.repo.list_for_user(user_id=user_id, kind=kind)
     else:
         items = service.repo.list_for_user(user_id=user_id)
 
-    return jsonify([tf.as_dict() for tf in items])
+    return jsonify([tf.as_dict(user_timezone=user_tz) for tf in items])
 
 
 @jwt_required()
@@ -164,47 +167,26 @@ def create_timeframe():
 @jwt_required()
 def get_timeframe_by_id(timeframe_id: int):
     user_id = int(get_jwt_identity())
+    user_tz = _get_user_timezone(user_id)
     service = TimeframeService(session=db.session)
     tf = service.get_timeframe(timeframe_id, user_id=user_id)
-    return jsonify(tf.as_dict()) if tf else ("", 404)
+    return jsonify(tf.as_dict(user_timezone=user_tz)) if tf else ("", 404)
 
 
 @jwt_required()
 def get_timeframe_today(kind: str):
     user_id = int(get_jwt_identity())
-
-    kind_error = validate_kind(kind)
-    if kind_error:
-        return jsonify({"error": kind_error}), 400
-
     user_tz = _get_tz_or_user_default(user_id)
+
     tz_error = _validate_timezone(user_tz)
     if tz_error:
         return jsonify({"error": tz_error}), 400
 
     local_day = _today_in_tz(user_tz)
+    date_str = local_day.strftime("%Y-%m-%d")
 
-    service = TimeframeService(session=db.session)
-    try:
-        tf = service.get_or_create_for_date(
-            user_id=user_id,
-            kind=kind,
-            local_date=local_day,
-            timezone=user_tz,
-        )
-        return jsonify(tf.as_dict())
-    except UnsupportedTimeframeKind as e:
-        return jsonify({"error": e.message}), 400
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    return get_timeframe(kind, date_str)
 
-
-@jwt_required()
-def get_or_create_timeframe_today(kind: str):
-    """Same as get_timeframe_today - kept for backward compatibility"""
-    return get_timeframe_today(kind)
 
 
 @jwt_required()
@@ -232,7 +214,7 @@ def get_timeframe(kind: str, date: str):
             local_date=local_day,
             timezone=user_tz,
         )
-        return jsonify(tf.as_dict())
+        return jsonify(tf.as_dict(user_timezone=user_tz))
     except UnsupportedTimeframeKind as e:
         return jsonify({"error": e.message}), 400
     except ValueError as e:
@@ -241,7 +223,3 @@ def get_timeframe(kind: str, date: str):
         return jsonify({"error": str(e)}), 400
 
 
-@jwt_required()
-def get_or_create_timeframe(kind: str, date: str):
-    """Same as get_timeframe - kept for backward compatibility"""
-    return get_timeframe(kind, date)
