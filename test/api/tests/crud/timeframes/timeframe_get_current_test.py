@@ -61,8 +61,7 @@ def test_get_timeframe_for_today_with_invalid_kind(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
+        assert 'error' in response
 
 
 @allure.feature('Timeframes')
@@ -98,9 +97,8 @@ def test_get_timeframe_for_today_with_invalid_timezone(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
-        assert 'invalid timezone' in error_data['error'].lower()
+        assert 'error' in response
+        assert 'invalid timezone' in response['error'].lower()
 
 
 @allure.feature('Timeframes')

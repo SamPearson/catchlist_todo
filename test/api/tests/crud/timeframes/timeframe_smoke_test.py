@@ -93,10 +93,11 @@ def test_list_timeframes(auth_client):
 
     with allure.step("Retrieve all timeframes"):
         response = auth_client.get('/api/timeframes')
+        timeframes = response.json
 
     with allure.step("Verify response structure"):
-        assert isinstance(response, list)
-        assert len(response) >= 3
+        assert isinstance(timeframes, list)
+        assert len(timeframes) >= 3
 
         # Verify each timeframe has required fields
         for tf in response:

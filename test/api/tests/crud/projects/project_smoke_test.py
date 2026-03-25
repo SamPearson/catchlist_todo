@@ -75,13 +75,14 @@ def test_list_projects(auth_client):
 
     with allure.step("Retrieve all projects"):
         response = auth_client.get('/api/projects')
+        projects = response.json
 
     with allure.step("Verify response structure"):
-        assert isinstance(response, list)
-        assert len(response) >= 3
+        assert isinstance(projects, list)
+        assert len(projects) >= 3
 
         # Verify each project has required fields
-        for project in response:
+        for project in projects:
             assert project['id']
             assert project['title']
             assert 'completed' in project
@@ -194,13 +195,14 @@ def test_list_inactive_projects(auth_client):
 
     with allure.step("Retrieve all projects with include_inactive=true"):
         response = auth_client.get('/api/projects?include_inactive=true')
+        projects = response.json
 
     with allure.step("Verify response structure"):
-        assert isinstance(response, list)
-        assert len(response) >= 3
+        assert isinstance(projects, list)
+        assert len(projects) >= 3
 
         # Verify each project has required fields
-        for project in response:
+        for project in projects:
             assert project['id']
             assert project['title']
             assert 'completed' in project
@@ -210,6 +212,6 @@ def test_list_inactive_projects(auth_client):
             assert 'updated_at' in project
 
     with allure.step("Verify created inactive projects are in list"):
-        retrieved_ids = [project['id'] for project in response]
+        retrieved_ids = [project['id'] for project in projects]
         for created_id in created_ids:
             assert created_id in retrieved_ids

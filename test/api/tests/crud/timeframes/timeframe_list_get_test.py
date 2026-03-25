@@ -12,10 +12,11 @@ def test_list_timeframes_returns_empty_array(auth_client):
     """List timeframes returns empty array for user with no timeframes"""
     with allure.step("List timeframes for fresh user (no timeframes created yet)"):
         response = auth_client.get('/api/timeframes')
+        timeframes = response.json
 
     with allure.step("Verify empty array returned"):
-        assert isinstance(response, list)
-        assert len(response) == 0
+        assert isinstance(timeframes, list)
+        assert len(timeframes) == 0
 
 
 @allure.feature('Timeframes')
@@ -102,8 +103,7 @@ def test_list_timeframes_with_invalid_kind(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
+        assert 'error' in response
 
 
 @allure.feature('Timeframes')
@@ -158,9 +158,8 @@ def test_list_timeframes_with_start_and_end_requires_kind(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
-        assert 'kind is required' in error_data['error'].lower()
+        assert 'error' in response
+        assert 'kind is required' in response['error'].lower()
 
 
 @allure.feature('Timeframes')
@@ -177,8 +176,7 @@ def test_list_timeframes_with_invalid_start_date_format(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
+        assert 'error' in response
 
 
 @allure.feature('Timeframes')
@@ -195,8 +193,7 @@ def test_list_timeframes_with_invalid_end_date_format(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
+        assert 'error' in response
 
 
 @allure.feature('Timeframes')
@@ -213,9 +210,8 @@ def test_list_timeframes_with_end_before_start(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
-        assert 'end must be on or after start' in error_data['error'].lower()
+        assert 'error' in response
+        assert 'end must be on or after start' in response['error'].lower()
 
 
 @allure.feature('Timeframes')
@@ -232,9 +228,8 @@ def test_list_timeframes_with_invalid_timezone(auth_client):
 
     with allure.step("Verify 400 error"):
         assert response.status_code == 400
-        error_data = response.json()
-        assert 'error' in error_data
-        assert 'invalid timezone' in error_data['error'].lower()
+        assert 'error' in response
+        assert 'invalid timezone' in response['error'].lower()
 
 
 @allure.feature('Timeframes')
@@ -250,9 +245,10 @@ def test_list_timeframes_with_valid_timezone(auth_client):
 
     with allure.step("Request timeframes with valid timezone"):
         response = auth_client.get('/api/timeframes?tz=America/Chicago')
+        timeframes = response.json
 
     with allure.step("Verify request succeeds"):
-        assert isinstance(response, list)
+        assert isinstance(timeframes, list)
 
 
 @allure.feature('Timeframes')

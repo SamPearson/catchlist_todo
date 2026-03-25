@@ -86,7 +86,8 @@ def test_list_tasks_with_include_completed_false(auth_client):
 def test_list_tasks_returns_empty_array(auth_client):
     """List tasks returns empty array for user with no tasks"""
     with allure.step("List tasks for fresh user"):
-        tasks = auth_client.get('/api/tasks')
+        response = auth_client.get('/api/tasks')
+        tasks = response.json
 
     with allure.step("Verify empty array is returned"):
         assert isinstance(tasks, list)
