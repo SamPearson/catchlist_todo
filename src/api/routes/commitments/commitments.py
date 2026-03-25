@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from src.database.timeframes.service import TimeframeValidationError, UnsupportedTimeframeKind
 from src.database.db import db
 from src.database.commitments.service import (
     CommitmentService,
@@ -69,7 +70,8 @@ def delete_commitment(commitment_id: int):
     user_id = int(get_jwt_identity())
     service = CommitmentService(session=db.session)
     ok = service.delete(user_id=user_id, commitment_id=commitment_id)
-    return ("", 204) if ok else ("", 404)
+    return ("", 204) if ok \
+        else ({'error': f"Couldn't find commitment with ID {commitment_id}"}, 404)
 
 
 @jwt_required()
@@ -115,6 +117,10 @@ def create_soft_commitment():
                 timezone=user_tz
             )
             timeframe_id = timeframe.id
+        except UnsupportedTimeframeKind as e:
+            return jsonify({"error": e.message}), 400
+        except TimeframeValidationError as e:
+            return jsonify({"error": e.message}), 400
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
     else:
