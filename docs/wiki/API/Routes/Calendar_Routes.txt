@@ -81,13 +81,7 @@ Returns a specific calendar by ID.
 
 **PUT /api/calendars/<calendar_id>**
 
-Updates a calendar's properties.
-
-**Query Parameters:**
-
-| Parameter             | Type    | Location | Required | Description                                                              |
-|-----------------------|---------|----------|----------|--------------------------------------------------------------------------|
-| cascade_deactivation  | boolean | query    | no       | If true and active is set to false, deactivates all contained routines. Default true. |
+Updates a calendar's properties. Does not allow updating the active status - use the activate/deactivate endpoints instead.
 
 **Request Body:**
 
@@ -95,24 +89,77 @@ Updates a calendar's properties.
 |--------|---------|----------|--------------------------------------------------------|
 | name   | string  | no       | Calendar name (cannot be empty)                        |
 | color  | string  | no       | Hex color code                                         |
-| active | boolean | no       | Active flag; deactivation behavior controlled by cascade_deactivation param |
 
 **Example Request:**
 ''{''
   ''"name": "Updated Calendar Name",''
-  ''"active": false''
+  ''"color": "#1a73e8"''
 ''}''
 
 **Business Logic:**
-* Setting active to false will also deactivate all routines within the calendar if cascade_deactivation=true (default)
-* Setting cascade_deactivation=false allows deactivating the calendar without affecting routines
 * external_uid and external_source cannot be updated after creation (read-only)
 * Calendar name cannot be empty (validation error)
+* The active field cannot be updated via this endpoint; use /activate or /deactivate endpoints instead
 
 **Response:** 200 - Updated calendar object, 404 if not found, or 400 if validation fails
 
 **Errors:**
-* 400 - Validation error (e.g., empty name)
+* 400 - Validation error (e.g., empty name, attempting to update active field)
+* 404 - Calendar not found or not owned by user
+
+
+==== Activate Calendar ====
+
+**PUT /api/calendars/<calendar_id>/activate**
+
+Activates a calendar, optionally cascading the activation to all contained routines.
+
+**Query Parameters:**
+
+| Parameter | Type    | Location | Required | Description                                                              |
+|-----------|---------|----------|----------|--------------------------------------------------------------------------|
+| cascade   | boolean | query    | no       | If true, activates all contained routines. Default false.                |
+
+**Example Request:**
+''PUT /api/calendars/5/activate?cascade=true''
+
+**Business Logic:**
+* Sets the calendar's active flag to true
+* If cascade=true, sets all contained routines' active flag to true
+* If cascade=false (default), only activates the calendar itself
+* Activating a calendar makes it visible in calendar views
+
+**Response:** 200 - Updated calendar object, or 404 if not found
+
+**Errors:**
+* 404 - Calendar not found or not owned by user
+
+
+==== Deactivate Calendar ====
+
+**PUT /api/calendars/<calendar_id>/deactivate**
+
+Deactivates a calendar, optionally cascading the deactivation to all contained routines.
+
+**Query Parameters:**
+
+| Parameter | Type    | Location | Required | Description                                                              |
+|-----------|---------|----------|----------|--------------------------------------------------------------------------|
+| cascade   | boolean | query    | no       | If true, deactivates all contained routines. Default true.               |
+
+**Example Request:**
+''PUT /api/calendars/5/deactivate?cascade=false''
+
+**Business Logic:**
+* Sets the calendar's active flag to false
+* If cascade=true (default), sets all contained routines' active flag to false
+* If cascade=false, only deactivates the calendar itself, leaving routines unchanged
+* Deactivating a calendar hides it from normal views and prevents new session generation for its routines (if cascaded)
+* Useful for temporarily disabling a whole category (e.g., "outdoor activities" during winter)
+
+**Response:** 200 - Updated calendar object, or 404 if not found
+
+**Errors:**
 * 404 - Calendar not found or not owned by user
 
 
