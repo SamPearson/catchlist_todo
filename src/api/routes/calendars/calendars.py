@@ -114,6 +114,10 @@ def update_calendar(calendar_id):
     if not data:
         return jsonify({"error": "Request body is required"}), 400
     
+    # Don't allow updating the 'active' field via update endpoint
+    if 'active' in data:
+        return jsonify({"error": "Use /activate or /deactivate endpoints to change calendar status"}), 400
+    
     # Validate name if provided
     if 'name' in data:
         name = data.get('name', '').strip()
@@ -135,10 +139,45 @@ def update_calendar(calendar_id):
     service = CalendarService(db.session)
 
     try:
-        # Parse cascade parameter (default: true)
-        cascade_deactivation = request.args.get('cascade_deactivation', 'true').lower() == 'true'
+        calendar = service.update_calendar(user_id, calendar_id, data)
+        if not calendar:
+            return jsonify({"error": "Calendar not found"}), 404
+        return jsonify(calendar.as_dict())
+    except ValidationError as e:
+        return jsonify({"error": e.message}), 400
 
-        calendar = service.update_calendar(user_id, calendar_id, data, cascade_deactivation=cascade_deactivation)
+
+@jwt_required()
+def activate_calendar(calendar_id):
+    """PUT /api/calendars/<calendar_id>/activate - Activate a calendar"""
+    user_id = int(get_jwt_identity())
+    
+    # Parse cascade parameter (default: true)
+    cascade = request.args.get('cascade', 'true').lower() == 'true'
+
+    service = CalendarService(db.session)
+    
+    try:
+        calendar = service.activate_calendar(user_id, calendar_id, cascade=cascade)
+        if not calendar:
+            return jsonify({"error": "Calendar not found"}), 404
+        return jsonify(calendar.as_dict())
+    except ValidationError as e:
+        return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def deactivate_calendar(calendar_id):
+    """PUT /api/calendars/<calendar_id>/deactivate - Deactivate a calendar"""
+    user_id = int(get_jwt_identity())
+    
+    # Parse cascade parameter (default: true)
+    cascade = request.args.get('cascade', 'true').lower() == 'true'
+
+    service = CalendarService(db.session)
+    
+    try:
+        calendar = service.deactivate_calendar(user_id, calendar_id, cascade=cascade)
         if not calendar:
             return jsonify({"error": "Calendar not found"}), 404
         return jsonify(calendar.as_dict())
