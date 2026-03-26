@@ -21,7 +21,21 @@ def discover_calendars():
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
 
-    client = CalDAVClient(data.get('url'), data.get('username'), data.get('password'))
+    # Validate required fields
+    url = data.get('url')
+    username = data.get('username')
+    password = data.get('password')
+    
+    if not url:
+        return jsonify({"error": "url is required"}), 400
+    
+    if not username:
+        return jsonify({"error": "username is required"}), 400
+    
+    if not password:
+        return jsonify({"error": "password is required"}), 400
+
+    client = CalDAVClient(url, username, password)
     service = CalendarService(db.session)
     try:
         remote_list = service.discover_remote_calendars(client)
@@ -37,12 +51,26 @@ def sync_calendar():
     """POST /api/calendars/sync - Sync a specific remote UID"""
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
+    
+    # Validate required fields
     remote_uid = data.get('remote_uid')
+    url = data.get('url')
+    username = data.get('username')
+    password = data.get('password')
 
     if not remote_uid:
         return jsonify({"error": "remote_uid is required"}), 400
+    
+    if not url:
+        return jsonify({"error": "url is required"}), 400
+    
+    if not username:
+        return jsonify({"error": "username is required"}), 400
+    
+    if not password:
+        return jsonify({"error": "password is required"}), 400
 
-    client = CalDAVClient(data.get('url'), data.get('username'), data.get('password'))
+    client = CalDAVClient(url, username, password)
     service = CalendarService(db.session)
     try:
         result = service.sync_calendar(user_id, remote_uid, client)
