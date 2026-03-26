@@ -78,7 +78,7 @@ def sync_calendar():
     except CalDAVConnectionError as e:
         return jsonify({"error": str(e)}), 401
     except ValidationError as e:
-        return jsonify({"error": e.message}), 400
+        return jsonify({"error": str(e)}), 400
 
 
 @jwt_required()
