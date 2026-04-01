@@ -1,0 +1,220 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-31T11:35:40-05:00
+
+====== Routines ======
+Created Tuesday 31 March 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic routine functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Create a basic routine** - POST /api/routines with only title
+2. **List routines** - GET /api/routines (verify routine appears)
+3. **Get routine by ID** - GET /api/routines/{id}
+4. **Update routine title** - PATCH /api/routines/{id}
+5. **Delete routine** - DELETE /api/routines/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Routines (GET /api/routines) ====
+6. **List routines excludes inactive by default** - Create active and inactive routines, verify only active returned
+7. **List routines with active_only=true** - Verify inactive routines excluded (explicit true)
+8. **List routines with active_only=false** - Verify inactive routines included when param is false
+9. **List routines returns empty array** - New user with no routines gets []
+10. **List routines only returns user's own routines** - Create routines for two different users, verify isolation
+
+==== ✅️Create Routine (POST /api/routines) ====
+11. **Create routine with all fields** - title, description, rrule, start_time, end_time, active, calendar_id
+12. **Create routine verifies defaults** - Verify active=true when not specified
+13. **Create routine with active=false** - Verify inactive routine created
+14. **Create routine with RRULE (FREQ=DAILY)** - Verify RRULE stored correctly
+15. **Create routine with RRULE (FREQ=WEEKLY;BYDAY=MO)** - Verify complex RRULE
+16. **Create routine with RRULE (FREQ=WEEKLY;BYDAY=MO,WE,FR)** - Verify multi-day RRULE
+17. **Create routine without RRULE (ad-hoc)** - Verify routine created for manual session tracking
+18. **Create routine with start_time only** - Verify end_time is optional
+19. **Create routine with end_time only** - Verify start_time is optional
+20. **Create routine with start_time and end_time** - Verify both times stored
+21. **Create routine with calendar_id** - Verify calendar association
+22. **Create routine with external fields** - external_uid, external_source, external_source_name
+23. **Create routine without title** - Verify 400 error
+24. **Create routine with empty title** - Verify 400 error
+25. **Create routine with whitespace-only title** - Verify 400 error
+26. **Create routine with title exactly 200 chars** - Verify success (boundary)
+27. **Create routine with title over 200 chars** - Verify 400 error (boundary)
+28. **Create routine with invalid RRULE format** - Verify 400 error
+29. **Create routine with invalid start_time format** - Verify 400 error (test "25:00" or "invalid")
+30. **Create routine with invalid end_time format** - Verify 400 error
+31. **Create routine with empty request body** - Verify 400 error
+32. **Create routine with nonexistent calendar_id** - Verify 404 error
+33. **Create routine with another user's calendar_id** - Verify 404 error
+
+==== ✅️Get Routine (GET /api/routines/{id}) ====
+34. **Get routine returns full object** - Verify all fields present (including tags, principles)
+35. **Get nonexistent routine** - Verify 404
+36. **Get another user's routine** - Verify 404
+
+==== ✅️Update Routine (PATCH /api/routines/{id}) ====
+37. **Update routine title** - Verify change persists
+38. **Update routine description** - Verify change persists
+39. **Update routine rrule** - Verify change persists
+40. **Update routine start_time** - Verify change persists
+41. **Update routine end_time** - Verify change persists
+42. **Update routine active** - Verify change persists
+43. **Update multiple fields together** - title, description, start_time all at once
+44. **Update routine with empty title** - Verify 400 error
+45. **Update routine with no data** - Verify 400 error "No update data provided"
+46. **Update routine with disallowed field: id** - Verify 400 error
+47. **Update routine with disallowed field: user_id** - Verify 400 error
+48. **Update routine with disallowed field: created_at** - Verify 400 error
+49. **Update routine with disallowed field: updated_at** - Verify 400 error
+50. **Update routine with disallowed field: calendar_id** - Verify 400 error (read-only)
+51. **Update routine with disallowed field: external_uid** - Verify 400 error
+52. **Update routine with disallowed field: external_source** - Verify 400 error
+53. **Update routine with disallowed field: external_source_name** - Verify 400 error
+54. **Update routine with invalid RRULE** - Verify 400 error
+55. **Update routine with invalid start_time** - Verify 400 error
+56. **Update routine with invalid end_time** - Verify 400 error
+57. **Update nonexistent routine** - Verify 404
+58. **Update another user's routine** - Verify 404
+
+==== ✅️Delete Routine (DELETE /api/routines/{id}) ====
+59. **Delete routine returns 204** - Verify response
+60. **Delete routine actually removes it** - Verify GET returns 404 afterward
+61. **Delete routine with sessions (cascade)** - Create routine with 2 sessions, verify all deleted
+62. **Delete nonexistent routine** - Verify 404
+63. **Delete another user's routine** - Verify 404
+
+
+===== Priority 2: Update with Cascade Tests =====
+
+==== ✅️Update with cascade_future (PATCH /api/routines/{id}?cascade_future=...) ====
+64. **Update title with cascade_future=true** - Create routine with future sessions, update title, verify sessions' routine_name updated
+65. **Update title with cascade_future=false** - Update title without cascade, verify sessions unchanged
+66. **Update title without cascade parameter** - Verify default (cascade_future=false)
+67. **Update start_time with cascade_future=true** - Verify future sessions' start_time updated
+68. **Update end_time with cascade_future=true** - Verify future sessions' end_time updated
+69. **Update start_time and end_time with cascade_future=true** - Verify both times cascaded
+70. **Update description with cascade_future=true** - Verify sessions NOT affected (description doesn't cascade)
+71. **Update rrule with cascade_future=true** - Verify sessions NOT affected (rrule doesn't cascade)
+72. **Update active with cascade_future=true** - Verify sessions NOT affected (active doesn't cascade)
+73. **Cascade only affects future sessions** - Create past and future sessions, cascade title, verify only future updated
+
+==== ✅️Update with cascade_past (PATCH /api/routines/{id}?cascade_past=...) ====
+74. **Update title with cascade_past=true** - Create routine with past sessions, update title, verify sessions' routine_name updated
+75. **Update title with cascade_past=false** - Update title without cascade, verify sessions unchanged
+76. **Update title without cascade parameter** - Verify default (cascade_past=false)
+77. **Update start_time with cascade_past=true** - Verify past sessions' start_time updated
+78. **Update end_time with cascade_past=true** - Verify past sessions' end_time updated
+79. **Cascade only affects past sessions** - Create past and future sessions, cascade title with cascade_past=true, verify only past updated
+
+==== ✅️Update with both cascade parameters ====
+80. **Update title with cascade_future=true and cascade_past=true** - Verify ALL sessions updated
+81. **Update times with cascade_future=true and cascade_past=true** - Verify ALL sessions' times updated
+82. **Update with cascade_future=false and cascade_past=false** - Verify NO sessions updated (explicit)
+
+
+===== Priority 2: Session Generation Tests =====
+
+==== Generate Sessions (POST /api/routines/{id}/sessions/generate) ====
+83. **Generate sessions for routine with RRULE (FREQ=DAILY)** - Provide 7-day range, verify 7 sessions created
+84. **Generate sessions for routine with RRULE (FREQ=WEEKLY;BYDAY=MO)** - Provide 4-week range, verify 4 sessions created
+85. **Generate sessions for routine with RRULE (FREQ=WEEKLY;BYDAY=MO,WE,FR)** - Provide 1-week range, verify 3 sessions created
+86. **Generate sessions verifies session count** - Verify response contains array of created sessions
+87. **Generate sessions creates commitments** - Verify each session has associated hard commitment
+88. **Generate sessions with inherit_tags=true** - Verify sessions inherit routine's tags
+89. **Generate sessions with inherit_tags=false** - Verify sessions have no tags
+90. **Generate sessions with inherit_principles=true** - Verify sessions inherit routine's principles
+91. **Generate sessions with inherit_principles=false** - Verify sessions have no principles
+92. **Generate sessions verifies defaults** - inherit_tags and inherit_principles default to true
+93. **Generate sessions uses routine start_time and end_time** - Verify session times match routine times
+94. **Generate sessions skips duplicate dates** - Generate for same range twice, verify no duplicates created
+95. **Generate sessions with end_date as date only** - Verify end_date set to end of day (23:59:59)
+96. **Generate sessions with end_date as datetime** - Verify datetime respected
+97. **Generate sessions without start_date** - Verify 400 error "start_date required"
+98. **Generate sessions without end_date** - Verify 400 error "end_date required"
+99. **Generate sessions with invalid start_date format** - Verify 400 error
+100. **Generate sessions with invalid end_date format** - Verify 400 error
+101. **Generate sessions for routine without RRULE** - Verify 400 error
+102. **Generate sessions for routine without start_time** - Verify 400 error
+103. **Generate sessions for nonexistent routine** - Verify 404
+104. **Generate sessions for another user's routine** - Verify 404
+
+
+===== Priority 2: Session Deletion Tests =====
+
+==== Delete Future Sessions (DELETE /api/routines/{id}/sessions/future) ====
+105. **Delete future sessions with incomplete_only=true (default)** - Create future scheduled and completed sessions, verify only scheduled deleted
+106. **Delete future sessions with incomplete_only=false** - Verify ALL future sessions deleted regardless of status
+107. **Delete future sessions without parameter** - Verify default (incomplete_only=true)
+108. **Delete future sessions returns count** - Verify response includes deleted_count
+109. **Delete future sessions verifies "future" definition** - Only sessions with start_time > now
+110. **Delete future sessions cascade deletes commitments** - Verify associated commitments deleted
+111. **Delete future sessions with no matching sessions** - Verify 0 deleted, no error
+112. **Delete future sessions for nonexistent routine** - Verify 404
+113. **Delete future sessions for another user's routine** - Verify 404
+
+==== Delete Past Sessions (DELETE /api/routines/{id}/sessions/past) ====
+114. **Delete past sessions with incomplete_only=true (default)** - Create past scheduled and completed sessions, verify only scheduled deleted
+115. **Delete past sessions with incomplete_only=false** - Verify ALL past sessions deleted regardless of status
+116. **Delete past sessions without parameter** - Verify default (incomplete_only=true)
+117. **Delete past sessions returns count** - Verify response includes deleted_count
+118. **Delete past sessions verifies "past" definition** - Only sessions with start_time <= now
+119. **Delete past sessions cascade deletes commitments** - Verify associated commitments deleted
+120. **Delete past sessions with no matching sessions** - Verify 0 deleted, no error
+121. **Delete past sessions for nonexistent routine** - Verify 404
+122. **Delete past sessions for another user's routine** - Verify 404
+
+
+===== Priority 2: Edge Cases & Business Logic =====
+
+==== RRULE Variations ====
+123. **Routine with RRULE FREQ=MONTHLY;BYMONTHDAY=1** - Verify first of month recurrence
+124. **Routine with RRULE FREQ=WEEKLY;INTERVAL=2** - Verify every 2 weeks
+125. **Routine with RRULE FREQ=YEARLY** - Verify annual recurrence
+
+==== Time Handling ====
+126. **Routine with start_time but no end_time** - Verify acceptable
+127. **Routine with end_time but no start_time** - Verify acceptable
+128. **Routine with neither start_time nor end_time** - Verify acceptable
+
+==== Activation Status ====
+129. **Deactivate routine (active=false)** - Verify routine hidden from default list
+130. **Activate routine (active=true)** - Verify routine appears in default list
+131. **Generate sessions ignores inactive routines** - Set routine inactive, attempt generation, verify error or behavior
+
+==== Calendar Association ====
+132. **List routines filters by calendar** - Create routines in different calendars, filter by calendar_id (if supported)
+133. **Delete calendar cascades to routines** - Delete calendar, verify routines deleted (cross-entity test)
+134. **Deactivate calendar cascades to routines** - Deactivate calendar with cascade=true, verify routines deactivated (cross-entity test)
+
+
+===== Summary =====
+
+**Total test cases: 134**
+
+* **Smoke tests: 5** (critical path validation)
+* **Extended CRUD: 58** (list, create, get, update, delete with boundaries)
+* **Update with cascade: 19** (cascade_future, cascade_past logic)
+* **Session generation: 22** (RRULE-based session creation)
+* **Session deletion: 18** (future/past session cleanup)
+* **Edge cases & business logic: 12** (RRULE variations, time handling, activation, calendar association)
+
+**Marker suggestions:**
+* ''@pytest.mark.routines'' - All routine tests
+* ''@pytest.mark.smoke_test'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-63
+* ''@pytest.mark.cascade'' - Tests 64-82
+* ''@pytest.mark.session_generation'' - Tests 83-104
+* ''@pytest.mark.session_deletion'' - Tests 105-122
+* ''@pytest.mark.edge_cases'' - Tests 123-134
+
+**Notes:**
+* Tests 64-82 require creating sessions in advance to verify cascade behavior
+* Tests 83-104 require routines with valid RRULE and start_time
+* Tests 105-122 require existing sessions to delete
+* Tests 133-134 are cross-entity integration tests (may belong in separate integration suite)
+* Timezone handling is implicit in the implementation but may warrant explicit testing based on your timezone utilities
