@@ -1,0 +1,161 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-04-04T00:00:00-06:00
+
+====== Checkins ======
+Created Friday 04 April 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic checkin functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Create a basic checkin** - POST /api/checkins with target_type, target_id, note
+2. **List checkins for a target** - GET /api/checkins/target?target_type=task&target_id=123 (verify checkin appears)
+3. **Get checkin by ID** - GET /api/checkins/{id}
+4. **Update checkin note** - PUT /api/checkins/{id}
+5. **Delete checkin** - DELETE /api/checkins/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Checkins for Target (GET /api/checkins/target) ====
+6. **List checkins returns empty array** - Query target with no checkins gets []
+7. **List checkins only returns user's own checkins** - Create checkins for two different users, verify isolation
+8. **List checkins ordered by occurred_at DESC** - Create checkins with different occurred_at times, verify most recent first
+9. **List checkins ordered by created_at DESC when occurred_at equal** - Create checkins with same occurred_at, verify secondary sort by created_at
+10. **List checkins with limit parameter** - Create 10 checkins, request limit=5, verify 5 returned
+11. **List checkins with offset parameter** - Create 10 checkins, request offset=5, verify skips first 5
+12. **List checkins with limit and offset together** - Verify pagination works correctly
+13. **List checkins verifies default limit** - Create 60 checkins, verify only 50 returned by default
+14. **List checkins without target_type** - Verify 400 error
+15. **List checkins without target_id** - Verify 400 error
+16. **List checkins with invalid target_id (not integer)** - Verify 400 error
+17. **List checkins with invalid limit (not integer)** - Verify 400 error
+18. **List checkins with invalid offset (not integer)** - Verify 400 error
+19. **List checkins for nonexistent target** - Verify 404 error
+20. **List checkins for another user's target** - Verify 404 error
+21. **List checkins for target with start_date filter** - Create checkins before and after date, verify only after date returned
+22. **List checkins for target with end_date filter** - Create checkins before and after date, verify only before date returned
+23. **List checkins for target with date range** - Create checkins outside and inside range, verify only inside range returned
+
+==== ✅️List All Checkins (GET /api/checkins) ====
+24. **List all checkins for user** - Create checkins across multiple targets, verify all returned
+25. **List all checkins only returns user's own** - Create checkins for two users, verify isolation
+26. **List all checkins with start_date filter** - Verify date filtering works on all checkins endpoint
+27. **List all checkins with end_date filter** - Verify date filtering works on all checkins endpoint
+28. **List all checkins with date range** - Verify date range filtering works on all checkins endpoint
+29. **List all checkins returns empty for new user** - Verify empty array when user has no checkins
+30. **List all checkins with pagination** - Verify limit and offset work on all checkins endpoint
+
+==== ✅️Create Checkin (POST /api/checkins) ====
+31. **Create checkin with all fields** - target_type, target_id, note, occurred_at
+32. **Create checkin verifies defaults** - Verify occurred_at defaults to now when not specified
+33. **Create checkin with occurred_at in the past (backdating)** - Verify backdating works
+34. **Create checkin with occurred_at in the future** - Verify future dating works
+35. **Create checkin for task target** - Verify target_type="task" works
+36. **Create checkin for project target** - Verify target_type="project" works
+37. **Create checkin for routine target** - Verify target_type="routine" works
+38. **Create checkin for session target** - Verify target_type="session" works
+39. **Create checkin for report target** - Verify target_type="report" works
+40. **Create checkin for tag target** - Verify target_type="tag" works
+41. **Create checkin for principle target** - Verify target_type="principle" works
+42. **Create checkin without target_type** - Verify 400 error
+43. **Create checkin without target_id** - Verify 400 error
+44. **Create checkin without note** - Verify 400 error
+45. **Create checkin with empty note** - Verify 400 error
+46. **Create checkin with whitespace-only note** - Verify 400 error
+47. **Create checkin with invalid target_type** - Verify 400 error (e.g., "invalid_type")
+48. **Create checkin with invalid occurred_at format** - Verify 400 error
+49. **Create checkin with empty request body** - Verify 400 error
+50. **Create checkin for nonexistent target** - Verify 404 error
+51. **Create checkin for another user's target** - Verify 404 error
+52. **Create checkin converts local time to UTC** - Verify occurred_at stored correctly in UTC
+
+==== ✅️Get Checkin (GET /api/checkins/{id}) ====
+53. **Get checkin returns full object** - Verify all fields present (occurred_at converted to local time)
+54. **Get checkin verifies occurred_at in local timezone** - Verify occurred_at converted from UTC
+55. **Get checkin verifies created_at in local timezone** - Verify created_at converted from UTC
+56. **Get checkin verifies updated_at in local timezone** - Verify updated_at converted from UTC
+57. **Get nonexistent checkin** - Verify 404
+58. **Get another user's checkin** - Verify 404
+
+==== ✅️Update Checkin (PUT /api/checkins/{id}) ====
+59. **Update checkin note only** - Verify note changes, occurred_at unchanged
+60. **Update checkin occurred_at only** - Verify occurred_at changes, note unchanged
+61. **Update checkin note and occurred_at together** - Verify both change
+62. **Update checkin with empty note** - Verify 400 error
+63. **Update checkin with whitespace-only note** - Verify 400 error
+64. **Update checkin with no data** - Verify 400 error "No valid fields to update"
+65. **Update checkin with empty request body** - Verify 400 error
+66. **Update checkin with invalid occurred_at format** - Verify 400 error
+67. **Update checkin converts local time to UTC** - Verify occurred_at input treated as local time
+68. **Update checkin cannot change target_type** - Verify target_type is immutable (ignored or error)
+69. **Update checkin cannot change target_id** - Verify target_id is immutable (ignored or error)
+70. **Update nonexistent checkin** - Verify 404
+71. **Update another user's checkin** - Verify 404
+
+==== Delete Checkin (DELETE /api/checkins/{id}) ====
+72. **Delete checkin returns 204** - Verify response
+73. **Delete checkin actually removes it** - Verify GET returns 404 afterward
+74. **Delete nonexistent checkin** - Verify 404
+75. **Delete another user's checkin** - Verify 404
+
+
+===== Priority 2: Business Logic Tests =====
+
+==== Occurred_at vs Created_at Behavior ====
+76. **Occurred_at represents when event happened** - Create checkin with occurred_at yesterday, verify occurred_at is yesterday
+77. **Created_at represents when recorded** - Create checkin with occurred_at yesterday, verify created_at is now
+78. **Occurred_at can be backdated** - Verify occurred_at < created_at is valid
+79. **Occurred_at defaults to now** - Omit occurred_at, verify occurred_at ≈ created_at
+
+==== Timezone Handling ====
+80. **List checkins converts UTC to local time** - Verify occurred_at in response is local
+81. **Get checkin converts UTC to local time** - Verify all timestamps in response are local
+82. **Create checkin accepts local time** - Verify occurred_at input treated as local
+83. **Update checkin accepts local time** - Verify occurred_at input treated as local
+84. **Timezone uses user default when not configured** - Verify fallback to UTC
+
+==== Ordering Logic ====
+85. **Checkins ordered by occurred_at DESC primary** - Create 5 checkins with different occurred_at, verify order
+86. **Checkins ordered by created_at DESC secondary** - Create 3 checkins with same occurred_at, verify created_at order
+87. **Ordering handles null occurred_at (if allowed)** - Verify nulls sorted appropriately (if applicable)
+
+==== Target Type Variations ====
+88. **Multiple checkins can exist for same target** - Create 5 checkins for same task, verify all listed
+89. **Checkins for different targets are isolated** - Create checkins for task and project, verify filtering works
+90. **Checkins support all target types** - Create checkin for each target type, verify all work
+
+
+===== Summary =====
+
+**Total test cases: 90**
+* **Smoke tests: 5** (critical path validation)
+* **List checkins for target: 18** (tests 6-23, including date filtering)
+* **List all checkins: 7** (tests 24-30, new endpoint)
+* **Create checkin: 22** (tests 31-52)
+* **Get checkin: 6** (tests 53-58)
+* **Update checkin: 13** (tests 59-71)
+* **Delete checkin: 4** (tests 72-75)
+* **Business logic: 15** (tests 76-90, occurred_at vs created_at, timezone handling, ordering, target types)
+
+**Marker suggestions:**
+* ''@pytest.mark.checkins'' - All checkin tests
+* ''@pytest.mark.smoke'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-75
+* ''@pytest.mark.list'' - Tests 6-30 (both list endpoints)
+* ''@pytest.mark.create'' - Tests 31-52
+* ''@pytest.mark.get'' - Tests 53-58
+* ''@pytest.mark.update'' - Tests 59-71
+* ''@pytest.mark.delete'' - Tests 72-75
+* ''@pytest.mark.business_logic'' - Tests 76-90
+
+**Notes:**
+* Two list endpoints: /api/checkins/target (requires target params) and /api/checkins (all user checkins)
+* Both list endpoints support optional start_date and end_date filtering
+* Timezone tests assume user timezone configuration exists (similar to other entities)
+* Tests 35-41 require creating target entities (task, project, routine, session, report, tag, principle)
+* Ordering tests (85-87) may need careful timing or explicit occurred_at values to avoid race conditions
+* The distinction between occurred_at and created_at is a key design feature worth thorough testing
