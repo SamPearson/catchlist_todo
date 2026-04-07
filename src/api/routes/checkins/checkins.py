@@ -85,6 +85,23 @@ def list_checkins():
         return jsonify({"error": "limit and offset must be integers."}), 400
 
     user_timezone = get_user_timezone(user_id)
+    
+    # Parse optional date range parameters
+    start_date = None
+    end_date = None
+    
+    if request.args.get("start_date"):
+        try:
+            start_date = to_utc(parse_dt(request.args.get("start_date"), user_timezone), user_timezone)
+        except ValueError:
+            return jsonify({"error": "Invalid start_date format. Expected ISO 8601 datetime."}), 400
+    
+    if request.args.get("end_date"):
+        try:
+            end_date = to_utc(parse_dt(request.args.get("end_date"), user_timezone), user_timezone)
+        except ValueError:
+            return jsonify({"error": "Invalid end_date format. Expected ISO 8601 datetime."}), 400
+
     service = CheckinService(session=db.session)
     try:
         items = service.list_for_target(
@@ -93,12 +110,64 @@ def list_checkins():
             target_id=target_id,
             limit=limit,
             offset=offset,
+            start_date=start_date,
+            end_date=end_date,
         )
         return jsonify([_localize_checkin(c.as_dict(), user_timezone) for c in items])
     except CheckinTargetNotFound as e:
         return jsonify({"error": e.message}), 404
     except CheckinValidationError as e:
         return jsonify({"error": e.message}), 400
+
+
+@jwt_required()
+def list_all_checkins():
+    """
+    List all checkins for the authenticated user, optionally filtered by date range.
+    
+    Query params:
+    - limit: max records to return (default 50)
+    - offset: records to skip (default 0)
+    - start_date: filter checkins on or after this date (ISO 8601)
+    - end_date: filter checkins on or before this date (ISO 8601)
+    """
+    user_id = int(get_jwt_identity())
+
+    limit = request.args.get("limit", "50")
+    offset = request.args.get("offset", "0")
+    try:
+        limit = int(limit)
+        offset = int(offset)
+    except ValueError:
+        return jsonify({"error": "limit and offset must be integers."}), 400
+
+    user_timezone = get_user_timezone(user_id)
+    
+    # Parse optional date range parameters
+    start_date = None
+    end_date = None
+    
+    if request.args.get("start_date"):
+        try:
+            start_date = to_utc(parse_dt(request.args.get("start_date"), user_timezone), user_timezone)
+        except ValueError:
+            return jsonify({"error": "Invalid start_date format. Expected ISO 8601 datetime."}), 400
+    
+    if request.args.get("end_date"):
+        try:
+            end_date = to_utc(parse_dt(request.args.get("end_date"), user_timezone), user_timezone)
+        except ValueError:
+            return jsonify({"error": "Invalid end_date format. Expected ISO 8601 datetime."}), 400
+
+    service = CheckinService(session=db.session)
+    items = service.list_for_user(
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return jsonify([_localize_checkin(c.as_dict(), user_timezone) for c in items])
 
 
 @jwt_required()
