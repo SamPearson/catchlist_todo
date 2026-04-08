@@ -1,0 +1,143 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-04-08T07:06:08-05:00
+
+====== Tags ======
+Created Wednesday 08 April 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic tag functionality works at all.
+
+==== Smoke Test List ====
+1. **Create a basic tag** - POST /api/tags with only name
+2. **List tags** - GET /api/tags (verify tag appears)
+3. **Get tag by ID** - GET /api/tags/{id}
+4. **Update tag name** - PUT /api/tags/{id}
+5. **Delete tag** - DELETE /api/tags/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== List Tags (GET /api/tags) ====
+6. **List tags returns empty array** - New user with no tags gets []
+7. **List tags only returns user's own tags** - Create tags for two different users, verify isolation
+8. **List tags returns all tags** - Create 5 tags, verify all returned (no filtering)
+
+==== Create Tag (POST /api/tags) ====
+9. **Create tag with all fields** - name and color
+10. **Create tag verifies defaults** - Verify color defaults to #6c757d (gray) when not specified
+11. **Create tag with custom color** - Verify color is set correctly
+12. **Create tag without name** - Verify 400 error
+13. **Create tag with empty name** - Verify 400 error
+14. **Create tag with whitespace-only name** - Verify 400 error
+15. **Create tag with name exactly 50 chars** - Verify success (boundary)
+16. **Create tag with name over 50 chars** - Verify 400 error (boundary)
+17. **Create tag with color exactly 10 chars** - Verify success (boundary)
+18. **Create tag with color over 10 chars** - Verify 400 error (boundary)
+19. **Create tag with empty request body** - Verify 400 error
+20. **Create duplicate tag name** - Verify allowed (tags can have same name)
+
+==== Get Tag (GET /api/tags/{id}) ====
+21. **Get tag returns full object** - Verify all fields present (id, user_id, name, color, created_at, updated_at)
+22. **Get nonexistent tag** - Verify 404
+23. **Get another user's tag** - Verify 404
+
+==== Update Tag (PUT /api/tags/{id}) ====
+24. **Update tag name only** - Verify name changes, color unchanged
+25. **Update tag color only** - Verify color changes, name unchanged
+26. **Update tag name and color together** - Verify both change
+27. **Update tag with empty name** - Verify 400 error
+28. **Update tag with whitespace-only name** - Verify 400 error
+29. **Update tag with no data** - Verify 400 error or accepts (check API behavior)
+30. **Update tag with empty request body** - Verify 400 error
+31. **Update nonexistent tag** - Verify 404
+32. **Update another user's tag** - Verify 404
+
+==== Delete Tag (DELETE /api/tags/{id}) ====
+33. **Delete tag returns 204** - Verify response
+34. **Delete tag actually removes it** - Verify GET returns 404 afterward
+35. **Delete tag with attachments (cascade)** - Attach tag to task, delete tag, verify association removed
+36. **Delete nonexistent tag** - Verify 404
+37. **Delete another user's tag** - Verify 404
+
+
+===== Priority 2: Tag Association Tests =====
+
+==== Attach Tag to Entity (POST /api/tags/attach) ====
+38. **Attach tag to task** - Verify target_type="task" works
+39. **Attach tag to project** - Verify target_type="project" works
+40. **Attach tag to routine** - Verify target_type="routine" works
+41. **Attach tag to session** - Verify target_type="session" works
+42. **Attach tag to calendar** - Verify target_type="calendar" works
+43. **Attach tag to report** - Verify target_type="report" works
+44. **Attach tag verifies idempotent** - Attach same tag to same entity twice, verify success both times
+45. **Attach tag without tag_id** - Verify 400 error
+46. **Attach tag without target_type** - Verify 400 error
+47. **Attach tag without target_id** - Verify 400 error
+48. **Attach tag with empty request body** - Verify 400 error
+49. **Attach tag with invalid target_type** - Verify 422 error with code "INVALID_TARGET_TYPE"
+50. **Attach tag with nonexistent tag_id** - Verify 404 error
+51. **Attach tag with nonexistent target_id** - Verify 404 error
+52. **Attach tag with another user's tag** - Verify 404 error
+53. **Attach tag with another user's target entity** - Verify 404 error
+54. **Attach multiple tags to same entity** - Verify multiple attachments work
+
+==== Detach Tag from Entity (POST /api/tags/detach) ====
+55. **Detach tag from task** - Attach then detach, verify removal
+56. **Detach tag from project** - Attach then detach, verify removal
+57. **Detach tag from routine** - Attach then detach, verify removal
+58. **Detach tag from session** - Attach then detach, verify removal
+59. **Detach tag from calendar** - Attach then detach, verify removal
+60. **Detach tag from report** - Attach then detach, verify removal
+61. **Detach tag verifies idempotent** - Detach non-attached tag, verify success
+62. **Detach tag without tag_id** - Verify 400 error
+63. **Detach tag without target_type** - Verify 400 error
+64. **Detach tag without target_id** - Verify 400 error
+65. **Detach tag with empty request body** - Verify 400 error
+66. **Detach tag with invalid target_type** - Verify 422 error with code "INVALID_TARGET_TYPE"
+67. **Detach tag with nonexistent tag_id** - Verify 404 error
+68. **Detach tag with nonexistent target_id** - Verify 404 error
+69. **Detach tag from another user's target entity** - Verify 404 error
+
+
+===== Priority 2: Business Logic Tests =====
+
+==== Tag Cascade Deletion ====
+70. **Delete tag removes all associations** - Attach tag to 3 different entities, delete tag, verify all associations removed
+
+==== Tag Visibility on Entities ====
+71. **Get task includes attached tags** - Attach tag to task, GET task, verify tags array present
+72. **Get project includes attached tags** - Attach tag to project, GET project, verify tags array present
+73. **Get routine includes attached tags** - Attach tag to routine, GET routine, verify tags array present
+74. **Get session includes attached tags** - Attach tag to session, GET session, verify tags array present
+
+==== Multiple Tag Attachments ====
+75. **Attach multiple tags to single entity** - Attach 3 tags to one task, verify all appear
+76. **Detach one of multiple tags** - Attach 3 tags, detach 1, verify 2 remain
+
+
+===== Summary =====
+
+**Total test cases: 76**
+* **Smoke tests: 5** (critical path validation)
+* **Extended CRUD: 32** (list, create, get, update, delete with boundaries)
+* **Tag association: 32** (attach/detach for all entity types)
+* **Business logic: 7** (cascade deletion, entity visibility, multiple attachments)
+
+**Marker suggestions:**
+* ''@pytest.mark.tags'' - All tag tests
+* ''@pytest.mark.smoke_test'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-37
+* ''@pytest.mark.attach'' - Tests 38-54
+* ''@pytest.mark.detach'' - Tests 55-69
+* ''@pytest.mark.business_logic'' - Tests 70-76
+
+**Notes:**
+* Tests 38-43, 55-60, 71-76 require creating target entities (task, project, routine, session, calendar, report)
+* Test 35 verifies cascade deletion behavior
+* Tests 44, 61 verify idempotent behavior for attach/detach operations
+* Tests 49, 66 specifically check for 422 status with "INVALID_TARGET_TYPE" error code
+* Color validation tests (17-18) should verify hex color format if API enforces it
+* Test 29 behavior should be verified - some APIs reject empty updates, others accept them as no-op
