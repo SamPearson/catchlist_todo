@@ -98,18 +98,22 @@ def update_tag(tag_id):
     """Update a tag"""
     user_id = get_jwt_identity()
     tag_service = TagService(db.session)
-    
+
+    input_data = request.get_json() or {}
+    if not input_data:
+        return jsonify({'error': 'No update data provided'}), 400
+
     tag = tag_service.get_tag(tag_id=tag_id, user_id=user_id)
     if not tag:
         return ('', 404)
 
-    data = request.get_json() or {}
+
     try:
         updated_tag = tag_service.update_tag(
             tag_id=tag_id,
             user_id=user_id,
-            name=data.get('name'),
-            color=data.get('color')
+            name=input_data.get('name'),
+            color=input_data.get('color')
         )
         return jsonify(updated_tag.as_dict()) if updated_tag else ('', 404)
     except TagValidationError as e:
