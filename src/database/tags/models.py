@@ -34,6 +34,6 @@ class Tag(UserOwnedModel):
         data = super().as_dict()
         data.update({
             'name': self.name,
-            'color': self.color
+            'color': f'#{self.color}'
         })
         return data
