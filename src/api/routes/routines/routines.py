@@ -5,6 +5,8 @@ from zoneinfo import ZoneInfo
 
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.routines.service import RoutineService, RoutineValidationError
 from src.database.sessions.service import SessionService
@@ -49,7 +51,7 @@ def get_routine(routine_id: int):
     routine = service.get_routine(routine_id, user_id)
 
     if not routine:
-        return '', 404
+        return jsonify({'error': f'Routine {routine_id} not found'}), 404
 
     # Convert routine to dict and localize timestamps
     routine_dict = routine.as_dict()
@@ -64,6 +66,12 @@ def create_routine():
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
     service = RoutineService(db.session)
+
+    if data.get('external_uid') or data.get('external_source') or data.get('external_source_name'):
+        return jsonify({"error": "Cannot set external_uid, external_source or external_source_name manually."
+                                 "If this routine is connect to an external calendar, "
+                                 "create it with the sync calendar endpoint instead."}), 400
+
 
     try:
         routine = service.create_routine(user_id, data)
@@ -110,24 +118,32 @@ def update_routine(routine_id: int):
             cascade_past=cascade_past
         )
 
-        if not updated:
-            return '', 404
-
         # Get user timezone and localize the response
         user_timezone = get_user_timezone(user_id)
         routine_dict = updated.as_dict()
         localized = localize_dict(routine_dict, user_timezone)
 
         return jsonify(localized)
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
     except RoutineValidationError as e:
         return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logging.error(f"Error in update_routine: {str(e)}")
+        logging.error(traceback.format_exc())
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 
 @jwt_required()
 def delete_routine(routine_id: int):
     user_id = int(get_jwt_identity())
     service = RoutineService(db.session)
-    return ('', 204) if service.delete_routine(routine_id, user_id) else ('', 404)
+
+    try:
+        service.delete_routine(routine_id, user_id)
+        return ('', 204)
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
 
 @jwt_required()
 def delete_future_sessions(routine_id: int):
@@ -170,7 +186,7 @@ def delete_past_sessions(routine_id: int):
 
         routine = service.get_routine(routine_id, user_id)
         if not routine:
-            return '', 404
+            return jsonify({'error': f'Routine {routine_id} not found'}), 404
 
         # Get past sessions and delete them
         if incomplete_only:

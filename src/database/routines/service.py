@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .models import Routine
 from .repository import RoutineRepo
 from src.database.base.exceptions import ValidationError
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.sessions.models import RoutineSession
 from src.database.sessions.repository import SessionRepo
 from src.database.timeframes.service import TimeframeService
@@ -11,6 +12,7 @@ from src.database.commitments.service import CommitmentService
 from src.utils.timezone import compute_timeframe_bounds, utc_to_local_date
 from dateutil.rrule import rrulestr
 import logging
+
 
 
 class RoutineValidationError(ValidationError):
@@ -35,8 +37,24 @@ class RoutineService:
         return self.repo.list_for_user(user_id, **filters)
 
     def create_routine(self, user_id: int, data: Dict[str, Any]) -> Routine:
+        from ..calendars.service import CalendarService #importing here to avoid cicular import
+        self.calendar_service = CalendarService(self.session)
+
         if not data.get('title'):
             raise RoutineValidationError("Title is required for routines")
+
+        if data.get('title').strip() == '':
+            raise RoutineValidationError("Title cannot be empty")
+
+        if len(data.get('title', '')) > 200:
+            raise RoutineValidationError("Title cannot exceed 200 characters")
+
+        if data.get('rrule'):
+            try:
+                rrulestr(data['rrule'])
+            except ValueError as e:
+                raise RoutineValidationError(f"Invalid rrule: {e}")
+
 
         # Convert time strings to time objects
         start_time = None
@@ -57,18 +75,22 @@ class RoutineService:
             except ValueError:
                 raise RoutineValidationError("end_time must be in HH:MM format")
 
+        calendar_id = data.get('calendar_id')
+        if calendar_id and not self.calendar_service.get_calendar(calendar_id, user_id):
+            raise RoutineValidationError( f"Calendar {calendar_id} not found.")
+
         return self.repo.create(
-            user_id=user_id,
-            title=data['title'],
-            description=data.get('description'),
-            rrule=data.get('rrule'),
-            start_time=start_time,
-            end_time=end_time,
-            active=data.get('active', True),
-            external_uid=data.get('external_uid'),
-            external_source=data.get('external_source'),
-            external_source_name=data.get('external_source_name'),
-            calendar_id=data.get('calendar_id')
+            user_id = user_id,
+            title = data['title'],
+            description = data.get('description'),
+            rrule = data.get('rrule'),
+            start_time = start_time,
+            end_time = end_time,
+            active = data.get('active', True),
+            external_uid = data.get('external_uid'),
+            external_source = data.get('external_source'),
+            external_source_name = data.get('external_source_name'),
+            calendar_id = calendar_id
         )
 
 
@@ -221,11 +243,17 @@ class RoutineService:
         """
         routine = self.get_routine(routine_id, user_id)
         if not routine:
-            return None
+            raise EntityNotFoundError(f"Routine {routine_id} not found")
 
         # Standardize allowed update fields
         updatable = ['title', 'description', 'rrule', 'active', 'start_time', 'end_time']
         update_data = {k: v for k, v in data.items() if k in updatable}
+
+        if data.get('rrule'):
+            try:
+                rrulestr(data['rrule'])
+            except ValueError as e:
+                raise RoutineValidationError(f"Invalid rrule: {e}")
 
         if 'title' in update_data and not update_data['title']:
             raise RoutineValidationError("Title cannot be empty")
@@ -333,6 +361,7 @@ class RoutineService:
         """
         routine = self.get_routine(routine_id, user_id)
         if not routine:
-            return False
+            raise EntityNotFoundError(f"Routine {routine_id} not found")
+
 
         return self.repo.delete(routine)
