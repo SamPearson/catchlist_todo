@@ -115,10 +115,15 @@ def update_session(session_id: int):
     # Check for disallowed fields
     disallowed_fields = {'status', 'routine_id', 'user_id', 'id', 'created_at', 'updated_at'}
     if any(field in data for field in disallowed_fields):
-        return jsonify({
-            'error': 'Cannot update status via this endpoint. Use PATCH /api/sessions/{id}/status instead. '
-                     'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
-        }), 400
+        if 'status' in data:
+            return jsonify({
+                'error': 'Cannot update status via this endpoint. Use PATCH /api/sessions/{id}/status instead. '
+                         'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
+            }), 400
+        else:
+            return jsonify({
+                'error': 'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
+            })
 
     try:
         user_timezone = get_user_timezone(user_id)

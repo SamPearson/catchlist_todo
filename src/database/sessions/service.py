@@ -45,35 +45,14 @@ class SessionService:
         Silently handles conflicts (commitment already exists).
         """
         try:
-            from src.utils.timezone import utc_to_local_date, compute_timeframe_bounds
 
-            # Get the local date for the session's end time
-            local_date = utc_to_local_date(session_obj.end_time, user_tz)
-
-            # Compute day timeframe bounds
-            start_utc, end_utc, label = compute_timeframe_bounds(
-                kind="day",
-                local_day=local_date,
-                user_tz=user_tz,
-            )
-
-            # Get or create the day timeframe
-            timeframe = self.timeframe_service.get_or_create_for_bounds(
-                user_id=user_id,
-                kind="day",
-                start_utc=start_utc,
-                end_utc=end_utc,
-                label=label,
-            )
-
-            # Create hard commitment directly (no special method needed)
             self.commitment_service.create_hard(
                 user_id=user_id,
                 target_type="session",
                 target_id=session_obj.id,
-                timeframe_id=timeframe.id,
-                start_at_utc=session_obj.start_time,
-                due_at_utc=session_obj.end_time,
+                timezone=user_tz,
+                start_at=session_obj.start_time,
+                due_at=session_obj.end_time,
                 status="planned",
                 notes=None,
             )

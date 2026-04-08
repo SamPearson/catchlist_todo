@@ -34,7 +34,7 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
             return delta.total_seconds() / 60
         return 0
 
-    def as_dict(self):
+    def as_dict(self, user_timezone: str = 'UTC'):
         """
         Return a dictionary representation of the model.
         Datetime values are returned in ISO format (UTC).

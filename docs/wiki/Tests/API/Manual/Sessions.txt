@@ -1,0 +1,140 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-04-01T18:30:37-05:00
+
+====== Sessions ======
+Created Wednesday 01 April 2026
+
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic session functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Create a basic session** - POST /api/routines/<routine_id>/sessions with start_time and end_time
+2. **List sessions in window** - GET /api/sessions?start=<start>&end=<end> (verify session appears)
+3. **Get session by ID** - GET /api/sessions/<session_id>
+4. **Update session** - PATCH /api/sessions/<session_id>
+5. **Delete session** - DELETE /api/sessions/<session_id>
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Sessions (GET /api/sessions) ====
+6. **List sessions returns only sessions in window** - Create sessions in and out of window, verify filtering
+7. **List sessions returns empty array** - Query window with no sessions gets []
+8. **List sessions only returns user's own sessions** - Create sessions for two different users, verify isolation
+9. **List sessions without start parameter** - Verify 400 error
+10. **List sessions without end parameter** - Verify 400 error
+11. **List sessions with invalid start format** - Verify 400 error
+12. **List sessions with invalid end format** - Verify 400 error
+
+==== ✅️Create Session (POST /api/routines/<routine_id>/sessions) ====
+13. **Create session with all fields** - start_time, end_time, status, notes, rpe
+14. **Create session verifies defaults** - Verify status="scheduled" when not specified
+15. **Create session with status completed** - Verify status is set correctly
+16. **Create session with status skipped** - Verify status is set correctly
+17. **Create session with status cancelled** - Verify status is set correctly
+18. **Create session with notes and rpe** - Verify both fields stored correctly
+19. **Create session with inherit_tags=true (default)** - Verify tags inherited from routine
+20. **Create session with inherit_tags=false** - Verify session has no tags
+21. **Create session with inherit_principles=true (default)** - Verify principles inherited from routine
+22. **Create session with inherit_principles=false** - Verify session has no principles
+23. **Create session with both inheritance flags false** - Verify session has no tags or principles
+24. **Create session verifies commitment auto-created** - Verify hard commitment exists for session
+25. **Create session without start_time** - Verify 400 error
+26. **Create session without end_time** - Verify 400 error
+27. **Create session with empty request body** - Verify 400 error
+28. **Create session for nonexistent routine** - Verify 400 or 404 error
+29. **Create session for another user's routine** - Verify 404 error
+
+==== ✅️Get Session (GET /api/sessions/<session_id>) ====
+30. **Get session returns full object** - Verify all fields present (including tags, principles, duration_minutes)
+31. **Get session verifies duration_minutes computed** - Verify duration calculated from start/end times
+32. **Get nonexistent session** - Verify 404
+33. **Get another user's session** - Verify 404
+
+==== ✅️Update Session (PATCH /api/sessions/<session_id>) ====
+34. **Update session start_time only** - Verify change persists
+35. **Update session end_time only** - Verify change persists
+36. **Update session notes only** - Verify change persists
+37. **Update session rpe only** - Verify change persists
+38. **Update multiple fields together** - start_time, end_time, notes, rpe all at once
+39. **Update session with no data** - Verify 400 error "No update data provided"
+40. **Update session with empty request body** - Verify 400 error
+41. **Update session with disallowed field: status** - Verify field ignored or error (use status endpoint instead)
+42. **Update session with disallowed field: routine_id** - Verify 400 error
+43. **Update session with disallowed field: user_id** - Verify 400 error
+44. **Update session with invalid start_time format** - Verify 400 error
+45. **Update session with invalid end_time format** - Verify 400 error
+46. **Update nonexistent session** - Verify 404
+47. **Update another user's session** - Verify 404
+
+==== Delete Session (DELETE /api/sessions/<session_id>) ====
+48. **Delete session returns 204** - Verify response
+49. **Delete session actually removes it** - Verify GET returns 404 afterward
+50. **Delete session cascade deletes commitment** - Verify associated commitment deleted
+51. **Delete nonexistent session** - Verify 404
+52. **Delete another user's session** - Verify 404
+
+
+===== Priority 2: Status Management Tests =====
+
+==== Set Session Status (PATCH /api/sessions/<session_id>/status) ====
+53. **Set status to scheduled** - Verify status changes
+54. **Set status to completed** - Verify status changes
+55. **Set status to skipped** - Verify status changes
+56. **Set status to cancelled** - Verify status changes
+57. **Set status to invalid value** - Verify 400 error
+58. **Set status without status field** - Verify 400 error "status is required"
+59. **Set status with empty request body** - Verify 400 error
+60. **Set status on nonexistent session** - Verify 404
+61. **Set status on another user's session** - Verify 404
+
+
+===== Priority 2: Business Logic Tests =====
+
+==== Inheritance Behavior ====
+62. **Session inherits tags when inherit_tags=true** - Create routine with tags, verify session receives them
+63. **Session inherits principles when inherit_principles=true** - Create routine with principles, verify session receives them
+64. **Session with inherit_tags=false has no tags** - Verify tags not inherited
+65. **Session with inherit_principles=false has no principles** - Verify principles not inherited
+
+==== Commitment Auto-Creation ====
+66. **Session creation auto-creates hard commitment** - Verify commitment exists with due_at = session.end_time
+67. **Session commitment attached to day timeframe** - Verify commitment.timeframe_id is day containing session
+68. **Session deletion auto-deletes commitment** - Verify commitment removed when session deleted
+
+==== Duration Calculation ====
+69. **Session duration_minutes computed correctly** - Verify end_time - start_time in minutes
+
+==== Timezone Handling ====
+70. **Session datetimes returned in user timezone** - Verify start_time and end_time converted from UTC
+
+
+===== Summary =====
+
+**Total test cases: 70**
+
+* **Smoke tests: 5** (critical path validation)
+* **Extended CRUD: 47** (list, create, get, update, delete with boundaries)
+* **Status management: 9** (dedicated status endpoint)
+* **Business logic: 9** (inheritance, commitments, duration, timezone)
+
+**Marker suggestions:**
+* ''@pytest.mark.sessions'' - All session tests
+* ''@pytest.mark.smoke_test'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-52
+* ''@pytest.mark.create'' - Tests 13-29
+* ''@pytest.mark.get'' - Tests 30-33
+* ''@pytest.mark.list'' - Tests 6-12
+* ''@pytest.mark.update'' - Tests 34-47
+* ''@pytest.mark.delete'' - Tests 48-52
+* ''@pytest.mark.entity_integration'' - Tests 62-70 (cross-entity behavior with routines, commitments, tags, principles)
+
+**Notes:**
+* Tests 19-24, 62-65 require routines with tags/principles to verify inheritance
+* Tests 24, 66-68 verify cross-entity behavior with commitments
+* Timezone tests (70) may require user configuration or timezone utilities
+* Session generation via RRULE is tested in the Routines test suite, not here
