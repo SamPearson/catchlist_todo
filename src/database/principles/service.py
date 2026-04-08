@@ -25,6 +25,13 @@ class PrincipleService:
         if not title:
             raise PrincipleValidationError("Principle title is required.")
 
+        if len(title) > 50:
+            raise PrincipleValidationError("Name cannot exceed 50 characters.")
+
+        if self.repo.exists_by_title(title, user_id):
+            raise PrincipleValidationError(f"A tag with the name '{title}' already exists.")
+
+
         return self.repo.create(
             user_id=user_id,
             title=title,
@@ -39,17 +46,32 @@ class PrincipleService:
             return None
 
         update_data = {}
-        if 'title' in data:
-            if not data['title'].strip():
+        update_title = data['title']
+        if update_title:
+            if not update_title.strip():
                 raise PrincipleValidationError("Title cannot be empty.")
-            update_data['title'] = data['title'].strip()
+            update_data['title'] = update_title.strip()
+
+            if self.repo.exists_by_title(update_title, user_id):
+                raise PrincipleValidationError(f"A tag with the name '{update_title}' already exists.")
+
+            if len(update_title) > 50:
+                raise PrincipleValidationError("Name cannot exceed 50 characters.")
+
+
+        color = data.get('color')
+        if color is not None:
+            color = color.strip()
+            if color.startswith('#'):
+                update_data['color'] = color[1:]
+            if len(color) != 6:
+                raise PrincipleValidationError("Invalid color format. Use #RRGGBB.")
+
 
         if 'description' in data:
             update_data['description'] = data['description']
         if 'reason' in data:
             update_data['reason'] = data['reason']
-        if 'color' in data:
-            update_data['color'] = data['color']
 
         return self.repo.update(principle, **update_data)
 
