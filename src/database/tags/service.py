@@ -112,5 +112,9 @@ class TagService:
             self.session.delete(association)
             self.session.commit()
             return True
+        else:
+            raise TagValidationError(
+                f"Tag '{tag.name}' is not attached to this {entity.__class__.__name__.lower()}"
+            )
         
         return False
