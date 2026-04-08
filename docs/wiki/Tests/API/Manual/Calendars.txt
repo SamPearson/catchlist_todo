@@ -1,0 +1,121 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-03-25T13:29:42-05:00
+
+====== Calendars ======
+Created Wednesday 25 March 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic calendar functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Create a basic calendar** - POST /api/calendars with only name
+2. **List calendars** - GET /api/calendars (verify calendar appears)
+3. **Get calendar by ID** - GET /api/calendars/{id}
+4. **Update calendar name** - PUT /api/calendars/{id}
+5. **Delete calendar** - DELETE /api/calendars/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Calendars (GET /api/calendars) ====
+6. **List calendars excludes inactive by default** - Create active and inactive calendars, verify only active returned
+7. **List calendars with include_inactive=true** - Verify inactive calendars included when param is true
+8. **List calendars with include_inactive=false** - Verify inactive calendars excluded (explicit false)
+9. **List calendars returns empty array** - New user with no calendars gets []
+10. **List calendars only returns user's own calendars** - Create calendars for two different users, verify isolation
+
+==== ✅️Create Calendar (POST /api/calendars) ====
+11. **Create calendar with all fields** - name, color, external_uid, external_source
+12. **Create calendar verifies defaults** - Verify active=true, color="#767676" when not specified
+13. **Create calendar with custom color** - Verify color is set correctly
+14. **Create calendar without name** - Verify 400 error
+15. **Create calendar with empty name** - Verify 400 error
+16. **Create calendar with whitespace-only name** - Verify 400 error
+17. **Create calendar with name exactly 200 chars** - Verify success (boundary)
+18. **Create calendar with name over 200 chars** - Verify 400 error (boundary)
+19. **Create calendar with empty request body** - Verify 400 error
+20. **Create calendar with invalid color format** - Verify validation (e.g., "red" instead of "#ff0000")
+
+==== ✅️Get Calendar (GET /api/calendars/{id}) ====
+22. **Get calendar returns full object** - Verify all fields present (including tags, principles)
+23. **Get nonexistent calendar** - Verify 404
+24. **Get another user's calendar** - Verify 404 (not 403; acts as if doesn't exist)
+
+==== ✅️Update Calendar (PUT /api/calendars/{id}) ====
+25. **Update calendar name** - Verify change persists
+26. **Update calendar color** - Verify change persists
+27. **Update calendar active status** - Verify change persists
+28. **Update name and color together** - Verify both change
+29. **Update calendar with empty name** - Verify 400 error
+30. **Update calendar with no data** - Verify 400 error "No update data provided"
+31. **Update calendar with external_uid** - Verify field is read-only (should not update or should error)
+32. **Update calendar with external_source** - Verify field is read-only (should not update or should error)
+33. **Update nonexistent calendar** - Verify 404
+34. **Update another user's calendar** - Verify 404
+
+==== ✅️Delete Calendar (DELETE /api/calendars/{id}) ====
+35. **Delete calendar returns 204** - Verify response
+36. **Delete calendar actually removes it** - Verify GET returns 404 afterward
+37. **Delete calendar with routines (cascade)** - Create calendar with 2 routines, verify all deleted
+38. **Delete nonexistent calendar** - Verify 404
+39. **Delete another user's calendar** - Verify 404
+
+
+===== Priority 2: Calendar Deactivation Logic =====
+
+==== ✅️Cascade Deactivation (PUT /api/calendars/{id}?cascade_deactivation=...) ====
+40. **Deactivate calendar with cascade=true (default)** - Create calendar with 2 active routines, set active=false, verify routines are deactivated
+41. **Deactivate calendar with cascade=false** - Create calendar with 2 active routines, set active=false with cascade_deactivation=false, verify routines remain active
+42. **Deactivate calendar without cascade parameter** - Verify default behavior (cascade=true)
+43. **Activate calendar with cascade = true**
+44. **Activate calendar with cascade = false**
+45. **Activate calendar without cadcade param **
+
+
+===== Priority 2: CalDAV Integration Tests =====
+
+==== ✅️Discover Remote Calendars (POST /api/calendars/discover) ====
+45. **Discover calendars with valid credentials** - Provide valid CalDAV url/username/password, verify list of remote calendars returned
+46. **Discover calendars without url** - Verify 400 error (missing required field)
+47. **Discover calendars without username** - Verify 400 error (missing required field)
+48. **Discover calendars without password** - Verify 400 error (missing required field)
+49. **Discover calendars with empty request body** - Verify 400 error
+50. **Discover calendars with invalid credentials** - Verify 401 error (CalDAV connection failure)
+51. **Discover calendars with malformed url** - Verify 401 error (CalDAV connection failure)
+
+==== ✅️Sync Calendar (POST /api/calendars/sync) ====
+52. **Sync calendar creates new calendar** - Provide valid credentials and remote_uid, verify calendar created with external_uid and external_source='caldav'
+53. **Sync calendar returns created_routines count** - Verify response includes calendar_id and created_routines
+54. **Sync calendar with existing external_uid** - Sync same remote_uid twice, verify uses existing calendar (no duplicate)
+55. **Sync calendar creates routines from recurring events** - Verify routines are created with RRULE
+56. **Sync calendar without remote_uid** - Verify 400 error "remote_uid is required"
+57. **Sync calendar without url** - Verify 400 error
+58. **Sync calendar without username** - Verify 400 error
+59. **Sync calendar without password** - Verify 400 error
+60. **Sync calendar with empty request body** - Verify 400 error
+61. **Sync calendar with invalid credentials** - Verify 401 error (CalDAV connection failure)
+62. **Sync calendar with nonexistent remote_uid** - Verify appropriate error (400 or 401)
+
+
+===== Summary =====
+
+**Total test cases: 62**
+* **Smoke tests: 5** (critical path validation)
+* **Extended CRUD: 34** (thorough CRUD operations)
+* **Cascade deactivation: 5** (business logic)
+* **CalDAV integration: 18** (external sync functionality)
+
+**Marker suggestions:**
+* ''@pytest.mark.calendars'' - All calendar tests
+* ''@pytest.mark.smoke_test'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-39
+* ''@pytest.mark.caldav'' - Tests 45-62
+
+**Notes:**
+* CalDAV tests (45-62) may require mocking or a test CalDAV server, depending on your test environment setup
+* Tests 40-44 require routines to exist, so they'll need routine creation as part of test setup
+* Test 37 (cascade delete) also requires routines
+* The cascade_deactivation logic is a key business rule worth thorough testing

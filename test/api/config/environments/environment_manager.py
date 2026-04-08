@@ -50,3 +50,9 @@ class EnvironmentManager:
         if not self.environment:
             raise RuntimeError("Environment not initialized")
         return os.getenv('CALDAV_PASSWORD')
+
+    @property
+    def caldav_remote_uid(self) -> str:
+        if not self.environment:
+            raise RuntimeError("Environment not initialized")
+        return os.getenv('CALDAV_REMOTE_UID')

@@ -69,6 +69,52 @@ def test_create_task(auth_client):
 * Help diagnose failures quickly
 
 
+==== Working with APIResponse Objects ====
+
+The API client returns APIResponse objects that provide multiple ways to access response data:
+
+**Dictionary-style access (recommended for JSON responses):**
+{{{code: lang="python" linenumbers="True"
+response = auth_client.get('/api/tasks/1')
+task_id = response['id']
+title = response['title']
+
+# Check if key exists
+if 'description' in response:
+    desc = response['description']
+
+# Get with default value
+status = response.get('status', 'pending')
+}}}
+
+**Direct property access:**
+{{{code: lang="python" linenumbers="True"
+response = auth_client.get('/api/tasks/1')
+
+# Access parsed JSON
+data = response.json  # Returns dict or None
+
+# Access raw text
+text = response.text
+
+# Check status code
+status = response.status_code
+
+# Check headers
+content_type = response.headers['Content-Type']
+
+# Check elapsed time
+duration = response.elapsed
+}}}
+
+**For non-JSON responses, use properties:**
+{{{code: lang="python" linenumbers="True"
+response = auth_client.get('/api/health', handle_response=False)
+if response.status_code == 200:
+    print(response.text)  # Use .text for non-JSON
+}}}
+
+
 ==== Smoke Test vs Extended Test ====
 
 **Smoke Test (Minimal, Critical Path):**
@@ -152,7 +198,7 @@ def test_example(auth_client):
 
 ==== Using handle_response=False ====
 
-By default, the API client returns parsed JSON. Use ''handle_response=False'' when you need to check status codes directly:
+By default, the API client raises an exception for non-2xx status codes. Use ''handle_response=False'' when you need to check status codes directly without raising exceptions:
 
 {{{code: lang="python" linenumbers="True"
 def test_delete_task(auth_client):
@@ -174,6 +220,27 @@ def test_delete_task(auth_client):
 * Testing error status codes (404, 401, 400)
 * Checking specific HTTP headers
 * Validating non-JSON responses
+
+
+==== Error Response Handling ====
+
+When testing error conditions, APIResponse still provides access to error response bodies:
+
+{{{code: lang="python" linenumbers="True"
+def test_create_task_validation_error(auth_client):
+    """Verify error response structure for invalid data"""
+    with allure.step("Attempt to create invalid task"):
+        response = auth_client.post('/api/tasks', 
+                                    {"title": ""},
+                                    handle_response=False)
+
+    with allure.step("Verify error response"):
+        assert response.status_code == 400
+        # Access error details from response body
+        if 'error' in response:
+            assert 'title' in response['error']
+}}}
+
 
 ==== Multi-Step Tests ====
 
@@ -278,6 +345,8 @@ with allure.step("Delete entity"):
     response = auth_client.delete(f'/api/entities/{entity_id}',
                                   handle_response=False)
     assert response.status_code == 204
+    # 204 responses have no content
+    assert response.json is None
 }}}
 
 **List:**
@@ -363,9 +432,68 @@ def test_fresh_user_has_no_tasks(isolated_auth_client):
 
 ===== Choosing the Right Fixture =====
 
-Different fixtures provide different levels of authentication and isolation:
+Different auth fixtures provide different levels of authentication and isolation.
+The environment manager fixture can provide access to environment variables.
 
-==== Fixture Reference ====
+==== Environment Configuration ====
+
+=== Environment Manager ===
+
+The test suite uses an EnvironmentManager to handle environment-specific configuration (dev, staging, production).
+Many tests will not need this fixture, but it is mandatory for any tests that require access to an external caldav server.
+
+**Running tests against different environments:**
+{{{code: lang="bash" linenumbers="False"
+pytest                          # Uses dev (default)
+pytest --env=dev               # Explicitly use dev
+pytest --env=staging           # Use staging environment
+pytest --env=production        # Use production environment
+}}}
+
+**Accessing environment variables in tests:**
+{{{code: lang="python" linenumbers="True"
+def test_caldav_integration(auth_client, env_manager):
+    """Test CalDAV connectivity"""
+    with allure.step("Get CalDAV credentials"):
+        caldav_url = env_manager.caldav_url
+        username = env_manager.caldav_username
+        password = env_manager.caldav_password
+
+    with allure.step("Connect to CalDAV server"):
+        # Use credentials to test CalDAV integration
+        pass
+}}}
+
+**Available environment properties:**
+* ''env_manager.base_url'' - API base URL (used by api_client)
+* ''env_manager.caldav_url'' - CalDAV server URL
+* ''env_manager.caldav_username'' - CalDAV username
+* ''env_manager.caldav_password'' - CalDAV password
+
+=== Adding New Environment Variables ===
+
+1. Add the variable to your ''.env.*'' files:
+{{{code: lang="bash" linenumbers="False"
+# .env.dev
+API_BASE_URL=http://localhost:5000
+CALDAV_URL=http://localhost:5232/caldav
+CALDAV_USERNAME=test_user
+CALDAV_PASSWORD=test_password
+NEW_VARIABLE=value
+}}}
+
+2. Add a property to ''environment_manager.py'':
+{{{code: lang="python" linenumbers="True"
+@property
+def new_variable(self) -> str:
+    if not self.environment:
+        raise RuntimeError("Environment not initialized")
+    return os.getenv('NEW_VARIABLE')
+}}}
+
+3. Access it in tests via the ''env_manager'' fixture
+
+==== Auth Fixture Reference ====
 
 === **auth_client** (DEFAULT) ===
 * **Purpose:** Fresh authenticated client for each test

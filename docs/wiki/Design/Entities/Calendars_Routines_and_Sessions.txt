@@ -53,16 +53,18 @@ Calendars can be created manually or imported from external calendar sources (Ca
 
 **Update**
 * Via PUT `/api/calendars/{id}`
-* Updatable fields: name, color, active
-* Read-only fields (cannot be updated): id, user_id, created_at, updated_at, external_uid, external_source
+* Updatable fields: name, color
+* Read-only fields (cannot be updated): id, user_id, created_at, updated_at, external_uid, external_source, active
 * Calendar name cannot be empty
-* Optional URL parameter `cascade_deactivation` (default: true):
-  - If true and active is set to false, all contained routines are set to active=false
-  - If false, deactivates the calendar without affecting contained routines
+* The active field must be changed using the activate/deactivate endpoints
 
 **Activate/Deactivate**
-* Setting active to true makes the calendar visible; setting may cascade to contained routines based on url param
-* Setting active to false may set all contained routines to active=false (cascade), again according to url param
+* Via PUT `/api/calendars/{id}/activate` or `/api/calendars/{id}/deactivate`
+* Optional URL parameter `cascade` (default: false for activate, true for deactivate):
+  - Activate endpoint: If cascade=true, sets all contained routines to active=true; if false (default), only activates the calendar
+  - Deactivate endpoint: If cascade=true (default), sets all contained routines to active=false; if false, only deactivates the calendar
+* Activating makes the calendar visible in views
+* Deactivating hides the calendar from normal views and (if cascaded) prevents new session generation for its routines
 * Useful for temporarily disabling a whole category (e.g., "outdoor activities" during winter)
 
 **Delete**
@@ -279,8 +281,8 @@ Status is the authoritative indicator of session execution. There is no separate
 **Scenario 3: Seasonal Activity Management**
 1. Create a Calendar (e.g., "Outdoor Activities")
 2. Create multiple Routines within it (e.g., "Trail Running", "Rock Climbing")
-3. In winter, set calendar active=false → all routines become inactive → no new sessions generated
-4. Come spring, set calendar active=true → routines reactivate → generate sessions as usual
+3. In winter, deactivate the calendar with cascade: PUT `/api/calendars/{id}/deactivate?cascade=true` → all routines become inactive → no new sessions generated
+4. Come spring, activate the calendar: PUT `/api/calendars/{id}/activate?cascade=true` → routines reactivate → generate sessions as usual
 
 **Scenario 4: Updating Routine Details**
 1. Update a routine's title: PATCH `/api/routines/{id}?cascade_future=true&cascade_past=true` with `{"title": "New Name"}`
