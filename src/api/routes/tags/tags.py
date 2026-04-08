@@ -144,6 +144,10 @@ def attach_tag():
         return jsonify({"error": "tag_id, target_type, and target_id required"}), 400
 
     service = TagService(db.session)
+    target_tag = service.get_tag(tag_id, user_id)
+    if not target_tag:
+        return jsonify({"error": f"Tag with id {tag_id} not found"}), 404
+
     entity, error = _get_target_entity(db.session, user_id, t_type, t_id)
     
     if error:
