@@ -30,9 +30,9 @@ Returns all tags for the authenticated user.
 
 Creates a new tag.
 
-| Field | Type   | Required | Description                                |
-|-------|--------|----------|--------------------------------------------|
-| name  | string | yes      | Tag label (max 50 chars, cannot be empty)  |
+| Field | Type   | Required | Description                                             |
+|-------|--------|----------|---------------------------------------------------------|
+| name  | string | yes      | Tag label (max 50 chars, cannot be empty)               |
 | color | string | no       | Hex color code (max 10 chars). Default "#6c757d" (gray) |
 
 **Response:** Created tag object (201)
@@ -51,14 +51,14 @@ Returns a specific tag by ID.
 
 ==== Update Tag ====
 
-**PUT /api/tags/<tag_id>**
+**PATCH /api/tags/<tag_id>**
 
 Updates a tag's properties.
 
-| Field | Type   | Description                           |
-|-------|--------|---------------------------------------|
+| Field | Type   | Description                                           |
+|-------|--------|-------------------------------------------------------|
 | name  | string | Tag label (max 50 chars, cannot be empty if provided) |
-| color | string | Hex color code (max 10 chars)         |
+| color | string | Hex color code (max 10 chars)                         |
 
 **Response:** Updated tag object (200), or 404 if not found
 
@@ -82,11 +82,11 @@ Permanently deletes a tag and removes it from all attached entities via cascade.
 
 Attaches a tag to an entity.
 
-| Field       | Type    | Required | Description                              |
-|-------------|---------|----------|------------------------------------------|
-| tag_id      | integer | yes      | ID of the tag to attach                  |
-| target_type | string  | yes      | Entity type (see taggable entities)      |
-| target_id   | integer | yes      | ID of the target entity                  |
+| Field       | Type    | Required | Description                         |
+|-------------|---------|----------|-------------------------------------|
+| tag_id      | integer | yes      | ID of the tag to attach             |
+| target_type | string  | yes      | Entity type (see taggable entities) |
+| target_id   | integer | yes      | ID of the target entity             |
 
 **Business Logic:**
 * Idempotent: attaching the same tag twice has no effect
@@ -106,11 +106,11 @@ Attaches a tag to an entity.
 
 Removes a tag from an entity.
 
-| Field       | Type    | Required | Description                              |
-|-------------|---------|----------|------------------------------------------|
-| tag_id      | integer | yes      | ID of the tag to detach                  |
-| target_type | string  | yes      | Entity type (see taggable entities)      |
-| target_id   | integer | yes      | ID of the target entity                  |
+| Field       | Type    | Required | Description                         |
+|-------------|---------|----------|-------------------------------------|
+| tag_id      | integer | yes      | ID of the tag to detach             |
+| target_type | string  | yes      | Entity type (see taggable entities) |
+| target_id   | integer | yes      | ID of the target entity             |
 
 **Business Logic:**
 * Idempotent: detaching a non-attached tag has no effect
@@ -127,23 +127,23 @@ Removes a tag from an entity.
 
 The following entity types are supported for tag attachment/detachment:
 
-| Entity Type | Description                |
-|-------------|----------------------------|
+| Entity Type | Description                    |
+|-------------|--------------------------------|
 | task        | A task (standalone or subtask) |
-| project     | A project                  |
-| routine     | A routine template         |
-| session     | A specific session occurrence |
-| calendar    | A calendar container       |
-| report      | A report                   |
+| project     | A project                      |
+| routine     | A routine template             |
+| session     | A specific session occurrence  |
+| calendar    | A calendar container           |
+| report      | A report                       |
 
 
 ===== Tag Object =====
 
-| Field      | Type        | Description                    |
-|------------|-------------|--------------------------------|
-| id         | integer     | Primary key                    |
-| user_id    | integer     | Owner                          |
-| name       | string(50)  | Tag label                      |
-| color      | string(10)  | Hex color code                 |
-| created_at | datetime    | When created                   |
-| updated_at | datetime    | When last modified             |
+| Field      | Type       | Description        |
+|------------|------------|--------------------|
+| id         | integer    | Primary key        |
+| user_id    | integer    | Owner              |
+| name       | string(50) | Tag label          |
+| color      | string(10) | Hex color code     |
+| created_at | datetime   | When created       |
+| updated_at | datetime   | When last modified |

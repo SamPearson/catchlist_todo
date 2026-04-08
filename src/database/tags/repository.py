@@ -26,6 +26,21 @@ class TagRepository:
             .first()
         )
 
+    def get_by_name(self, name: str, user_id: int) -> Optional[Tag]:
+        """Retrieve a tag by name for a specific user"""
+        return (
+            self.db_session.query(Tag)
+            .filter_by(name=name, user_id=user_id)
+            .first()
+        )
+
+    def exists_by_name(self, name: str, user_id: int, exclude_id: Optional[int] = None) -> bool:
+        """Check if a tag with the given name exists for a user"""
+        query = self.db_session.query(Tag).filter_by(name=name, user_id=user_id)
+        if exclude_id is not None:
+            query = query.filter(Tag.id != exclude_id)
+        return query.first() is not None
+
 
     def create(self, name: str, user_id: int, color: str = '#6c757d') -> Tag:
         """Create a new tag"""

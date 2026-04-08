@@ -135,6 +135,64 @@ def create_timeframe(auth_client, **kwargs):
     return timeframe
 
 
+def create_report(auth_client, kind, date, **kwargs):
+    """Helper to create a report with custom properties
+
+    Args:
+        auth_client: Authenticated API client
+        kind: Timeframe kind - one of: 'day', 'week', 'month', 'season', 'year'
+        date: ISO date string (YYYY-MM-DD)
+        **kwargs: Optional report properties (timezone, plan, reason, pre_notes, post_notes,
+                  full, commitment_scope)
+    """
+    # First, get or create the report via the GET endpoint
+    params = {}
+    if "full" in kwargs:
+        params["full"] = kwargs["full"]
+    else:
+        params["full"] = True
+
+    if "timezone" in kwargs:
+        params["timezone"] = kwargs["timezone"]
+    if "commitment_scope" in kwargs:
+        params["commitment_scope"] = kwargs["commitment_scope"]
+
+    with allure.step(f"Get or create report: {kind}/{date}"):
+        response = auth_client.get(f'/api/reports/{kind}/{date}', params=params)
+        assert response.status_code == 200, f"Failed to get/create report: {response.text}"
+        report = response.json
+
+    # If we have text fields to update, make a PUT request
+    update_fields = {}
+    for field in ["plan", "reason", "pre_notes", "post_notes"]:
+        if field in kwargs:
+            update_fields[field] = kwargs[field]
+
+    if update_fields:
+        report_id = report.get("id")
+        if not report_id:
+            # If full=false, we need to fetch with full=true to get the ID
+            full_response = auth_client.get(f'/api/reports/{kind}/{date}', query_string={"full": True})
+            assert full_response.status_code == 200, f"Failed to get report ID: {full_response.text}"
+            report_id = full_response.json["id"]
+
+        update_params = {}
+        if "full" in kwargs:
+            update_params["full"] = kwargs["full"]
+        if "commitment_scope" in kwargs:
+            update_params["commitment_scope"] = kwargs["commitment_scope"]
+
+        with allure.step(f"Update report {report_id} with text fields"):
+            response = auth_client.put(
+                f'/api/reports/{report_id}',
+                data=update_fields,
+                query_string=update_params if update_params else None
+            )
+            assert response.status_code == 200, f"Failed to update report: {response.text}"
+            report = response.json
+
+    return report
+
 def create_checkin(auth_client, **kwargs):
     """Helper to create a checkin with custom properties
 

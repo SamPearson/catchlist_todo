@@ -28,12 +28,33 @@ class TagService:
         name = (name or "").strip()
         if not name:
             raise TagValidationError("Tag name is required.")
+        
+        if self.repository.exists_by_name(name, user_id):
+            raise TagValidationError(f"A tag with the name '{name}' already exists.")
+        
         return self.repository.create(name, user_id, color)
 
-    def update_tag(self, tag_id: int, user_id: int, name: Optional[str] = None, color: Optional[str] = None) -> Optional[Tag]:
+    def update_tag(self, tag_id: int, user_id: int, name: Optional[str] = None, color: Optional[str] = None) -> \
+    Optional[Tag]:
         """Update an existing tag"""
-        if name is not None and not name.strip():
-            raise TagValidationError("Tag name cannot be empty.")
+        if name is not None:
+            name = name.strip()
+            if not name:
+                raise TagValidationError("Tag name cannot be empty.")
+
+            if len(name) > 50:
+                raise TagValidationError("Name cannot exceed 50 characters.")
+
+            if self.repository.exists_by_name(name, user_id, exclude_id=tag_id):
+                raise TagValidationError(f"A tag with the name '{name}' already exists.")
+
+        if color is not None:
+            color = color.strip()
+            if color.startswith('#'):
+                color = color[1:]
+            if len(color) != 6:
+                raise TagValidationError("Invalid color format. Use #RRGGBB.")
+
         return self.repository.update(tag_id, user_id, name, color)
 
     def delete_tag(self, tag_id: int, user_id: int) -> bool:
@@ -91,5 +112,9 @@ class TagService:
             self.session.delete(association)
             self.session.commit()
             return True
+        else:
+            raise TagValidationError(
+                f"Tag '{tag.name}' is not attached to this {entity.__class__.__name__.lower()}"
+            )
         
         return False

@@ -64,12 +64,29 @@ def create_tag():
     user_id = get_jwt_identity()
     data = request.get_json() or {}
 
+    input_color = data.get('color')
+    if input_color:
+        if input_color.startswith('#'):
+            input_color = input_color[1:]
+        if len(input_color) != 6:
+            return jsonify({'error': 'Invalid color format. Use #RRGGBB'}), 400
+        color = input_color
+    else:
+        color = '6c757d'
+
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    if len(name) > 50:
+        return jsonify({'error': 'Name cannot exceed 50 characters'}), 400
+
+
     tag_service = TagService(db.session)
     try:
         tag = tag_service.create_tag(
             name=data.get('name'),
             user_id=user_id,
-            color=data.get('color', '#6c757d')
+            color=color
         )
         return jsonify(tag.as_dict()), 201
     except TagValidationError as e:
@@ -81,18 +98,22 @@ def update_tag(tag_id):
     """Update a tag"""
     user_id = get_jwt_identity()
     tag_service = TagService(db.session)
-    
+
+    input_data = request.get_json() or {}
+    if not input_data:
+        return jsonify({'error': 'No update data provided'}), 400
+
     tag = tag_service.get_tag(tag_id=tag_id, user_id=user_id)
     if not tag:
         return ('', 404)
 
-    data = request.get_json() or {}
+
     try:
         updated_tag = tag_service.update_tag(
             tag_id=tag_id,
             user_id=user_id,
-            name=data.get('name'),
-            color=data.get('color')
+            name=input_data.get('name'),
+            color=input_data.get('color')
         )
         return jsonify(updated_tag.as_dict()) if updated_tag else ('', 404)
     except TagValidationError as e:
@@ -123,6 +144,10 @@ def attach_tag():
         return jsonify({"error": "tag_id, target_type, and target_id required"}), 400
 
     service = TagService(db.session)
+    target_tag = service.get_tag(tag_id, user_id)
+    if not target_tag:
+        return jsonify({"error": f"Tag with id {tag_id} not found"}), 404
+
     entity, error = _get_target_entity(db.session, user_id, t_type, t_id)
     
     if error:
@@ -153,6 +178,11 @@ def detach_tag():
         return jsonify({"error": "tag_id, target_type, and target_id required"}), 400
 
     service = TagService(db.session)
+    target_tag = service.get_tag(tag_id, user_id)
+    if not target_tag:
+        return jsonify({"error": f"Tag with id {tag_id} not found"}), 404
+
+
     entity, error = _get_target_entity(db.session, user_id, t_type, t_id)
     
     if error:
