@@ -11,7 +11,113 @@ API endpoints for managing checkins. Checkins are timestamped notes attached to 
 
 ===== Checkin Endpoints =====
 
-==== List Checkins ====
+==== List Checkins for Target ====
+
+**GET /api/checkins**
+
+Returns checkins for a specific target entity, ordered by occurred_at descending (most recent first), then by created_at descending.
+
+**Query Parameters:**
+
+| Parameter   | Type    | Required | Description                              |
+|-------------|---------|----------|------------------------------------------|
+| target_type | string  | yes      | Entity type (see target types)           |
+| target_id   | integer | yes      | ID of the target entity                  |
+| start_date  | string  | no       | Filter checkins on or after this date (ISO 8601) |
+| end_date    | string  | no       | Filter checkins on or before this date (ISO 8601) |
+| limit       | integer | no       | Max results to return. Default 50        |
+| offset      | integer | no       | Number of results to skip. Default 0     |
+
+**Date Filtering:**
+* start_date and end_date are optional and can be used independently or together
+* Dates should be in ISO 8601 format (e.g., "2026-03-01T00:00:00")
+* Dates are interpreted in the user's configured timezone and converted to UTC for querying
+* Comparison is against the occurred_at timestamp
+
+**Response:** Array of checkin objects
+
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+[
+  {
+    "id": 123,
+    "user_id": 1,
+    "target_type": "task",
+    "target_id": 456,
+    "note": "Made good progress on this today",
+    "occurred_at": "2026-03-12T14:30:00-06:00",
+    "created_at": "2026-03-12T14:35:00-06:00",
+    "updated_at": "2026-03-12T14:35:00-06:00"
+  }
+]
+}}}
+
+**Errors:**
+* 400 if target_type or target_id missing/invalid, or limit/offset not integers
+* 400 if start_date or end_date format is invalid
+* 404 if target not found
+
+
+==== List All Checkins ====
+
+**GET /api/checkins/all**
+
+Returns all checkins for the authenticated user, optionally filtered by date range. Ordered by occurred_at descending (most recent first), then by created_at descending.
+
+**Query Parameters:**
+
+| Parameter   | Type    | Required | Description                              |
+|-------------|---------|----------|------------------------------------------|
+| start_date  | string  | no       | Filter checkins on or after this date (ISO 8601) |
+| end_date    | string  | no       | Filter checkins on or before this date (ISO 8601) |
+| limit       | integer | no       | Max results to return. Default 50        |
+| offset      | integer | no       | Number of results to skip. Default 0     |
+
+**Date Filtering:**
+* start_date and end_date are optional and can be used independently or together
+* Dates should be in ISO 8601 format (e.g., "2026-03-01T00:00:00")
+* Dates are interpreted in the user's configured timezone and converted to UTC for querying
+* Comparison is against the occurred_at timestamp
+* Useful for reviewing all activity within a specific timeframe
+
+**Response:** Array of checkin objects
+
+**Example Response:**
+{{{code: lang="json" linenumbers="True"
+[
+  {
+    "id": 125,
+    "user_id": 1,
+    "target_type": "project",
+    "target_id": 789,
+    "note": "Project milestone reached",
+    "occurred_at": "2026-03-12T14:30:00-06:00",
+    "created_at": "2026-03-12T14:35:00-06:00",
+    "updated_at": "2026-03-12T14:35:00-06:00"
+  },
+  {
+    "id": 123,
+    "user_id": 1,
+    "target_type": "task",
+    "target_id": 456,
+    "note": "Made good progress on this today",
+    "occurred_at": "2026-03-12T10:15:00-06:00",
+    "created_at": "2026-03-12T10:20:00-06:00",
+    "updated_at": "2026-03-12T10:20:00-06:00"
+  }
+]
+}}}
+
+**Errors:**
+* 400 if limit/offset not integers
+* 400 if start_date or end_date format is invalid
+
+**Use Cases:**
+* Review all activity for a given day, week, or month
+* Generate activity summaries across all entities
+* Export checkin history for a specific time period
+
+==== List Checkins for Target ====
 
 **GET /api/checkins**
 

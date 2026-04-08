@@ -1,4 +1,3 @@
-# utils/data_factories/api_user.py
 from dataclasses import dataclass
 import random
 import string

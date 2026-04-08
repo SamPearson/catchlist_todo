@@ -182,6 +182,8 @@ class CheckinService:
         target_id: int,
         limit: int = 50,
         offset: int = 0,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list[CheckinRecord]:
         ttype = self._normalize_target_type(target_type)
 
@@ -194,6 +196,38 @@ class CheckinService:
             target_id=int(target_id),
             limit=limit,
             offset=offset,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def list_for_user(
+        self,
+        *,
+        user_id: int,
+        limit: int = 50,
+        offset: int = 0,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[CheckinRecord]:
+        """
+        List all checkins for a user, optionally filtered by date range.
+
+        Args:
+            user_id: The user ID
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            start_date: Filter checkins on or after this date (UTC)
+            end_date: Filter checkins on or before this date (UTC)
+
+        Returns:
+            List of CheckinRecords
+        """
+        return self.repo.list_for_user(
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+            start_date=start_date,
+            end_date=end_date,
         )
 
     def delete_for_target(

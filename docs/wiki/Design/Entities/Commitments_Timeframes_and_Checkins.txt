@@ -381,11 +381,36 @@ To leave notes about progress on a commitment, attach the checkin to the target 
 * Returns count of checkins deleted
 
 **Retrieve**
-* List endpoint retrieves checkins for a specific target
+
+Two retrieval options are available:
+
+**List Checkins for Target**
+* Retrieves checkins for a specific target entity
 * Required filters: target_type, target_id
+* Optional date range filters: start_date, end_date
+  - Dates are provided in user's local timezone (ISO 8601 format)
+  - System converts to UTC for querying
+  - Filters based on occurred_at_utc
+  - start_date is inclusive (>=), end_date is inclusive (<=)
 * Optional pagination: limit (default 50), offset (default 0)
 * Ordered by occurred_at_utc descending (most recent first), then created_at descending
 * Returns array of checkin records with timestamps converted to user's timezone
+
+**List All Checkins**
+* Retrieves all checkins for the authenticated user across all targets
+* No target_type or target_id required
+* Optional date range filters: start_date, end_date
+  - Same timezone and filtering behavior as target-specific listing
+  - Useful for viewing all activity within a timeframe
+* Optional pagination: limit (default 50), offset (default 0)
+* Ordered by occurred_at_utc descending (most recent first), then created_at descending
+* Returns array of checkin records with timestamps converted to user's timezone
+
+**Date Range Use Cases:**
+* Review all progress notes from a specific week
+* Generate activity reports for monthly reviews
+* Filter checkins to match a timeframe period
+* Find all checkins that occurred during a specific project phase
 
 ==== Design Notes ====
 * Freeform by design—meant to be flexible and low-friction
