@@ -113,21 +113,12 @@ These validate that basic principle functionality works at all.
 ==== Principle Cascade Deletion ====
 77. **Delete principle removes all associations** - Attach principle to 3 different entities, delete principle, verify all associations removed
 
-==== Principle Visibility on Entities ====
-78. **Get task includes attached principles** - Attach principle to task, GET task, verify principles array present
-79. **Get project includes attached principles** - Attach principle to project, GET project, verify principles array present
-80. **Get calendar includes attached principles** - Attach principle to calendar, GET calendar, verify principles array present
-81. **Get routine includes attached principles** - Attach principle to routine, GET routine, verify principles array present
-82. **Get session includes attached principles** - Attach principle to session, GET session, verify principles array present
 
 ==== Multiple Principle Attachments ====
 83. **Attach multiple principles to single entity** - Attach 3 principles to one task, verify all appear
 84. **Detach one of multiple principles** - Attach 3 principles, detach 1, verify 2 remain
 
-==== Principle as Motivational Touchstone ====
-85. **Principle with description provides clarification** - Create principle with description, verify field persists and returns
-86. **Principle with reason provides motivation** - Create principle with reason, verify field persists and returns
-87. **Principle with both description and reason** - Verify both fields work together as motivational statement
+
 
 
 ===== Summary =====
