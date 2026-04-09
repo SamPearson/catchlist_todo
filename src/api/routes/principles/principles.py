@@ -79,12 +79,21 @@ def update_principle(principle_id: int):
     """Update an existing principle"""
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
+
+    if 'color' in data:
+        input_color = data.get('color')
+        if input_color.startswith('#'):
+            input_color = input_color[1:]
+        if len(input_color) != 6:
+            return jsonify({'error': 'Invalid color format. Use #RRGGBB'}), 400
+        data['color'] = input_color
+
     service = PrincipleService(db.session)
     try:
         updated = service.update_principle(principle_id, user_id, data)
         return jsonify(updated.as_dict()) if updated else ('', 404)
     except PrincipleValidationError as e:
-        return jsonify({"error": e.message}), 400
+        return jsonify({"error": str(e)}), 400
 
 @jwt_required()
 def delete_principle(principle_id: int):
