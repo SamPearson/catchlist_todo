@@ -46,8 +46,9 @@ class PrincipleService:
             return None
 
         update_data = {}
-        update_title = data['title']
-        if update_title:
+
+        if 'title' in data:
+            update_title = data['title']
             if not update_title.strip():
                 raise PrincipleValidationError("Title cannot be empty.")
             update_data['title'] = update_title.strip()
@@ -58,14 +59,13 @@ class PrincipleService:
             if len(update_title) > 50:
                 raise PrincipleValidationError("Name cannot exceed 50 characters.")
 
-
-        color = data.get('color')
-        if color is not None:
-            color = color.strip()
+        if 'color' in data:
+            color = data['color']
             if color.startswith('#'):
-                update_data['color'] = color[1:]
+                color = color[1:]
             if len(color) != 6:
-                raise PrincipleValidationError("Invalid color format. Use #RRGGBB.")
+                raise PrincipleValidationError(f"Invalid color format '{color}'. Use #RRGGBB.")
+            update_data['color'] = color
 
 
         if 'description' in data:
