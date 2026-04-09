@@ -105,5 +105,4 @@ def test_caldav_connection():
 # Allows starting the server by running this script with the python3 command instead of flask or gunicorn commands
 # only do this on local/dev. see README.md for more on server/prod vs local/dev
 if __name__ == "__main__":
-    initialize_database(app)  # handled in a config file when running on a server
     app.run(debug=True, port=5001)
