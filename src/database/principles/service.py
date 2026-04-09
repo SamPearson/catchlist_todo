@@ -32,13 +32,21 @@ class PrincipleService:
         if self.repo.exists_by_title(title, user_id):
             raise PrincipleValidationError(f"A tag with the name '{title}' already exists.")
 
+        if 'color' in data:
+            color = data['color'].strip()
+            if color.startswith('#'):
+                color = color[1:]
+            if len(color) != 6:
+                raise PrincipleValidationError("Invalid color format. Use #RRGGBB.")
+            data['color'] = color
+
 
         return self.repo.create(
             user_id=user_id,
             title=title,
             description=data.get('description'),
             reason=data.get('reason'),
-            color=data.get('color', '#ffd700')
+            color=data.get('color', 'ffd700')
         )
 
     def update_principle(self, principle_id: int, user_id: int, data: Dict[str, Any]) -> Optional[Principle]:
