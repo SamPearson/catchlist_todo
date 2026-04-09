@@ -91,7 +91,7 @@ def test_update_principle_title(auth_client):
         payload = {
             "title": "Financial independence"
         }
-        response = auth_client.put(f'/api/principles/{principle_id}', data=payload)
+        response = auth_client.patch(f'/api/principles/{principle_id}', data=payload)
 
     with allure.step("Verify title updated"):
         assert response['id'] == principle_id
