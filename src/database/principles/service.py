@@ -1,6 +1,7 @@
+import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from src.database.base.exceptions import ValidationError
+from src.database.base.exceptions import ValidationError, EntityNotFoundError
 from .models import Principle, PrincipleAssociation
 from .repository import PrincipleRepo
 
@@ -43,7 +44,7 @@ class PrincipleService:
     def update_principle(self, principle_id: int, user_id: int, data: Dict[str, Any]) -> Optional[Principle]:
         principle = self.get_principle(principle_id, user_id)
         if not principle:
-            return None
+            raise EntityNotFoundError(f"Principle with ID {principle_id} not found.")
 
         update_data = {}
 
@@ -85,8 +86,11 @@ class PrincipleService:
         from .models import PrincipleAssociation
     
         principle = self.get_principle(principle_id, user_id)
-        if not principle or not hasattr(entity, 'principles'):
-            return False
+        if not principle:
+            raise EntityNotFoundError(f"Principle with ID {principle_id} not found.")
+        if not hasattr(entity, 'principles'):
+            logging.error(f"Entity {entity} does not support principles.\n{entity.__dict__}")
+            raise PrincipleValidationError(f"Entity {entity} does not support principles.")
 
         # Check if association already exists
         existing = self.session.query(PrincipleAssociation).filter_by(
@@ -110,7 +114,8 @@ class PrincipleService:
 
         principle = self.get_principle(principle_id, user_id)
         if not principle:
-            return False
+            raise EntityNotFoundError(f"Principle with ID {principle_id} not found.")
+
 
         # Directly delete the association instead of relying on relationship management
         association = self.session.query(PrincipleAssociation).filter_by(
