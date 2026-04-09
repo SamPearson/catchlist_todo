@@ -1,5 +1,7 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.principles.service import PrincipleService, PrincipleValidationError
 
@@ -92,6 +94,8 @@ def update_principle(principle_id: int):
     try:
         updated = service.update_principle(principle_id, user_id, data)
         return jsonify(updated.as_dict()) if updated else ('', 404)
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
     except PrincipleValidationError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -125,8 +129,14 @@ def attach_principle():
     if not entity:
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
-    if service.attach_to_entity(p_id, user_id, entity):
-        return jsonify({"success": True}), 200
+    try:
+        if service.attach_to_entity(p_id, user_id, entity):
+            return jsonify({"success": True}), 200
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except PrincipleValidationError as e:
+        return jsonify({"error": str(e)}), 400
+
     return jsonify({"error": "Failed to attach principle"}), 400
 
 
@@ -152,6 +162,11 @@ def detach_principle():
     if not entity:
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
-    if service.detach_from_entity(p_id, user_id, entity):
-        return jsonify({"success": True}), 200
+    try:
+        if service.detach_from_entity(p_id, user_id, entity):
+            return jsonify({"success": True}), 200
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except PrincipleValidationError as e:
+        return jsonify({"error": str(e)}), 400
     return jsonify({"error": "Failed to detach principle"}), 400
