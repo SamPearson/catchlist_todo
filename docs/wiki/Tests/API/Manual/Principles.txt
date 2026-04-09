@@ -1,0 +1,148 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-04-08T07:06:12-05:00
+
+====== Principles ======
+Created Wednesday 08 April 2026
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic principle functionality works at all.
+
+==== Smoke Test List ====
+1. **Create a basic principle** - POST /api/principles with only title
+2. **List principles** - GET /api/principles (verify principle appears)
+3. **Get principle by ID** - GET /api/principles/{id}
+4. **Update principle title** - PUT /api/principles/{id}
+5. **Delete principle** - DELETE /api/principles/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== List Principles (GET /api/principles) ====
+6. **List principles returns empty array** - New user with no principles gets []
+7. **List principles only returns user's own principles** - Create principles for two different users, verify isolation
+8. **List principles returns all principles** - Create 5 principles, verify all returned (no filtering)
+
+==== Create Principle (POST /api/principles) ====
+9. **Create principle with all fields** - title, description, reason, and color
+10. **Create principle verifies defaults** - Verify color defaults to #ffd700 (gold) when not specified
+11. **Create principle with custom color** - Verify color is set correctly
+12. **Create principle with description only** - Verify title + description works
+13. **Create principle with reason only** - Verify title + reason works
+14. **Create principle with description and reason** - Verify both fields stored
+15. **Create principle without title** - Verify 400 error
+16. **Create principle with empty title** - Verify 400 error
+17. **Create principle with whitespace-only title** - Verify 400 error
+18. **Create principle with title exactly 100 chars** - Verify success (boundary)
+19. **Create principle with title over 100 chars** - Verify 400 error (boundary)
+20. **Create principle with long description** - Verify text field accepts long content
+21. **Create principle with long reason** - Verify text field accepts long content
+22. **Create principle with empty request body** - Verify 400 error
+23. **Create duplicate principle title** - Verify allowed (principles can have same title)
+
+==== Get Principle (GET /api/principles/{id}) ====
+24. **Get principle returns full object** - Verify all fields present (id, user_id, title, description, reason, color, created_at, updated_at)
+25. **Get nonexistent principle** - Verify 404
+26. **Get another user's principle** - Verify 404
+
+==== Update Principle (PUT /api/principles/{id}) ====
+27. **Update principle title only** - Verify title changes, other fields unchanged
+28. **Update principle description only** - Verify description changes, other fields unchanged
+29. **Update principle reason only** - Verify reason changes, other fields unchanged
+30. **Update principle color only** - Verify color changes, other fields unchanged
+31. **Update principle title and description together** - Verify both change
+32. **Update principle all fields together** - Verify title, description, reason, color all change
+33. **Update principle with empty title** - Verify 400 error
+34. **Update principle with whitespace-only title** - Verify 400 error
+35. **Update principle clear description with empty string** - Verify description can be cleared
+36. **Update principle clear reason with empty string** - Verify reason can be cleared
+37. **Update principle with no data** - Verify 400 error or accepts (check API behavior)
+38. **Update principle with empty request body** - Verify 400 error
+39. **Update nonexistent principle** - Verify 404
+40. **Update another user's principle** - Verify 404
+
+==== Delete Principle (DELETE /api/principles/{id}) ====
+41. **Delete principle returns 204** - Verify response
+42. **Delete principle actually removes it** - Verify GET returns 404 afterward
+43. **Delete principle with attachments (cascade)** - Attach principle to task, delete principle, verify association removed
+44. **Delete nonexistent principle** - Verify 404
+45. **Delete another user's principle** - Verify 404
+
+
+===== Priority 2: Principle Association Tests =====
+
+==== Attach Principle to Entity (POST /api/principles/attach) ====
+46. **Attach principle to task** - Verify target_type="task" works
+47. **Attach principle to project** - Verify target_type="project" works
+48. **Attach principle to calendar** - Verify target_type="calendar" works
+49. **Attach principle to routine** - Verify target_type="routine" works
+50. **Attach principle to session** - Verify target_type="session" works
+51. **Attach principle verifies idempotent** - Attach same principle to same entity twice, verify success both times
+52. **Attach principle without principle_id** - Verify 400 error
+53. **Attach principle without target_type** - Verify 400 error
+54. **Attach principle without target_id** - Verify 400 error
+55. **Attach principle with empty request body** - Verify 400 error
+56. **Attach principle with invalid target_type** - Verify 422 error with code "INVALID_TARGET_TYPE"
+57. **Attach principle to report target** - Verify 422 error (report not in principled entities list)
+58. **Attach principle with nonexistent principle_id** - Verify 404 error
+59. **Attach principle with nonexistent target_id** - Verify 404 error
+60. **Attach principle with another user's principle** - Verify 404 error
+61. **Attach principle with another user's target entity** - Verify 404 error
+62. **Attach multiple principles to same entity** - Verify multiple attachments work
+
+==== Detach Principle from Entity (POST /api/principles/detach) ====
+63. **Detach principle from task** - Attach then detach, verify removal
+64. **Detach principle from project** - Attach then detach, verify removal
+65. **Detach principle from calendar** - Attach then detach, verify removal
+66. **Detach principle from routine** - Attach then detach, verify removal
+67. **Detach principle from session** - Attach then detach, verify removal
+68. **Detach principle verifies idempotent** - Detach non-attached principle, verify success
+69. **Detach principle without principle_id** - Verify 400 error
+70. **Detach principle without target_type** - Verify 400 error
+71. **Detach principle without target_id** - Verify 400 error
+72. **Detach principle with empty request body** - Verify 400 error
+73. **Detach principle with invalid target_type** - Verify 422 error with code "INVALID_TARGET_TYPE"
+74. **Detach principle with nonexistent principle_id** - Verify 404 error
+75. **Detach principle with nonexistent target_id** - Verify 404 error
+76. **Detach principle from another user's target entity** - Verify 404 error
+
+
+===== Priority 2: Business Logic Tests =====
+
+==== Principle Cascade Deletion ====
+77. **Delete principle removes all associations** - Attach principle to 3 different entities, delete principle, verify all associations removed
+
+
+==== Multiple Principle Attachments ====
+83. **Attach multiple principles to single entity** - Attach 3 principles to one task, verify all appear
+84. **Detach one of multiple principles** - Attach 3 principles, detach 1, verify 2 remain
+
+
+
+
+===== Summary =====
+
+**Total test cases: 87**
+* **Smoke tests: 5** (critical path validation)
+* **Extended CRUD: 40** (list, create, get, update, delete with boundaries)
+* **Principle association: 31** (attach/detach for all entity types)
+* **Business logic: 11** (cascade deletion, entity visibility, multiple attachments, motivational fields)
+
+**Marker suggestions:**
+* ''@pytest.mark.principles'' - All principle tests
+* ''@pytest.mark.smoke_test'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-45
+* ''@pytest.mark.attach'' - Tests 46-62
+* ''@pytest.mark.detach'' - Tests 63-76
+* ''@pytest.mark.business_logic'' - Tests 77-87
+
+**Notes:**
+* Tests 46-50, 63-67, 78-87 require creating target entities (task, project, calendar, routine, session)
+* Test 57 verifies that report is NOT a valid principled entity (only tags support reports)
+* Test 43 verifies cascade deletion behavior
+* Tests 51, 68 verify idempotent behavior for attach/detach operations
+* Tests 56, 73 specifically check for 422 status with "INVALID_TARGET_TYPE" error code
+* Tests 35-36 verify that description and reason can be cleared (set to empty/null)
+* Tests 85-87 validate the motivational touchstone concept (description + reason fields)
+* Principles support 5 entity types vs tags' 6 (tags include report, principles don't)

@@ -38,6 +38,6 @@ class Principle(UserOwnedModel):
             'title': self.title,
             'description': self.description,
             'reason': self.reason,
-            'color': self.color
+            'color': f'#{self.color}'
         })
         return data

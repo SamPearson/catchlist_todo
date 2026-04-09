@@ -1,5 +1,7 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.principles.service import PrincipleService, PrincipleValidationError
 
@@ -58,24 +60,44 @@ def create_principle():
     """Create a new principle"""
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
+
+    input_color = data.get('color')
+    if input_color:
+        if input_color.startswith('#'):
+            input_color = input_color[1:]
+        if len(input_color) != 6:
+            return jsonify({'error': 'Invalid color format. Use #RRGGBB'}), 400
+
+
     service = PrincipleService(db.session)
     try:
         item = service.create_principle(user_id, data)
         return jsonify(item.as_dict()), 201
     except PrincipleValidationError as e:
-        return jsonify({"error": e.message}), 400
+        return jsonify({"error": str(e)}), 400
 
 @jwt_required()
 def update_principle(principle_id: int):
     """Update an existing principle"""
     user_id = int(get_jwt_identity())
     data = request.get_json() or {}
+
+    if 'color' in data:
+        input_color = data.get('color')
+        if input_color.startswith('#'):
+            input_color = input_color[1:]
+        if len(input_color) != 6:
+            return jsonify({'error': 'Invalid color format. Use #RRGGBB'}), 400
+        data['color'] = input_color
+
     service = PrincipleService(db.session)
     try:
         updated = service.update_principle(principle_id, user_id, data)
         return jsonify(updated.as_dict()) if updated else ('', 404)
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
     except PrincipleValidationError as e:
-        return jsonify({"error": e.message}), 400
+        return jsonify({"error": str(e)}), 400
 
 @jwt_required()
 def delete_principle(principle_id: int):
@@ -107,8 +129,14 @@ def attach_principle():
     if not entity:
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
-    if service.attach_to_entity(p_id, user_id, entity):
-        return jsonify({"success": True}), 200
+    try:
+        if service.attach_to_entity(p_id, user_id, entity):
+            return jsonify({"success": True}), 200
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except PrincipleValidationError as e:
+        return jsonify({"error": str(e)}), 400
+
     return jsonify({"error": "Failed to attach principle"}), 400
 
 
@@ -134,6 +162,11 @@ def detach_principle():
     if not entity:
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
-    if service.detach_from_entity(p_id, user_id, entity):
-        return jsonify({"success": True}), 200
+    try:
+        if service.detach_from_entity(p_id, user_id, entity):
+            return jsonify({"success": True}), 200
+    except EntityNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except PrincipleValidationError as e:
+        return jsonify({"error": str(e)}), 400
     return jsonify({"error": "Failed to detach principle"}), 400

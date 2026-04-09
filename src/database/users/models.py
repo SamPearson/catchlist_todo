@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
     tasks = relationship('Task', back_populates='user', cascade='all, delete-orphan')
     projects = relationship('Project', back_populates='user', cascade='all, delete-orphan')
     tags = relationship('Tag', back_populates='user', cascade='all, delete-orphan')
+    principles = relationship('Principle', back_populates='user', cascade='all, delete-orphan')
     calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
     routine = relationship("Routine", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("RoutineSession", back_populates="user", cascade="all, delete-orphan")
