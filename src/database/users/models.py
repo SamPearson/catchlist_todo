@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     timeframes = relationship("Timeframe", back_populates="user", cascade="all, delete-orphan")
     commitment = relationship("Commitment", back_populates="user", cascade="all, delete-orphan")
     checkin = relationship("CheckinRecord", back_populates="user", cascade="all, delete-orphan")
+    report = relationship("Report", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
