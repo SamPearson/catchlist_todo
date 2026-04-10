@@ -1,0 +1,212 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-04-09T00:00:00-06:00
+
+====== Reports ======
+Created Wednesday 09 April 2026
+
+
+===== Priority 1: Smoke Tests (Critical Path) =====
+
+These validate that basic report functionality works at all.
+
+==== ✅️Smoke Test List ====
+1. **Get or create report for today** - GET /api/reports/day/<date> with today's date
+2. **List reports** - GET /api/reports (verify report appears)
+3. **Get report by ID** - GET /api/reports/{id}
+4. **Update report plan** - PUT /api/reports/{id} with plan field
+5. **Delete report** - DELETE /api/reports/{id}
+
+
+===== Priority 2: Extended CRUD Tests =====
+
+==== ✅️List Reports (GET /api/reports) ====
+6. **List reports returns empty array** - New user with no reports gets []
+7. **List reports only returns user's own reports** - Create reports for two different users, verify isolation
+8. **List reports with commitment_scope=none (default)** - Verify commitments and stats fields omitted
+9. **List reports with commitment_scope=window** - Verify commitments and stats included
+10. **List reports with commitment_scope=direct** - Verify only direct commitments included
+11. **List reports filters by timeframe_ids** - Create reports for multiple timeframes, filter by comma-separated IDs
+12. **List reports with invalid timeframe_ids format** - Verify 400 error
+13. **List reports with nonexistent timeframe_ids** - Verify empty or filtered results
+14. **List reports with full=true** - Verify metadata fields included (id, user_id, timestamps, etc.)
+15. **List reports with full=false (default)** - Verify metadata fields excluded
+
+==== ✅️Get or Create Report for Date (GET /api/reports/{kind}/{date}) ====
+16. **Get or create report for day** - Verify kind="day" works
+17. **Get or create report for week** - Verify kind="week" works
+18. **Get or create report for month** - Verify kind="month" works
+19. **Get or create report for season** - Verify kind="season" works
+20. **Get or create report for year** - Verify kind="year" works
+21. **Get or create report creates timeframe if missing** - Verify auto-creates associated timeframe
+22. **Get or create report returns existing report** - Call twice with same kind/date, verify same report ID
+23. ~~**Get or create report with timezone parameter** - Verify timezone respected~~
+24. ~~**Get or create report without timezone uses user default** - Verify fallback to user timezone~~
+25. **Get or create report with commitment_scope=window (default)** - Verify commitments included
+26. **Get or create report with commitment_scope=direct** - Verify only direct commitments
+27. **Get or create report with commitment_scope=none** - Verify commitments excluded
+28. **Get or create report with full=true** - Verify metadata included
+29. **Get or create report with full=false (default)** - Verify metadata excluded
+30. **Get or create report with invalid kind** - Verify 400 error
+31. **Get or create report with invalid date format** - Verify 400 error
+32. **Get or create report with invalid timezone** - Verify 400 error
+
+==== ✅️Get Report by ID (GET /api/reports/{id}) ====
+33. **Get report returns full object** - Verify all fields present
+34. **Get report with commitment_scope=window (default)** - Verify commitments and stats included
+35. **Get report with commitment_scope=direct** - Verify only direct commitments
+36. **Get report with commitment_scope=none** - Verify commitments and stats excluded
+37. **Get report with full=true** - Verify metadata included
+38. **Get report with full=false (default)** - Verify metadata excluded
+39. **Get nonexistent report** - Verify 404
+40. **Get another user's report** - Verify 404
+
+==== ✅️Update Report (PUT /api/reports/{id}) ====
+41. **Update report plan only** - Verify plan changes, other fields unchanged
+42. **Update report reason only** - Verify reason changes, other fields unchanged
+43. **Update report pre_notes only** - Verify pre_notes changes, other fields unchanged
+44. **Update report post_notes only** - Verify post_notes changes, other fields unchanged
+45. **Update report all text fields together** - Verify plan, reason, pre_notes, post_notes all change
+46. **Update report with empty plan** - Verify plan can be cleared
+47. **Update report with empty reason** - Verify reason can be cleared
+48. **Update report with empty pre_notes** - Verify pre_notes can be cleared
+49. **Update report with empty post_notes** - Verify post_notes can be cleared
+50. **Update report with no data** - Verify 400 error "No update data provided"
+51. **Update report with empty request body** - Verify 400 error
+52. ~~**Update report with commitment_scope=window** - Verify response includes commitments~~
+53. ~~**Update report with commitment_scope=none** - Verify response excludes commitments~~
+54. **Update report with full=true** - Verify response includes metadata
+55. **Update nonexistent report** - Verify 404
+56. **Update another user's report** - Verify 404
+
+==== ✅️Delete Report (DELETE /api/reports/{id}) ====
+57. **Delete report returns 204** - Verify response
+58. **Delete report actually removes it** - Verify GET returns 404 afterward
+59. **Delete report does NOT delete timeframe** - Verify timeframe still exists after report deleted
+60. **Delete report does NOT delete commitments** - Create commitments, delete report, verify commitments remain
+61. **Delete report does NOT delete checkins** - Create checkins targeting report, delete report, verify checkins remain
+62. **Delete nonexistent report** - Verify 404
+63. **Delete another user's report** - Verify 404
+
+
+===== Priority 2: Commitment Scope Tests =====
+
+==== Commitment Scope: window ====
+64. **Window scope includes soft commitments to nested timeframes** - Create monthly report with commitments to weeks/days within, verify all included
+65. **Window scope includes hard commitments within timeframe** - Create hard commitments with due dates in timeframe, verify included
+66. **Window scope excludes commitments outside timeframe** - Create commitments outside timeframe boundaries, verify excluded
+67. **Window scope for day shows only that day** - Create daily report, verify only day's commitments
+68. **Window scope for week shows all within week** - Create weekly report with commitments to multiple days, verify all included
+69. **Window scope for month shows all within month** - Create monthly report with commitments to weeks and days, verify all included
+70. **Window scope for season shows all within season** - Create seasonal report with commitments to months/weeks/days, verify all included
+71. **Window scope for year shows all within year** - Create yearly report with commitments to all nested timeframes, verify all included
+
+==== Commitment Scope: direct ====
+72. **Direct scope shows only commitments to exact timeframe** - Create monthly report with commitments to month and to nested weeks, verify only month commitments
+73. **Direct scope excludes nested timeframe commitments** - Verify commitments to child timeframes excluded
+74. **Direct scope excludes hard commitments** - Create hard commitments with due dates in timeframe, verify excluded from direct scope
+
+==== Commitment Scope: none ====
+75. **None scope omits commitments field entirely** - Verify commitments field not in response
+76. **None scope omits stats field entirely** - Verify stats field not in response
+77. **None scope omits label field** - Verify label field not in response
+78. **None scope omits report_type field** - Verify report_type field not in response
+
+
+===== Priority 2: Computed Fields Tests =====
+
+==== Label and Report Type ====
+79. **Report label matches timeframe label** - Verify label copied from timeframe
+80. **Report type matches timeframe kind** - Verify report_type is "day", "week", "month", "season", or "year"
+
+==== Commitments Array ====
+81. **Commitments include target objects** - Verify each commitment has eagerly loaded target entity
+82. **Commitments targets include full details** - Verify target has id, title, status, etc.
+83. **Commitments ordered correctly** - Verify commitments returned in consistent order
+84. **Commitments array empty when no commitments** - Verify empty array when timeframe has no commitments
+
+==== Stats Object ====
+85. **Stats total matches commitment count** - Create 5 commitments, verify total=5
+86. **Stats planned counts status=planned** - Create 3 planned commitments, verify planned=3
+87. **Stats completed counts status=done** - Create 2 done commitments, verify completed=2
+88. **Stats by_status maps all statuses** - Create commitments with various statuses, verify by_status object
+89. **Stats by_type maps all target types** - Create commitments to tasks, projects, sessions, verify by_type object
+90. **Stats with zero commitments** - Verify stats with all zeros when no commitments
+
+
+===== Priority 2: Business Logic Tests =====
+
+==== One Report Per Timeframe ====
+91. **Cannot create duplicate report for same timeframe** - Create report, attempt to create another for same timeframe_id, verify constraint enforced
+92. **Get or create returns existing report** - Call get-or-create twice, verify same report returned
+
+==== Report Independence ====
+93. **Reports can exist without timeframe (should fail)** - Verify timeframe_id is required
+94. **Timeframe can exist without report** - Create timeframe, verify no report auto-created
+95. **Deleting report leaves timeframe intact** - Delete report, verify timeframe still exists
+
+==== Text Field Flexibility ====
+96. **All text fields optional on creation** - Create report with no text fields, verify success
+97. **Text fields accept long content** - Create report with very long plan/reason/notes, verify stored
+98. **Text fields can be updated independently** - Update only plan, verify other fields unchanged
+
+==== Planning vs Reflection Workflow ====
+99. **Pre_notes intended for before timeframe** - Verify pre_notes field exists and accepts content
+100. **Post_notes intended for after timeframe** - Verify post_notes field exists and accepts content
+101. **Both pre and post notes can coexist** - Update both fields, verify both stored
+
+
+===== Priority 2: Nested Timeframe Integration Tests =====
+
+==== Hierarchical Commitment Visibility ====
+102. **Seasonal report shows monthly commitments** - Commit to month within season, verify appears in seasonal report with window scope
+103. **Seasonal report shows weekly commitments** - Commit to week within season, verify appears in seasonal report with window scope
+104. **Seasonal report shows daily commitments** - Commit to day within season, verify appears in seasonal report with window scope
+105. **Monthly report shows weekly commitments** - Commit to week within month, verify appears in monthly report with window scope
+106. **Monthly report shows daily commitments** - Commit to day within month, verify appears in monthly report with window scope
+107. **Monthly report excludes larger timeframe commitments** - Commit to season, verify NOT in monthly report with window scope
+108. **Weekly report shows daily commitments** - Commit to day within week, verify appears in weekly report with window scope
+109. **Weekly report excludes larger timeframe commitments** - Commit to month, verify NOT in weekly report with window scope
+110. **Daily report shows only that day** - Commit to specific day, verify appears only in that day's report
+
+==== Hard Commitment Integration ====
+111. **Hard commitment appears in containing day** - Create hard commitment, verify appears in day report with window scope
+112. **Hard commitment appears in containing week** - Verify hard commitment appears in week report with window scope
+113. **Hard commitment appears in containing month** - Verify hard commitment appears in month report with window scope
+114. **Hard commitment appears in containing season** - Verify hard commitment appears in season report with window scope
+115. **Hard commitment appears in containing year** - Verify hard commitment appears in year report with window scope
+116. **Hard commitment excluded from direct scope** - Verify hard commitment NOT in report with direct scope
+
+
+===== Summary =====
+
+**Total test cases: 116**
+* **Smoke tests: 5** (critical path validation)
+* **Extended CRUD: 58** (list, get-or-create, get, update, delete with parameters)
+* **Commitment scope: 15** (window, direct, none behavior)
+* **Computed fields: 12** (label, report_type, commitments, stats)
+* **Business logic: 6** (constraints, independence, text fields, workflow)
+* **Nested timeframe integration: 15** (hierarchical visibility, hard commitments)
+
+**Marker suggestions:**
+* ''@pytest.mark.reports'' - All report tests
+* ''@pytest.mark.smoke_test'' - Tests 1-5
+* ''@pytest.mark.crud'' - Tests 6-63
+* ''@pytest.mark.list'' - Tests 6-15
+* ''@pytest.mark.get_or_create'' - Tests 16-32
+* ''@pytest.mark.get'' - Tests 33-40
+* ''@pytest.mark.update'' - Tests 41-56
+* ''@pytest.mark.delete'' - Tests 57-63
+* ''@pytest.mark.commitment_scope'' - Tests 64-78
+* ''@pytest.mark.computed_fields'' - Tests 79-90
+* ''@pytest.mark.business_logic'' - Tests 91-101
+* ''@pytest.mark.nested_timeframes'' - Tests 102-116
+
+**Notes:**
+* Tests 64-116 require creating commitments and timeframes to verify scope and nesting behavior
+* Tests 60-61 verify cascade behavior (or lack thereof) with commitments and checkins
+* Commitment scope tests are critical since this is a key design feature
+* Nested timeframe tests (102-116) validate the core hierarchical planning concept
+* Tests should verify both the minimal response (commitment_scope=none) and full response formats
+* The get-or-create pattern is unique to reports and needs thorough testing
+* Stats computation is dynamic and needs verification with various commitment configurations
