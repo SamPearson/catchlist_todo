@@ -57,9 +57,9 @@ All endpoints require authentication via JWT Bearer token.
 
 Returns commitments for the authenticated user.
 
-| Parameter    | Type    | Location | Required | Description                           |
-|--------------|---------|----------|----------|---------------------------------------|
-| timeframe_id | integer | query    | no       | Filter by timeframe                   |
+| Parameter    | Type    | Location | Required | Description         |
+|--------------|---------|----------|----------|---------------------|
+| timeframe_id | integer | query    | no       | Filter by timeframe |
 
 **Example Request:**
 {{{code: lang="http" linenumbers="False"
@@ -106,24 +106,24 @@ Supports two approaches for specifying the timeframe:
 
 **Option 1: Direct Timeframe Reference**
 
-| Field        | Type    | Required | Description                                      |
-|--------------|---------|----------|--------------------------------------------------|
-| target_type  | string  | yes      | One of: task, project, routine, session          |
-| target_id    | integer | yes      | ID of the target entity                          |
-| timeframe_id | integer | yes      | ID of an existing timeframe                      |
-| status       | string  | no       | Default "planned"; see status values             |
-| notes        | text    | no       | Optional notes                                   |
+| Field        | Type    | Required | Description                             |
+|--------------|---------|----------|-----------------------------------------|
+| target_type  | string  | yes      | One of: task, project, routine, session |
+| target_id    | integer | yes      | ID of the target entity                 |
+| timeframe_id | integer | yes      | ID of an existing timeframe             |
+| status       | string  | no       | Default "planned"; see status values    |
+| notes        | text    | no       | Optional notes                          |
 
 **Option 2: Implicit Timeframe Creation**
 
-| Field          | Type    | Required | Description                                      |
-|----------------|---------|----------|--------------------------------------------------|
-| target_type    | string  | yes      | One of: task, project, routine, session          |
-| target_id      | integer | yes      | ID of the target entity                          |
-| timeframe_kind | string  | yes      | One of: day, week, month, season, year           |
-| reference_date | string  | yes      | Date in YYYY-MM-DD format                        |
-| status         | string  | no       | Default "planned"; see status values             |
-| notes          | text    | no       | Optional notes                                   |
+| Field          | Type    | Required | Description                             |
+|----------------|---------|----------|-----------------------------------------|
+| target_type    | string  | yes      | One of: task, project, routine, session |
+| target_id      | integer | yes      | ID of the target entity                 |
+| timeframe_kind | string  | yes      | One of: day, week, month, season, year  |
+| reference_date | string  | yes      | Date in YYYY-MM-DD format               |
+| status         | string  | no       | Default "planned"; see status values    |
+| notes          | text    | no       | Optional notes                          |
 
 **Example Request (Option 2):**
 {{{code: lang="json" linenumbers="False"
@@ -176,15 +176,15 @@ Content-Type: application/json
 
 Creates a hard commitment (specific time, auto-derives DAY timeframe).
 
-| Field       | Type   | Required | Description                                      |
-|-------------|--------|----------|--------------------------------------------------|
-| target_type | string | yes      | One of: task, routine, session (NOT project)     |
-| target_id   | integer| yes      | ID of the target entity                          |
-| due_at      | string | yes      | When it's due (ISO datetime, local timezone)     |
-| start_at    | string | no       | When it starts (ISO datetime, local timezone)    |
-| timezone    | string | no       | IANA timezone (defaults to user's timezone)      |
-| status      | string | no       | Default "planned"; see status values             |
-| notes       | text   | no       | Optional notes                                   |
+| Field       | Type    | Required | Description                                   |
+|-------------|---------|----------|-----------------------------------------------|
+| target_type | string  | yes      | One of: task, routine, session (NOT project)  |
+| target_id   | integer | yes      | ID of the target entity                       |
+| due_at      | string  | yes      | When it's due (ISO datetime, local timezone)  |
+| start_at    | string  | no       | When it starts (ISO datetime, local timezone) |
+| timezone    | string  | no       | IANA timezone (defaults to user's timezone)   |
+| status      | string  | no       | Default "planned"; see status values          |
+| notes       | text    | no       | Optional notes                                |
 
 **Example Request:**
 {{{code: lang="json" linenumbers="False"
@@ -252,10 +252,10 @@ Updates a commitment's editable fields.
 
 Deletes all commitments for a specific target entity. Useful when deleting the target entity itself.
 
-| Parameter    | Type    | Location | Required | Description                           |
-|--------------|---------|----------|----------|---------------------------------------|
-| target_type  | string  | query    | yes      | One of: task, project, routine, session |
-| target_id    | integer | query    | yes      | ID of the target entity               |
+| Parameter   | Type    | Location | Required | Description                             |
+|-------------|---------|----------|----------|-----------------------------------------|
+| target_type | string  | query    | yes      | One of: task, project, routine, session |
+| target_id   | integer | query    | yes      | ID of the target entity                 |
 
 **Example Request:**
 {{{code: lang="http" linenumbers="False"
@@ -314,13 +314,13 @@ Deletes a commitment.
 
 ===== Status Values =====
 
-| Status   | Description                              |
-|----------|------------------------------------------|
-| planned  | Scheduled/intended (default)             |
-| done     | Successfully completed                   |
-| skipped  | Intentionally not done                   |
-| canceled | Removed from schedule                    |
-| missed   | Was not done (unintentionally)           |
+| Status   | Description                    |
+|----------|--------------------------------|
+| planned  | Scheduled/intended (default)   |
+| done     | Successfully completed         |
+| skipped  | Intentionally not done         |
+| canceled | Removed from schedule          |
+| missed   | Was not done (unintentionally) |
 
 
 ===== Target Types =====
