@@ -172,19 +172,6 @@ Permanently deletes a report. Does NOT delete the timeframe or associated commit
 **Response:** 204 No Content, or 404 if not found
 
 
-==== Regenerate Content (Deprecated) ====
-
-**POST /api/reports/<report_id>/regenerate**
-
-Exists for backward compatibility only. Since data is now queried dynamically (not cached), this simply returns the report with fresh data. Equivalent to GET with default parameters.
-
-| Parameter         | Type    | Location | Required | Description                                    |
-|-------------------|---------|----------|----------|------------------------------------------------|
-| full              | boolean | query    | no       | Include full metadata. Default false           |
-| commitment_scope  | string  | query    | no       | How to include commitments. Default 'window'   |
-
-**Response:** Report object with current data, or 404 if not found
-
 
 ===== Commitment Scopes =====
 
