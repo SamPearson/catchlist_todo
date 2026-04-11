@@ -123,7 +123,7 @@ def update_session(session_id: int):
         else:
             return jsonify({
                 'error': 'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
-            })
+            }), 400
 
     try:
         user_timezone = get_user_timezone(user_id)
