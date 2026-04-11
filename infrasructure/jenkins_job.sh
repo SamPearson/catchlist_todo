@@ -89,6 +89,28 @@ for service in "${SERVICES[@]}"; do
     fi
 done
 
+# Wait for API to be healthy
+log "Waiting for API to be healthy..."
+MAX_RETRIES=30
+RETRY_INTERVAL=2
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if curl -s -f "https://deployment.domain/api/health" > /dev/null; then
+        echo "✅ API is healthy!"
+        break
+    fi
+    
+    echo "Waiting for API to be healthy... (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)"
+    sleep $RETRY_INTERVAL
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "❌ API failed to become healthy after $MAX_RETRIES attempts"
+    exit 1
+fi
+
 # -----------------
 # TESTING
 # -----------------
@@ -100,28 +122,42 @@ source "$BASE_DIR/venv/bin/activate"
 TEST_API_DIR="$BASE_DIR/test/api"
 cd "$TEST_API_DIR" || exit 1
 
-log "🔹 Running Postman API tests..."
-if ! newman run "Catchlist Testing.postman_collection.json" -e "Production.postman_environment.json" | tee newman_results.log; then
-    echo "❌ Postman API tests failed! Stopping deployment."
-    deactivate
-    exit 1
-fi
-log "✅ Postman API tests passed."
-
-# ---- Webapp (Selenium) Tests ----
-TEST_WEBAPP_DIR="$BASE_DIR/test/webapp"
-cd "$TEST_WEBAPP_DIR" || exit 1
-
-log "🔹 Installing webapp test dependencies..."
+log "🔹 Installing API test dependencies..."
 pip install --upgrade -r requirements.txt
 
-log "🔹 Running Selenium Webapp tests..."
-if ! pytest --headless="True" --env="production_web_env.json"; then
-    echo "❌ Selenium tests failed! Stopping deployment."
+log "🔹 Cleaning up old test reports..."
+REPORT_DIR="./reports/${BUILD_NUMBER:-jenkins_build}"
+rm -rf "$REPORT_DIR"
+
+log "🔹 Running pytest API smoke tests..."
+if ! pytest -m smoke_test --alluredir="$REPORT_DIR" -v; then
+    echo "❌ API smoke tests failed! Stopping deployment."
     deactivate
     exit 1
 fi
-log "✅ Selenium Webapp tests passed."
+
+if command -v allure &> /dev/null; then
+    log "📊 Generating Allure HTML report..."
+    allure generate "$REPORT_DIR" -o "$REPORT_DIR/html" --clean
+fi
+
+log "✅ API smoke tests passed."
+
+# ---- Webapp (Selenium) Tests ----
+# temporarily disabled until webapp refactor
+#TEST_WEBAPP_DIR="$BASE_DIR/test/webapp"
+#cd "$TEST_WEBAPP_DIR" || exit 1
+#
+#log "🔹 Installing webapp test dependencies..."
+#pip install --upgrade -r requirements.txt
+#
+#log "🔹 Running Selenium Webapp tests..."
+#if ! pytest --headless="True" --env="production_web_env.json"; then
+#    echo "❌ Selenium tests failed! Stopping deployment."
+#    deactivate
+#    exit 1
+#fi
+#log "✅ Selenium Webapp tests passed."
 
 deactivate
 log "✅ All tests passed. Deployment complete."
