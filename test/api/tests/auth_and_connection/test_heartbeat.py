@@ -10,7 +10,7 @@ def test_api_health(api_client):
     assert raw_response.status_code == 200, "API health check failed - non-200 status code"
 
     # Optionally check the response body if we care about the format
-    response = raw_response.json()
+    response = raw_response.json
     assert 'status' in response, "API health response missing 'status' field"
     assert response['status'] in ['healthy', 'ok'], "API health check failed - unexpected status value"
 
