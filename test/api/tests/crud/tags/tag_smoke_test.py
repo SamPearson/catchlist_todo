@@ -91,7 +91,7 @@ def test_update_tag_name(auth_client):
         payload = {
             "name": "education"
         }
-        response = auth_client.put(f'/api/tags/{tag_id}', data=payload)
+        response = auth_client.patch(f'/api/tags/{tag_id}', data=payload)
 
     with allure.step("Verify name updated"):
         assert response['id'] == tag_id
