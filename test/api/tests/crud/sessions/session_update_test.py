@@ -305,7 +305,7 @@ def test_update_session_with_empty_request_body(auth_client):
         assert response.status_code == 400
 
     with allure.step("Verify error message"):
-        assert response.json()['error'] == "No update data provided"
+        assert response.json['error'] == "No update data provided"
 
 
 
@@ -343,7 +343,7 @@ def test_update_session_with_disallowed_field_status(auth_client):
         assert response.status_code == 400
 
     with allure.step("Verify error message"):
-        assert "Cannot update status via this endpoint" in response.json()['error']
+        assert "Cannot update status via this endpoint" in response.json['error']
 
 
 
@@ -378,7 +378,7 @@ def test_update_session_with_disallowed_field_routine_id(auth_client):
         assert response.status_code == 400
 
     with allure.step("Verify error message"):
-        assert "Cannot update read-only fields" in response.json()['error']
+        assert "Cannot update read-only fields" in response.json['error']
 
 
 @allure.feature('Sessions')
@@ -412,7 +412,7 @@ def test_update_session_with_disallowed_field_user_id(auth_client):
         assert response.status_code == 400
 
     with allure.step("Verify error message"):
-        assert "Cannot update read-only fields" in response.json()['error']
+        assert "Cannot update read-only fields" in response.json['error']
 
 
 
