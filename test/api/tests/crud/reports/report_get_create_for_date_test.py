@@ -7,7 +7,7 @@ from utils.data_factories.entity_factory import create_task
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_for_day(auth_client):
     """Get or create report with kind=day works"""
@@ -29,7 +29,7 @@ def test_get_or_create_report_for_day(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_for_week(auth_client):
     """Get or create report with kind=week works"""
@@ -49,7 +49,7 @@ def test_get_or_create_report_for_week(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_for_month(auth_client):
     """Get or create report with kind=month works"""
@@ -69,7 +69,7 @@ def test_get_or_create_report_for_month(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_for_season(auth_client):
     """Get or create report with kind=season works"""
@@ -89,7 +89,7 @@ def test_get_or_create_report_for_season(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_for_year(auth_client):
     """Get or create report with kind=year works"""
@@ -109,7 +109,7 @@ def test_get_or_create_report_for_year(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_creates_timeframe_if_missing(auth_client):
     """Get or create report auto-creates associated timeframe"""
@@ -132,7 +132,7 @@ def test_get_or_create_report_creates_timeframe_if_missing(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_returns_existing_report(auth_client):
     """Call get-or-create twice with same kind/date, verify same report ID"""
@@ -153,7 +153,7 @@ def test_get_or_create_report_returns_existing_report(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_commitment_scope_window(auth_client):
     """Get or create report with commitment_scope=window (default) includes commitments"""
@@ -184,7 +184,7 @@ def test_get_or_create_report_with_commitment_scope_window(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_commitment_scope_direct(auth_client):
     """Get or create report with commitment_scope=direct includes only direct commitments"""
@@ -217,7 +217,7 @@ def test_get_or_create_report_with_commitment_scope_direct(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_commitment_scope_none(auth_client):
     """Get or create report with commitment_scope=none excludes commitments"""
@@ -237,7 +237,7 @@ def test_get_or_create_report_with_commitment_scope_none(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_full_true(auth_client):
     """Get or create report with full=true includes metadata"""
@@ -259,7 +259,7 @@ def test_get_or_create_report_with_full_true(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_full_false(auth_client):
     """Get or create report with full=false (default) excludes metadata"""
@@ -281,7 +281,7 @@ def test_get_or_create_report_with_full_false(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_invalid_kind(auth_client):
     """Get or create report with invalid kind returns 400"""
@@ -297,7 +297,7 @@ def test_get_or_create_report_with_invalid_kind(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_invalid_date_format(auth_client):
     """Get or create report with invalid date format returns 400"""
@@ -312,7 +312,7 @@ def test_get_or_create_report_with_invalid_date_format(auth_client):
 @allure.feature('Reports')
 @allure.story('Get or Create Report for Date')
 @pytest.mark.reports
-@pytest.mark.get_or_create
+@pytest.mark.get
 @allure.severity(allure.severity_level.NORMAL)
 def test_get_or_create_report_with_invalid_timezone(auth_client):
     """Get or create report with invalid timezone returns 400"""
