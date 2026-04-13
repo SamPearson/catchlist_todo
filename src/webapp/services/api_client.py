@@ -72,13 +72,3 @@ class APIClient:
 api_client = APIClient()
 
 
-# Decorator for API methods that require auth
-def require_api_auth(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = api_client._get_auth_token()
-        if not token:
-            return {'error': 'Authentication required'}, 401
-        return f(*args, **kwargs)
-
-    return decorated
