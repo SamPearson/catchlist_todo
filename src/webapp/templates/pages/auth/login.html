@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<section class="hero is-fullheight-with-navbar">
+    <div class="hero-body">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-5-tablet is-4-desktop">
+                    <div class="box">
+                        <h1 class="title has-text-centered">Login</h1>
+                        <p class="subtitle has-text-centered has-text-grey">
+                            Welcome back to Catchlist
+                        </p>
+
+                        <div x-data="loginForm()">
+                            <form @submit.prevent="handleSubmit">
+                                <div class="field">
+                                    <label class="label">Username</label>
+                                    <div class="control has-icons-left">
+                                        <input
+                                            class="input"
+                                            type="text"
+                                            placeholder="Enter your username"
+                                            x-model="formData.username"
+                                            :disabled="loading"
+                                            required>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-user"></i>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label class="label">Password</label>
+                                    <div class="control has-icons-left">
+                                        <input
+                                            class="input"
+                                            type="password"
+                                            placeholder="Enter your password"
+                                            x-model="formData.password"
+                                            :disabled="loading"
+                                            required>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-lock"></i>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Error message -->
+                                <div x-show="error" class="notification is-danger is-light" x-transition>
+                                    <button class="delete" @click="error = ''"></button>
+                                    <span x-text="error"></span>
+                                </div>
+
+                                <div class="field">
+                                    <div class="control">
+                                        <button
+                                            class="button is-primary is-fullwidth"
+                                            :class="{ 'is-loading': loading }"
+                                            type="submit"
+                                            :disabled="loading">
+                                            Login
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <hr>
+
+                            <p class="has-text-centered">
+                                Don't have an account?
+                                <a href="/auth/register">Register here</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function loginForm() {
+        return {
+            formData: {
+                username: '',
+                password: ''
+            },
+            loading: false,
+            error: '',
+
+            async handleSubmit() {
+                this.loading = true;
+                this.error = '';
+
+                try {
+                    const data = await api.post('/api/auth/login', this.formData);
+                    
+                    if (data && data.access_token) {
+                        // Login successful, set cookie and redirect
+                        document.cookie = `auth_token=${data.access_token}; path=/; max-age=3600; SameSite=Lax`;
+                        window.location.href = '/';
+                    } else {
+                        this.error = 'Login failed. Please check your credentials.';
+                    }
+                } catch (err) {
+                    this.error = err.message || 'An error occurred. Please try again.';
+                    console.error('Login error:', err);
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+</script>
+{% endblock %}

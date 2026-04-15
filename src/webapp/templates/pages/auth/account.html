@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Account Settings{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title">Account Settings</h1>
+        
+        <div class="columns" x-data="accountPage()" x-init="init()">
+            <!-- Main content column -->
+            <div class="column is-8">
+                
+                <!-- User Information Card -->
+                <div class="box">
+                    <h2 class="title is-4">Profile Information</h2>
+                    
+                    <template x-if="!editingProfile">
+                        <div>
+                            <div class="content">
+                                <p><strong>Username:</strong> <span x-text="userInfo.username"></span></p>
+                                <p><strong>Display Name:</strong> <span x-text="userInfo.name || 'Not set'"></span></p>
+                                <p><strong>Timezone:</strong> <span x-text="userInfo.timezone"></span></p>
+                                <p class="has-text-grey is-size-7">
+                                    <strong>Account created:</strong> <span x-text="formatDate(userInfo.created_at)"></span>
+                                </p>
+                            </div>
+                            <button class="button is-primary" @click="startEditProfile">
+                                <span class="icon"><i class="fas fa-edit"></i></span>
+                                <span>Edit Profile</span>
+                            </button>
+                        </div>
+                    </template>
+
+                    <template x-if="editingProfile">
+                        <div>
+                            <form @submit.prevent="saveProfile">
+                                <div class="field">
+                                    <label class="label">Display Name</label>
+                                    <div class="control">
+                                        <input class="input" type="text" x-model="profileForm.name" placeholder="Your name">
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label class="label">Timezone</label>
+                                    <div class="control">
+                                        <div class="select is-fullwidth">
+                                            <select x-model="profileForm.timezone">
+                                                <option value="UTC">UTC</option>
+                                                <option value="America/New_York">Eastern Time</option>
+                                                <option value="America/Chicago">Central Time</option>
+                                                <option value="America/Denver">Mountain Time</option>
+                                                <option value="America/Los_Angeles">Pacific Time</option>
+                                                <option value="America/Phoenix">Arizona Time</option>
+                                                <option value="America/Anchorage">Alaska Time</option>
+                                                <option value="Pacific/Honolulu">Hawaii Time</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div x-show="profileError" class="notification is-danger is-light" x-transition>
+                                    <button class="delete" @click="profileError = ''"></button>
+                                    <span x-text="profileError"></span>
+                                </div>
+
+                                <div x-show="profileSuccess" class="notification is-success is-light" x-transition>
+                                    <span x-text="profileSuccess"></span>
+                                </div>
+
+                                <div class="field is-grouped">
+                                    <div class="control">
+                                        <button class="button is-primary" type="submit" :class="{ 'is-loading': savingProfile }">
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                    <div class="control">
+                                        <button class="button is-light" type="button" @click="cancelEditProfile">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Change Password Card -->
+                <div class="box">
+                    <h2 class="title is-4">Change Password</h2>
+                    
+                    <form @submit.prevent="changePassword">
+                        <div class="field">
+                            <label class="label">Current Password</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="password" x-model="passwordForm.old_password" required>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">New Password</label>
+                            <div class="control has-icons-left">
+                                <input class="input" type="password" x-model="passwordForm.new_password" required>
+                                <span class="icon is-small is-left">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                            </div>
+                            <p class="help">Must be at least 8 characters</p>
+                        </div>
+
+                        <div x-show="passwordError" class="notification is-danger is-light" x-transition>
+                            <button class="delete" @click="passwordError = ''"></button>
+                            <span x-text="passwordError"></span>
+                        </div>
+
+                        <div x-show="passwordSuccess" class="notification is-success is-light" x-transition>
+                            <span x-text="passwordSuccess"></span>
+                        </div>
+
+                        <div class="field">
+                            <div class="control">
+                                <button class="button is-primary" type="submit" :class="{ 'is-loading': changingPassword }">
+                                    <span class="icon"><i class="fas fa-key"></i></span>
+                                    <span>Change Password</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Delete Account Card -->
+                <div class="box has-background-danger-light">
+                    <h2 class="title is-4 has-text-danger">Danger Zone</h2>
+                    <p class="content">
+                        Deleting your account is permanent and cannot be undone. All your data will be permanently deleted.
+                    </p>
+                    
+                    <template x-if="!confirmingDelete">
+                        <button class="button is-danger" @click="confirmingDelete = true">
+                            <span class="icon"><i class="fas fa-trash"></i></span>
+                            <span>Delete Account</span>
+                        </button>
+                    </template>
+
+                    <template x-if="confirmingDelete">
+                        <div class="box">
+                            <h3 class="subtitle is-5">Confirm Account Deletion</h3>
+                            <p class="content">Enter your password to confirm account deletion:</p>
+                            
+                            <form @submit.prevent="deleteAccount">
+                                <div class="field">
+                                    <label class="label">Password</label>
+                                    <div class="control has-icons-left">
+                                        <input class="input" type="password" x-model="deleteForm.password" required>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-lock"></i>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div x-show="deleteError" class="notification is-danger is-light" x-transition>
+                                    <button class="delete" @click="deleteError = ''"></button>
+                                    <span x-text="deleteError"></span>
+                                </div>
+
+                                <div class="field is-grouped">
+                                    <div class="control">
+                                        <button class="button is-danger" type="submit" :class="{ 'is-loading': deleting }">
+                                            Confirm Deletion
+                                        </button>
+                                    </div>
+                                    <div class="control">
+                                        <button class="button is-light" type="button" @click="cancelDelete">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+
+            <!-- Sidebar -->
+            <div class="column is-4">
+                <div class="box">
+                    <h3 class="subtitle is-5">Quick Info</h3>
+                    <div class="content">
+                        <p class="is-size-7 has-text-grey">
+                            Your account information is private and secure. Changes to your profile take effect immediately.
+                        </p>
+                        <p class="is-size-7 has-text-grey">
+                            <strong>Timezone:</strong> All dates and times in Catchlist will be displayed in your configured timezone.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function accountPage() {
+        return {
+            userInfo: {},
+            editingProfile: false,
+            profileForm: {
+                name: '',
+                timezone: ''
+            },
+            savingProfile: false,
+            profileError: '',
+            profileSuccess: '',
+            
+            passwordForm: {
+                old_password: '',
+                new_password: ''
+            },
+            changingPassword: false,
+            passwordError: '',
+            passwordSuccess: '',
+            
+            confirmingDelete: false,
+            deleteForm: {
+                password: ''
+            },
+            deleting: false,
+            deleteError: '',
+
+            async init() {
+                await this.loadUserInfo();
+            },
+
+            async loadUserInfo() {
+                try {
+                    const data = await api.get('/api/auth/user-info');
+                    if (data) {
+                        this.userInfo = data;
+                    }
+                } catch (err) {
+                    console.error('Error loading user info:', err);
+                }
+            },
+
+            startEditProfile() {
+                this.profileForm = {
+                    name: this.userInfo.name || '',
+                    timezone: this.userInfo.timezone
+                };
+                this.editingProfile = true;
+                this.profileError = '';
+                this.profileSuccess = '';
+            },
+
+            cancelEditProfile() {
+                this.editingProfile = false;
+                this.profileError = '';
+                this.profileSuccess = '';
+            },
+
+            async saveProfile() {
+                this.savingProfile = true;
+                this.profileError = '';
+                this.profileSuccess = '';
+
+                try {
+                    const data = await api.patch('/api/auth/user', this.profileForm);
+                    if (data) {
+                        this.userInfo = data;
+                        this.profileSuccess = 'Profile updated successfully!';
+                        setTimeout(() => {
+                            this.editingProfile = false;
+                            this.profileSuccess = '';
+                        }, 2000);
+                    }
+                } catch (err) {
+                    this.profileError = err.message || 'Failed to update profile';
+                } finally {
+                    this.savingProfile = false;
+                }
+            },
+
+            async changePassword() {
+                this.changingPassword = true;
+                this.passwordError = '';
+                this.passwordSuccess = '';
+
+                try {
+                    await api.post('/api/auth/change-password', this.passwordForm);
+                    this.passwordSuccess = 'Password changed successfully!';
+                    this.passwordForm = { old_password: '', new_password: '' };
+                } catch (err) {
+                    this.passwordError = err.message || 'Failed to change password';
+                } finally {
+                    this.changingPassword = false;
+                }
+            },
+
+            cancelDelete() {
+                this.confirmingDelete = false;
+                this.deleteForm.password = '';
+                this.deleteError = '';
+            },
+
+            async deleteAccount() {
+                this.deleting = true;
+                this.deleteError = '';
+
+                try {
+                    await api.post('/api/auth/delete-account', this.deleteForm);
+                    // Account deleted, clear cookie and redirect
+                    document.cookie = 'auth_token=; path=/; max-age=0';
+                    window.location.href = '/';
+                } catch (err) {
+                    this.deleteError = err.message || 'Failed to delete account';
+                    this.deleting = false;
+                }
+            },
+
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        };
+    }
+</script>
+{% endblock %}
