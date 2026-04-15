@@ -1,0 +1,165 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-04-15T00:00:00-00:00
+
+====== Authentication Routes ======
+
+===== Overview =====
+
+API endpoints for user authentication and account management. These endpoints handle user registration, login/logout, profile management, and account deletion.
+
+Authentication is handled via JWT (JSON Web Token) Bearer tokens. Most endpoints require authentication, except for registration and login.
+
+**Timezone Handling:** All timestamp fields in responses are converted to the authenticated user's timezone (configured in their user profile). Timestamps are returned in ISO 8601 format with timezone information.
+
+
+===== Authentication Endpoints =====
+
+==== Register ====
+
+**POST /api/auth/register**
+
+Creates a new user account.
+
+| Field    | Type   | Required | Description                                         |
+|----------|--------|----------|-----------------------------------------------------|
+| username | string | yes      | Unique username for login                           |
+| password | string | yes      | Account password                                    |
+| name     | string | no       | Display name for the user                           |
+| timezone | string | no       | User's timezone (IANA format). Default "UTC"        |
+
+**Response:** User object with success message (201)
+
+**Error Responses:**
+* 400 if username or password is missing
+* 400 if validation fails (e.g., username already exists)
+* 500 if database error occurs
+
+
+==== Login ====
+
+**POST /api/auth/login**
+
+Authenticates a user and returns an access token.
+
+| Field    | Type   | Required | Description       |
+|----------|--------|----------|-------------------|
+| username | string | yes      | User's username   |
+| password | string | yes      | User's password   |
+
+**Response:** Object containing access_token, user object, and success message (200)
+
+**Error Responses:**
+* 400 if username or password is missing
+* 401 if credentials are invalid
+
+
+==== Logout ====
+
+**POST /api/auth/logout**
+
+Logs out the current user by blacklisting their JWT token. The token will no longer be valid for subsequent requests.
+
+**Authentication:** Required (JWT Bearer token)
+
+**Response:** Success message (200)
+
+
+===== User Information Endpoints =====
+
+==== Get User Info ====
+
+**GET /api/auth/user-info**
+
+Returns the authenticated user's profile information.
+
+**Authentication:** Required (JWT Bearer token)
+
+**Response:** User object (200)
+
+**Error Responses:**
+* 404 if user not found
+
+
+==== Update User ====
+
+**PATCH /api/auth/user**
+
+Updates the authenticated user's profile information.
+
+**Authentication:** Required (JWT Bearer token)
+
+| Field    | Type   | Description                              |
+|----------|--------|------------------------------------------|
+| name     | string | Display name for the user                |
+| timezone | string | User's timezone (IANA format)            |
+| username | string | Username (subject to validation)         |
+
+**Response:** Updated user object (200)
+
+**Error Responses:**
+* 400 if no update data provided
+* 400 if validation fails
+* 404 if user not found
+
+
+===== Account Management Endpoints =====
+
+==== Change Password ====
+
+**POST /api/auth/change-password**
+
+Changes the authenticated user's password. Requires the current password for verification.
+
+**Authentication:** Required (JWT Bearer token)
+
+| Field        | Type   | Required | Description           |
+|--------------|--------|----------|-----------------------|
+| old_password | string | yes      | Current password      |
+| new_password | string | yes      | New password          |
+
+**Response:** Success message (200)
+
+**Error Responses:**
+* 400 if old_password or new_password is missing
+* 400 if validation fails (e.g., old password is incorrect)
+* 404 if user not found
+
+
+==== Delete Account ====
+
+**POST /api/auth/delete-account**
+
+Permanently deletes the authenticated user's account. Requires password confirmation for security. This action cascades to delete all user-associated data and blacklists the current JWT token.
+
+**Authentication:** Required (JWT Bearer token)
+
+| Field    | Type   | Required | Description                       |
+|----------|--------|----------|-----------------------------------|
+| password | string | yes      | Current password for confirmation |
+
+**Business Logic:**
+* Password is re-verified before deletion
+* Current JWT token is blacklisted
+* All user data is deleted via cascade
+
+**Response:** Success message (200)
+
+**Error Responses:**
+* 400 if password is missing
+* 401 if password is invalid
+* 500 if error occurs during deletion
+
+
+===== User Object =====
+
+| Field      | Type     | Description                                                   |
+|------------|----------|---------------------------------------------------------------|
+| id         | integer  | Primary key                                                   |
+| username   | string   | Unique username                                               |
+| name       | string   | Display name                                                  |
+| timezone   | string   | User's timezone (IANA format)                                 |
+| created_at | datetime | When account was created (ISO 8601 format in user's timezone) |
+| updated_at | datetime | When last modified (ISO 8601 format in user's timezone)       |
+
+**Note:** Password hashes are never included in API responses. All datetime fields are stored in UTC on the server but are automatically converted to the user's configured timezone in API responses. The timezone offset is included in the ISO 8601 format (e.g., "2026-03-18T14:30:00-05:00" for Central Time).
