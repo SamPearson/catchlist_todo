@@ -39,6 +39,7 @@ class User(UserMixin, db.Model):
 
     def as_dict(self):
         return {
+            "username": self.username,
             "id": self.id,
             "name": self.name,
             "timezone": self.timezone,

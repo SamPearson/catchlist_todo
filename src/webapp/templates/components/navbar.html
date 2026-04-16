@@ -1,0 +1,64 @@
+<nav class="navbar is-light" role="navigation" aria-label="main navigation" x-data="{ isLoggedIn: api.getAuthToken() !== null }">
+    <div class="navbar-brand">
+        <a class="navbar-item" href="/">
+            <strong>Catchlist</strong>
+        </a>
+
+        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
+           data-target="navbarBasic"
+           @click="$el.classList.toggle('is-active'); document.getElementById('navbarBasic').classList.toggle('is-active')">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+        </a>
+    </div>
+
+    <div id="navbarBasic" class="navbar-menu">
+        {# Logged in navigation #}
+        <template x-if="isLoggedIn">
+            <div class="navbar-start">
+                <a class="navbar-item" href="/desk">Desk</a>
+                <a class="navbar-item" href="/tasks">Tasks</a>
+                <a class="navbar-item" href="/projects">Projects</a>
+                <a class="navbar-item" href="/routines">Routines</a>
+                <a class="navbar-item" href="/reports">Reports</a>
+            </div>
+        </template>
+
+        <div class="navbar-end">
+            <div class="navbar-item">
+                <div class="buttons">
+                    {# Logged in buttons #}
+                    <template x-if="isLoggedIn">
+                        <div class="buttons">
+                            <a class="button is-light" href="/auth/account">
+                                <span class="icon">
+                                    <i class="fas fa-user"></i>
+                                </span>
+                                <span>Account</span>
+                            </a>
+                            <a class="button is-danger" href="/auth/logout">
+                                <span class="icon">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                </span>
+                                <span>Logout</span>
+                            </a>
+                        </div>
+                    </template>
+
+                    {# Logged out buttons #}
+                    <template x-if="!isLoggedIn">
+                        <div class="buttons">
+                            <a class="button is-primary" href="/auth/register">
+                                <strong>Sign up</strong>
+                            </a>
+                            <a class="button is-light" href="/auth/login">
+                                Log in
+                            </a>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>

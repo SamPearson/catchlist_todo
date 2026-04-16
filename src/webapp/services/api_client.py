@@ -1,7 +1,6 @@
 import os
 import requests
-from flask import request
-from functools import wraps
+from .auth import get_auth_token
 
 
 class APIClient:
@@ -10,20 +9,10 @@ class APIClient:
         if not self.base_url:
             raise ValueError("API_URL environment variable not set")
 
-    def _get_auth_token(self):
-        """Get auth token from request context"""
-        # First try to get from headers
-        token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        if token:
-            return token
-
-        # Then try to get from cookies
-        return request.cookies.get('auth_token', '')
-
     def _get_headers(self, token=None):
         """Get headers with auth token"""
         headers = {'Content-Type': 'application/json'}
-        token = token or self._get_auth_token()
+        token = token or get_auth_token()
         if token:
             headers['Authorization'] = f'Bearer {token}'
         return headers
@@ -72,13 +61,3 @@ class APIClient:
 api_client = APIClient()
 
 
-# Decorator for API methods that require auth
-def require_api_auth(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = api_client._get_auth_token()
-        if not token:
-            return {'error': 'Authentication required'}, 401
-        return f(*args, **kwargs)
-
-    return decorated

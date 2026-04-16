@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<section class="hero is-fullheight-with-navbar">
+    <div class="hero-body">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-5-tablet is-4-desktop">
+                    <div class="box">
+                        <h1 class="title has-text-centered">Register</h1>
+                        <p class="subtitle has-text-centered has-text-grey">
+                            Create your Catchlist account
+                        </p>
+
+                        <div x-data="registerForm()">
+                            <form @submit.prevent="handleSubmit">
+                                <div class="field">
+                                    <label class="label">Username</label>
+                                    <div class="control has-icons-left">
+                                        <input
+                                            class="input"
+                                            type="text"
+                                            placeholder="Choose a username"
+                                            x-model="formData.username"
+                                            :disabled="loading"
+                                            required>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-user"></i>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label class="label">Password</label>
+                                    <div class="control has-icons-left">
+                                        <input 
+                                            class="input" 
+                                            type="password" 
+                                            placeholder="Choose a secure password"
+                                            x-model="formData.password"
+                                            :disabled="loading"
+                                            required>
+                                        <span class="icon is-small is-left">
+                                            <i class="fas fa-lock"></i>
+                                        </span>
+                                    </div>
+                                    <p class="help">Must be at least 8 characters</p>
+                                </div>
+
+                                <!-- Success message -->
+                                <div x-show="success" class="notification is-success is-light" x-transition>
+                                    <span x-text="success"></span>
+                                </div>
+
+                                <!-- Error message -->
+                                <div x-show="error" class="notification is-danger is-light" x-transition>
+                                    <button class="delete" @click="error = ''"></button>
+                                    <span x-text="error"></span>
+                                </div>
+
+                                <div class="field">
+                                    <div class="control">
+                                        <button
+                                            class="button is-primary is-fullwidth"
+                                            :class="{ 'is-loading': loading }"
+                                            type="submit"
+                                            :disabled="loading">
+                                            Register
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <hr>
+
+                            <p class="has-text-centered">
+                                Already have an account?
+                                <a href="/auth/login">Login here</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function registerForm() {
+        return {
+            formData: {
+                username: '',
+                password: ''
+            },
+            loading: false,
+            error: '',
+            success: '',
+
+            async handleSubmit() {
+                this.loading = true;
+                this.error = '';
+                this.success = '';
+
+                try {
+                    const data = await api.post('/api/auth/register', this.formData);
+                    
+                    if (data) {
+                        // Registration successful
+                        this.success = 'Registration successful! Redirecting to login...';
+                        setTimeout(() => {
+                            window.location.href = '/auth/login';
+                        }, 2000);
+                    }
+                } catch (err) {
+                    this.error = err.message || 'Registration failed. Please try again.';
+                    console.error('Registration error:', err);
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+</script>
+{% endblock %}
