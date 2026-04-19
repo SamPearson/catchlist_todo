@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+{% from "components/tasks/task_manager.html" import task_manager %}
+{% from "components/tasks/task_create.html" import task_create %}
+{% from "components/tasks/task_search.html" import task_search %}
+
+{% block title %}Task Component Demo{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title">Task Component Demo</h1>
+        <p class="subtitle">UI component testing and demonstration</p>
+
+        <!-- Search Component Demo -->
+        <div class="box mb-6">
+            <h2 class="title is-4">Search & Filter Component</h2>
+            <p class="subtitle is-6">Simple search box that expands to show advanced filters</p>
+            
+            {{ task_search() }}
+        </div>
+
+        <!-- Create Task Section -->
+        <div class="box mb-6">
+            <h2 class="title is-4">Create Task Flow</h2>
+            <p class="subtitle is-6">Create a new task - after saving it will appear as a task item below</p>
+            
+            <div x-data="taskCreateManager()">
+                <!-- Show create form or created task -->
+                <template x-if="!createdTask">
+                    <div>
+                        {{ task_create() }}
+                    </div>
+                </template>
+                
+                <template x-if="createdTask">
+                    <div>
+                        <div class="notification is-success is-light mb-4">
+                            <button class="delete" @click="reset()"></button>
+                            Task created successfully! This is how it appears as a task item. Click the X to create another task.
+                        </div>
+                        
+                        <!-- Show the created task using task_manager -->
+                        <div x-data='taskManager(createdTask)'>
+                            <!-- Just show the view without the manager wrapper for demo purposes -->
+                            <div class="box" :class="{ 'has-background-success-light': createdTask.completed }">
+                                <div class="is-flex is-justify-content-space-between is-align-items-start mb-3">
+                                    <h3 class="title is-5 mb-0" x-text="createdTask.title"></h3>
+                                </div>
+
+                                <div class="is-flex is-flex-wrap-wrap mb-3" style="gap: 0.5rem;">
+                                    <span class="tag" :class="getStatusTagClass()" x-text="createdTask.status"></span>
+                                    <span x-show="!createdTask.active" class="tag is-warning is-light">Someday/Maybe</span>
+                                </div>
+
+                                <div x-show="createdTask.description" class="content mb-3">
+                                    <p x-text="createdTask.description"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Task Item Component Demo -->
+        <div class="box">
+            <h2 class="title is-4">Task Item Component (View/Edit Flow)</h2>
+            <p class="subtitle is-6">Click tasks to expand, then click "Edit" to modify them</p>
+
+            <div class="content">
+                <!-- Task Item 1: Active, Open, Standalone -->
+                {{ task_manager({
+                    'id': 1,
+                    'title': 'Buy new running shoes',
+                    'description': 'Need to replace my current pair - they have about 500 miles on them. Look for something with good arch support.',
+                    'status': 'open',
+                    'active': true,
+                    'completed': false,
+                    'project_id': none,
+                    'created_at': '2026-04-10T14:30:00',
+                    'updated_at': '2026-04-12T09:15:00'
+                }) }}
+
+                <!-- Task Item 2: Waiting, Has Description -->
+                {{ task_manager({
+                    'id': 2,
+                    'title': 'Reply to email from Sarah about project proposal',
+                    'description': 'Sarah sent over feedback on sections 2-4. Need to address her concerns about the timeline and budget estimates.',
+                    'status': 'waiting',
+                    'active': true,
+                    'completed': false,
+                    'project_id': none,
+                    'created_at': '2026-04-13T10:00:00',
+                    'updated_at': '2026-04-14T16:30:00'
+                }) }}
+
+                <!-- Task Item 3: Completed -->
+                {{ task_manager({
+                    'id': 3,
+                    'title': 'Review Q1 budget report',
+                    'description': none,
+                    'status': 'open',
+                    'active': true,
+                    'completed': true,
+                    'completed_at': '2026-04-14T11:00:00',
+                    'project_id': none,
+                    'created_at': '2026-04-09T08:00:00',
+                    'updated_at': '2026-04-14T11:00:00'
+                }) }}
+
+                <!-- Task Item 4: Subtask of a Project -->
+                {{ task_manager({
+                    'id': 4,
+                    'title': 'Draft introduction section',
+                    'description': 'Write the first draft of the introduction covering background and motivation.',
+                    'status': 'open',
+                    'active': true,
+                    'completed': false,
+                    'project_id': 42,
+                    'created_at': '2026-04-11T09:00:00',
+                    'updated_at': '2026-04-11T09:00:00'
+                }) }}
+
+                <!-- Task Item 5: Someday/Maybe -->
+                {{ task_manager({
+                    'id': 5,
+                    'title': 'Learn to play guitar',
+                    'description': 'Would be nice to learn someday. Maybe take a few lessons or use an online course.',
+                    'status': 'deferred',
+                    'active': false,
+                    'completed': false,
+                    'project_id': none,
+                    'created_at': '2026-03-15T12:00:00',
+                    'updated_at': '2026-03-15T12:00:00'
+                }) }}
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Task Manager - Handles view/edit mode switching for existing tasks
+    function taskManager(initialTask) {
+        return {
+            task: initialTask,
+            mode: 'view',
+            expanded: false,
+            formData: {},
+            errors: {},
+            saving: false,
+
+            edit() {
+                this.formData = {
+                    title: this.task.title,
+                    description: this.task.description,
+                    status: this.task.status,
+                    active: this.task.active
+                };
+                this.mode = 'edit';
+                this.expanded = true;
+            },
+
+            toggleExpand() {
+                this.expanded = !this.expanded;
+            },
+
+            validate() {
+                this.errors = {};
+                
+                if (!this.formData.title || this.formData.title.trim() === '') {
+                    this.errors.title = 'Title is required';
+                    return false;
+                }
+                
+                if (this.formData.title.length > 200) {
+                    this.errors.title = 'Title must be 200 characters or less';
+                    return false;
+                }
+                
+                return true;
+            },
+
+            async save() {
+                if (!this.validate()) {
+                    return;
+                }
+
+                this.saving = true;
+                
+                try {
+                    // TODO: Replace with actual API call
+                    // const result = await api.patch(`/api/tasks/${this.task.id}`, this.formData);
+                    
+                    // Simulate API call
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    console.log('Saving task:', this.formData);
+                    
+                    // Update task with new values
+                    this.task.title = this.formData.title;
+                    this.task.description = this.formData.description;
+                    this.task.status = this.formData.status;
+                    this.task.active = this.formData.active;
+                    this.task.updated_at = new Date().toISOString();
+                    
+                    // Switch back to view mode
+                    this.mode = 'view';
+                    
+                } catch (err) {
+                    console.error('Error saving task:', err);
+                    alert('Error saving task: ' + err.message);
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            cancelEdit() {
+                this.formData = {};
+                this.errors = {};
+                this.mode = 'view';
+            },
+
+            deleteTask() {
+                if (!confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+                    return;
+                }
+                
+                // TODO: Replace with actual API call
+                console.log('Deleting task:', this.task.id);
+                alert('Task deleted! (This is a demo - no actual deletion)');
+            },
+
+            getStatusColor() {
+                const statusColors = {
+                    'open': 'has-text-success',
+                    'waiting': 'has-text-warning',
+                    'deferred': 'has-text-info',
+                    'declined': 'has-text-danger',
+                    'stale': 'has-text-grey'
+                };
+                return statusColors[this.task.status] || 'has-text-grey';
+            },
+
+            getStatusTagClass() {
+                const statusClasses = {
+                    'open': 'is-success is-light',
+                    'waiting': 'is-warning is-light',
+                    'deferred': 'is-info is-light',
+                    'declined': 'is-danger is-light',
+                    'stale': 'is-light'
+                };
+                return statusClasses[this.task.status] || 'is-light';
+            },
+
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        };
+    }
+
+    // Task Create - Handles creating new tasks
+    function taskCreate() {
+        return {
+            formData: {
+                title: '',
+                description: '',
+                status: 'open',
+                active: true
+            },
+            errors: {},
+            saving: false,
+
+            validate() {
+                this.errors = {};
+                
+                if (!this.formData.title || this.formData.title.trim() === '') {
+                    this.errors.title = 'Title is required';
+                    return false;
+                }
+                
+                if (this.formData.title.length > 200) {
+                    this.errors.title = 'Title must be 200 characters or less';
+                    return false;
+                }
+                
+                return true;
+            },
+
+            async create() {
+                if (!this.validate()) {
+                    return;
+                }
+
+                this.saving = true;
+                
+                try {
+                    // TODO: Replace with actual API call
+                    // const result = await api.post('/api/tasks', this.formData);
+                    
+                    // Simulate API call
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    console.log('Creating task:', this.formData);
+                    
+                    // Create a mock task object with the form data
+                    const newTask = {
+                        id: Math.floor(Math.random() * 1000), // Mock ID
+                        ...this.formData,
+                        completed: false,
+                        completed_at: null,
+                        project_id: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    // Dispatch custom event with the new task
+                    this.$dispatch('task-created', newTask);
+                    
+                    // Reset form
+                    this.formData = {
+                        title: '',
+                        description: '',
+                        status: 'open',
+                        active: true
+                    };
+                    
+                } catch (err) {
+                    console.error('Error creating task:', err);
+                    alert('Error creating task: ' + err.message);
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            cancel() {
+                this.formData = {
+                    title: '',
+                    description: '',
+                    status: 'open',
+                    active: true
+                };
+                this.errors = {};
+            }
+        };
+    }
+
+    // Task Create Manager - Wraps the create component to show created result
+    function taskCreateManager() {
+        return {
+            createdTask: null,
+
+            init() {
+                // Listen for the task-created custom event
+                this.$el.addEventListener('task-created', (e) => {
+                    this.createdTask = e.detail;
+                });
+            },
+
+            reset() {
+                this.createdTask = null;
+            },
+
+            getStatusTagClass() {
+                if (!this.createdTask) return '';
+                const statusClasses = {
+                    'open': 'is-success is-light',
+                    'waiting': 'is-warning is-light',
+                    'deferred': 'is-info is-light',
+                    'declined': 'is-danger is-light',
+                    'stale': 'is-light'
+                };
+                return statusClasses[this.createdTask.status] || 'is-light';
+            }
+        };
+    }
+
+    // Task Search - Handles search and filtering
+    function taskSearch() {
+        return {
+            expanded: false,
+            simpleSearch: '',
+            filters: {
+                title: '',
+                description: '',
+                status: {
+                    open: false,
+                    waiting: false,
+                    deferred: false,
+                    declined: false,
+                    stale: false
+                },
+                activeStatus: 'all', // 'active', 'all', 'inactive'
+                completionStatus: 'incomplete' // 'incomplete', 'all', 'complete'
+            },
+
+            expand() {
+                // When expanding, split simple search into title field
+                if (this.simpleSearch) {
+                    this.filters.title = this.simpleSearch;
+                }
+                this.expanded = true;
+            },
+
+            collapse() {
+                this.expanded = false;
+            },
+
+            applySimpleSearch() {
+                console.log('Simple search:', this.simpleSearch);
+                // TODO: Trigger search with simpleSearch value
+                // This would search both title and description
+                alert('Searching for: "' + this.simpleSearch + '" (Demo - no actual search)');
+            },
+
+            applyFilters() {
+                console.log('Applying filters:', this.filters);
+                
+                // Build filter summary
+                const summary = this.getFilterSummary();
+                
+                // TODO: Trigger filtered search with filters object
+                alert('Filters applied:\n' + summary + '\n\n(Demo - no actual search)');
+                
+                // Collapse back to simple view
+                this.collapse();
+            },
+
+            clearFilters() {
+                this.simpleSearch = '';
+                this.filters = {
+                    title: '',
+                    description: '',
+                    status: {
+                        open: false,
+                        waiting: false,
+                        deferred: false,
+                        declined: false,
+                        stale: false
+                    },
+                    activeStatus: 'all',
+                    completionStatus: 'incomplete'
+                };
+                
+                console.log('Filters cleared');
+            },
+
+            hasActiveFilters() {
+                // Check if any filters are set
+                if (this.simpleSearch) return true;
+                if (this.filters.title) return true;
+                if (this.filters.description) return true;
+                
+                // Check if any status checkboxes are checked
+                const hasStatusFilter = Object.values(this.filters.status).some(v => v === true);
+                if (hasStatusFilter) return true;
+                
+                // Check if non-default radio options are selected
+                if (this.filters.activeStatus !== 'all') return true;
+                if (this.filters.completionStatus !== 'incomplete') return true;
+                
+                return false;
+            },
+
+            getActiveFilterCount() {
+                let count = 0;
+                
+                if (this.simpleSearch) count++;
+                if (this.filters.title) count++;
+                if (this.filters.description) count++;
+                
+                // Count status filters
+                count += Object.values(this.filters.status).filter(v => v === true).length;
+                
+                if (this.filters.activeStatus !== 'all') count++;
+                if (this.filters.completionStatus !== 'incomplete') count++;
+                
+                return count;
+            },
+
+            getFilterSummary() {
+                const parts = [];
+                
+                if (this.filters.title) {
+                    parts.push('Title contains: "' + this.filters.title + '"');
+                }
+                
+                if (this.filters.description) {
+                    parts.push('Description contains: "' + this.filters.description + '"');
+                }
+                
+                const selectedStatuses = Object.entries(this.filters.status)
+                    .filter(([key, value]) => value === true)
+                    .map(([key, value]) => key);
+                
+                if (selectedStatuses.length > 0) {
+                    parts.push('Status: ' + selectedStatuses.join(', '));
+                }
+                
+                if (this.filters.activeStatus !== 'all') {
+                    parts.push('Active: ' + this.filters.activeStatus);
+                }
+                
+                if (this.filters.completionStatus !== 'incomplete') {
+                    parts.push('Completion: ' + this.filters.completionStatus);
+                }
+                
+                return parts.length > 0 ? parts.join('\n') : 'No filters active';
+            }
+        };
+    }
+</script>
+{% endblock %}
