@@ -2,7 +2,7 @@ Content-Type: text/x-zim-wiki
 Wiki-Format: zim 0.6
 Creation-Date: 2026-01-12T21:36:23-06:00
 
-====== Manual ======
+====== Entity Test Cases ======
 Created Monday 12 January 2026
 
 Manual API Testing can be performed with postman.
