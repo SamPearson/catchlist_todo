@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
-from src.database.principles.service import PrincipleService, PrincipleValidationError
+from src.database.principles.principle_service import PrincipleService, PrincipleValidationError
 
 
 def _get_target_entity(session, user_id, target_type, target_id):
@@ -22,19 +22,19 @@ def _get_target_entity(session, user_id, target_type, target_id):
         }
     
     if target_type == "task":
-        from src.database.tasks.models import Task
+        from src.database.tasks.task_models import Task
         entity = session.query(Task).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "project":
-        from src.database.projects.models import Project
+        from src.database.projects.project_models import Project
         entity = session.query(Project).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "calendar":
-        from src.database.calendars.models import Calendar
+        from src.database.calendars.calendar_models import Calendar
         entity = session.query(Calendar).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "routine":
-        from src.database.routines.models import Routine
+        from src.database.routines.routine_models import Routine
         entity = session.query(Routine).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "session":
-        from src.database.sessions.models import RoutineSession
+        from src.database.sessions.session_models import RoutineSession
         entity = session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first()
     
     return entity, None

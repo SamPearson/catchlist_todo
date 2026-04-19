@@ -3,9 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 
 from src.database.db import db
-from src.database.reports.service import ReportService, ReportValidationError
-from src.database.timeframes.service import TimeframeService
-from src.database.users.models import User
+from src.database.reports.report_service import ReportService, ReportValidationError
+from src.database.timeframes.timeframe_service import TimeframeService
+from src.database.users.user_models import User
 from src.utils.timezone import compute_timeframe_bounds
 
 

@@ -1,10 +1,10 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
-from src.database.projects.service import ProjectService, ProjectValidationError
-from src.database.projects.repository import ProjectRepository
-from src.database.tasks.service import TaskService, TaskValidationError
-from src.database.tasks.repository import TaskRepository
+from src.database.projects.project_service import ProjectService, ProjectValidationError
+from src.database.projects.project_repository import ProjectRepository
+from src.database.tasks.task_service import TaskService, TaskValidationError
+from src.database.tasks.task_repository import TaskRepository
 
 
 @jwt_required()

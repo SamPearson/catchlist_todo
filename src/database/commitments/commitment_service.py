@@ -6,10 +6,10 @@ from datetime import datetime, date
 from sqlalchemy.orm import Session
 
 from src.database.base.exceptions import EntityNotFoundError, InvalidStateError, ValidationError
-from src.database.commitments.models import Commitment
-from src.database.commitments.repository import CommitmentRepo
-from src.database.timeframes.models import Timeframe
-from src.database.timeframes.service import TimeframeService
+from src.database.commitments.commitment_models import Commitment
+from src.database.commitments.commitment_repository import CommitmentRepo
+from src.database.timeframes.timeframe_models import Timeframe
+from src.database.timeframes.timeframe_service import TimeframeService
 from src.utils.timezone import to_utc
 
 
@@ -44,7 +44,7 @@ class CommitmentService:
 
     def _get_user_timezone(self, user_id: int) -> str:
         """Get user's timezone, defaulting to UTC if not set."""
-        from src.database.users.models import User
+        from src.database.users.user_models import User
         user = self.session.query(User).filter_by(id=user_id).first()
         if user and getattr(user, "timezone", None):
             return user.timezone
@@ -76,19 +76,19 @@ class CommitmentService:
             return False
 
         if target_type == "task":
-            from src.database.tasks.models import Task
+            from src.database.tasks.task_models import Task
             return self.session.query(Task).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "project":
-            from src.database.projects.models import Project
+            from src.database.projects.project_models import Project
             return self.session.query(Project).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "routine":
-            from src.database.routines.models import Routine
+            from src.database.routines.routine_models import Routine
             return self.session.query(Routine).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "session":
-            from src.database.sessions.models import RoutineSession
+            from src.database.sessions.session_models import RoutineSession
             return self.session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first() is not None
 
         return False
@@ -182,10 +182,10 @@ class CommitmentService:
         Groups commitments by target_type, fetches in batches, and attaches
         as a .target attribute on each commitment object.
         """
-        from src.database.tasks.models import Task
-        from src.database.projects.models import Project
-        from src.database.routines.models import Routine
-        from src.database.sessions.models import RoutineSession
+        from src.database.tasks.task_models import Task
+        from src.database.projects.project_models import Project
+        from src.database.routines.routine_models import Routine
+        from src.database.sessions.session_models import RoutineSession
 
         # Group commitments by target type
         by_type = {}

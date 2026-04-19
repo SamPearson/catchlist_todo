@@ -1,10 +1,10 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from .models import Project
-from .repository import ProjectRepository
-from ..tasks.models import Task
-from ..tasks.service import TaskService
-from ..tasks.repository import TaskRepository
+from .project_models import Project
+from .project_repository import ProjectRepository
+from ..tasks.task_models import Task
+from ..tasks.task_service import TaskService
+from ..tasks.task_repository import TaskRepository
 from src.database.base.exceptions import ValidationError
 
 

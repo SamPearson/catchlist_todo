@@ -1,9 +1,9 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from src.database.base.repositories import UserOwnedRepository
-from .models import Project
-from ..tasks.models import Task
+from src.database.base.base_repositories import UserOwnedRepository
+from .project_models import Project
+from ..tasks.task_models import Task
 
 
 class ProjectRepository(UserOwnedRepository[Project]):

@@ -6,9 +6,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from src.database.base.exceptions import ValidationError, EntityNotFoundError
-from src.database.reports.models import Report
-from src.database.reports.repository import ReportRepo
-from src.database.timeframes.service import TimeframeService
+from src.database.reports.report_models import Report
+from src.database.reports.report_repository import ReportRepo
+from src.database.timeframes.timeframe_service import TimeframeService
 
 
 @dataclass(frozen=True)
@@ -186,7 +186,7 @@ class ReportService:
         Returns:
             List of commitments with targets eagerly loaded
         """
-        from src.database.commitments.service import CommitmentService
+        from src.database.commitments.commitment_service import CommitmentService
         commitment_service = CommitmentService(self.session)
 
         if scope == 'direct':
@@ -262,7 +262,7 @@ class ReportService:
         Returns:
             List of timeframes that start and end within the parent's boundaries
         """
-        from src.database.timeframes.models import Timeframe
+        from src.database.timeframes.timeframe_models import Timeframe
 
         # Query for all timeframes that are fully contained within this timeframe's boundaries
         nested = (

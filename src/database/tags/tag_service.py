@@ -1,8 +1,8 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from src.database.db import db
-from src.database.tags.models import Tag
-from .repository import TagRepository
+from src.database.tags.tag_models import Tag
+from .tag_repository import TagRepository
 from src.database.base.exceptions import ValidationError
 
 class TagValidationError(ValidationError):
@@ -63,7 +63,7 @@ class TagService:
 
     def add_tag_to_entity(self, tag_id: int, user_id: int, entity: any) -> bool:
         """Add a tag to any entity that supports tags"""
-        from src.database.tags.models import TagAssociation
+        from src.database.tags.tag_models import TagAssociation
 
         tag = self.get_tag(tag_id, user_id)
         if not tag:
@@ -92,7 +92,7 @@ class TagService:
 
     def remove_tag_from_entity(self, tag_id: int, user_id: int, entity: any) -> bool:
         """Remove a tag from any entity that supports tags"""
-        from src.database.tags.models import TagAssociation
+        from src.database.tags.tag_models import TagAssociation
         
         tag = self.get_tag(tag_id, user_id)
         if not tag:

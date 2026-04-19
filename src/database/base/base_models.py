@@ -52,7 +52,13 @@ class UserOwnedModel(BaseModel):
 
     @declared_attr
     def user(cls):
-        return db.relationship('User')
+        return db.relationship(
+            'User',
+            backref=db.backref(
+                f'{cls.__tablename__}_list',
+                cascade="all, delete-orphan"
+            )
+        )
 
     def as_dict(self, user_timezone: str = 'UTC') -> Dict[str, Any]:
         """
@@ -104,7 +110,7 @@ class TaggableMixin:
     @declared_attr
     def tags(cls):
         #Importing here to avoid circular imports
-        from src.database.tags.models import Tag, TagAssociation
+        from src.database.tags.tag_models import Tag, TagAssociation
         return db.relationship(
             "Tag",
             secondary='tag_associations',
@@ -120,7 +126,7 @@ class PrincipledMixin:
     @declared_attr
     def principles(cls):
         #Importing here to avoid circular imports
-        from src.database.principles.models import Principle, PrincipleAssociation
+        from src.database.principles.principle_models import Principle, PrincipleAssociation
 
         return db.relationship(
             "Principle",

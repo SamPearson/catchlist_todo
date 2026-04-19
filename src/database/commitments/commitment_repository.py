@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from src.database.base.repositories import UserOwnedRepository
-from src.database.commitments.models import Commitment
+from src.database.base.base_repositories import UserOwnedRepository
+from src.database.commitments.commitment_models import Commitment
 
 
 class CommitmentRepo(UserOwnedRepository[Commitment]):

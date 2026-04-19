@@ -5,9 +5,9 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt
 )
-from src.database.users.service import UserService, UserValidationError
-from src.database.users.repository import UserRepository
-from src.database.users.models import BlacklistedToken
+from src.database.users.user_service import UserService, UserValidationError
+from src.database.users.user_repository import UserRepository
+from src.database.users.user_models import BlacklistedToken
 from src.database.db import db
 
 # Create a single instance of the service

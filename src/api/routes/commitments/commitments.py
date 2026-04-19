@@ -2,16 +2,16 @@ from datetime import datetime
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from src.database.timeframes.service import TimeframeValidationError, UnsupportedTimeframeKind
+from src.database.timeframes.timeframe_service import TimeframeValidationError, UnsupportedTimeframeKind
 from src.database.db import db
-from src.database.commitments.service import (
+from src.database.commitments.commitment_service import (
     CommitmentService,
     CommitmentConflict,
     CommitmentValidationError,
     CommitmentTargetNotFound,
     CommitmentTimeframeNotFound,
 )
-from src.database.users.models import User
+from src.database.users.user_models import User
 from src.utils.timezone import validate_timezone
 
 
@@ -94,7 +94,7 @@ def create_soft_commitment():
         timeframe_id = data["timeframe_id"]
     elif "timeframe_kind" in data and "reference_date" in data:
         # Derive timeframe from kind + date
-        from src.database.timeframes.service import TimeframeService
+        from src.database.timeframes.timeframe_service import TimeframeService
 
         tz_error = validate_timezone(user_tz)
         if tz_error:

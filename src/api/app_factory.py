@@ -4,7 +4,7 @@ from flask_cors import CORS
 import re
 
 from src.database.db import db
-from src.database.users.models import BlacklistedToken
+from src.database.users.user_models import BlacklistedToken
 
 from src.database.config_db import Config, initialize_database
 

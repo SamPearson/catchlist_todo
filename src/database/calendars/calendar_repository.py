@@ -1,5 +1,5 @@
-from src.database.base.repositories import UserOwnedRepository
-from .models import Calendar
+from src.database.base.base_repositories import UserOwnedRepository
+from .calendar_models import Calendar
 from sqlalchemy.orm import Session
 
 class CalendarRepo(UserOwnedRepository[Calendar]):

@@ -5,8 +5,8 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.db import db
-from src.database.timeframes.service import TimeframeService, validate_kind, SUPPORTED_KINDS, UnsupportedTimeframeKind
-from src.database.users.models import User
+from src.database.timeframes.timeframe_service import TimeframeService, validate_kind, SUPPORTED_KINDS, UnsupportedTimeframeKind
+from src.database.users.user_models import User
 
 
 def _parse_local_date(date_str: str):

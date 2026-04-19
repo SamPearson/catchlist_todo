@@ -1,7 +1,7 @@
 
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from src.database.tags.models import Tag
+from src.database.tags.tag_models import Tag
 
 class TagRepository:
     """Repository for managing tag entities"""

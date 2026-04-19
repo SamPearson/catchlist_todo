@@ -1,10 +1,10 @@
 import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from .repository import CalendarRepo
-from .models import Calendar
-from src.database.routines.models import Routine
-from src.database.routines.service import RoutineService
+from .calendar_repository import CalendarRepo
+from .calendar_models import Calendar
+from src.database.routines.routine_models import Routine
+from src.database.routines.routine_service import RoutineService
 from src.api.utils.caldav_client import CalDAVClient
 from src.database.base.exceptions import ValidationError
 

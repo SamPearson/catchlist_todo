@@ -1,7 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
-from src.database.base.repositories import UserOwnedRepository
-from .models import Routine
+from src.database.base.base_repositories import UserOwnedRepository
+from .routine_models import Routine
 
 class RoutineRepo(UserOwnedRepository[Routine]):
     def __init__(self, session: Session):
