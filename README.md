@@ -59,7 +59,7 @@ python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-```
+
 
 
 **2. Configure environment:**
@@ -76,11 +76,15 @@ export API_URL="http://localhost:5001"
 Or you can set them in `.env` files.
 
 There's an example `.env` file for the jwt key here:
+
 `src/api/config/.env.example`
+
 copy it to .env and populate the JWT_SECRET_KEY variable.
 
 And an example `.env` file for the API URL here:
+
 `src/webapp/config/environments/env.example`
+
 copy it to env.local and populate the API_URL variable.
 This variable will only be read from an env file when running the webapp directly instead of through something like gunicorn
 See the [infrastructure README](infrastructure/README.md) for more details.
@@ -249,13 +253,16 @@ pytest
 
 ## Deployment
 
-The `infrastructure/` directory contains templates for production deployment:
+The `infrastructure/` directory contains templates for staging/production deployment:
 
 - **`config/.env.api`** - API environment variables template
 - **`jenkins_job.sh`** - CI/CD pipeline template
 - **`sites-available.txt`** - Nginx reverse proxy configuration template
 - **`systemd_api.txt`** - Systemd service file for API
 - **`systemd_webapp.txt`** - Systemd service file for webapp
+
+The Jenkins script includes the API smoke test and Allure report generation (requires an allure plugin for jenkins)
+The server block is configured for nginx but apache or anything else that can reverse proxy should be fine.
 
 **Production Stack:**
 - Gunicorn (WSGI server)
