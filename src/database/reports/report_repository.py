@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.database.base.repositories import UserOwnedRepository
-from src.database.reports.models import Report
+from src.database.base.base_repositories import UserOwnedRepository
+from src.database.reports.report_models import Report
 
 
 class ReportRepo(UserOwnedRepository[Report]):

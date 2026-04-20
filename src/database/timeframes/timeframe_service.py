@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from sqlalchemy.orm import Session
 
-from src.database.timeframes.repository import TimeframeRepo
-from src.database.timeframes.models import Timeframe
+from src.database.timeframes.timeframe_repository import TimeframeRepo
+from src.database.timeframes.timeframe_models import Timeframe
 from src.database.base.exceptions import ValidationError
 
 

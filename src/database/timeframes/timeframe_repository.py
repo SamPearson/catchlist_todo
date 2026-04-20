@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from src.database.base.repositories import UserOwnedRepository
-from src.database.timeframes.models import Timeframe
+from src.database.base.base_repositories import UserOwnedRepository
+from src.database.timeframes.timeframe_models import Timeframe
 
 
 class TimeframeRepo(UserOwnedRepository[Timeframe]):

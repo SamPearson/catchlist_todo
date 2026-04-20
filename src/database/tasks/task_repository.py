@@ -1,8 +1,8 @@
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
-from src.database.base.repositories import UserOwnedRepository
-from .models import Task
+from src.database.base.base_repositories import UserOwnedRepository
+from .task_models import Task
 
 
 class TaskRepository(UserOwnedRepository[Task]):

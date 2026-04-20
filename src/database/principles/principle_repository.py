@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from src.database.base.repositories import UserOwnedRepository
-from .models import Principle
+from src.database.base.base_repositories import UserOwnedRepository
+from .principle_models import Principle
 
 class PrincipleRepo(UserOwnedRepository[Principle]):
     def __init__(self, session: Session):

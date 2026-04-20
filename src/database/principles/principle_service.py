@@ -2,8 +2,8 @@ import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from src.database.base.exceptions import ValidationError, EntityNotFoundError
-from .models import Principle, PrincipleAssociation
-from .repository import PrincipleRepo
+from .principle_models import Principle, PrincipleAssociation
+from .principle_repository import PrincipleRepo
 
 
 class PrincipleValidationError(ValidationError):
@@ -91,7 +91,7 @@ class PrincipleService:
         return self.repo.delete(principle)
 
     def attach_to_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
-        from .models import PrincipleAssociation
+        from .principle_models import PrincipleAssociation
     
         principle = self.get_principle(principle_id, user_id)
         if not principle:

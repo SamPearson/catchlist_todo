@@ -18,18 +18,6 @@ class User(UserMixin, db.Model):
 
     timezone = db.Column(db.String(64), nullable=False, default="UTC")
 
-    # Add cascade delete to all relationships
-    tasks = relationship('Task', back_populates='user', cascade='all, delete-orphan')
-    projects = relationship('Project', back_populates='user', cascade='all, delete-orphan')
-    tags = relationship('Tag', back_populates='user', cascade='all, delete-orphan')
-    principles = relationship('Principle', back_populates='user', cascade='all, delete-orphan')
-    calendars = relationship('Calendar', back_populates='user', cascade='all, delete-orphan')
-    routine = relationship("Routine", back_populates="user", cascade="all, delete-orphan")
-    sessions = relationship("RoutineSession", back_populates="user", cascade="all, delete-orphan")
-    timeframes = relationship("Timeframe", back_populates="user", cascade="all, delete-orphan")
-    commitment = relationship("Commitment", back_populates="user", cascade="all, delete-orphan")
-    checkin = relationship("CheckinRecord", back_populates="user", cascade="all, delete-orphan")
-    report = relationship("Report", back_populates="user", cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

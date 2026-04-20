@@ -1,7 +1,7 @@
 from typing import Optional, Dict
 import pytz
-from .repository import UserRepository
-from .models import User
+from .user_repository import UserRepository
+from .user_models import User
 from src.database.base.exceptions import ValidationError
 
 

@@ -1,8 +1,8 @@
 from typing import List, Optional, Dict
-from .repository import TaskRepository
-from .models import Task
+from .task_repository import TaskRepository
+from .task_models import Task
 from src.database.base.exceptions import ValidationError
-from src.database.checkins.service import CheckinService
+from src.database.checkins.checkin_service import CheckinService
 from src.database.db import db
 
 
@@ -105,14 +105,14 @@ class TaskService:
         )
         
         # Delete all tag associations for this task
-        from src.database.tags.models import TagAssociation
+        from src.database.tags.tag_models import TagAssociation
         db.session.query(TagAssociation).filter_by(
             entity_id=task.id,
             entity_type='task',
         ).delete()
         
         # Delete all principle associations for this task
-        from src.database.principles.models import PrincipleAssociation
+        from src.database.principles.principle_models import PrincipleAssociation
         db.session.query(PrincipleAssociation).filter_by(
             entity_id=task.id,
             entity_type='task',
@@ -175,7 +175,7 @@ class TaskService:
 
     def attach_to_project(self, task: Task, project_id: int, user_id: int) -> Task:
         """Attach a task to a project with ownership validation"""
-        from src.database.projects.repository import ProjectRepository
+        from src.database.projects.project_repository import ProjectRepository
         from src.database.db import db
 
         project_repo = ProjectRepository(db.session)

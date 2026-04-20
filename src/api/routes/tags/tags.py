@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.database.tags.service import TagService, TagValidationError
+from src.database.tags.tag_service import TagService, TagValidationError
 from src.database.db import db
 
 
@@ -20,22 +20,22 @@ def _get_target_entity(session, user_id, target_type, target_id):
         }
     
     if target_type == "task":
-        from src.database.tasks.models import Task
+        from src.database.tasks.task_models import Task
         entity = session.query(Task).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "project":
-        from src.database.projects.models import Project
+        from src.database.projects.project_models import Project
         entity = session.query(Project).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "calendar":
-        from src.database.calendars.models import Calendar
+        from src.database.calendars.calendar_models import Calendar
         entity = session.query(Calendar).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "routine":
-        from src.database.routines.models import Routine
+        from src.database.routines.routine_models import Routine
         entity = session.query(Routine).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "session":
-        from src.database.sessions.models import RoutineSession
+        from src.database.sessions.session_models import RoutineSession
         entity = session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first()
     elif target_type == "report":
-        from src.database.reports.models import Report
+        from src.database.reports.report_models import Report
         entity = session.query(Report).filter_by(id=target_id, user_id=user_id).first()
     
     return entity, None

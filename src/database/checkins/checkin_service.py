@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from src.database.checkins.models import CheckinRecord
-from src.database.checkins.repository import CheckinRepo
+from src.database.checkins.checkin_models import CheckinRecord
+from src.database.checkins.checkin_repository import CheckinRepo
 
 
 @dataclass(frozen=True)
@@ -59,31 +59,31 @@ class CheckinService:
             return False
 
         if target_type == "task":
-            from src.database.tasks.models import Task
+            from src.database.tasks.task_models import Task
             return self.session.query(Task).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "project":
-            from src.database.projects.models import Project
+            from src.database.projects.project_models import Project
             return self.session.query(Project).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "routine":
-            from src.database.routines.models import Routine
+            from src.database.routines.routine_models import Routine
             return self.session.query(Routine).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "session":
-            from src.database.sessions.models import RoutineSession
+            from src.database.sessions.session_models import RoutineSession
             return self.session.query(RoutineSession).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "report":
-            from src.database.reports.models import Report
+            from src.database.reports.report_models import Report
             return self.session.query(Report).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "tag":
-            from src.database.tags.models import Tag
+            from src.database.tags.tag_models import Tag
             return self.session.query(Tag).filter_by(id=target_id, user_id=user_id).first() is not None
 
         if target_type == "principle":
-            from src.database.principles.models import Principle
+            from src.database.principles.principle_models import Principle
             return self.session.query(Principle).filter_by(id=target_id, user_id=user_id).first() is not None
 
         return False

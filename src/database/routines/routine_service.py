@@ -1,14 +1,14 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime, time
 from sqlalchemy.orm import Session
-from .models import Routine
+from .routine_models import Routine
 from .repository import RoutineRepo
 from src.database.base.exceptions import ValidationError
 from src.database.base.exceptions import EntityNotFoundError
-from src.database.sessions.models import RoutineSession
-from src.database.sessions.repository import SessionRepo
-from src.database.timeframes.service import TimeframeService
-from src.database.commitments.service import CommitmentService
+from src.database.sessions.session_models import RoutineSession
+from src.database.sessions.session_repository import SessionRepo
+from src.database.timeframes.timeframe_service import TimeframeService
+from src.database.commitments.commitment_service import CommitmentService
 from src.utils.timezone import compute_timeframe_bounds, utc_to_local_date
 from dateutil.rrule import rrulestr
 import logging
@@ -37,7 +37,7 @@ class RoutineService:
         return self.repo.list_for_user(user_id, **filters)
 
     def create_routine(self, user_id: int, data: Dict[str, Any]) -> Routine:
-        from ..calendars.service import CalendarService #importing here to avoid cicular import
+        from ..calendars.calendar_service import CalendarService #importing here to avoid cicular import
         self.calendar_service = CalendarService(self.session)
 
         if not data.get('title'):

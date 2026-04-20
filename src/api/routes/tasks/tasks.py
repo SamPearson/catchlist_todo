@@ -1,7 +1,7 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.database.tasks.service import TaskService, TaskValidationError
-from src.database.tasks.repository import TaskRepository
+from src.database.tasks.task_service import TaskService, TaskValidationError
+from src.database.tasks.task_repository import TaskRepository
 from src.database.db import db
 
 # Create a single instance of the service

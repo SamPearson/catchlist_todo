@@ -4,8 +4,8 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from src.database.base.repositories import UserOwnedRepository
-from src.database.checkins.models import CheckinRecord
+from src.database.base.base_repositories import UserOwnedRepository
+from src.database.checkins.checkin_models import CheckinRecord
 
 
 class CheckinRepo(UserOwnedRepository[CheckinRecord]):
