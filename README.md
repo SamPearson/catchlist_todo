@@ -38,6 +38,8 @@ Catchlist is a full-stack web application for managing tasks, projects, routines
 
 ### Additional Documentation
 
+- **[Server Infrastructure](infrastructure/README.md)** - Config templates and deploy scripts for nginx/systemd/jenkins
+
 Comprehensive documentation is available in `docs/wiki/` (Zim wiki format):
 
 - **Entity Design**: `docs/wiki/Design/Entities/` - Purpose-focused entity documentation
