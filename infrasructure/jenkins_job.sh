@@ -126,20 +126,16 @@ log "🔹 Installing API test dependencies..."
 pip install --upgrade -r requirements.txt
 
 log "🔹 Cleaning up old test reports..."
-REPORT_DIR="./reports/${BUILD_NUMBER:-jenkins_build}"
+REPORT_DIR="$WORKSPACE/allure-results"
 rm -rf "$REPORT_DIR"
 
 log "🔹 Running pytest API smoke tests..."
-if ! pytest -m smoke_test --alluredir="$REPORT_DIR" -v; then
+if ! pytest -m smoke_test --env="ENVIRONMENT NAME HERE" --alluredir="$REPORT_DIR" -v; then
     echo "❌ API smoke tests failed! Stopping deployment."
     deactivate
     exit 1
 fi
 
-if command -v allure &> /dev/null; then
-    log "📊 Generating Allure HTML report..."
-    allure generate "$REPORT_DIR" -o "$REPORT_DIR/html" --clean
-fi
 
 log "✅ API smoke tests passed."
 
