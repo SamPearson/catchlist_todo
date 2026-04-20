@@ -344,9 +344,6 @@ python
 # Add to imports
 from src.database.notes.note_models import Note
 ```
-### 6. Create Migration (if using Alembic)
-
-Generate and apply database migrations for schema changes.
 
 ## Common Patterns
 
@@ -384,7 +381,7 @@ completed_tasks = task_repo.list_for_user(user_id=1, completed=True)
 # Get all active projects
 active_projects = project_repo.list_for_user(user_id=1, active=True)
 ```
-```
+
 
 
 ### Handling Soft Deletes
@@ -423,42 +420,6 @@ Database settings are defined in `database/config_db.py`:
 2. All tables are created via `db.create_all()`
 3. Import all model files to ensure registration
 
-### Migrations
-
-This project uses Alembic for database migrations. When making schema changes:
-
-    # Generate migration
-    alembic revision --autogenerate -m "Description of change"
-    
-    # Review generated migration in migrations/versions/
-    
-    # Apply migration
-    alembic upgrade head
-
-## Best Practices
-
-### DO
-
-- ✅ Inherit from `BaseModel` or `UserOwnedModel` for all models
-- ✅ Use repositories through services only
-- ✅ Validate all inputs in the service layer
-- ✅ Implement complete `as_dict()` methods for all models
-- ✅ Pass user timezone to `as_dict()` for API responses
-- ✅ Add database indexes for foreign keys and commonly queried fields
-- ✅ Use type hints consistently (repositories are generic)
-- ✅ Handle errors explicitly with meaningful exceptions
-- ✅ Write tests for each layer independently
-
-### DON'T
-
-- ❌ Access repositories directly from API routes
-- ❌ Put business logic in repositories or models
-- ❌ Skip input validation in services
-- ❌ Return model instances directly to API (use `as_dict()`)
-- ❌ Create circular dependencies between entities
-- ❌ Forget to import models in `config_db.py`
-- ❌ Mix database concerns with HTTP concerns
-- ❌ Ignore timezone handling for timestamps
 
 ## Architecture Principles
 
