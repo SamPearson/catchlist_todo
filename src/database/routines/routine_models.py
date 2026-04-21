@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Text, Boolean, Integer, ForeignKey, Time
 from sqlalchemy.orm import relationship
 
-from database.base.base_models import PrincipledMixin
+from src.database.base.base_models import PrincipledMixin
 from src.database.db import db
 from src.database.base.base_models import UserOwnedModel, TaggableMixin
 
