@@ -6,7 +6,12 @@ import time
 import allure
 
 
-
+# Selenium does not natively support locating elements by the data-testid attribute.
+# so we just convert it to an css_selector locator instead.
+# we do this here instead of when defining the locator to avoid needing to spell f"[data-testid='{locator[1]}']")
+# correctly for every locator.
+def locator_from_testid(locator_string):
+    return By.CSS_SELECTOR, f"[data-testid='{locator_string}']"
 
 def _check_element_visibility(driver, element):
     """
@@ -81,12 +86,6 @@ class BasePage:
     def __init__(self, driver):
         self.driver = driver
 
-    # Selenium does not natively support locating elements by the data-testid attribute.
-    # so we just convert it to an css_selector locator instead.
-    # we do this here instead of when defining the locator to avoid needing to spell f"[data-testid='{locator[1]}']")
-    # correctly for every locator.
-    def locator_from_testid(locator_string):
-        return By.CSS_SELECTOR, f"[data-testid='{locator_string}']"
 
     @allure.step("Navigate to {url}")
     def _visit(self, url):
