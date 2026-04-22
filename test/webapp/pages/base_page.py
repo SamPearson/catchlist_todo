@@ -29,7 +29,7 @@ class BasePage:
     def __init__(self, driver):
         self.driver = driver
 
-    # ===== Navigation Methods =====
+
     @allure.step("Navigate to {url}")
     def _visit(self, url):
         """
@@ -44,7 +44,7 @@ class BasePage:
         else:
             self.driver.get(self.driver.base_url + url)
 
-    # ===== Element Finding Methods =====
+
     @allure.step("Find element {locator}")
     def _find(self, locator, timeout=2):
         """
@@ -67,6 +67,7 @@ class BasePage:
         )
         return self.driver.find_element(*locator)
 
+
     @allure.step("Find all elements matching {locator}")
     def _find_all(self, locator):
         """Find all elements matching the locator"""
@@ -76,7 +77,7 @@ class BasePage:
             raise NoSuchElementException(f"No elements found: {locator}")
         return elements
 
-    # ===== Element Interaction Methods =====
+
     @allure.step("Click element {locator}")
     def _click(self, locator):
         """
@@ -106,6 +107,7 @@ class BasePage:
                 # If JavaScript click fails, raise the original exception
                 raise e from js_e  # Chain the exceptions to preserve both error contexts
 
+
     @allure.step("Type '{input_text}' into element {locator}")
     def _type(self, locator, input_text):
         """Type text into an element"""
@@ -113,7 +115,7 @@ class BasePage:
         element.clear()
         element.send_keys(input_text)
 
-    # ===== Element State Methods =====
+
     def _take_screenshot(self, name="element_state"):
         """Take a screenshot and attach it to the Allure report"""
         try:
@@ -125,6 +127,7 @@ class BasePage:
             )
         except Exception as e:
             print(f"Failed to capture screenshot: {e}")
+
 
     def _is_active(self, locator, timeout=0):
         """
@@ -259,7 +262,7 @@ class BasePage:
         except Exception as e:
             print(f"Failed to capture screenshot: {e}")
 
-    # ===== Diagnostic Methods =====
+
     def _get_element_diagnostics(self, locator):
         """
         Get detailed diagnostic information about an element.
@@ -303,6 +306,7 @@ class BasePage:
                 'error': 'Element not found'
             }
 
+
     def _log_interaction_failure(self, action, locator, exception):
         """Log detailed information about interaction failures"""
         diagnostics = self._get_element_diagnostics(locator)
@@ -315,7 +319,7 @@ class BasePage:
         print(f"Exception: {str(exception)}")
         print(f"Element diagnostics: {diagnostics}")
 
-    # ===== Wait Condition Methods =====
+
     def _wait_until(self, condition_function, timeout=10, error_message=None):
         """Wait until the provided condition function returns true"""
         try:
@@ -326,7 +330,7 @@ class BasePage:
                 raise AssertionError(error_message)
             raise TimeoutException(f'Condition not met after {timeout} seconds')
 
-    def wait_for_url(self, condition, value, negate=False, timeout=5):
+    def _wait_for_url(self, condition, value, negate=False, timeout=5):
         """Wait for URL to match condition"""
         try:
             wait = WebDriverWait(self.driver, timeout)
