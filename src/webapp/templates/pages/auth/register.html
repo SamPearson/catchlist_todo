@@ -25,6 +25,7 @@
                                             placeholder="Choose a username"
                                             x-model="formData.username"
                                             :disabled="loading"
+                                            data-testid="register-username-input"
                                             required>
                                         <span class="icon is-small is-left">
                                             <i class="fas fa-user"></i>
@@ -41,6 +42,7 @@
                                             placeholder="Choose a secure password"
                                             x-model="formData.password"
                                             :disabled="loading"
+                                            data-testid="register-password-input"
                                             required>
                                         <span class="icon is-small is-left">
                                             <i class="fas fa-lock"></i>
@@ -50,12 +52,12 @@
                                 </div>
 
                                 <!-- Success message -->
-                                <div x-show="success" class="notification is-success is-light" x-transition>
+                                <div x-show="success" class="notification is-success is-light" data-testid="register-success-message" x-transition>
                                     <span x-text="success"></span>
                                 </div>
 
                                 <!-- Error message -->
-                                <div x-show="error" class="notification is-danger is-light" x-transition>
+                                <div x-show="error" class="notification is-danger is-light" data-testid="register-error-message" x-transition>
                                     <button class="delete" @click="error = ''"></button>
                                     <span x-text="error"></span>
                                 </div>
@@ -66,6 +68,7 @@
                                             class="button is-primary is-fullwidth"
                                             :class="{ 'is-loading': loading }"
                                             type="submit"
+                                            data-testid="register-submit-button"
                                             :disabled="loading">
                                             Register
                                         </button>
@@ -77,7 +80,7 @@
 
                             <p class="has-text-centered">
                                 Already have an account?
-                                <a href="/auth/login">Login here</a>
+                                <a href="/auth/login" data-testid="register-login-link">Login here</a>
                             </p>
                         </div>
                     </div>

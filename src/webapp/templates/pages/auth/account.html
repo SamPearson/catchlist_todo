@@ -18,14 +18,14 @@
                     <template x-if="!editingProfile">
                         <div>
                             <div class="content">
-                                <p><strong>Username:</strong> <span x-text="userInfo.username"></span></p>
-                                <p><strong>Display Name:</strong> <span x-text="userInfo.name || 'Not set'"></span></p>
-                                <p><strong>Timezone:</strong> <span x-text="userInfo.timezone"></span></p>
+                                <p><strong>Username:</strong> <span x-text="userInfo.username" data-testid="account-username-display"></span></p>
+                                <p><strong>Display Name:</strong> <span x-text="userInfo.name || 'Not set'" data-testid="account-displayname-display"></span></p>
+                                <p><strong>Timezone:</strong> <span x-text="userInfo.timezone" data-testid="account-timezone-display"></span></p>
                                 <p class="has-text-grey is-size-7">
-                                    <strong>Account created:</strong> <span x-text="formatDate(userInfo.created_at)"></span>
+                                    <strong>Account created:</strong> <span x-text="formatDate(userInfo.created_at)" data-testid="account-created-display"></span>
                                 </p>
                             </div>
-                            <button class="button is-primary" @click="startEditProfile">
+                            <button class="button is-primary" @click="startEditProfile" data-testid="account-edit-profile-button">
                                 <span class="icon"><i class="fas fa-edit"></i></span>
                                 <span>Edit Profile</span>
                             </button>
@@ -38,7 +38,7 @@
                                 <div class="field">
                                     <label class="label">Display Name</label>
                                     <div class="control">
-                                        <input class="input" type="text" x-model="profileForm.name" placeholder="Your name">
+                                        <input class="input" type="text" x-model="profileForm.name" placeholder="Your name" data-testid="account-name-input">
                                     </div>
                                 </div>
 
@@ -46,7 +46,7 @@
                                     <label class="label">Timezone</label>
                                     <div class="control">
                                         <div class="select is-fullwidth">
-                                            <select x-model="profileForm.timezone">
+                                            <select x-model="profileForm.timezone" data-testid="account-timezone-select">
                                                 <option value="UTC">UTC</option>
                                                 <option value="America/New_York">Eastern Time</option>
                                                 <option value="America/Chicago">Central Time</option>
@@ -60,23 +60,23 @@
                                     </div>
                                 </div>
 
-                                <div x-show="profileError" class="notification is-danger is-light" x-transition>
+                                <div x-show="profileError" class="notification is-danger is-light" data-testid="account-profile-error-message" x-transition>
                                     <button class="delete" @click="profileError = ''"></button>
                                     <span x-text="profileError"></span>
                                 </div>
 
-                                <div x-show="profileSuccess" class="notification is-success is-light" x-transition>
+                                <div x-show="profileSuccess" class="notification is-success is-light" data-testid="account-profile-success-message" x-transition>
                                     <span x-text="profileSuccess"></span>
                                 </div>
 
                                 <div class="field is-grouped">
                                     <div class="control">
-                                        <button class="button is-primary" type="submit" :class="{ 'is-loading': savingProfile }">
+                                        <button class="button is-primary" type="submit" :class="{ 'is-loading': savingProfile }" data-testid="account-save-profile-button">
                                             Save Changes
                                         </button>
                                     </div>
                                     <div class="control">
-                                        <button class="button is-light" type="button" @click="cancelEditProfile">
+                                        <button class="button is-light" type="button" @click="cancelEditProfile" data-testid="account-cancel-profile-button">
                                             Cancel
                                         </button>
                                     </div>
@@ -94,7 +94,7 @@
                         <div class="field">
                             <label class="label">Current Password</label>
                             <div class="control has-icons-left">
-                                <input class="input" type="password" x-model="passwordForm.old_password" required>
+                                <input class="input" type="password" x-model="passwordForm.old_password" data-testid="account-old-password-input" required>
                                 <span class="icon is-small is-left">
                                     <i class="fas fa-lock"></i>
                                 </span>
@@ -104,7 +104,7 @@
                         <div class="field">
                             <label class="label">New Password</label>
                             <div class="control has-icons-left">
-                                <input class="input" type="password" x-model="passwordForm.new_password" required>
+                                <input class="input" type="password" x-model="passwordForm.new_password" data-testid="account-new-password-input" required>
                                 <span class="icon is-small is-left">
                                     <i class="fas fa-lock"></i>
                                 </span>
@@ -112,18 +112,18 @@
                             <p class="help">Must be at least 8 characters</p>
                         </div>
 
-                        <div x-show="passwordError" class="notification is-danger is-light" x-transition>
+                        <div x-show="passwordError" class="notification is-danger is-light" data-testid="account-password-error-message" x-transition>
                             <button class="delete" @click="passwordError = ''"></button>
                             <span x-text="passwordError"></span>
                         </div>
 
-                        <div x-show="passwordSuccess" class="notification is-success is-light" x-transition>
+                        <div x-show="passwordSuccess" class="notification is-success is-light" data-testid="account-password-success-message" x-transition>
                             <span x-text="passwordSuccess"></span>
                         </div>
 
                         <div class="field">
                             <div class="control">
-                                <button class="button is-primary" type="submit" :class="{ 'is-loading': changingPassword }">
+                                <button class="button is-primary" type="submit" :class="{ 'is-loading': changingPassword }" data-testid="account-change-password-button">
                                     <span class="icon"><i class="fas fa-key"></i></span>
                                     <span>Change Password</span>
                                 </button>
@@ -140,7 +140,7 @@
                     </p>
                     
                     <template x-if="!confirmingDelete">
-                        <button class="button is-danger" @click="confirmingDelete = true">
+                        <button class="button is-danger" @click="confirmingDelete = true" data-testid="account-delete-button">
                             <span class="icon"><i class="fas fa-trash"></i></span>
                             <span>Delete Account</span>
                         </button>
@@ -155,26 +155,26 @@
                                 <div class="field">
                                     <label class="label">Password</label>
                                     <div class="control has-icons-left">
-                                        <input class="input" type="password" x-model="deleteForm.password" required>
+                                        <input class="input" type="password" x-model="deleteForm.password" data-testid="account-delete-password-input" required>
                                         <span class="icon is-small is-left">
                                             <i class="fas fa-lock"></i>
                                         </span>
                                     </div>
                                 </div>
 
-                                <div x-show="deleteError" class="notification is-danger is-light" x-transition>
+                                <div x-show="deleteError" class="notification is-danger is-light" data-testid="account-delete-error-message" x-transition>
                                     <button class="delete" @click="deleteError = ''"></button>
                                     <span x-text="deleteError"></span>
                                 </div>
 
                                 <div class="field is-grouped">
                                     <div class="control">
-                                        <button class="button is-danger" type="submit" :class="{ 'is-loading': deleting }">
+                                        <button class="button is-danger" type="submit" :class="{ 'is-loading': deleting }" data-testid="account-confirm-delete-button">
                                             Confirm Deletion
                                         </button>
                                     </div>
                                     <div class="control">
-                                        <button class="button is-light" type="button" @click="cancelDelete">
+                                        <button class="button is-light" type="button" @click="cancelDelete" data-testid="account-cancel-delete-button">
                                             Cancel
                                         </button>
                                     </div>

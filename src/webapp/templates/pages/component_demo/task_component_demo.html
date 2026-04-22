@@ -12,7 +12,7 @@
         <p class="subtitle">UI component testing and demonstration</p>
 
         <!-- Search Component Demo -->
-        <div class="box mb-6">
+        <div class="box mb-6" data-testid="demo-search-section">
             <h2 class="title is-4">Search & Filter Component</h2>
             <p class="subtitle is-6">Simple search box that expands to show advanced filters</p>
             
@@ -20,7 +20,7 @@
         </div>
 
         <!-- Create Task Section -->
-        <div class="box mb-6">
+        <div class="box mb-6" data-testid="demo-create-section">
             <h2 class="title is-4">Create Task Flow</h2>
             <p class="subtitle is-6">Create a new task - after saving it will appear as a task item below</p>
             
@@ -34,13 +34,13 @@
                 
                 <template x-if="createdTask">
                     <div>
-                        <div class="notification is-success is-light mb-4">
-                            <button class="delete" @click="reset()"></button>
+                        <div class="notification is-success is-light mb-4" data-testid="demo-task-created-notification">
+                            <button class="delete" @click="reset()" data-testid="demo-reset-create-button"></button>
                             Task created successfully! This is how it appears as a task item. Click the X to create another task.
                         </div>
                         
                         <!-- Show the created task using task_manager -->
-                        <div x-data='taskManager(createdTask)'>
+                        <div x-data='taskManager(createdTask)' data-testid="demo-created-task-preview">
                             <!-- Just show the view without the manager wrapper for demo purposes -->
                             <div class="box" :class="{ 'has-background-success-light': createdTask.completed }">
                                 <div class="is-flex is-justify-content-space-between is-align-items-start mb-3">
@@ -63,7 +63,7 @@
         </div>
 
         <!-- Task Item Component Demo -->
-        <div class="box">
+        <div class="box" data-testid="demo-tasks-section">
             <h2 class="title is-4">Task Item Component (View/Edit Flow)</h2>
             <p class="subtitle is-6">Click tasks to expand, then click "Edit" to modify them</p>
 

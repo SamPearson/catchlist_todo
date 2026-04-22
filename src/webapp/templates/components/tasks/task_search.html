@@ -1,22 +1,23 @@
 {# Task Search Component - Collapsible search and filter interface #}
 
 {% macro task_search() %}
-<div x-data='taskSearch()' class="mb-4">
+<div x-data='taskSearch()' class="mb-4" data-testid="task-search-component">
     <!-- Collapsed State: Simple search box -->
-    <div x-show="!expanded" class="box">
+    <div x-show="!expanded" class="box" data-testid="task-search-simple">
         <div class="field has-addons">
             <div class="control is-expanded has-icons-left">
                 <input class="input"
                        type="text"
                        x-model="simpleSearch"
                        @keyup.enter="applySimpleSearch()"
+                       data-testid="task-search-simple-input"
                        placeholder="Search tasks...">
                 <span class="icon is-small is-left">
                     <i class="fas fa-search"></i>
                 </span>
             </div>
             <div class="control">
-                <button class="button is-info" @click="expand()">
+                <button class="button is-info" @click="expand()" data-testid="task-search-expand-button">
                     <span class="icon">
                         <i class="fas fa-filter"></i>
                     </span>
@@ -24,7 +25,7 @@
                 </button>
             </div>
             <div class="control">
-                <button class="button" @click="applySimpleSearch()">
+                <button class="button" @click="applySimpleSearch()" data-testid="task-search-simple-submit-button">
                     <span class="icon">
                         <i class="fas fa-search"></i>
                     </span>
@@ -33,19 +34,19 @@
         </div>
 
         <!-- Active filters display -->
-        <div x-show="hasActiveFilters()" class="tags mt-3">
+        <div x-show="hasActiveFilters()" class="tags mt-3" data-testid="task-search-active-filters">
             <span class="tag is-info is-light">
                 <span x-text="getActiveFilterCount()"></span> filter(s) active
             </span>
-            <button class="tag is-delete" @click="clearFilters()"></button>
+            <button class="tag is-delete" @click="clearFilters()" data-testid="task-search-clear-filters-tag"></button>
         </div>
     </div>
 
     <!-- Expanded State: Advanced filters -->
-    <div x-show="expanded" class="box">
+    <div x-show="expanded" class="box" data-testid="task-search-advanced">
         <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
             <h3 class="title is-5 mb-0">Search & Filter Tasks</h3>
-            <button @click="collapse()" class="delete"></button>
+            <button @click="collapse()" class="delete" data-testid="task-search-collapse-button"></button>
         </div>
 
         <!-- Title Search -->
@@ -55,6 +56,7 @@
                 <input class="input"
                        type="text"
                        x-model="filters.title"
+                       data-testid="task-search-title-input"
                        placeholder="Search in task titles...">
                 <span class="icon is-small is-left">
                     <i class="fas fa-heading"></i>
@@ -69,6 +71,7 @@
                 <input class="input"
                        type="text"
                        x-model="filters.description"
+                       data-testid="task-search-description-input"
                        placeholder="Search in task descriptions...">
                 <span class="icon is-small is-left">
                     <i class="fas fa-align-left"></i>
@@ -83,31 +86,31 @@
                 <div class="field is-grouped is-grouped-multiline">
                     <div class="control">
                         <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.open">
+                            <input type="checkbox" x-model="filters.status.open" data-testid="task-search-status-open-checkbox">
                             <span class="ml-2">Open</span>
                         </label>
                     </div>
                     <div class="control">
                         <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.waiting">
+                            <input type="checkbox" x-model="filters.status.waiting" data-testid="task-search-status-waiting-checkbox">
                             <span class="ml-2">Waiting</span>
                         </label>
                     </div>
                     <div class="control">
                         <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.deferred">
+                            <input type="checkbox" x-model="filters.status.deferred" data-testid="task-search-status-deferred-checkbox">
                             <span class="ml-2">Deferred</span>
                         </label>
                     </div>
                     <div class="control">
                         <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.declined">
+                            <input type="checkbox" x-model="filters.status.declined" data-testid="task-search-status-declined-checkbox">
                             <span class="ml-2">Declined</span>
                         </label>
                     </div>
                     <div class="control">
                         <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.stale">
+                            <input type="checkbox" x-model="filters.status.stale" data-testid="task-search-status-stale-checkbox">
                             <span class="ml-2">Stale</span>
                         </label>
                     </div>
@@ -120,15 +123,15 @@
             <label class="label">Active Status</label>
             <div class="control">
                 <label class="radio">
-                    <input type="radio" x-model="filters.activeStatus" value="active">
+                    <input type="radio" x-model="filters.activeStatus" value="active" data-testid="task-search-active-status-active-radio">
                     Active only
                 </label>
                 <label class="radio ml-4">
-                    <input type="radio" x-model="filters.activeStatus" value="all">
+                    <input type="radio" x-model="filters.activeStatus" value="all" data-testid="task-search-active-status-all-radio">
                     All
                 </label>
                 <label class="radio ml-4">
-                    <input type="radio" x-model="filters.activeStatus" value="inactive">
+                    <input type="radio" x-model="filters.activeStatus" value="inactive" data-testid="task-search-active-status-inactive-radio">
                     Someday/Maybe only
                 </label>
             </div>
@@ -140,15 +143,15 @@
             <label class="label">Completion Status</label>
             <div class="control">
                 <label class="radio">
-                    <input type="radio" x-model="filters.completionStatus" value="incomplete">
+                    <input type="radio" x-model="filters.completionStatus" value="incomplete" data-testid="task-search-completion-status-incomplete-radio">
                     Incomplete only
                 </label>
                 <label class="radio ml-4">
-                    <input type="radio" x-model="filters.completionStatus" value="all">
+                    <input type="radio" x-model="filters.completionStatus" value="all" data-testid="task-search-completion-status-all-radio">
                     All
                 </label>
                 <label class="radio ml-4">
-                    <input type="radio" x-model="filters.completionStatus" value="complete">
+                    <input type="radio" x-model="filters.completionStatus" value="complete" data-testid="task-search-completion-status-complete-radio">
                     Completed only
                 </label>
             </div>
@@ -217,7 +220,7 @@
         <!-- Action Buttons -->
         <div class="field is-grouped is-grouped-right">
             <div class="control">
-                <button class="button" @click="clearFilters()">
+                <button class="button" @click="clearFilters()" data-testid="task-search-clear-filters-button">
                     <span class="icon">
                         <i class="fas fa-times"></i>
                     </span>
@@ -225,7 +228,7 @@
                 </button>
             </div>
             <div class="control">
-                <button class="button is-primary" @click="applyFilters()">
+                <button class="button is-primary" @click="applyFilters()" data-testid="task-search-apply-filters-button">
                     <span class="icon">
                         <i class="fas fa-search"></i>
                     </span>

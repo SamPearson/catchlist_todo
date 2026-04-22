@@ -1,11 +1,12 @@
 <nav class="navbar is-light" role="navigation" aria-label="main navigation" x-data="{ isLoggedIn: api.getAuthToken() !== null }">
     <div class="navbar-brand">
-        <a class="navbar-item" href="/">
+        <a class="navbar-item" href="/" data-testid="navbar-brand-link">
             <strong>Catchlist</strong>
         </a>
 
         <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
            data-target="navbarBasic"
+           data-testid="navbar-burger"
            @click="$el.classList.toggle('is-active'); document.getElementById('navbarBasic').classList.toggle('is-active')">
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
@@ -17,11 +18,11 @@
         {# Logged in navigation #}
         <template x-if="isLoggedIn">
             <div class="navbar-start">
-                <a class="navbar-item" href="/desk">Desk</a>
-                <a class="navbar-item" href="/tasks">Tasks</a>
-                <a class="navbar-item" href="/projects">Projects</a>
-                <a class="navbar-item" href="/routines">Routines</a>
-                <a class="navbar-item" href="/reports">Reports</a>
+                <a class="navbar-item" href="/desk" data-testid="navbar-desk-link">Desk</a>
+                <a class="navbar-item" href="/tasks" data-testid="navbar-tasks-link">Tasks</a>
+                <a class="navbar-item" href="/projects" data-testid="navbar-projects-link">Projects</a>
+                <a class="navbar-item" href="/routines" data-testid="navbar-routines-link">Routines</a>
+                <a class="navbar-item" href="/reports" data-testid="navbar-reports-link">Reports</a>
             </div>
         </template>
 
@@ -31,13 +32,13 @@
                     {# Logged in buttons #}
                     <template x-if="isLoggedIn">
                         <div class="buttons">
-                            <a class="button is-light" href="/auth/account">
+                            <a class="button is-light" href="/auth/account" data-testid="navbar-account-button">
                                 <span class="icon">
                                     <i class="fas fa-user"></i>
                                 </span>
                                 <span>Account</span>
                             </a>
-                            <a class="button is-danger" href="/auth/logout">
+                            <a class="button is-danger" href="/auth/logout" data-testid="navbar-logout-button">
                                 <span class="icon">
                                     <i class="fas fa-sign-out-alt"></i>
                                 </span>
@@ -49,10 +50,10 @@
                     {# Logged out buttons #}
                     <template x-if="!isLoggedIn">
                         <div class="buttons">
-                            <a class="button is-primary" href="/auth/register">
+                            <a class="button is-primary" href="/auth/register" data-testid="navbar-register-button">
                                 <strong>Sign up</strong>
                             </a>
-                            <a class="button is-light" href="/auth/login">
+                            <a class="button is-light" href="/auth/login" data-testid="navbar-login-button">
                                 Log in
                             </a>
                         </div>
