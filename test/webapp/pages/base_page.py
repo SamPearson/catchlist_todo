@@ -2,8 +2,8 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
-import time
 import allure
+from pprint import pformat
 
 
 # Selenium does not natively support locating elements by the data-testid attribute.
@@ -139,11 +139,42 @@ class BasePage:
             NoSuchElementException: If element not found
             AssertionError: If element found but not active
         """
-        assert self._is_active(locator, timeout), (
-            f"Element {locator} found but not active. "
-            f"Diagnostics: {self._get_element_diagnostics(locator)}"
-        )
-        return self.driver.find_element(*locator)
+        try:
+            assert self._is_active(locator, timeout), (
+                f"Element {locator} found but not active. "
+            )
+            return self.driver.find_element(*locator)
+        except (AssertionError, NoSuchElementException) as e:
+            self._log_failure("find", locator, e)
+            raise
+
+
+    def _is_active(self, locator, timeout=0):
+        """
+        Check if element is present, visible, and interactive.
+
+        Args:
+            locator: A tuple of (By, value) for element location
+            timeout (int): Maximum time to wait for element to be active
+
+        Returns:
+            bool: True if element is active, False otherwise
+        """
+        if timeout > 0:
+            try:
+                wait = WebDriverWait(self.driver, timeout)
+                wait.until(ElementIsActive(locator))
+                return True
+            except TimeoutException:
+                return False
+        else:
+            try:
+                element = self.driver.find_element(*locator)
+                is_visible = _check_element_visibility(self.driver, element)
+                is_enabled = element.is_enabled()
+                return is_visible and is_enabled
+            except NoSuchElementException:
+                return False
 
 
     @allure.step("Find all elements matching {locator}")
@@ -189,18 +220,14 @@ class BasePage:
         try:
             element.click()
         except Exception as e:
-            # Log the failure and try JavaScript click
-            self._log_interaction_failure("click", locator, e)
-            
-            # Try to scroll element into view first
-            self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
-            
-            # Try JavaScript click
             try:
+                # Try scrolling into view and clicking with JS instead of selenium
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
                 self.driver.execute_script("arguments[0].click();", element)
             except Exception as js_e:
-                # If JavaScript click fails, raise the original exception
-                raise e from js_e  # Chain the exceptions to preserve both error contexts
+                # If both methods fail, log some diagnostics about the element, then reraise the original exception
+                self._log_failure("click", locator, e)
+                raise e from js_e
 
 
     @allure.step("Type '{input_text}' into element {locator}")
@@ -210,126 +237,22 @@ class BasePage:
         element.clear()
         element.send_keys(input_text)
 
-
     def _take_screenshot(self, name="element_state"):
-        """Take a screenshot and attach it to the Allure report"""
-        try:
-            screenshot = self.driver.get_screenshot_as_png()
-            allure.attach(
-                screenshot,
-                name=f"{name}_screenshot",
-                attachment_type=allure.attachment_type.PNG
-            )
-        except Exception as e:
-            print(f"Failed to capture screenshot: {e}")
-
-
-    def _is_active(self, locator, timeout=0):
         """
-        Check if element is present, visible, and interactive.
-        
+        Take a screenshot and attach it to the Allure report.
+
         Args:
-            locator: A tuple of (By, value) for element location
-            timeout (int): Maximum time to wait for element to be active
-            
-        Returns:
-            bool: True if element is active, False otherwise
+            name (str): Name for the screenshot attachment
         """
-        if timeout > 0:
-            try:
-                wait = WebDriverWait(self.driver, timeout)
-                wait.until(ElementIsActive(locator))
-                return True
-
-            except TimeoutException:
-                # Take screenshot on timeout and log diagnostics
-                self._take_screenshot(f"timeout_checking_{locator[1]}")
-                
-                # Try to get diagnostics if element exists but isn't active
-                try:
-                    element = self.driver.find_element(*locator)
-                    is_visible = _check_element_visibility(self.driver, element)
-                    is_enabled = element.is_enabled()
-                    
-                    self._log_element_state(
-                        element,
-                        is_visible=is_visible,
-                        is_enabled=is_enabled,
-                        rect=self.driver.execute_script(
-                            "return arguments[0].getBoundingClientRect();",
-                            element
-                        )
-                    )
-                except NoSuchElementException:
-                    print(f"Element not found: {locator}")
-                
-                return False
-        else:
-            try:
-                element = self.driver.find_element(*locator)
-                is_visible = _check_element_visibility(self.driver, element)
-                is_enabled = element.is_enabled()
-                
-                if not (is_visible and is_enabled):
-                    self._log_element_state(
-                        element,
-                        is_visible=is_visible,
-                        is_enabled=is_enabled,
-                        rect=self.driver.execute_script(
-                            "return arguments[0].getBoundingClientRect();",
-                            element
-                        )
-                    )
-                    # Take screenshot after failed visibility check
-                    self._take_screenshot(f"failed_visibility_check_{locator[1]}")
-                
-                return is_visible and is_enabled
-            except NoSuchElementException:
-                # Take screenshot when element not found
-                self._take_screenshot(f"element_not_found_{locator[1]}")
-                return False
-
-    def _log_element_state(self, element, **kwargs):
-        """Log detailed information about element state"""
-        # Create a detailed diagnostic message
-        diagnostic_info = {
-            'html': element.get_attribute('outerHTML'),
-            'location': element.location,
-            'size': element.size,
-            'classes': element.get_attribute('class'),
-            'attributes': self.driver.execute_script(
-                "return Object.fromEntries(Object.entries(arguments[0].attributes)"
-                ".map(([k,v]) => [v.name, v.value]))",
-                element
-            ),
-            **kwargs
-        }
-        
-        # Log to console
-        print("\nElement State Diagnostics:")
-        for key, value in diagnostic_info.items():
-            print(f"{key}: {value}")
-        
         try:
-            # Take screenshot of the entire page
             screenshot = self.driver.get_screenshot_as_png()
-            
-            # Add to Allure report
             allure.attach(
                 screenshot,
-                name="element_state_screenshot",
+                name=f"{name}",
                 attachment_type=allure.attachment_type.PNG
-            )
-            
-            # Add diagnostic info to Allure report
-            allure.attach(
-                str(diagnostic_info),
-                name="element_state_diagnostics",
-                attachment_type=allure.attachment_type.TEXT
             )
         except Exception as e:
             print(f"Failed to capture screenshot: {e}")
-
 
     def _get_element_diagnostics(self, locator):
         """
@@ -341,26 +264,30 @@ class BasePage:
         Returns:
             dict: Diagnostic information including:
                 - present: bool
-                - visible: bool
+                - visible: bool (using JS check)
                 - enabled: bool
                 - html: str
-                - computed_style: dict
                 - position: dict
                 - size: dict
+                - classes: str
+                - attributes: dict
+                - rect: dict (bounding rectangle)
         """
         try:
             element = self.driver.find_element(*locator)
+            is_visible = _check_element_visibility(self.driver, element)
+            
             return {
                 'present': True,
-                'visible': element.is_displayed(),
+                'visible': is_visible,
                 'enabled': element.is_enabled(),
                 'html': element.get_attribute('outerHTML'),
-                'computed_style': self.driver.execute_script(
-                    "return window.getComputedStyle(arguments[0])",
-                    element
-                ),
                 'position': element.location,
                 'size': element.size,
+                'rect': self.driver.execute_script(
+                    "return arguments[0].getBoundingClientRect();",
+                    element
+                ),
                 'classes': element.get_attribute('class'),
                 'attributes': self.driver.execute_script(
                     "return Object.fromEntries(Object.entries(arguments[0].attributes)"
@@ -371,21 +298,48 @@ class BasePage:
         except NoSuchElementException:
             return {
                 'present': False,
-                'error': 'Element not found'
+                'error': 'Element not found in DOM'
+            }
+        except StaleElementReferenceException:
+            return {
+                'present': False,
+                'error': 'Element is stale (no longer attached to DOM)'
             }
 
-
-    def _log_interaction_failure(self, action, locator, exception):
-        """Log detailed information about interaction failures"""
-        diagnostics = self._get_element_diagnostics(locator)
+    def _log_failure(self, operation, locator, exception, include_element_diagnostics=True):
+        """
+        Log a failure with screenshot and optional element diagnostics.
+        This is the centralized failure logging function.
+        
+        Args:
+            operation (str): The operation that failed (e.g., 'find', 'click', 'type')
+            locator: A tuple of (By, value) for element location
+            exception: The exception that was raised
+            include_element_diagnostics (bool): Whether to gather and attach element diagnostics
+        """
+        locator_name = locator[1] if len(locator) > 1 else str(locator)
+        
+        self._take_screenshot(f"{operation}_failed_{locator_name}")
+        
+        # Log element diagnostics if requested
+        if include_element_diagnostics:
+            diagnostics = self._get_element_diagnostics(locator)
+            allure.attach(
+                pformat(diagnostics, width=100, sort_dicts=False),
+                name=f"{operation}_element_diagnostics",
+                attachment_type=allure.attachment_type.TEXT
+            )
+        
+        # Log exception info
         allure.attach(
-            str(diagnostics),
-            name=f"{action}_failure_diagnostics",
+            f"Operation: {operation}\n"
+            f"Locator: {locator}\n"
+            f"Exception Type: {type(exception).__name__}\n"
+            f"Exception Message: {str(exception)}",
+            name=f"{operation}_failure_info",
             attachment_type=allure.attachment_type.TEXT
         )
-        print(f"Failed to {action} element {locator}")
-        print(f"Exception: {str(exception)}")
-        print(f"Element diagnostics: {diagnostics}")
+
 
 
 
