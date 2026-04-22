@@ -388,3 +388,53 @@ class BasePage:
         except (NoSuchElementException, AssertionError):
             return False
 
+
+    def _wait_for_alert(self, timeout=5):
+        """
+        Wait for an alert to be present.
+        
+        Args:
+            timeout (int): Maximum time to wait for alert
+            
+        Returns:
+            Alert: The alert object if found
+            
+        Raises:
+            TimeoutException: If no alert appears within timeout
+        """
+        wait = WebDriverWait(self.driver, timeout)
+        return wait.until(expected_conditions.alert_is_present())
+
+    def _get_alert_text(self, timeout=5):
+        """
+        Get the text from an alert.
+        
+        Args:
+            timeout (int): Maximum time to wait for alert
+            
+        Returns:
+            str: The alert text
+        """
+        alert = self._wait_for_alert(timeout)
+        return alert.text
+
+    def _accept_alert(self, timeout=5):
+        """
+        Accept (click OK on) an alert.
+        
+        Args:
+            timeout (int): Maximum time to wait for alert
+        """
+        alert = self._wait_for_alert(timeout)
+        alert.accept()
+
+    def _dismiss_alert(self, timeout=5):
+        """
+        Dismiss (click Cancel on) an alert.
+        
+        Args:
+            timeout (int): Maximum time to wait for alert
+        """
+        alert = self._wait_for_alert(timeout)
+        alert.dismiss()
+
