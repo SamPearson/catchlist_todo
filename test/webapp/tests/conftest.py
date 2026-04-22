@@ -124,7 +124,7 @@ def login(driver, registered_user):
     """
     login_page = LoginPage(driver)
 
-    username = registered_user["username"],
+    username = registered_user["username"]
     password = registered_user["password"]
 
     login_page.login(username, password)
@@ -158,7 +158,7 @@ def cleanup_registered_user(test_user_credentials, request):
 
     # now all tests should be done; log in and delete the user
     driver = setup_webdriver(request)
-    username = test_user_credentials["username"],
+    username = test_user_credentials["username"]
     password = test_user_credentials["password"]
 
     try:
