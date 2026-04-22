@@ -14,6 +14,64 @@ def locator_from_testid(locator_string):
     return By.CSS_SELECTOR, f"[data-testid='{locator_string}']"
 
 
+def _check_element_visibility(driver, element):
+    """
+    Check if an element is visible using JavaScript
+    
+    Args:
+        driver: WebDriver instance
+        element: WebElement to check
+        
+    Returns:
+        bool: True if element is visible, False otherwise
+    """
+    return driver.execute_script("""
+        var elem = arguments[0];
+        var rect = elem.getBoundingClientRect();
+        return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            window.getComputedStyle(elem).display !== 'none' &&
+            window.getComputedStyle(elem).visibility !== 'hidden' &&
+            window.getComputedStyle(elem).opacity !== '0'
+        );
+    """, element)
+
+
+class ElementIsVisible:
+    """
+    Custom expected condition for WebDriverWait.
+    Checks if element is present and visible.
+    """
+    def __init__(self, locator):
+        self.locator = locator
+    
+    def __call__(self, driver):
+        try:
+            element = driver.find_element(*self.locator)
+            return _check_element_visibility(driver, element)
+        except (NoSuchElementException, StaleElementReferenceException):
+            return False
+
+
+class ElementIsActive:
+    """
+    Custom expected condition for WebDriverWait.
+    Checks if element is present, visible, and enabled (interactable).
+    """
+    def __init__(self, locator):
+        self.locator = locator
+    
+    def __call__(self, driver):
+        try:
+            element = driver.find_element(*self.locator)
+            is_visible = _check_element_visibility(driver, element)
+            is_enabled = element.is_enabled()
+            return is_visible and is_enabled
+        except (NoSuchElementException, StaleElementReferenceException):
+            return False
+
+
 class ElementStillPresentException(Exception):
     def __init__(self, message):
         self.message = message
@@ -143,31 +201,19 @@ class BasePage:
         if timeout > 0:
             try:
                 wait = WebDriverWait(self.driver, timeout)
-                # First check if element is present and visible using Selenium's built-in methods
-                element = wait.until(
-                    expected_conditions.presence_of_element_located(locator)
-                )
+                wait.until(ElementIsActive(locator))
+                return True
+                    
+            except TimeoutException:
+                # Take screenshot on timeout and log diagnostics
+                self._take_screenshot(f"timeout_checking_{locator[1]}")
                 
-                # Take screenshot before visibility check
-                self._take_screenshot(f"before_visibility_check_{locator[1]}")
-                
-                # Check if element has size and is enabled
-                is_visible = self.driver.execute_script("""
-                    var elem = arguments[0];
-                    var rect = elem.getBoundingClientRect();
-                    return (
-                        rect.width > 0 &&
-                        rect.height > 0 &&
-                        window.getComputedStyle(elem).display !== 'none' &&
-                        window.getComputedStyle(elem).visibility !== 'hidden'
-                    );
-                """, element)
-                
-                # Check if element is enabled
-                is_enabled = element.is_enabled()
-                
-                # Log detailed diagnostics if element is not active
-                if not (is_visible and is_enabled):
+                # Try to get diagnostics if element exists but isn't active
+                try:
+                    element = self.driver.find_element(*locator)
+                    is_visible = _check_element_visibility(self.driver, element)
+                    is_enabled = element.is_enabled()
+                    
                     self._log_element_state(
                         element,
                         is_visible=is_visible,
@@ -177,29 +223,14 @@ class BasePage:
                             element
                         )
                     )
-                    # Take screenshot after failed visibility check
-                    self._take_screenshot(f"failed_visibility_check_{locator[1]}")
+                except NoSuchElementException:
+                    print(f"Element not found: {locator}")
                 
-                return is_visible and is_enabled
-                    
-            except TimeoutException:
-                # Take screenshot on timeout
-                self._take_screenshot(f"timeout_checking_{locator[1]}")
                 return False
         else:
             try:
                 element = self.driver.find_element(*locator)
-                # Use the same visibility check as above
-                is_visible = self.driver.execute_script("""
-                    var elem = arguments[0];
-                    var rect = elem.getBoundingClientRect();
-                    return (
-                        rect.width > 0 &&
-                        rect.height > 0 &&
-                        window.getComputedStyle(elem).display !== 'none' &&
-                        window.getComputedStyle(elem).visibility !== 'hidden'
-                    );
-                """, element)
+                is_visible = _check_element_visibility(self.driver, element)
                 is_enabled = element.is_enabled()
                 
                 if not (is_visible and is_enabled):
