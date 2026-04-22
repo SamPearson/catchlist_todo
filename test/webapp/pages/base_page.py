@@ -10,7 +10,7 @@ import allure
 # so we just convert it to an css_selector locator instead.
 # we do this here instead of when defining the locator to avoid needing to spell f"[data-testid='{locator[1]}']")
 # correctly for every locator.
-def testid_locator(locator_string):
+def locator_from_testid(locator_string):
     return By.CSS_SELECTOR, f"[data-testid='{locator_string}']"
 
 
