@@ -103,6 +103,27 @@ class BasePage:
             self.driver.get(self.driver.base_url + url)
 
 
+    def _wait_for_url(self, condition, value, negate=False, timeout=5):
+        """Wait for URL to match condition"""
+        try:
+            wait = WebDriverWait(self.driver, timeout)
+            if condition == 'contains':
+                url_condition = expected_conditions.url_contains(value)
+            elif condition == 'is':
+                url_condition = expected_conditions.url_to_be(value)
+            else:
+                raise ValueError('Invalid URL condition')
+
+            if negate:
+                wait.until_not(url_condition)
+            else:
+                wait.until(url_condition)
+        except TimeoutException:
+            raise ElementStillPresentException(
+                f'URL condition not met: {condition} {value} = {negate}'
+            )
+
+
     @allure.step("Find element {locator}")
     def _find(self, locator, timeout=2):
         """
@@ -134,6 +155,23 @@ class BasePage:
         if not elements:
             raise NoSuchElementException(f"No elements found: {locator}")
         return elements
+
+
+    def _find_children(self, parent, locator):
+        children = parent.find_elements(*locator)
+        if children:
+            return children
+        else:
+            raise NoSuchElementException(f"No child elements were found with the locator {locator}")
+
+    def _has_children(self, parent, locator):
+        children = parent.find_elements(*locator)
+        if children:
+            return True
+        return False
+
+    def _find_child(self, parent, locator):
+        return self._find_children(parent, locator)[0]
 
 
     @allure.step("Click element {locator}")
@@ -203,7 +241,7 @@ class BasePage:
                 wait = WebDriverWait(self.driver, timeout)
                 wait.until(ElementIsActive(locator))
                 return True
-                    
+
             except TimeoutException:
                 # Take screenshot on timeout and log diagnostics
                 self._take_screenshot(f"timeout_checking_{locator[1]}")
@@ -351,51 +389,6 @@ class BasePage:
         print(f"Element diagnostics: {diagnostics}")
 
 
-    def _wait_until(self, condition_function, timeout=10, error_message=None):
-        """Wait until the provided condition function returns true"""
-        try:
-            wait = WebDriverWait(self.driver, timeout)
-            wait.until(condition_function)
-        except TimeoutException:
-            if error_message:
-                raise AssertionError(error_message)
-            raise TimeoutException(f'Condition not met after {timeout} seconds')
-
-    def _wait_for_url(self, condition, value, negate=False, timeout=5):
-        """Wait for URL to match condition"""
-        try:
-            wait = WebDriverWait(self.driver, timeout)
-            if condition == 'contains':
-                url_condition = expected_conditions.url_contains(value)
-            elif condition == 'is':
-                url_condition = expected_conditions.url_to_be(value)
-            else:
-                raise ValueError('Invalid URL condition')
-
-            if negate:
-                wait.until_not(url_condition)
-            else:
-                wait.until(url_condition)
-        except TimeoutException:
-            raise ElementStillPresentException(
-                f'URL condition not met: {condition} {value} = {negate}'
-            )
-
-    def _find_children(self, parent, locator):
-        children = parent.find_elements(*locator)
-        if children:
-            return children
-        else:
-            raise NoSuchElementException(f"No child elements were found with the locator {locator}")
-
-    def _has_children(self, parent, locator):
-        children = parent.find_elements(*locator)
-        if children:
-            return True
-        return False
-
-    def _find_child(self, parent, locator):
-        return self._find_children(parent, locator)[0]
 
     def _wait_until_element_gone(self, locator, timeout=10):
         try:
