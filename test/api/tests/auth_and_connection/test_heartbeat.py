@@ -22,7 +22,7 @@ def test_api_health_connection_error(api_client, monkeypatch):
     def mock_request(*args, **kwargs):
         raise requests.exceptions.ConnectionError("Failed to connect")
 
-    monkeypatch.setattr(api_client.session, "request", mock_request)
+    monkeypatch.setattr(api_client._session, "request", mock_request)
 
     with pytest.raises(Exception) as exc_info:
         api_client.get('/api/health')

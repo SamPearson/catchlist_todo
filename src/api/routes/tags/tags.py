@@ -99,7 +99,7 @@ def update_tag(tag_id):
     user_id = get_jwt_identity()
     tag_service = TagService(db.session)
 
-    input_data = request.get_json() or {}
+    input_data = request.get_json(silent=True) or {}
     if not input_data:
         return jsonify({'error': 'No update data provided'}), 400
 

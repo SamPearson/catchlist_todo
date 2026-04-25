@@ -106,7 +106,7 @@ def create_session(routine_id: int):
 def update_session(session_id: int):
     """PATCH /api/sessions/{id} - Update session properties (excludes status)"""
     user_id = int(get_jwt_identity())
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     service = SessionService(db.session)
 
     if not data:
