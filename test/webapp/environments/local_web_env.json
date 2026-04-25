@@ -19,6 +19,24 @@
 			"value": "127.0.0.1",
 			"type": "default",
 			"enabled": true
+		},
+		{
+			"key": "api_port",
+			"value": "5001",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "api_protocol",
+			"value": "http",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "api_host",
+			"value": "127.0.0.1",
+			"type": "default",
+			"enabled": true
 		}
 	],
 	"_postman_variable_scope": "environment",
