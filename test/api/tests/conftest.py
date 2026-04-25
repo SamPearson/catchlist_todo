@@ -1,7 +1,7 @@
 import pytest
 from config.environments.environment_manager import EnvironmentManager
-from utils.api_client.api_client import APIClient
-from utils.data_factories.api_user import APIUserFactory
+from test_utils.api_client.api_client import TestAPIClient
+from test_utils.data_factories.api_user import APIUserFactory
 
 
 def pytest_addoption(parser):
@@ -18,7 +18,7 @@ def env_manager(request):
 @pytest.fixture(scope="session")
 def api_client(env_manager):
     """Session-scoped base API client"""
-    return APIClient(env_manager.base_url)
+    return TestAPIClient(env_manager.base_url)
 
 
 @pytest.fixture(scope="session")
@@ -41,7 +41,7 @@ def test_user(api_client):
 def auth_client(env_manager):
     """Provide an authenticated client with fresh user for each test"""
     user = APIUserFactory.create()
-    client = APIClient(env_manager.base_url)
+    client = TestAPIClient(env_manager.base_url)
     client.register(user)
     client.login(user)
 
@@ -64,14 +64,14 @@ def session_auth_client(api_client, test_user):
 def secondary_user(env_manager):
     """Create a secondary test user for isolation testing"""
     user = APIUserFactory.create()
-    client = APIClient(env_manager.base_url)
+    client = TestAPIClient(env_manager.base_url)
     client.register(user)
 
     yield user
 
     # Cleanup: Delete secondary user
     try:
-        cleanup_client = APIClient(env_manager.base_url)
+        cleanup_client = TestAPIClient(env_manager.base_url)
         cleanup_client.login(user)
         cleanup_client.delete_account()
     except Exception as e:
@@ -81,7 +81,7 @@ def secondary_user(env_manager):
 @pytest.fixture
 def secondary_auth_client(env_manager, secondary_user):
     """Provide independent authenticated client for secondary test user"""
-    client = APIClient(env_manager.base_url)
+    client = TestAPIClient(env_manager.base_url)
     client.login(secondary_user)
     yield client
     try:
@@ -93,7 +93,7 @@ def secondary_auth_client(env_manager, secondary_user):
 @pytest.fixture
 def unauthenticated_client(env_manager):
     """Provide an unauthenticated client for testing auth failures"""
-    return APIClient(env_manager.base_url)
+    return TestAPIClient(env_manager.base_url)
 
 
 def pytest_collection_modifyitems(items):
