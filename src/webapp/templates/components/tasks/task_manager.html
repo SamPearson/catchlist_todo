@@ -50,7 +50,8 @@
 
                 <!-- Status and Metadata Bar -->
                 <div class="is-flex is-flex-wrap-wrap mb-3" style="gap: 0.5rem;">
-                    <span class="tag" :class="getStatusTagClass()" x-text="task.status"></span>
+                    <span class="tag" :class="getStatusTagClass()" x-text="task.status"
+                    data-testid="task-item-{{ task.id }}-status-badge"></span>
                     <span x-show="task.project_id" class="tag is-link is-light">
                         <span class="icon is-small">
                             <i class="fas fa-folder"></i>
@@ -58,7 +59,7 @@
                         <span>Subtask</span>
                     </span>
                     <span x-show="!task.active" class="tag is-warning is-light">Someday/Maybe</span>
-                    <span x-show="task.completed" class="tag is-success">
+                    <span x-show="task.completed" class="tag is-success" data-testid="task-item-{{ task.id }}-completed-badge">
                         <span class="icon is-small">
                             <i class="fas fa-check"></i>
                         </span>
