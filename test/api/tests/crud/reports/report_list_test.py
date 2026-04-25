@@ -1,7 +1,7 @@
 import pytest
 import allure
 from datetime import date
-from utils.data_factories.entity_factory import create_report, create_timeframe, create_task
+from test_utils.data_factories.entity_factory import create_report, create_timeframe, create_task
 
 
 

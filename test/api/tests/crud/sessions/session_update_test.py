@@ -271,8 +271,9 @@ def test_update_session_with_no_data(auth_client):
         response = auth_client.patch(f'/api/sessions/{session_id}', None,
                                      handle_response=False)
 
-    with allure.step("Verify 415 Unsupported Media Type"):
-        assert response.status_code == 415
+    with allure.step("Verify Http 400 and error message"):
+        assert response.status_code == 400
+        assert response.json['error'] == "No update data provided"
 
 
 @allure.feature('Sessions')
@@ -301,10 +302,8 @@ def test_update_session_with_empty_request_body(auth_client):
         response = auth_client.patch(f'/api/sessions/{session_id}', {},
                                      handle_response=False)
 
-    with allure.step("Verify 400 Bad Request"):
+    with allure.step("Verify Http 400 and error message"):
         assert response.status_code == 400
-
-    with allure.step("Verify error message"):
         assert response.json['error'] == "No update data provided"
 
 

@@ -2,10 +2,22 @@ from typing import Optional, Dict
 import requests
 import json
 import allure
-from utils.data_factories.api_user import APIUser
+import sys
+from pathlib import Path
+
+# Add project root to path to import from root utils/
+project_root = Path(__file__).parent.parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from utils.api_client import BaseAPIClient
+
+from test_utils.data_factories.api_user import APIUser
+
 
 
 class APIResponse:
+    """Wrapper for requests.Response with convenience methods."""
+    
     def __init__(self, response: requests.Response):
         self._response = response
         self.status_code = response.status_code
@@ -48,12 +60,16 @@ class APIResponse:
         self._response.raise_for_status()
 
 
-class APIClient:
+class TestAPIClient(BaseAPIClient):
+    """
+    API client for test automation with Allure reporting integration.
+    """
+    
     def __init__(self, base_url: str):
-        self.base_url = base_url.rstrip('/')
-        self.session = requests.Session()
+        # Always use session for test client to maintain state
+        super().__init__(base_url, use_session=True)
         self.current_user: Optional[APIUser] = None
-
+    
     def diagnose_request(self, request: requests.PreparedRequest) -> str:
         """Generate diagnostic information about a request."""
         info = [
@@ -90,12 +106,13 @@ class APIClient:
             info.append(f"  {body}")
 
         return "\n".join(info)
-
-    def request(self, method: str, endpoint: str, data: Optional[Dict] = None,
-                params: Optional[Dict] = None, handle_response: bool = True) -> APIResponse:
-        """Send request to specified endpoint."""
-        url = f"{self.base_url}/{endpoint.lstrip('/')}" if endpoint.startswith('/') else endpoint
-
+    
+    def _make_request(self, method: str, endpoint: str,
+                     data: Optional[Dict] = None,
+                     params: Optional[Dict] = None,
+                     token: Optional[str] = None) -> requests.Response:
+        """Override to add Allure reporting."""
+        
         with allure.step(f"{method.upper()} {endpoint}"):
             # Log request details
             if data:
@@ -110,50 +127,46 @@ class APIClient:
                     name="Query Parameters",
                     attachment_type=allure.attachment_type.JSON
                 )
-
-            response = self.session.request(
-                method=method,
-                url=url,
-                json=data,
-                params=params
-            )
-
-            # Wrap the response
-            api_response = APIResponse(response)
-
+            
+            # Make the actual request
+            response = super()._make_request(method, endpoint, data, params, token)
+            
             # Log response details
-            if api_response.json is not None:
+            try:
+                response_json = response.json()
                 allure.attach(
-                    json.dumps(api_response.json, indent=2),
+                    json.dumps(response_json, indent=2),
                     name="Response Body",
                     attachment_type=allure.attachment_type.JSON
                 )
-            else:
+            except json.JSONDecodeError:
                 allure.attach(
-                    api_response.text[:1000] if api_response.text else "(empty)",
+                    response.text[:1000] if response.text else "(empty)",
                     name="Response Body",
                     attachment_type=allure.attachment_type.TEXT
                 )
-
+            
             allure.attach(
-                f"Status Code: {api_response.status_code}\nElapsed Time: {api_response.elapsed.total_seconds():.3f}s",
+                f"Status Code: {response.status_code}\nElapsed Time: {response.elapsed.total_seconds():.3f}s",
                 name="Response Info",
                 attachment_type=allure.attachment_type.TEXT
             )
-
-            if not (200 <= api_response.status_code < 300):
+            
+            if not (200 <= response.status_code < 300):
                 allure.attach(
                     self.diagnose_response(response),
                     name="Error Details",
                     attachment_type=allure.attachment_type.TEXT
                 )
-
-            if handle_response:
-                api_response.raise_for_status()
-
-            return api_response
-
-
+            
+            return response
+    
+    def _handle_response(self, response: requests.Response) -> APIResponse:
+        """Override to return APIResponse wrapper instead of raw JSON."""
+        return APIResponse(response)
+    
+    # Authentication and user management methods
+    
     def login(self, user: APIUser) -> APIResponse:
         """Authenticate user and store user object with token."""
         response = self.post('/api/auth/login', {
@@ -164,9 +177,7 @@ class APIClient:
         if 'access_token' in response:
             user.token = response['access_token']
             self.current_user = user
-            self.session.headers.update({
-                'Authorization': f'Bearer {user.token}'
-            })
+            self.token = user.token  # This will update session headers
 
         return response
 
@@ -196,25 +207,8 @@ class APIClient:
         if self.current_user:
             self.current_user.token = None
         self.current_user = None
-        self.session.headers.pop('Authorization', None)
+        self.token = None  # This will clear session headers
 
     def is_authenticated(self) -> bool:
         """Check if the client is currently authenticated."""
         return self.current_user is not None and self.current_user.is_authenticated
-
-
-    # HTTP method convenience functions
-    def get(self, endpoint: str, params: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('get', endpoint, params=params, handle_response=handle_response)
-
-    def post(self, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('post', endpoint, data=data, params=params, handle_response=handle_response)
-
-    def put(self, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('put', endpoint, data=data, params=params, handle_response=handle_response)
-
-    def patch(self, endpoint: str, data: Optional[Dict] = None, params: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('patch', endpoint, data=data, params=params, handle_response=handle_response)
-
-    def delete(self, endpoint: str, params: Optional[Dict] = None, handle_response: bool = True):
-        return self.request('delete', endpoint, params=params, handle_response=handle_response)

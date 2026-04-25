@@ -4,9 +4,9 @@ from pages.task_component_demo_page import TaskComponentDemoPage
 
 
 @pytest.fixture
-def page(login):
+def page(authenticated_driver):
     """Navigate to the task component demo page"""
-    return TaskComponentDemoPage(login)
+    return TaskComponentDemoPage(authenticated_driver)
 
 @pytest.mark.smoke
 class TestTaskCreate:

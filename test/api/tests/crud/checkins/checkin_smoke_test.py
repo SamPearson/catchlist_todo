@@ -1,6 +1,6 @@
 import pytest
 import allure
-from utils.data_factories.entity_factory import create_task, create_checkin
+from test_utils.data_factories.entity_factory import create_task, create_checkin
 
 
 @allure.feature('Checkins')
