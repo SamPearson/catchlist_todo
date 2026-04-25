@@ -1,7 +1,7 @@
 import pytest
 import allure
 from datetime import datetime, timedelta, timezone
-from utils.data_factories.entity_factory import create_task, create_project, create_checkin
+from test_utils.data_factories.entity_factory import create_task, create_project, create_checkin
 
 
 # Tests for GET /api/checkins/target (target-specific listing)

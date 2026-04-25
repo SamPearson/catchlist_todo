@@ -1,7 +1,7 @@
 import pytest
 import requests
 
-from utils.data_factories.api_user import APIUserFactory
+from test_utils.data_factories.api_user import APIUserFactory
 
 
 

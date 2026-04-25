@@ -1,7 +1,7 @@
 {# Task Manager Component - Wrapper that handles view/edit mode switching for a task #}
 
 {% macro task_manager(task) %}
-<div x-data='taskManager({{ task | tojson }})' class="mb-4">
+<div x-data='taskManager({{ task | tojson }})' class="mb-4" data-testid="task-manager-{{ task.id }}">
     <!-- View Mode: Display the task -->
     <template x-if="mode === 'view'">
         <div>
@@ -10,6 +10,7 @@
                  @click="toggleExpand()"
                  class="box is-clickable"
                  :class="{ 'has-background-success-light': task.completed, 'opacity-70': !task.active && !task.completed }"
+                 data-testid="task-item-{{ task.id }}-minimized"
                  style="cursor: pointer;">
                 <div class="is-flex is-align-items-center is-justify-content-space-between">
                     <div class="is-flex is-align-items-center" style="flex: 1;">
@@ -21,12 +22,13 @@
                         <span class="ml-2"
                               :class="task.completed ? 'has-text-grey-light' : ''"
                               :style="task.completed ? 'text-decoration: line-through;' : ''"
+                              data-testid="task-item-{{ task.id }}-title"
                               x-text="task.title"></span>
                     </div>
                     <!-- Badges -->
                     <div class="is-flex is-align-items-center">
                         <span x-show="task.completed" class="tag is-success">Completed</span>
-                        <span x-show="task.project_id && !task.completed" class="tag is-link is-light mr-2">
+                        <span x-show="task.project_id && !task.completed" class="tag is-link is-light mr-2" data-testid="task-item-{{ task.id }}-subtask-badge">
                             <span class="icon is-small">
                                 <i class="fas fa-folder"></i>
                             </span>
@@ -40,23 +42,24 @@
             </div>
 
             <!-- Expanded State -->
-            <div x-show="expanded" class="box" :class="{ 'has-background-success-light': task.completed }">
+            <div x-show="expanded" class="box" :class="{ 'has-background-success-light': task.completed }" data-testid="task-item-{{ task.id }}-expanded">
                 <div class="is-flex is-justify-content-space-between is-align-items-start mb-3">
                     <h3 class="title is-5 mb-0" x-text="task.title"></h3>
-                    <button @click="toggleExpand()" class="delete"></button>
+                    <button @click="toggleExpand()" class="delete" data-testid="task-item-{{ task.id }}-collapse-button"></button>
                 </div>
 
                 <!-- Status and Metadata Bar -->
                 <div class="is-flex is-flex-wrap-wrap mb-3" style="gap: 0.5rem;">
-                    <span class="tag" :class="getStatusTagClass()" x-text="task.status"></span>
-                    <span x-show="task.project_id" class="tag is-link is-light">
+                    <span class="tag" :class="getStatusTagClass()" x-text="task.status"
+                    data-testid="task-item-{{ task.id }}-status-badge"></span>
+                    <span x-show="task.project_id" class="tag is-link is-light" data-testid="task-item-{{ task.id }}-subtask-badge-expanded">
                         <span class="icon is-small">
                             <i class="fas fa-folder"></i>
                         </span>
                         <span>Subtask</span>
                     </span>
                     <span x-show="!task.active" class="tag is-warning is-light">Someday/Maybe</span>
-                    <span x-show="task.completed" class="tag is-success">
+                    <span x-show="task.completed" class="tag is-success" data-testid="task-item-{{ task.id }}-completed-badge">
                         <span class="icon is-small">
                             <i class="fas fa-check"></i>
                         </span>
@@ -66,7 +69,7 @@
 
                 <!-- Description -->
                 <div x-show="task.description" class="content mb-3">
-                    <p x-text="task.description"></p>
+                    <p x-text="task.description" data-testid="task-item-{{ task.id }}-description"></p>
                 </div>
 
                 <!-- Timestamps -->
@@ -96,19 +99,19 @@
                     <!-- Active task buttons -->
                     <template x-if="task.active && !task.completed">
                         <div class="buttons">
-                            <button class="button is-small is-success">
+                            <button class="button is-small is-success" data-testid="task-item-{{ task.id }}-complete-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-check"></i>
                                 </span>
                                 <span>Complete</span>
                             </button>
-                            <button class="button is-small is-info" @click="edit()">
+                            <button class="button is-small is-info" @click="edit()" data-testid="task-item-{{ task.id }}-edit-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-edit"></i>
                                 </span>
                                 <span>Edit</span>
                             </button>
-                            <button class="button is-small is-danger" @click="deleteTask()">
+                            <button class="button is-small is-danger" @click="deleteTask()" data-testid="task-item-{{ task.id }}-delete-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-trash"></i>
                                 </span>
@@ -120,13 +123,13 @@
                     <!-- Completed task buttons -->
                     <template x-if="task.completed">
                         <div class="buttons">
-                            <button class="button is-small is-warning">
+                            <button class="button is-small is-warning" data-testid="task-item-{{ task.id }}-uncomplete-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-undo"></i>
                                 </span>
                                 <span>Uncomplete</span>
                             </button>
-                            <button class="button is-small is-danger" @click="deleteTask()">
+                            <button class="button is-small is-danger" @click="deleteTask()" data-testid="task-item-{{ task.id }}-delete-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-trash"></i>
                                 </span>
@@ -138,19 +141,19 @@
                     <!-- Inactive (someday/maybe) task buttons -->
                     <template x-if="!task.active && !task.completed">
                         <div class="buttons">
-                            <button class="button is-small is-primary">
+                            <button class="button is-small is-primary" data-testid="task-item-{{ task.id }}-activate-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-play"></i>
                                 </span>
                                 <span>Activate</span>
                             </button>
-                            <button class="button is-small is-info" @click="edit()">
+                            <button class="button is-small is-info" @click="edit()" data-testid="task-item-{{ task.id }}-edit-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-edit"></i>
                                 </span>
                                 <span>Edit</span>
                             </button>
-                            <button class="button is-small is-danger" @click="deleteTask()">
+                            <button class="button is-small is-danger" @click="deleteTask()" data-testid="task-item-{{ task.id }}-delete-button">
                                 <span class="icon is-small">
                                     <i class="fas fa-trash"></i>
                                 </span>
@@ -165,7 +168,7 @@
 
     <!-- Edit Mode: Show the edit form -->
     <template x-if="mode === 'edit'">
-        <div class="box">
+        <div class="box" data-testid="task-edit-{{ task.id }}-form">
             <!-- Header with Title Input -->
             <div class="field mb-4">
                 <label class="label">Task Title *</label>
@@ -174,9 +177,10 @@
                            type="text"
                            x-model="formData.title"
                            placeholder="Enter task title"
+                           data-testid="task-edit-{{ task.id }}-title-input"
                            :class="{ 'is-danger': errors.title }">
                 </div>
-                <p class="help is-danger" x-show="errors.title" x-text="errors.title"></p>
+                <p class="help is-danger" x-show="errors.title" x-text="errors.title" data-testid="task-edit-{{ task.id }}-title-error"></p>
             </div>
 
             <!-- Description -->
@@ -186,6 +190,7 @@
                     <textarea class="textarea"
                               x-model="formData.description"
                               placeholder="Add details about this task (optional)"
+                              data-testid="task-edit-{{ task.id }}-description-input"
                               rows="4"></textarea>
                 </div>
             </div>
@@ -197,7 +202,7 @@
                         <label class="label">Status</label>
                         <div class="control">
                             <div class="select is-fullwidth">
-                                <select x-model="formData.status">
+                                <select x-model="formData.status" data-testid="task-edit-{{ task.id }}-status-select">
                                     <option value="open">Open</option>
                                     <option value="waiting">Waiting</option>
                                     <option value="deferred">Deferred</option>
@@ -213,7 +218,7 @@
                         <label class="label">Active Status</label>
                         <div class="control">
                             <label class="checkbox">
-                                <input type="checkbox" x-model="formData.active">
+                                <input type="checkbox" x-model="formData.active" data-testid="task-edit-{{ task.id }}-active-checkbox">
                                 <span class="ml-2">Active (in working set)</span>
                             </label>
                             <p class="help">Uncheck to move to someday/maybe</p>
@@ -310,7 +315,7 @@
             <!-- Action Buttons -->
             <div class="field is-grouped is-grouped-right">
                 <div class="control">
-                    <button class="button" @click="cancelEdit()">
+                    <button class="button" @click="cancelEdit()" data-testid="task-edit-{{ task.id }}-cancel-button">
                         <span class="icon">
                             <i class="fas fa-times"></i>
                         </span>
@@ -321,7 +326,8 @@
                     <button class="button is-primary"
                             @click="save()"
                             :class="{ 'is-loading': saving }"
-                            :disabled="saving">
+                            :disabled="saving"
+                            data-testid="task-edit-{{ task.id }}-save-button">
                         <span class="icon">
                             <i class="fas fa-save"></i>
                         </span>
@@ -339,7 +345,7 @@
                         <p class="has-text-weight-semibold">Delete this task</p>
                         <p class="is-size-7 has-text-grey-dark">This action cannot be undone</p>
                     </div>
-                    <button class="button is-danger" @click="deleteTask()">
+                    <button class="button is-danger" @click="deleteTask()" data-testid="task-edit-{{ task.id }}-delete-button">
                         <span class="icon">
                             <i class="fas fa-trash"></i>
                         </span>

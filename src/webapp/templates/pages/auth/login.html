@@ -25,6 +25,7 @@
                                             placeholder="Enter your username"
                                             x-model="formData.username"
                                             :disabled="loading"
+                                            data-testid="login-username-input"
                                             required>
                                         <span class="icon is-small is-left">
                                             <i class="fas fa-user"></i>
@@ -41,6 +42,7 @@
                                             placeholder="Enter your password"
                                             x-model="formData.password"
                                             :disabled="loading"
+                                            data-testid="login-password-input"
                                             required>
                                         <span class="icon is-small is-left">
                                             <i class="fas fa-lock"></i>
@@ -49,7 +51,7 @@
                                 </div>
 
                                 <!-- Error message -->
-                                <div x-show="error" class="notification is-danger is-light" x-transition>
+                                <div x-show="error" class="notification is-danger is-light" data-testid="login-error-message" x-transition>
                                     <button class="delete" @click="error = ''"></button>
                                     <span x-text="error"></span>
                                 </div>
@@ -60,6 +62,7 @@
                                             class="button is-primary is-fullwidth"
                                             :class="{ 'is-loading': loading }"
                                             type="submit"
+                                            data-testid="login-submit-button"
                                             :disabled="loading">
                                             Login
                                         </button>
@@ -71,7 +74,7 @@
 
                             <p class="has-text-centered">
                                 Don't have an account?
-                                <a href="/auth/register">Register here</a>
+                                <a href="/auth/register" data-testid="login-register-link">Register here</a>
                             </p>
                         </div>
                     </div>

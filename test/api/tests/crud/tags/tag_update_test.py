@@ -145,8 +145,9 @@ def test_update_tag_with_no_data(auth_client):
     with allure.step("Attempt to update with no data"):
         response = auth_client.patch(f'/api/tags/{tag_id}', data=None, handle_response=False)
 
-    with allure.step("Verify 415 error"):
-        assert response.status_code == 415
+    with allure.step("Verify Http 400 and error message"):
+        assert response.status_code == 400
+        assert response.json['error'] == "No update data provided"
 
 
 @allure.feature('Tags')

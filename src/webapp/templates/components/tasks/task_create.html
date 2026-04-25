@@ -1,7 +1,7 @@
 {# Task Create Component - Form for creating a new task #}
 
 {% macro task_create() %}
-<div x-data='taskCreate()' class="box">
+<div x-data='taskCreate()' class="box" data-testid="task-create-form">
     <h3 class="title is-5 mb-4">Create New Task</h3>
 
     <!-- Title Input -->
@@ -12,9 +12,10 @@
                    type="text"
                    x-model="formData.title"
                    placeholder="Enter task title"
+                   data-testid="task-create-title-input"
                    :class="{ 'is-danger': errors.title }">
         </div>
-        <p class="help is-danger" x-show="errors.title" x-text="errors.title"></p>
+        <p class="help is-danger" x-show="errors.title" x-text="errors.title" data-testid="task-create-title-error"></p>
     </div>
 
     <!-- Description -->
@@ -24,6 +25,7 @@
             <textarea class="textarea"
                       x-model="formData.description"
                       placeholder="Add details about this task (optional)"
+                      data-testid="task-create-description-input"
                       rows="4"></textarea>
         </div>
     </div>
@@ -35,7 +37,7 @@
                 <label class="label">Status</label>
                 <div class="control">
                     <div class="select is-fullwidth">
-                        <select x-model="formData.status">
+                        <select x-model="formData.status" data-testid="task-create-status-select">
                             <option value="open">Open</option>
                             <option value="waiting">Waiting</option>
                             <option value="deferred">Deferred</option>
@@ -51,7 +53,7 @@
                 <label class="label">Active Status</label>
                 <div class="control">
                     <label class="checkbox">
-                        <input type="checkbox" x-model="formData.active">
+                        <input type="checkbox" x-model="formData.active" data-testid="task-create-active-checkbox">
                         <span class="ml-2">Active (in working set)</span>
                     </label>
                     <p class="help">Uncheck to move to someday/maybe</p>
@@ -103,7 +105,7 @@
     <!-- Action Buttons -->
     <div class="field is-grouped is-grouped-right">
         <div class="control">
-            <button class="button" @click="cancel()">
+            <button class="button" @click="cancel()" data-testid="task-create-cancel-button">
                 <span class="icon">
                     <i class="fas fa-times"></i>
                 </span>
@@ -114,7 +116,8 @@
             <button class="button is-primary"
                     @click="create()"
                     :class="{ 'is-loading': saving }"
-                    :disabled="saving">
+                    :disabled="saving"
+                    data-testid="task-create-submit-button">
                 <span class="icon">
                     <i class="fas fa-plus"></i>
                 </span>

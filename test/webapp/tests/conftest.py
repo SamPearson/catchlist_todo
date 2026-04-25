@@ -2,10 +2,17 @@ import pytest
 import allure
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from environments.environment_data import Environment
 import os
 import random
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
 
+# Add project root to path 
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from test_utils.api_client import WebAppTestAPIClient
 from pages.login_page import LoginPage
 from pages.user_registration_page import RegistrationPage
 from pages.user_account_page import AccountPage
@@ -14,12 +21,23 @@ from pages.user_account_page import AccountPage
 def pytest_addoption(parser):
     parser.addoption("--env",
                      action="store",
-                     default="no_env",
-                     help="Filename for the test environment file")
+                     default="local",
+                     help="Environment name (e.g., local, staging, production)")
     parser.addoption("--headless",
                      action="store",
                      default="False",
                      help="Run tests with browser in headless mode")
+
+
+def load_environment(env_name):
+    """Load environment variables from .env file"""
+    # conftest.py is in test/webapp/, environments folder is sibling to it
+    env_file = Path(__file__).parent.parent / "environments" / f".env.{env_name}"
+    
+    if not env_file.exists():
+        raise FileNotFoundError(f"Environment file not found: {env_file}")
+    
+    load_dotenv(env_file, override=True)
 
 
 def setup_webdriver(request):
@@ -43,24 +61,47 @@ def setup_webdriver(request):
         # In non-headless mode, we can maximize the window
         driver.maximize_window()
 
-    test_environment = request.config.getoption("--env")
-    test_env_filename = os.path.join("environments", f"{test_environment}")
-    assert os.path.exists(test_env_filename), f"Could not find json env file for {test_env_filename}"
+    # Load environment variables
+    env_name = request.config.getoption("--env")
+    load_environment(env_name)
 
-    Environment.parse_environment_file(test_env_filename)
+    webapp_url = os.getenv("WEBAPP_URL")
+    if not webapp_url:
+        raise ValueError("WEBAPP_URL not found in environment file")
 
-    protocol = Environment.get_value("protocol")
-    host = Environment.get_value("host")
-    port = Environment.get_value("port")
-
-    driver.base_url = f"{protocol}://{host}:{port}"
-    driver.base_domain = host
+    # Parse URL for base_domain (for cookie injection)
+    from urllib.parse import urlparse
+    parsed = urlparse(webapp_url)
+    
+    driver.base_url = webapp_url
+    driver.base_domain = parsed.hostname
 
     return driver
 
 
+def get_api_base_url(request):
+    """Get API base URL from environment config"""
+    # Load environment if not already loaded
+    if not os.getenv("API_BASE_URL"):
+        env_name = request.config.getoption("--env")
+        load_environment(env_name)
+    
+    api_base_url = os.getenv("API_BASE_URL")
+    if not api_base_url:
+        raise ValueError("API_BASE_URL not found in environment file")
+    
+    return api_base_url
+
+
+@pytest.fixture(scope="session")
+def api_base_url(request):
+    """Session-scoped API base URL"""
+    return get_api_base_url(request)
+
+
 @pytest.fixture
 def driver(request):
+    """Function-scoped driver - new browser instance per test"""
     driver_ = setup_webdriver(request)
     
     # Add environment information to Allure report
@@ -71,63 +112,85 @@ def driver(request):
         <p><b>Environment:</b> {request.config.getoption("--env")}</p>
     """)
 
-    def quit_browser():
-        try:
-            # Take screenshot on test failure
-            if request.node.result_call.failed:
-                allure.attach(
-                    driver_.get_screenshot_as_png(),
-                    name="failure_screenshot",
-                    attachment_type=allure.attachment_type.PNG
-                )
-        finally:
-            driver_.quit()
-
-    request.addfinalizer(quit_browser)
-    return driver_
-
-
-@pytest.fixture(scope="session")
-def test_user_credentials():
-    # tack a random int onto the user and pass to avoid collisions
-    # just in case we fail to delete a user somehow.
-    session_rand_int = random.randint(0,9999)
-    session_username = f"test_user{session_rand_int}"
-    session_password = f"test_user{session_rand_int}"
-
-    return {"username": session_username, "password": session_password}
-
-
-@pytest.fixture(scope="session")
-def registered_user(test_user_credentials, request):
-    """
-    Create a user once before any tests run, to be used for all tests and deleted after
-    """
-    driver = setup_webdriver(request)
-
+    yield driver_
+    
+    # Cleanup
     try:
-        registration_page = RegistrationPage(driver)
-        registration_page.register_new_user(
-            test_user_credentials["username"],
-            test_user_credentials["password"]
-        )
+        # Take screenshot on test failure
+        if hasattr(request.node, 'result_call') and request.node.result_call.failed:
+            allure.attach(
+                driver_.get_screenshot_as_png(),
+                name="failure_screenshot",
+                attachment_type=allure.attachment_type.PNG
+            )
     finally:
-        driver.quit()
-
-    return test_user_credentials
+        driver_.quit()
 
 
 @pytest.fixture
-def login(driver, registered_user):
-    """
-    Fixture to log in before a test begins
-    """
-    login_page = LoginPage(driver)
+def api_client(api_base_url):
+    """Function-scoped API client - fresh client per test"""
+    return WebAppTestAPIClient(api_base_url)
 
-    username = registered_user["username"],
-    password = registered_user["password"]
 
-    login_page.login(username, password)
+@pytest.fixture
+def test_user(api_client):
+    """
+    Create a fresh test user for each test via API.
+    Automatically deleted after test completes.
+    """
+    # Generate unique credentials
+    rand_int = random.randint(0, 99999)
+    username = f"test_user{rand_int}"
+    password = f"TestPass{rand_int}!"
+    
+    # Register and login via API
+    api_client.register_user(username, password)
+    api_client.login_user(username, password)
+    
+    user_data = {
+        "username": username,
+        "password": password,
+        "token": api_client.token
+    }
+    
+    yield user_data
+    
+    # Cleanup: Delete user after test
+    try:
+        # Login again in case test logged out
+        if not api_client.token:
+            api_client.login_user(username, password)
+        api_client.delete_user(password)
+    except Exception as e:
+        print(f"Failed to delete test user {username}: {e}")
+
+
+@pytest.fixture
+def authenticated_driver(driver, test_user, api_client):
+    """
+    Provides a driver with authenticated session (cookie injected).
+    Fresh user per test.
+    """
+    # Navigate to app first (cookies require a page to be loaded)
+    driver.get(driver.base_url)
+    
+    # Inject auth cookie
+    api_client.inject_auth_cookie(driver)
+    
+    # Refresh to apply cookie
+    driver.refresh()
+    
+    return driver
+
+
+@pytest.fixture
+def unauthenticated_driver(driver):
+    """
+    Provides a driver without authentication.
+    Useful for testing login flows.
+    """
+    driver.get(driver.base_url)
     return driver
 
 
@@ -146,29 +209,4 @@ def pytest_runtest_makereport(item, call):
             )
     
     setattr(item, "result_" + result.when, result)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_registered_user(test_user_credentials, request):
-    """
-    Cleanup fixture - runs after all tests, deletes the test user
-    """
-    # yield here so we can run a teardown procedure after all tests
-    yield
-
-    # now all tests should be done; log in and delete the user
-    driver = setup_webdriver(request)
-    username = test_user_credentials["username"],
-    password = test_user_credentials["password"]
-
-    try:
-        login_page = LoginPage(driver)
-        login_page.login(username, password)
-
-        account_page = AccountPage(driver)
-        account_page.delete_account(password)
-    except Exception as e:
-        print(f"Failed to delete test user {username}: {e}")
-    finally:
-        driver.quit()
 
