@@ -28,7 +28,7 @@
                     <!-- Badges -->
                     <div class="is-flex is-align-items-center">
                         <span x-show="task.completed" class="tag is-success">Completed</span>
-                        <span x-show="task.project_id && !task.completed" class="tag is-link is-light mr-2">
+                        <span x-show="task.project_id && !task.completed" class="tag is-link is-light mr-2" data-testid="task-item-{{ task.id }}-subtask-badge">
                             <span class="icon is-small">
                                 <i class="fas fa-folder"></i>
                             </span>
@@ -52,7 +52,7 @@
                 <div class="is-flex is-flex-wrap-wrap mb-3" style="gap: 0.5rem;">
                     <span class="tag" :class="getStatusTagClass()" x-text="task.status"
                     data-testid="task-item-{{ task.id }}-status-badge"></span>
-                    <span x-show="task.project_id" class="tag is-link is-light">
+                    <span x-show="task.project_id" class="tag is-link is-light" data-testid="task-item-{{ task.id }}-subtask-badge-expanded">
                         <span class="icon is-small">
                             <i class="fas fa-folder"></i>
                         </span>
