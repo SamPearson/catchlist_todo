@@ -68,6 +68,14 @@ class TaskItemComponent(BasePage):
         """Completed badge - available in EXPANDED state"""
         return locator_from_testid(f"task-item-{self.task_id}-completed-badge")
     
+    def _subtask_badge_expanded_locator(self):
+        """Subtask badge - available in EXPANDED state"""
+        return locator_from_testid(f"task-item-{self.task_id}-subtask-badge-expanded")
+    
+    def _subtask_badge_minimized_locator(self):
+        """Subtask badge - available in MINIMIZED state"""
+        return locator_from_testid(f"task-item-{self.task_id}-subtask-badge")
+    
     # Edit mode locators
     def _edit_title_input_locator(self):
         """Title input - only available in EDIT mode"""
@@ -390,6 +398,33 @@ class TaskItemComponent(BasePage):
         
         actual_title = self.get_title_from_minimized()
         return actual_title == expected_title
+    
+    def has_activate_button(self):
+        """Check if the activate button is displayed.
+        
+        Requires task to be in expanded state.
+        Indicates task is inactive (someday/maybe).
+        
+        Returns:
+            bool: True if activate button is displayed
+        """
+        self._ensure_expanded()
+        return self._is_displayed(self._activate_button_locator(), timeout=1)
+    
+    def has_subtask_badge(self):
+        """Check if the subtask badge is displayed.
+        
+        Works in either minimized or expanded state.
+        
+        Returns:
+            bool: True if subtask badge is displayed
+        """
+        if self.is_minimized():
+            return self._is_displayed(self._subtask_badge_minimized_locator(), timeout=1)
+        elif self.is_expanded():
+            return self._is_displayed(self._subtask_badge_expanded_locator(), timeout=1)
+        else:
+            return False
     
     def has_edit_error(self, field='title'):
         """Check if an edit form validation error is displayed.
