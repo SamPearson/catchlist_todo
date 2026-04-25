@@ -2,13 +2,13 @@ import pytest
 import allure
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from environments.environment_data import Environment
 import os
 import random
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
-# Add project root to path
+# Add project root to path 
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -21,12 +21,23 @@ from pages.user_account_page import AccountPage
 def pytest_addoption(parser):
     parser.addoption("--env",
                      action="store",
-                     default="no_env",
-                     help="Filename for the test environment file")
+                     default="local",
+                     help="Environment name (e.g., local, staging, production)")
     parser.addoption("--headless",
                      action="store",
                      default="False",
                      help="Run tests with browser in headless mode")
+
+
+def load_environment(env_name):
+    """Load environment variables from .env file"""
+    # conftest.py is in test/webapp/, environments folder is sibling to it
+    env_file = Path(__file__).parent.parent / "environments" / f".env.{env_name}"
+    
+    if not env_file.exists():
+        raise FileNotFoundError(f"Environment file not found: {env_file}")
+    
+    load_dotenv(env_file, override=True)
 
 
 def setup_webdriver(request):
@@ -50,35 +61,36 @@ def setup_webdriver(request):
         # In non-headless mode, we can maximize the window
         driver.maximize_window()
 
-    test_environment = request.config.getoption("--env")
-    test_env_filename = os.path.join("environments", f"{test_environment}")
-    assert os.path.exists(test_env_filename), f"Could not find json env file for {test_env_filename}"
+    # Load environment variables
+    env_name = request.config.getoption("--env")
+    load_environment(env_name)
 
-    Environment.parse_environment_file(test_env_filename)
+    webapp_url = os.getenv("WEBAPP_URL")
+    if not webapp_url:
+        raise ValueError("WEBAPP_URL not found in environment file")
 
-    protocol = Environment.get_value("protocol")
-    host = Environment.get_value("host")
-    port = Environment.get_value("port")
-
-    driver.base_url = f"{protocol}://{host}:{port}"
-    driver.base_domain = host
+    # Parse URL for base_domain (for cookie injection)
+    from urllib.parse import urlparse
+    parsed = urlparse(webapp_url)
+    
+    driver.base_url = webapp_url
+    driver.base_domain = parsed.hostname
 
     return driver
 
 
 def get_api_base_url(request):
     """Get API base URL from environment config"""
-    test_environment = request.config.getoption("--env")
-    test_env_filename = os.path.join("environments", f"{test_environment}")
+    # Load environment if not already loaded
+    if not os.getenv("API_BASE_URL"):
+        env_name = request.config.getoption("--env")
+        load_environment(env_name)
     
-    if not Environment.values:  # Only parse if not already done
-        Environment.parse_environment_file(test_env_filename)
+    api_base_url = os.getenv("API_BASE_URL")
+    if not api_base_url:
+        raise ValueError("API_BASE_URL not found in environment file")
     
-    api_protocol = Environment.get_value("api_protocol")
-    api_host = Environment.get_value("api_host")
-    api_port = Environment.get_value("api_port")
-    
-    return f"{api_protocol}://{api_host}:{api_port}"
+    return api_base_url
 
 
 @pytest.fixture(scope="session")
