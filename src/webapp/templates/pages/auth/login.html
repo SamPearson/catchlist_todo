@@ -101,8 +101,8 @@
                 this.error = '';
 
                 try {
-                    const data = await api.post('/api/auth/login', this.formData);
-                    
+                    const data = await api.post('/api/auth/login', this.formData, { skipAuthRedirect: true });
+
                     if (data && data.access_token) {
                         // Login successful, set cookie and redirect
                         document.cookie = `auth_token=${data.access_token}; path=/; max-age=3600; SameSite=Lax`;

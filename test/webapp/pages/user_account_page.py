@@ -79,6 +79,7 @@ class AccountPage(BaseAppPage):
 
         # Wait for success message
         assert self._is_active(self.profile_success_message_locator, 5), "Profile update success message not shown"
+        self._wait_until_element_gone(self.profile_success_message_locator, 5), "Profile update success message appeared but did not disappear"
 
     def cancel_edit_profile(self):
         """Cancel profile editing"""
