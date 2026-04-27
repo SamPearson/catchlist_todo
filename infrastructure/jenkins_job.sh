@@ -136,24 +136,23 @@ if ! pytest -m smoke_test --env="ENVIRONMENT NAME HERE" --alluredir="$REPORT_DIR
     exit 1
 fi
 
-
 log "✅ API smoke tests passed."
 
+
 # ---- Webapp (Selenium) Tests ----
-# temporarily disabled until webapp refactor
-#TEST_WEBAPP_DIR="$BASE_DIR/test/webapp"
-#cd "$TEST_WEBAPP_DIR" || exit 1
-#
-#log "🔹 Installing webapp test dependencies..."
-#pip install --upgrade -r requirements.txt
-#
-#log "🔹 Running Selenium Webapp tests..."
-#if ! pytest --headless="True" --env="production_web_env.json"; then
-#    echo "❌ Selenium tests failed! Stopping deployment."
-#    deactivate
-#    exit 1
-#fi
-#log "✅ Selenium Webapp tests passed."
+TEST_WEBAPP_DIR="$BASE_DIR/test/webapp"
+cd "$TEST_WEBAPP_DIR" || exit 1
+
+log "🔹 Installing webapp test dependencies..."
+pip install --upgrade -r requirements.txt
+
+log "🔹 Running Selenium Webapp tests..."
+if ! pytest -m "auth and smoke" --headless="True" --env="production_web_env.json"; then
+    echo "❌ Selenium tests failed! Stopping deployment."
+    deactivate
+    exit 1
+fi
+log "✅ Selenium Webapp tests passed."
 
 deactivate
 log "✅ All tests passed. Deployment complete."
