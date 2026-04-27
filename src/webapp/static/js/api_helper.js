@@ -46,9 +46,9 @@ const api = {
     /**
      * Handle API errors
      */
-    async handleResponse(response) {
-        // If unauthorized, redirect to login
-        if (response.status === 401) {
+    async handleResponse(response, skipAuthRedirect = false) {
+        // If unauthorized, redirect to login (unless explicitly skipped)
+        if (response.status === 401 && !skipAuthRedirect) {
             window.location.href = '/auth/login';
             return null;
         }
@@ -91,14 +91,14 @@ const api = {
     /**
      * Make POST request
      */
-    async post(endpoint, data = {}) {
+    async post(endpoint, data = {}, options = {}) {
         const response = await fetch(`${this.getBaseUrl()}${endpoint}`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify(data)
         });
 
-        return this.handleResponse(response);
+        return this.handleResponse(response, options.skipAuthRedirect);
     },
 
     /**
