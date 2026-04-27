@@ -314,7 +314,7 @@
                 this.deleteError = '';
 
                 try {
-                    await api.post('/api/auth/delete-account', this.deleteForm);
+                    await api.post('/api/auth/delete-account', this.deleteForm,  { skipAuthRedirect: true } );
                     // Account deleted, clear cookie and redirect
                     document.cookie = 'auth_token=; path=/; max-age=0';
                     window.location.href = '/';
