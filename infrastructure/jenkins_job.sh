@@ -147,7 +147,7 @@ log "🔹 Installing webapp test dependencies..."
 pip install --upgrade -r requirements.txt
 
 log "🔹 Running Selenium Webapp tests..."
-if ! pytest -m "auth and smoke" --headless="True" --env="production_web_env.json"; then
+if ! pytest -m "auth and smoke" --headless="True" --env="ENVIRONMENT NAME HERE" --alluredir="$REPORT_DIR" -v; then
     echo "❌ Selenium tests failed! Stopping deployment."
     deactivate
     exit 1
