@@ -8,6 +8,7 @@
         <h1 class="title">Dashboard</h1>
         <p class="subtitle">Welcome back to Catchlist</p>
 
+
         <div class="columns is-multiline">
             <div class="column is-one-third">
                 <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-desk-card">
@@ -25,17 +26,17 @@
             </div>
 
             <div class="column is-one-third">
-                <div class="box" data-testid="dashboard-tasks-card">
+                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-tasks-card">
                     <h2 class="title is-4">
                         <span class="icon-text">
-                            <span class="icon has-text-info">
+                            <span class="icon has-text-grey">
                                 <i class="fas fa-tasks"></i>
                             </span>
-                            <span>Tasks</span>
+                            <span class="has-text-grey">Tasks</span>
                         </span>
                     </h2>
                     <p class="content">Manage your tasks and to-dos.</p>
-                    <a href="/component-demo/tasks" class="button is-info is-light" data-testid="dashboard-tasks-button">View Component Demo</a>
+                    <button class="button is-light" disabled data-testid="dashboard-tasks-button">Coming Soon</button>
                 </div>
             </div>
 
@@ -91,11 +92,11 @@
                             <span class="icon">
                                 <i class="fas fa-user"></i>
                             </span>
-                            <span>Account</span>
+                            <span>Component Demo</span>
                         </span>
                     </h2>
-                    <p class="content">Manage your account settings.</p>
-                    <a href="/auth/account" class="button is-light" data-testid="dashboard-account-button">Account Settings</a>
+                    <p class="content">View demos of various components.</p>
+                    <a href="/component-demo" class="button is-light" data-testid="dashboard-account-button">Component Demo</a>
                 </div>
             </div>
         </div>
