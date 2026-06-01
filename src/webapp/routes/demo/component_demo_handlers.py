@@ -12,3 +12,8 @@ def index():
 def tasks():
     """Component demonstration page for UI testing"""
     return render_template('pages/component_demo/task_component_demo.html')
+
+@demo_bp.route('/sessions/')
+def sessions():
+    """Component demonstration page for UI testing"""
+    return render_template('pages/component_demo/session_component_demo.html')

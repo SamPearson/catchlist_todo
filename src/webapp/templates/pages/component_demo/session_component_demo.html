@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+{% from "components/sessions/session_display.html" import session_display %}
+{% from "components/sessions/session_search.html" import session_search %}
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Session Component Demo</title>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="has-background-light">
+
+    <!-- Header -->
+    <section class="section">
+        <div class="container">
+            <h1 class="title is-1 has-text-weight-bold">Session Component Demo</h1>
+            <p class="subtitle is-4">A demo page showcasing the single session display component.</p>
+        </div>
+    </section>
+
+    <!-- Search -->
+    <section class="section">
+        <div class="container">
+            {{ session_search() }}
+        </div>
+    </section>
+
+    <!-- Create Placeholder -->
+    <section class="section">
+        <div class="container">
+            <h2 class="title is-4">Create Session</h2>
+            <p class="has-text-grey">This will be replaced with a session creation form in the future.</p>
+        </div>
+    </section>
+
+    <!-- Sessions List -->
+    <section class="section">
+        <div class="container">
+            <h2 class="title is-4">Sessions</h2>
+            <p class="has-text-grey">Below are some example sessions rendered with the session display component.</p>
+            <div class="box p-0">
+
+                <!-- Mock Session 1 -->
+                <div>
+
+                    {% set session1 = {
+                        "id": 1,
+                        "title": "Leg Day",
+                        "start_time": "2026-06-08T07:00:00",
+                        "end_time": "2026-06-08T08:00:00",
+                        "status": "scheduled",
+                        "notes": "Leg day with squats and deadlifts",
+                        "rpe": 7,
+                        "tags": ["workout", "leg day"],
+                        "principles": ["consistency", "progressive overload"],
+                        "routine_name": "Leg Day Routine",
+                        "created_at": "2026-06-07T10:00:00",
+                        "updated_at": "2026-06-07T10:00:00",
+                        "checkins": [
+                            {"timestamp": "2026-06-08T18:15:00", "notes": "Warmed up, feeling strong today."},
+                            {"timestamp": "2026-06-08T19:00:00", "notes": "Squats done. Legs are burning."}
+                        ]
+                    } %}
+                    {{ session_display(session1) }}
+                </div>
+
+                <!-- Mock Session 2 -->
+                <div>
+                    {% set session2 = {
+                        "id": 2,
+                        "title": "Guitar Practice",
+                        "start_time": "2026-06-09T19:00:00",
+                        "end_time": "2026-06-09T20:30:00",
+                        "status": "completed",
+                        "notes": "Practiced fingerpicking and scales",
+                        "rpe": 6,
+                        "tags": ["music", "guitar"],
+                        "principles": ["dedication", "consistency"],
+                        "routine_name": "Guitar Practice Routine",
+                        "created_at": "2026-06-08T15:00:00",
+                        "updated_at": "2026-06-09T21:00:00",
+                        "checkins": [
+                            {"timestamp": "2026-06-09T19:20:00", "notes": "Nailed the fingerpicking pattern at last."}
+                        ]
+                    } %}
+                    {{ session_display(session2) }}
+                </div>
+
+                <!-- Mock Session 3 -->
+                <div>
+                    {% set session3 = {
+                        "id": 3,
+                        "title": "Cleaning",
+                        "start_time": "2026-06-10T10:00:00",
+                        "end_time": "2026-06-10T12:00:00",
+                        "status": "skipped",
+                        "notes": "Skipped due to work meeting",
+                        "rpe": 2,
+                        "tags": ["housework", "cleaning"],
+                        "principles": ["productivity", "organization"],
+                        "routine_name": "House Cleaning Routine",
+                        "created_at": "2026-06-09T09:00:00",
+                        "updated_at": "2026-06-10T13:00:00"
+                    } %}
+                    {{ session_display(session3) }}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% block scripts %}
+    <script src="{{ url_for('static', filename='js/components/sessions/session_display.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/components/sessions/session_search.js') }}"></script>
+
+    <script>
+        // Additional inline scripts can go here
+    </script>
+    {% endblock %}
+</body>
+</html>
