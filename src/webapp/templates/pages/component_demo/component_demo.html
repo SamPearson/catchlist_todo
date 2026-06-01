@@ -1,15 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Component Demo{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
 <section class="section">
     <div class="container">
-        <h1 class="title">Component Demo</h1>
-        <p class="subtitle">UI component testing and demonstration</p>
+        <h1 class="title">Dashboard</h1>
+        <p class="subtitle">Welcome back to Catchlist</p>
 
-        <!-- Component demos will go here -->
+        <div class="columns is-multiline">
+            <div class="column is-one-third">
+                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-desk-card">
+                    <h2 class="title is-4">
+                        <span class="icon-text">
+                            <span class="icon has-text-grey">
+                                <i class="fas fa-inbox"></i>
+                            </span>
+                            <span class="has-text-grey">Desk</span>
+                        </span>
+                    </h2>
+                    <p class="content has-text-grey">Your daily workspace will appear here.</p>
+                    <button class="button is-light" disabled data-testid="dashboard-desk-button">Coming Soon</button>
+                </div>
+            </div>
 
+            <div class="column is-one-third">
+                <div class="box" data-testid="dashboard-tasks-card">
+                    <h2 class="title is-4">
+                        <span class="icon-text">
+                            <span class="icon has-text-info">
+                                <i class="fas fa-tasks"></i>
+                            </span>
+                            <span>Tasks</span>
+                        </span>
+                    </h2>
+                    <p class="content">Manage your tasks and to-dos.</p>
+                    <a href="/component-demo/tasks" class="button is-info is-light" data-testid="dashboard-tasks-button">View Component Demo</a>
+                </div>
+            </div>
+
+            <div class="column is-one-third">
+                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-projects-card">
+                    <h2 class="title is-4">
+                        <span class="icon-text">
+                            <span class="icon has-text-grey">
+                                <i class="fas fa-folder"></i>
+                            </span>
+                            <span class="has-text-grey">Projects</span>
+                        </span>
+                    </h2>
+                    <p class="content has-text-grey">Organize tasks into projects.</p>
+                    <button class="button is-light" disabled data-testid="dashboard-projects-button">Coming Soon</button>
+                </div>
+            </div>
+
+            <div class="column is-one-third">
+                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-routines-card">
+                    <h2 class="title is-4">
+                        <span class="icon-text">
+                            <span class="icon has-text-grey">
+                                <i class="fas fa-repeat"></i>
+                            </span>
+                            <span class="has-text-grey">Routines</span>
+                        </span>
+                    </h2>
+                    <p class="content has-text-grey">Set up recurring tasks and habits.</p>
+                    <button class="button is-light" disabled data-testid="dashboard-routines-button">Coming Soon</button>
+                </div>
+            </div>
+
+            <div class="column is-one-third">
+                <div class="box" data-testid="dashboard-session-card">
+                    <h2 class="title is-4">
+                        <span class="icon-text">
+                            <span class="icon">
+                                <i class="fas fa-repeat"></i>
+                            </span>
+                            <span>Sessions</span>
+                        </span>
+                    </h2>
+                    <p class="content">Instances of recurring routines</p>
+                    <a href="/component-demo/sessions" class="button is-light" data-testid="dashboard-account-button">View Component Demo</a>
+                </div>
+            </div>
+
+
+            <div class="column is-one-third">
+                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-reports-card">
+                    <h2 class="title is-4">
+                        <span class="icon-text">
+                            <span class="icon has-text-grey">
+                                <i class="fas fa-chart-bar"></i>
+                            </span>
+                            <span class="has-text-grey">Reports</span>
+                        </span>
+                    </h2>
+                    <p class="content has-text-grey">View your productivity insights.</p>
+                    <button class="button is-light" disabled data-testid="dashboard-reports-button">Coming Soon</button>
+                </div>
+            </div>
+
+        </div>
     </div>
 </section>
 {% endblock %}
