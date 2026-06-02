@@ -13,7 +13,12 @@
     
     {# Alpine.js for interactivity #}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
-    
+
+    {# Enable x-cloak in child templates to prevent unstyled content from appearing on load #}
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+
     {# Make API_URL available to JavaScript #}
     <script>
         window.API_URL = "{{ API_URL }}";
