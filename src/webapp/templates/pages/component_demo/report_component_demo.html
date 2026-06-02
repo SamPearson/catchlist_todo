@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+{% from "components/reports/report_selector.html" import report_selector %}
+{% from "components/reports/report_display.html" import report_display %}
+
+{% block title %}Report Component Demo{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title is-1 has-text-weight-bold">Report Component Demo</h1>
+        <p class="subtitle is-4">A demo page showcasing report selection and display components.</p>
+    </div>
+</section>
+
+{% set mock_reports = {
+    "day": {
+        "id": 1,
+        "label": "Monday, June 1, 2026",
+        "report_type": "day",
+        "date": "2026-06-01",
+        "plan": "Focus on deep work in the morning. Finish the report component.",
+        "reason": "Getting the frontend demo pages done unblocks the rest of the UI work.",
+        "pre_notes": "Feeling focused. Coffee is ready.",
+        "post_notes": "Got more done than expected. The Alpine wiring took less time than planned.",
+        "habits": [
+            { "name": "Meditated", "count": 1 },
+            { "name": "Exercised", "count": 1 },
+            { "name": "Read", "count": 0 }
+        ],
+        "stats": {
+            "total": 3,
+            "planned": 2,
+            "completed": 1,
+            "by_status": { "planned": 2, "done": 1 },
+            "by_type": { "task": 2, "session": 1 }
+        },
+        "commitments": [
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 101,
+                    "title": "Wire up report display component",
+                    "description": "Connect the report_display macro to the demo page.",
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": none,
+                    "created_at": "2026-05-30T09:00:00",
+                    "updated_at": "2026-06-01T08:00:00"
+                }
+            },
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 102,
+                    "title": "Write mock data for all report types",
+                    "description": none,
+                    "status": "open",
+                    "active": true,
+                    "completed": true,
+                    "completed_at": "2026-06-01T10:30:00",
+                    "project_id": none,
+                    "created_at": "2026-05-30T09:05:00",
+                    "updated_at": "2026-06-01T10:30:00"
+                }
+            },
+            {
+                "target_type": "session",
+                "target": {
+                    "id": 201,
+                    "title": "Morning Run",
+                    "start_time": "2026-06-01T06:30:00",
+                    "end_time": "2026-06-01T07:15:00",
+                    "status": "completed",
+                    "notes": "Easy 5k to start the week.",
+                    "rpe": 5,
+                    "tags": ["running", "cardio"],
+                    "principles": ["consistency"],
+                    "routine_name": "Morning Cardio",
+                    "created_at": "2026-05-31T20:00:00",
+                    "updated_at": "2026-06-01T07:20:00"
+                }
+            }
+        ],
+        "tags": [],
+        "principles": [],
+        "created_at": "2026-06-01T06:00:00",
+        "updated_at": "2026-06-01T10:30:00"
+    },
+    "week": {
+        "id": 2,
+        "label": "Week of Jun 1 – Jun 7, 2026",
+        "report_type": "week",
+        "date": "2026-06-01",
+        "plan": "Finish the report component demo. Start on the dashboard layout.",
+        "reason": "The component demos are the foundation for the real pages.",
+        "pre_notes": "This week feels manageable. Two clear priorities.",
+        "post_notes": none,
+        "habits": [
+            { "name": "Meditated", "count": 4 },
+            { "name": "Exercised", "count": 3 }
+        ],
+        "stats": {
+            "total": 2,
+            "planned": 2,
+            "completed": 0,
+            "by_status": { "planned": 2 },
+            "by_type": { "task": 2 }
+        },
+        "commitments": [
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 103,
+                    "title": "Finish report component demo",
+                    "description": "Selector + display + demo page all wired up.",
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": 10,
+                    "created_at": "2026-05-28T10:00:00",
+                    "updated_at": "2026-06-01T08:00:00"
+                }
+            },
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 104,
+                    "title": "Start dashboard layout",
+                    "description": none,
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": none,
+                    "created_at": "2026-05-29T11:00:00",
+                    "updated_at": "2026-05-29T11:00:00"
+                }
+            }
+        ],
+        "tags": [],
+        "principles": [],
+        "created_at": "2026-06-01T06:00:00",
+        "updated_at": "2026-06-01T06:00:00"
+    },
+    "month": {
+        "id": 3,
+        "label": "June 2026",
+        "report_type": "month",
+        "plan": "Ship the component demo pages. Begin API integration.",
+        "reason": "June is about getting the frontend to a testable state.",
+        "pre_notes": "Lots of groundwork already laid. Should be a productive month.",
+        "post_notes": none,
+        "habits": [
+            { "name": "Meditated", "count": 18 },
+            { "name": "Exercised", "count": 14 },
+            { "name": "Read", "count": 20 }
+        ],
+        "stats": {
+            "total": 2,
+            "planned": 1,
+            "completed": 1,
+            "by_status": { "planned": 1, "done": 1 },
+            "by_type": { "task": 1, "session": 1 }
+        },
+        "commitments": [
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 105,
+                    "title": "Complete all component demo pages",
+                    "description": "Task, session, and report demos all functional.",
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": 10,
+                    "created_at": "2026-06-01T08:00:00",
+                    "updated_at": "2026-06-01T08:00:00"
+                }
+            },
+            {
+                "target_type": "session",
+                "target": {
+                    "id": 202,
+                    "title": "June Planning Session",
+                    "start_time": "2026-06-01T09:00:00",
+                    "end_time": "2026-06-01T10:00:00",
+                    "status": "completed",
+                    "notes": "Mapped out the month. Feeling good about the plan.",
+                    "rpe": 3,
+                    "tags": ["planning"],
+                    "principles": ["intentionality"],
+                    "routine_name": none,
+                    "created_at": "2026-05-31T20:00:00",
+                    "updated_at": "2026-06-01T10:05:00"
+                }
+            }
+        ],
+        "tags": [],
+        "principles": [],
+        "created_at": "2026-06-01T08:00:00",
+        "updated_at": "2026-06-01T10:05:00"
+    },
+    "season": {
+        "id": 4,
+        "label": "Summer 2026",
+        "report_type": "season",
+        "plan": "Build out the full webapp frontend. Launch internal alpha.",
+        "reason": "Summer is the window to get this project to a usable state.",
+        "pre_notes": "Energy is high. The foundations are solid.",
+        "post_notes": none,
+        "habits": [
+            { "name": "Meditated", "count": 62 },
+            { "name": "Exercised", "count": 45 }
+        ],
+        "stats": {
+            "total": 1,
+            "planned": 1,
+            "completed": 0,
+            "by_status": { "planned": 1 },
+            "by_type": { "task": 1 }
+        },
+        "commitments": [
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 106,
+                    "title": "Launch internal alpha",
+                    "description": "Get the app to a state where it can be used daily.",
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": 10,
+                    "created_at": "2026-06-01T08:00:00",
+                    "updated_at": "2026-06-01T08:00:00"
+                }
+            }
+        ],
+        "tags": [],
+        "principles": [],
+        "created_at": "2026-06-01T08:00:00",
+        "updated_at": "2026-06-01T08:00:00"
+    },
+    "year": {
+        "id": 5,
+        "label": "2026",
+        "report_type": "year",
+        "plan": "Ship the todo app. Build consistent daily habits. Read 12 books.",
+        "reason": "2026 is about finishing things — not just starting them.",
+        "pre_notes": "Coming off a strong Q4 2025. Momentum is good.",
+        "post_notes": none,
+        "habits": [
+            { "name": "Meditated", "count": 180 },
+            { "name": "Exercised", "count": 130 },
+            { "name": "Read", "count": 95 }
+        ],
+        "stats": {
+            "total": 2,
+            "planned": 2,
+            "completed": 0,
+            "by_status": { "planned": 2 },
+            "by_type": { "task": 2 }
+        },
+        "commitments": [
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 107,
+                    "title": "Ship todo app v1.0",
+                    "description": "Full frontend + API integration complete and deployed.",
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": 10,
+                    "created_at": "2026-01-01T00:00:00",
+                    "updated_at": "2026-06-01T08:00:00"
+                }
+            },
+            {
+                "target_type": "task",
+                "target": {
+                    "id": 108,
+                    "title": "Read 12 books",
+                    "description": none,
+                    "status": "open",
+                    "active": true,
+                    "completed": false,
+                    "project_id": none,
+                    "created_at": "2026-01-01T00:00:00",
+                    "updated_at": "2026-01-01T00:00:00"
+                }
+            }
+        ],
+        "tags": [],
+        "principles": [],
+        "created_at": "2026-01-01T00:00:00",
+        "updated_at": "2026-06-01T08:00:00"
+    }
+} %}
+
+<section class="section">
+    <div class="container" x-data="reportDemoPage()">
+
+        {# --- Selector --- #}
+        <div @report-selected.window="onReportSelected($event.detail)">
+            {{ report_selector() }}
+        </div>
+
+        {# --- Display Slot --- #}
+        <div class="mt-5">
+
+            {# Nothing loaded yet #}
+            <template x-if="!selectedType">
+                <div class="has-text-grey has-text-centered py-6">
+                    <p>Select a report type and date above, then click <strong>Load Report</strong>.</p>
+                </div>
+            </template>
+
+            {# Each report is pre-rendered server-side and shown/hidden by Alpine #}
+
+            {# Empty state — shown when selectedType is set but no mock matches #}
+            <div x-show="selectedType && !hasMock" x-cloak>
+                <div class="box has-text-centered py-6">
+                    <p class="title is-5 has-text-grey-dark mb-2">
+                        No report found for
+                        <span class="has-text-weight-bold" x-text="selectedLabel"></span>.
+                    </p>
+                    <p class="has-text-grey mb-4">Would you like to create one?</p>
+                    <button class="button is-primary">Create Report</button>
+                </div>
+            </div>
+
+            {# Day report #}
+            <div x-show="selectedType === 'day' && hasMock" x-cloak>
+                <div x-data='reportDisplay({{ mock_reports["day"] | tojson }})' x-cloak>
+                    {{ report_display(mock_reports["day"]) }}
+                </div>
+            </div>
+
+            {# Week report #}
+            <div x-show="selectedType === 'week' && hasMock" x-cloak>
+                <div x-data='reportDisplay({{ mock_reports["week"] | tojson }})' x-cloak>
+                    {{ report_display(mock_reports["week"]) }}
+                </div>
+            </div>
+
+            {# Month report #}
+            <div x-show="selectedType === 'month' && hasMock" x-cloak>
+                <div x-data='reportDisplay({{ mock_reports["month"] | tojson }})' x-cloak>
+                    {{ report_display(mock_reports["month"]) }}
+                </div>
+            </div>
+
+            {# Season report #}
+            <div x-show="selectedType === 'season' && hasMock" x-cloak>
+                <div x-data='reportDisplay({{ mock_reports["season"] | tojson }})' x-cloak>
+                    {{ report_display(mock_reports["season"]) }}
+                </div>
+            </div>
+
+            {# Year report #}
+            <div x-show="selectedType === 'year' && hasMock" x-cloak>
+                <div x-data='reportDisplay({{ mock_reports["year"] | tojson }})' x-cloak>
+                    {{ report_display(mock_reports["year"]) }}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/reports/report_selector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/reports/report_display.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/sessions/session_display.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/sessions/session_search.js') }}"></script>
+<script>
+    function reportDemoPage() {
+        return {
+            selectedType: null,
+            selectedLabel: null,
+
+            // The demo always has a mock for every type, so hasMock is always
+            // true when a type is selected. This exists for when the real API
+            // is wired in and a report genuinely might not exist.
+            hasMock: false,
+
+            onReportSelected(timeframe) {
+                this.selectedType = timeframe.type;
+                this.selectedLabel = timeframe.label;
+                this.hasMock = true;
+            },
+        };
+    }
+</script>
+{% endblock %}
