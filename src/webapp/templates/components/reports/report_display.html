@@ -1,0 +1,258 @@
+{% from "components/tasks/task_manager.html" import task_manager %}
+{% from "components/sessions/session_display.html" import session_display %}
+
+
+{% macro report_display(report) %}
+
+{% set task_commitments = report.commitments | selectattr("target_type", "equalto", "task") | list %}
+{% set session_commitments = report.commitments | selectattr("target_type", "equalto", "session") | list %}
+    <div class="px-5 pt-5 pb-4 is-flex is-justify-content-space-between is-align-items-flex-start">
+        <div>
+            <div class="is-flex is-align-items-center mb-1" style="gap: 0.6rem;">
+                <h2 class="title is-4 mb-0" x-text="report.label"></h2>
+                <span class="tag is-medium" :class="reportTypeBadgeClass()" x-text="report.report_type"></span>
+            </div>
+            <p class="has-text-grey is-size-7">
+                Created <span x-text="new Date(report.created_at).toLocaleDateString()"></span>
+                &bull;
+                Updated <span x-text="new Date(report.updated_at).toLocaleDateString()"></span>
+            </p>
+        </div>
+        <div class="is-flex" style="gap: 0.5rem;">
+            <button x-show="!editing" class="button is-small is-light" @click="enterEdit()">
+                Edit
+            </button>
+            <template x-if="editing">
+                <div class="is-flex" style="gap: 0.5rem;">
+                    <button class="button is-small is-primary" @click="saveEdit()">Save</button>
+                    <button class="button is-small is-light" @click="cancelEdit()">Cancel</button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    {# Save notification #}
+    <div x-show="saveNotification" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:leave="transition ease-in duration-200"
+         class="mx-5 mb-3">
+        <div class="notification is-success is-light py-2 px-4 is-size-7">
+            ✓ Saved <span class="has-text-grey">(demo only)</span>
+        </div>
+    </div>
+
+    <div class="px-5 pb-5">
+
+        {# ------------------------------------------------------------------ #}
+        {# STATS BAR                                                           #}
+        {# ------------------------------------------------------------------ #}
+        <template x-if="report.stats">
+            <div class="box has-background-light mb-5 py-3 px-4">
+                <div class="is-flex is-flex-wrap-wrap" style="gap: 1.5rem;">
+                    {# Totals #}
+                    <div class="has-text-centered">
+                        <p class="heading mb-0">Total</p>
+                        <p class="title is-5 mb-0" x-text="report.stats.total"></p>
+                    </div>
+                    <div class="has-text-centered">
+                        <p class="heading mb-0">Planned</p>
+                        <p class="title is-5 mb-0 has-text-info" x-text="report.stats.planned"></p>
+                    </div>
+                    <div class="has-text-centered">
+                        <p class="heading mb-0">Completed</p>
+                        <p class="title is-5 mb-0 has-text-success" x-text="report.stats.completed"></p>
+                    </div>
+
+                    {# Divider #}
+                    <div class="has-background-grey-lighter" style="width: 1px; align-self: stretch;"></div>
+
+                    {# By type #}
+                    <template x-for="entry in statsByType" :key="entry.type">
+                        <div class="has-text-centered">
+                            <p class="heading mb-0" x-text="entry.type"></p>
+                            <p class="title is-5 mb-0" x-text="entry.count"></p>
+                        </div>
+                    </template>
+
+                    {# Divider #}
+                    <div class="has-background-grey-lighter" style="width: 1px; align-self: stretch;"></div>
+
+                    {# By status #}
+                    <template x-for="entry in statsByStatus" :key="entry.status">
+                        <div class="has-text-centered">
+                            <p class="heading mb-0" x-text="entry.status"></p>
+                            <p class="title is-5 mb-0" x-text="entry.count"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        {# ------------------------------------------------------------------ #}
+        {# PLANNING FIELDS                                                     #}
+        {# ------------------------------------------------------------------ #}
+        <div class="mb-5">
+            <h3 class="title is-6 has-text-grey-dark mb-3">Planning</h3>
+
+            {# Plan #}
+            <div class="mb-3">
+                <p class="heading mb-1">Plan</p>
+                <template x-if="!editing">
+                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                        <p x-show="report.plan" x-text="report.plan" class="content mb-0"></p>
+                        <p x-show="!report.plan" class="has-text-grey is-italic mb-0">No plan recorded.</p>
+                    </div>
+                </template>
+                <template x-if="editing">
+                    <textarea class="textarea" rows="3" placeholder="What do you intend to accomplish?" x-model="draft.plan"></textarea>
+                </template>
+            </div>
+
+            {# Reason #}
+            <div class="mb-3">
+                <p class="heading mb-1">Reason</p>
+                <template x-if="!editing">
+                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                        <p x-show="report.reason" x-text="report.reason" class="content mb-0"></p>
+                        <p x-show="!report.reason" class="has-text-grey is-italic mb-0">No reason recorded.</p>
+                    </div>
+                </template>
+                <template x-if="editing">
+                    <textarea class="textarea" rows="3" placeholder="Why does this timeframe matter?" x-model="draft.reason"></textarea>
+                </template>
+            </div>
+
+            {# Pre-notes #}
+            <div class="mb-3">
+                <p class="heading mb-1">Pre-Notes</p>
+                <template x-if="!editing">
+                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                        <p x-show="report.pre_notes" x-text="report.pre_notes" class="content mb-0"></p>
+                        <p x-show="!report.pre_notes" class="has-text-grey is-italic mb-0">No pre-notes recorded.</p>
+                    </div>
+                </template>
+                <template x-if="editing">
+                    <textarea class="textarea" rows="3" placeholder="Thoughts and intentions before the timeframe begins..." x-model="draft.pre_notes"></textarea>
+                </template>
+            </div>
+        </div>
+
+        {# ------------------------------------------------------------------ #}
+        {# HABITS                                                              #}
+        {# ------------------------------------------------------------------ #}
+        <template x-if="report.habits && report.habits.length > 0">
+            <div class="mb-5">
+                <h3 class="title is-6 has-text-grey-dark mb-3">Habits</h3>
+                <div class="is-flex is-flex-wrap-wrap" style="gap: 0.75rem;">
+                    <template x-for="habit in report.habits" :key="habit.name">
+                        <div class="box py-3 px-4 has-text-centered mb-0" style="min-width: 6rem;">
+                            <p class="heading mb-0" x-text="habit.name"></p>
+                            <p class="title is-4 mb-0" x-text="habit.count"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        {# ------------------------------------------------------------------ #}
+        {# COMMITMENTS                                                         #}
+        {# ------------------------------------------------------------------ #}
+        <div class="mb-5">
+            <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
+                <h3 class="title is-6 has-text-grey-dark mb-0">Commitments</h3>
+                {# Week windowed toggle #}
+                <template x-if="report.report_type === 'week'">
+                    <label class="checkbox is-size-7">
+                        <input type="checkbox" x-model="showWindowed">
+                        Show daily breakdown
+                    </label>
+                </template>
+            </div>
+
+            {# Windowed week view — stubbed day sections #}
+            <template x-if="report.report_type === 'week' && showWindowed">
+                <div>
+                    <template x-for="dayLabel in weekDayStubs" :key="dayLabel">
+                        <div class="box mb-2 py-3 px-4 has-background-light">
+                            <p class="has-text-weight-semibold mb-1" x-text="dayLabel"></p>
+                            <p class="has-text-grey is-size-7 is-italic">Daily breakdown coming soon.</p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            {# Normal commitments view #}
+            <div x-show="!(report.report_type === 'week' && showWindowed)">
+
+
+                {% if session_commitments %}
+                <div class="mb-4">
+                    <p class="heading mb-2">Sessions</p>
+                    <div class="box p-0">
+                        {% for commitment in session_commitments %}
+                            {{ session_display(commitment.target) }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if not task_commitments and not session_commitments %}
+                <p class="has-text-grey is-italic">No commitments for this timeframe.</p>
+                {% endif %}
+
+
+                {% if task_commitments %}
+                <div class="mb-4">
+                    <p class="heading mb-2">Tasks</p>
+                    <div class="box p-0">
+                        {% for commitment in task_commitments %}
+                            {{ task_manager(commitment.target) }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+
+
+            </div>
+        </div>
+
+        {# ------------------------------------------------------------------ #}
+        {# REFLECTION                                                          #}
+        {# ------------------------------------------------------------------ #}
+        <div class="mb-5">
+            <h3 class="title is-6 has-text-grey-dark mb-3">Reflection</h3>
+            <div class="mb-3">
+                <p class="heading mb-1">Post-Notes</p>
+                <template x-if="!editing">
+                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                        <p x-show="report.post_notes" x-text="report.post_notes" class="content mb-0"></p>
+                        <p x-show="!report.post_notes" class="has-text-grey is-italic mb-0">No reflection recorded yet.</p>
+                    </div>
+                </template>
+                <template x-if="editing">
+                    <textarea class="textarea" rows="4" placeholder="Reflection and observations after the timeframe ends..." x-model="draft.post_notes"></textarea>
+                </template>
+            </div>
+        </div>
+
+        {# ------------------------------------------------------------------ #}
+        {# TAGS & PRINCIPLES                                                   #}
+        {# ------------------------------------------------------------------ #}
+        <div class="mb-2">
+            <h3 class="title is-6 has-text-grey-dark mb-3">Tags &amp; Principles</h3>
+            <div class="is-flex" style="gap: 2rem;">
+                <div>
+                    <p class="heading mb-2">Tags</p>
+                    <p class="has-text-grey is-italic is-size-7">Tag support coming soon.</p>
+                </div>
+                <div>
+                    <p class="heading mb-2">Principles</p>
+                    <p class="has-text-grey is-italic is-size-7">Principle support coming soon.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endmacro %}
