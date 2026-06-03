@@ -28,7 +28,7 @@ def require_auth(f):
     def decorated_function(*args, **kwargs):
         token = get_auth_token()
         if not token:
-            return redirect(url_for('login'))
+            return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
 
     return decorated_function
