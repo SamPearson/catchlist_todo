@@ -24,9 +24,11 @@ def inject_globals():
 from src.webapp.routes.auth import auth_bp
 from src.webapp.routes.home import home_bp
 from src.webapp.routes.demo import demo_bp
+from src.webapp.routes.tasks import tasks_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(home_bp)
+app.register_blueprint(tasks_bp)
 
 # Only register demo blueprint in development
 if os.getenv('FLASK_ENV') != 'production':

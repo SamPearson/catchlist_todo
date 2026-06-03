@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "components/tasks/task_list.html" import task_list %}
+{% from "components/tasks/task_create.html" import task_create %}
+{% from "components/tasks/task_search.html" import task_search %}
+
+{% block title %}Tasks{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title">Tasks</h1>
+
+        <!-- Create Task -->
+        {{ task_create() }}
+
+        <!-- Search Component -->
+        <div class="mb-4">
+            {{ task_search() }}
+        </div>
+
+        <!-- Task List -->
+        {{ task_list() }}
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/tasks/task_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_create.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_search.js') }}"></script>
+
+<script>
+    const INITIAL_TASKS = {{ tasks | tojson }};
+</script>
+{% endblock %}
