@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "components/tasks/task_manager.html" import task_manager %}
+{% from "components/tasks/task_card.html" import task_card %}
+{% from "components/tasks/task_list.html" import task_list %}
 {% from "components/tasks/task_create.html" import task_create %}
 {% from "components/tasks/task_search.html" import task_search %}
 
@@ -63,13 +64,12 @@
         </div>
 
         <!-- Task Item Component Demo -->
-        <div class="box" data-testid="demo-tasks-section">
+        <div class="box mb-6" data-testid="demo-tasks-section">
             <h2 class="title is-4">Task Item Component (View/Edit Flow)</h2>
             <p class="subtitle is-6">Click tasks to expand, then click "Edit" to modify them</p>
 
             <div class="content">
-                <!-- Task Item 1: Active, Open, Standalone -->
-                {{ task_manager({
+                {{ task_card({
                     'id': 1,
                     'title': 'Buy new running shoes',
                     'description': 'Need to replace my current pair - they have about 500 miles on them. Look for something with good arch support.',
@@ -81,8 +81,7 @@
                     'updated_at': '2026-04-12T09:15:00'
                 }) }}
 
-                <!-- Task Item 2: Waiting, Has Description -->
-                {{ task_manager({
+                {{ task_card({
                     'id': 2,
                     'title': 'Reply to email from Sarah about project proposal',
                     'description': 'Sarah sent over feedback on sections 2-4. Need to address her concerns about the timeline and budget estimates.',
@@ -94,8 +93,7 @@
                     'updated_at': '2026-04-14T16:30:00'
                 }) }}
 
-                <!-- Task Item 3: Completed -->
-                {{ task_manager({
+                {{ task_card({
                     'id': 3,
                     'title': 'Review Q1 budget report',
                     'description': none,
@@ -108,8 +106,7 @@
                     'updated_at': '2026-04-14T11:00:00'
                 }) }}
 
-                <!-- Task Item 4: Subtask of a Project -->
-                {{ task_manager({
+                {{ task_card({
                     'id': 4,
                     'title': 'Draft introduction section',
                     'description': 'Write the first draft of the introduction covering background and motivation.',
@@ -121,8 +118,7 @@
                     'updated_at': '2026-04-11T09:00:00'
                 }) }}
 
-                <!-- Task Item 5: Someday/Maybe -->
-                {{ task_manager({
+                {{ task_card({
                     'id': 5,
                     'title': 'Learn to play guitar',
                     'description': 'Would be nice to learn someday. Maybe take a few lessons or use an online course.',
@@ -136,14 +132,51 @@
             </div>
         </div>
 
+        <!-- Task List Component Demo -->
+        <div class="box" data-testid="demo-task-list-section">
+            <h2 class="title is-4">Task List Component</h2>
+            <p class="subtitle is-6">Dynamic list with create, update, and delete events — no API required</p>
+
+            <script>
+                const INITIAL_TASKS = [
+                    {
+                        'id': 6,
+                        'title': 'Task list demo item one',
+                        'description': 'This task is managed by the task_list component.',
+                        'status': 'open',
+                        'active': true,
+                        'completed': false,
+                        'project_id': null,
+                        'created_at': '2026-04-10T14:30:00',
+                        'updated_at': '2026-04-10T14:30:00'
+                    },
+                    {
+                        'id': 7,
+                        'title': 'Task list demo item two',
+                        'description': null,
+                        'status': 'waiting',
+                        'active': true,
+                        'completed': false,
+                        'project_id': null,
+                        'created_at': '2026-04-11T09:00:00',
+                        'updated_at': '2026-04-11T09:00:00'
+                    }
+                ];
+            </script>
+
+            {{ task_list() }}
+        </div>
+
     </div>
 </section>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/components/tasks/task_manager.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_list.js') }}"></script>
 <script src="{{ url_for('static', filename='js/components/tasks/task_create.js') }}"></script>
 <script src="{{ url_for('static', filename='js/components/tasks/task_search.js') }}"></script>
+
 
 <script>
     // Task Create Manager - Wraps the create component to show created result
