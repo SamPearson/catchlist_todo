@@ -1,171 +1,111 @@
-{# Session Search Component - Collapsible search and filter interface #}
+{# Session Search Component - Filter and search sessions #}
 
 {% macro session_search() %}
-<div x-data='sessionSearch()' class="mb-4" data-testid="session-search-component">
-    <!-- Collapsed State: Simple search box -->
-    <div x-show="!expanded" class="box" data-testid="session-search-simple">
-        <div class="field has-addons">
-            <div class="control is-expanded has-icons-left">
-                <input class="input"
-                       type="text"
-                       x-model="simpleSearch"
-                       @keyup.enter="applySimpleSearch()"
-                       data-testid="session-search-simple-input"
-                       placeholder="Search sessions...">
-                <span class="icon is-small is-left">
-                    <i class="fas fa-search"></i>
-                </span>
-            </div>
-            <div class="control">
-                <button class="button is-info" @click="expand()" data-testid="session-search-expand-button">
-                    <span class="icon">
-                        <i class="fas fa-filter"></i>
-                    </span>
-                    <span>Advanced</span>
-                </button>
-            </div>
-            <div class="control">
-                <button class="button" @click="applySimpleSearch()" data-testid="session-search-simple-submit-button">
-                    <span class="icon">
-                        <i class="fas fa-search"></i>
-                    </span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Active filters display -->
-        <div x-show="hasActiveFilters()" class="tags mt-3" data-testid="session-search-active-filters">
-            <span class="tag is-info is-light">
-                <span x-text="getActiveFilterCount()"></span> filter(s) active
-            </span>
-            <button class="tag is-delete" @click="clearFilters()" data-testid="session-search-clear-filters-tag"></button>
-        </div>
+<div class="box">
+    <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
+        <h2 class="title is-4 mb-0">Search Sessions</h2>
+        <button @click="expanded ? collapse() : expand()" class="button is-small" :class="expanded ? 'is-info' : 'is-light'">
+            <span x-text="expanded ? '▲ Collapse' : '▼ Expand'"></span>
+        </button>
     </div>
 
-    <!-- Expanded State: Advanced filters -->
-    <div x-show="expanded" class="box" data-testid="session-search-advanced">
-        <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
-            <h3 class="title is-5 mb-0">Search & Filter Sessions</h3>
-            <button @click="collapse()" class="delete" data-testid="session-search-collapse-button"></button>
-        </div>
-
-        <!-- Title Search -->
-        <div class="field mb-4">
-            <label class="label">Title</label>
-            <div class="control has-icons-left">
-                <input class="input"
-                       type="text"
-                       x-model="filters.title"
-                       data-testid="session-search-title-input"
-                       placeholder="Search in session titles...">
-                <span class="icon is-small is-left">
-                    <i class="fas fa-heading"></i>
-                </span>
-            </div>
-        </div>
-
-
-        <!-- Status & Time Range Filters (Side by Side) -->
-        <div class="field mb-4 is-flex is-justify-content-space-between">
-            <div class="control is-flex-1 mr-4">
-                <label class="label">Status</label>
-                <div class="control">
-                    <label class="checkbox">
-                        <input type="checkbox" x-model="filters.status" value="scheduled">
-                        Scheduled
-                    </label>
-                    <label class="checkbox ml-4">
-                        <input type="checkbox" x-model="filters.status" value="completed">
-                        Completed
-                    </label>
-                    <label class="checkbox ml-4">
-                        <input type="checkbox" x-model="filters.status" value="skipped">
-                        Skipped
-                    </label>
-                    <label class="checkbox ml-4">
-                        <input type="checkbox" x-model="filters.status" value="cancelled">
-                        Cancelled
-                    </label>
+    <div x-show="expanded" class="mt-4">
+        <!-- Date Range -->
+        <div class="columns">
+            <div class="column">
+                <div class="field">
+                    <label class="label">Start Date</label>
+                    <div class="control">
+                        <input type="datetime-local" x-model="dateRange.start" class="input">
+                    </div>
                 </div>
             </div>
-
-            <div class="control is-flex-1">
-                <label class="label">Time Range</label>
-                <div class="control is-flex">
-                    <div class="field is-narrow mr-4">
-                        <label class="label">Starts at or after</label>
-                        <div class="control">
-                            <input class="input" type="datetime-local" x-model="filters.start_time">
-                        </div>
-                    </div>
-                    <div class="field is-narrow">
-                        <label class="label">Ends at or before</label>
-                        <div class="control">
-                            <input class="input" type="datetime-local" x-model="filters.end_time">
-                        </div>
+            <div class="column">
+                <div class="field">
+                    <label class="label">End Date</label>
+                    <div class="control">
+                        <input type="datetime-local" x-model="dateRange.end" class="input">
                     </div>
                 </div>
             </div>
         </div>
 
-
-        <!-- Tags Filter (Placeholder) -->
-        <div class="field mb-4">
-            <label class="label">
-                <span class="icon-text">
-                    <span class="icon">
-                        <i class="fas fa-tags"></i>
-                    </span>
-                    <span>Tags</span>
-                </span>
-            </label>
-            <div class="box has-background-light">
-                <p class="has-text-grey-dark">
-                    <span class="icon">
-                        <i class="fas fa-info-circle"></i>
-                    </span>
-                    Tag filtering coming soon
-                </p>
+        <!-- Status Filter -->
+        <div class="field">
+            <label class="label">Status</label>
+            <div class="control">
+                <label class="checkbox mr-3">
+                    <input type="checkbox" x-model="filters.status.scheduled">
+                    Scheduled
+                </label>
+                <label class="checkbox mr-3">
+                    <input type="checkbox" x-model="filters.status.completed">
+                    Completed
+                </label>
+                <label class="checkbox mr-3">
+                    <input type="checkbox" x-model="filters.status.skipped">
+                    Skipped
+                </label>
+                <label class="checkbox">
+                    <input type="checkbox" x-model="filters.status.cancelled">
+                    Cancelled
+                </label>
             </div>
         </div>
 
-        <!-- Principles Filter (Placeholder) -->
-        <div class="field mb-4">
-            <label class="label">
-                <span class="icon-text">
-                    <span class="icon">
-                        <i class="fas fa-compass"></i>
-                    </span>
-                    <span>Principles</span>
-                </span>
-            </label>
-            <div class="box has-background-light">
-                <p class="has-text-grey-dark">
-                    <span class="icon">
-                        <i class="fas fa-info-circle"></i>
-                    </span>
-                    Principle filtering coming soon
-                </p>
+        <!-- Tags Filter -->
+        <div class="field">
+            <label class="label">Tags</label>
+            <div class="control mb-2">
+                <div class="is-flex" style="gap: 0.5rem;">
+                    <input type="text" x-model="filters.tagInput" class="input" placeholder="Add tag...">
+                    <button @click="addTag()" class="button is-info">Add</button>
+                </div>
+            </div>
+            <div class="is-flex is-flex-wrap-wrap" style="gap: 0.5rem;">
+                <template x-for="(tag, index) in filters.tags" :key="index">
+                    <div class="is-flex is-align-items-center" style="gap: 0.5rem;">
+                        <span class="tag" x-text="tag"></span>
+                        <button @click="removeTag(index)" class="delete is-small"></button>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Principles Filter -->
+        <div class="field">
+            <label class="label">Principles</label>
+            <div class="control mb-2">
+                <div class="is-flex" style="gap: 0.5rem;">
+                    <input type="text" x-model="filters.principleInput" class="input" placeholder="Add principle...">
+                    <button @click="addPrinciple()" class="button is-info">Add</button>
+                </div>
+            </div>
+            <div class="is-flex is-flex-wrap-wrap" style="gap: 0.5rem;">
+                <template x-for="(principle, index) in filters.principles" :key="index">
+                    <div class="is-flex is-align-items-center" style="gap: 0.5rem;">
+                        <span class="tag" x-text="principle"></span>
+                        <button @click="removePrinciple(index)" class="delete is-small"></button>
+                    </div>
+                </template>
             </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="field is-grouped is-grouped-right">
+        <div class="field is-grouped mt-4">
             <div class="control">
-                <button class="button" @click="clearFilters()" data-testid="session-search-clear-filters-button">
-                    <span class="icon">
-                        <i class="fas fa-times"></i>
-                    </span>
-                    <span>Clear Filters</span>
+                <button @click="search()" class="button is-success" :disabled="loading">
+                    <span x-show="!loading">Search</span>
+                    <span x-show="loading">Searching...</span>
                 </button>
             </div>
             <div class="control">
-                <button class="button is-primary" @click="applyFilters()" data-testid="session-search-apply-filters-button">
-                    <span class="icon">
-                        <i class="fas fa-search"></i>
-                    </span>
-                    <span>Apply Filters</span>
+                <button @click="clearFilters()" class="button is-light" x-show="hasActiveFilters()">
+                    Clear Filters
                 </button>
+            </div>
+            <div class="control" x-show="hasActiveFilters()">
+                <span class="tag is-info" x-text="`${getActiveFilterCount()} filter${getActiveFilterCount() !== 1 ? 's' : ''} active`"></span>
             </div>
         </div>
     </div>

@@ -121,6 +121,25 @@ class TaggableMixin:
             backref=db.backref(f"{cls.__name__.lower()}s", lazy='dynamic')
         )
 
+    @classmethod
+    def with_any_tags(cls, tag_names):
+        """Filter entities that have ANY of the specified tags (OR logic)"""
+        from src.database.tags.tag_models import Tag, TagAssociation
+
+        if not tag_names:
+            return cls.query
+
+        return (
+            cls.query
+            .join(TagAssociation, cls.id == TagAssociation.entity_id)
+            .join(Tag, Tag.id == TagAssociation.tag_id)
+            .filter(
+                TagAssociation.entity_type == cls.__name__.lower(),
+                Tag.name.in_(tag_names)
+            )
+            .distinct()
+        )
+
 
 class PrincipledMixin:
     @declared_attr
@@ -136,4 +155,23 @@ class PrincipledMixin:
             secondaryjoin="Principle.id==PrincipleAssociation.principle_id",
             lazy='select',
             backref=db.backref(f"{cls.__name__.lower()}s", lazy='dynamic')
+        )
+
+    @classmethod
+    def with_any_principles(cls, principle_names):
+        """Filter entities that have ANY of the specified principles (OR logic)"""
+        from src.database.principles.principle_models import Principle, PrincipleAssociation
+
+        if not principle_names:
+            return cls.query
+
+        return (
+            cls.query
+            .join(PrincipleAssociation, cls.id == PrincipleAssociation.entity_id)
+            .join(Principle, Principle.id == PrincipleAssociation.principle_id)
+            .filter(
+                PrincipleAssociation.entity_type == cls.__name__.lower(),
+                Principle.name.in_(principle_names)
+            )
+            .distinct()
         )

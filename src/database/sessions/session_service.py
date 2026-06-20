@@ -80,6 +80,41 @@ class SessionService:
     def list_sessions_for_window(self, user_id: int, start: datetime, end: datetime) -> List[RoutineSession]:
         return self.repo.list_for_window(user_id, start, end)
 
+    def list_sessions_for_window_filtered(
+            self,
+            user_id: int,
+            start: datetime,
+            end: datetime,
+            statuses: List[str] = None,
+            tag_names: List[str] = None,
+            principle_names: List[str] = None,
+            routine_id: int = None
+    ) -> List[RoutineSession]:
+        """
+        List sessions with optional filters.
+
+        Args:
+            user_id: User ID
+            start: Window start (UTC)
+            end: Window end (UTC)
+            statuses: List of status values to filter by (OR logic)
+            tag_names: List of tag names to filter by (OR logic)
+            principle_names: List of principle names to filter by (OR logic)
+            routine_id: Optional routine ID for exact match
+
+        Returns:
+            List of RoutineSession objects matching all filters
+        """
+        return self.repo.list_for_window_filtered(
+            user_id=user_id,
+            start=start,
+            end=end,
+            statuses=statuses,
+            tag_names=tag_names,
+            principle_names=principle_names,
+            routine_id=routine_id
+        )
+
     def create_session(self, user_id: int, routine_id: int, data: Dict[str, Any],
                       inherit_tags: bool = True, inherit_principles: bool = True) -> RoutineSession:
         if not data.get('start_time') or not data.get('end_time'):
