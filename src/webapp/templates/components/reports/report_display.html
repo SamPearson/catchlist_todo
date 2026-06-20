@@ -1,4 +1,4 @@
-{% from "components/tasks/task_manager.html" import task_manager %}
+{% from "components/tasks/task_card.html" import task_card %}
 {% from "components/sessions/session_display.html" import session_display %}
 
 
@@ -206,7 +206,7 @@
                     <p class="heading mb-2">Tasks</p>
                     <div class="box p-0">
                         {% for commitment in task_commitments %}
-                            {{ task_manager(commitment.target) }}
+                            {{ task_card(commitment.target) }}
                         {% endfor %}
                     </div>
                 </div>
