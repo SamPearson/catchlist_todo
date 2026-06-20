@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "components/sessions/session_search.html" import session_search %}
+{% from "components/sessions/session_list.html" import session_list %}
+
+{% block title %}Session Component Demo{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title">Session Component Demo</h1>
+        <p class="subtitle">Showcasing the session display and search components with real API data</p>
+    </div>
+</section>
+
+<!-- Search -->
+<section class="section">
+    <div class="container">
+        <div x-data="sessionSearch()" @init="init()">
+            {{ session_search() }}
+        </div>
+    </div>
+</section>
+
+<!-- Create Placeholder -->
+<section class="section">
+    <div class="container">
+        <h2 class="title is-4">Create Session</h2>
+        <p class="has-text-grey">This will be replaced with a session creation form in the future.</p>
+    </div>
+</section>
+
+<!-- Sessions List -->
+<section class="section">
+    <div class="container">
+        <h2 class="title is-4">Sessions</h2>
+        <p class="has-text-grey">Below are sessions rendered with the session display component.</p>
+        {{ session_list() }}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/sessions/session_display.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/sessions/session_search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/sessions/session_list.js') }}"></script>
+
+<script>
+    const INITIAL_SESSIONS = {{ sessions | tojson }};
+</script>
+{% endblock %}
