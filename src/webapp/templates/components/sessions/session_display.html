@@ -1,16 +1,16 @@
 {# Single Session Display Component - View and edit a session #}
 
-{% macro session_display(session) %}
-<div x-data='sessionDisplay({{ session | tojson }})' class="{{ 'mb-6' if variant == 'standalone' else '' }}" data-testid="session-item-{{ session.id }}">
+{% macro session_display(session_data) %}
+<div x-data='sessionDisplay(sessionData)' class="mb-6" :data-testid="`session-item-${sessionData.id}`">
     <!-- View Mode: Display the session -->
     <template x-if="mode === 'view'">
-        <div class="{{ 'box' if variant == 'standalone' else '' }}">
+        <div class="box">
             <!-- Minimized State -->
             <div x-show="!expanded"
                  @click="toggleExpand()"
-                 class="is-flex is-justify-content-space-between is-align-items-center has-text-weight-bold has-text-black {{ 'box mb-3' if variant == 'standalone' else 'px-4 py-3' }}"
-                 data-testid="session-item-{{ session.id }}-minimized"
-                 style="cursor: pointer; {{ 'border: 1px solid #ddd; border-radius: 6px;' if variant == 'standalone' else 'border-bottom: 1px solid #dbdbdb;' }} position: relative;">
+                 class="is-flex is-justify-content-space-between is-align-items-center has-text-weight-bold has-text-black px-4 py-3"
+                 :data-testid="`session-item-${sessionData.id}-minimized`"
+                 style="cursor: pointer; border-bottom: 1px solid #dbdbdb; position: relative;">
                 <div class="is-flex is-align-items-center" style="flex: 1;">
                     <h3 class="title is-5 mb-0" x-text="session.title"></h3>
                     <span class="has-text-grey" x-show="session.routine_name">
@@ -27,21 +27,21 @@
 
                 <!-- Centered Status Badge -->
                 <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 50%; transform: translateY(-50%);">
-                    <span class="tag is-medium" :class="statusTagClass">
+                    <span class="tag is-medium" :class="statusTagClass()">
                         <span x-text="session.status"></span>
                     </span>
                 </div>
             </div>
             <!-- Expanded State -->
-            <div x-show="expanded" class="{{ 'box mb-3' if variant == 'standalone' else 'px-4 py-3' }}" data-testid="session-item-{{ session.id }}-expanded"
-                 style="{{ '' if variant == 'standalone' else 'border-bottom: 1px solid #dbdbdb;' }}">
+            <div x-show="expanded" class="px-4 py-3" :data-testid="`session-item-${sessionData.id}-expanded`"
+                 style="border-bottom: 1px solid #dbdbdb;">
                 <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
                     <div class="is-flex is-align-items-center is-flex-wrap-wrap" style="gap: 0.5rem;">
                         <h3 class="title is-5 mb-0" x-text="session.title"></h3>
                         <span class="has-text-grey" x-show="session.routine_name">
                             &mdash; <span x-text="session.routine_name"></span>
                         </span>
-                        <span class="tag is-medium" :class="statusTagClass">
+                        <span class="tag is-medium" :class="statusTagClass()">
                             <span x-text="session.status"></span>
                         </span>
                         <span x-text="formatDate(session.start_time)"></span>
@@ -50,7 +50,7 @@
                         <span> → </span>
                         <span x-text="formatTime(session.end_time)"></span>
                     </div>
-                    <button @click="toggleEdit()" class="button is-small is-info" data-testid="session-item-{{ session.id }}-edit-button">
+                    <button @click="toggleEdit()" class="button is-small is-info" :data-testid="`session-item-${sessionData.id}-edit-button`">
                         <span class="icon is-small">
                             <i class="fas fa-edit"></i>
                         </span>
@@ -58,13 +58,13 @@
                     </button>
                 </div>
 
-                <!-- Tags and Principles (placeholder) -->
+                <!-- Tags and Principles -->
                 <div class="is-flex is-flex-wrap-wrap mb-3">
                     <div class="mr-2 mb-2">
                         <strong>Tags:</strong>
                         <div class="mt-1">
                             <template x-for="tag in session.tags">
-                                <span class="tag is-light mr-1" x-text="tag"></span>
+                                <span class="tag is-light mr-1" x-text="tag.name || tag"></span>
                             </template>
                         </div>
                     </div>
@@ -72,13 +72,13 @@
                         <strong>Principles:</strong>
                         <div class="mt-1">
                             <template x-for="principle in session.principles">
-                                <span class="tag is-light mr-1" x-text="principle"></span>
+                                <span class="tag is-light mr-1" x-text="principle.name || principle"></span>
                             </template>
                         </div>
                     </div>
                     <div class="is-flex is-align-items-center ml-auto">
                         <span class="mr-2">RPE:</span>
-                        <span x-text="session.rpe"></span>
+                        <span x-text="session.rpe || '-'"></span>
                     </div>
                 </div>
 
@@ -130,7 +130,8 @@
                                         <textarea x-model="newCheckin.notes" class="textarea is-small" rows="2" placeholder="Optional notes..."></textarea>
                                     </div>
                                 </div>
-                                <div class="field is-grouped">                                    <div class="control">
+                                <div class="field is-grouped">
+                                    <div class="control">
                                         <button type="submit" class="button is-small is-success">Save</button>
                                     </div>
                                     <div class="control">
@@ -142,15 +143,13 @@
                     </div>
                 </div>
 
-
                 <!-- Metadata Section -->
                 <div class="is-flex is-justify-content-space-between">
                     <span>Created: <span x-text="formatDateTime(session.created_at)"></span></span>
                     <span>Updated: <span x-text="formatDateTime(session.updated_at)"></span></span>
                 </div>
-
-
             </div>
+        </div>
     </template>
 
     <!-- Edit Mode: Form to update session -->
