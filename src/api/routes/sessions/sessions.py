@@ -22,6 +22,20 @@ def list_sessions():
     if not start_str or not end_str:
         return jsonify({"error": "start and end ISO dates required"}), 400
 
+    # Extract optional filters from query params
+    statuses = request.args.getlist('status')  # Repeated param: status=completed&status=skipped
+    tag_names = request.args.getlist('tags')   # Repeated param: tags=fitness&tags=cardio
+    principle_names = request.args.getlist('principles')  # Repeated param: principles=consistency&principles=growth
+    routine_id_str = request.args.get('routine_id')
+
+    # Validate routine_id if provided
+    routine_id = None
+    if routine_id_str:
+        try:
+            routine_id = int(routine_id_str)
+        except ValueError:
+            return jsonify({"error": "routine_id must be an integer"}), 400
+
     service = SessionService(db.session)
     try:
         # Get user timezone and convert input dates to UTC
@@ -29,8 +43,16 @@ def list_sessions():
         start = to_utc(parse_dt(start_str, user_timezone), user_timezone)
         end = to_utc(parse_dt(end_str, user_timezone), user_timezone)
 
-        # Get sessions (stored in UTC)
-        items = service.list_sessions_for_window(user_id, start, end)
+        # Get filtered sessions
+        items = service.list_sessions_for_window_filtered(
+            user_id=user_id,
+            start=start,
+            end=end,
+            statuses=statuses if statuses else None,
+            tag_names=tag_names if tag_names else None,
+            principle_names=principle_names if principle_names else None,
+            routine_id=routine_id
+        )
 
         # Convert sessions to dicts and convert times to user timezone
         session_dicts = []
