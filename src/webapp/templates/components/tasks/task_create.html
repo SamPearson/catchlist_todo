@@ -1,128 +1,152 @@
 {# Task Create Component - Form for creating a new task #}
 
 {% macro task_create() %}
-<div x-data='taskCreate()' class="box" data-testid="task-create-form">
-    <h3 class="title is-5 mb-4">Create New Task</h3>
-
-    <!-- Title Input -->
-    <div class="field mb-4">
-        <label class="label">Task Title *</label>
-        <div class="control">
-            <input class="input"
-                   type="text"
-                   x-model="formData.title"
-                   placeholder="Enter task title"
-                   data-testid="task-create-title-input"
-                   :class="{ 'is-danger': errors.title }">
-        </div>
-        <p class="help is-danger" x-show="errors.title" x-text="errors.title" data-testid="task-create-title-error"></p>
-    </div>
-
-    <!-- Description -->
-    <div class="field mb-4">
-        <label class="label">Description</label>
-        <div class="control">
-            <textarea class="textarea"
-                      x-model="formData.description"
-                      placeholder="Add details about this task (optional)"
-                      data-testid="task-create-description-input"
-                      rows="4"></textarea>
+<div x-data='taskCreate()' data-testid="task-create-form">
+    <!-- Minimized State -->
+    <div x-show="!expanded" @click="toggleExpand()" class="box is-clickable" style="cursor: pointer;">
+        <div class="is-flex is-align-items-center is-justify-content-space-between">
+            <h3 class="title is-5 mb-0">Create New Task</h3>
+            <span class="icon has-text-success">
+                <i class="fas" :class="expanded ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+            </span>
         </div>
     </div>
 
-    <!-- Status and Active Toggle Row -->
-    <div class="columns mb-4">
-        <div class="column is-half">
-            <div class="field">
-                <label class="label">Status</label>
-                <div class="control">
-                    <div class="select is-fullwidth">
-                        <select x-model="formData.status" data-testid="task-create-status-select">
-                            <option value="open">Open</option>
-                            <option value="waiting">Waiting</option>
-                            <option value="deferred">Deferred</option>
-                            <option value="declined">Declined</option>
-                            <option value="stale">Stale</option>
-                        </select>
+    <!-- Expanded State -->
+    <div x-show="expanded" class="box">
+        <div @click="toggleExpand()" class="is-flex is-align-items-center is-justify-content-space-between mb-4">
+            <h3 class="title is-5 mb-0">Create New Task</h3>
+            <span class="icon has-text-success">
+                <i class="fas fa-chevron-up"></i>
+            </span>
+        </div>
+
+        <!-- Title Input -->
+        <div class="field mb-4">
+            <label class="label">Task Title *</label>
+            <div class="control">
+                <input class="input"
+                       type="text"
+                       x-model="formData.title"
+                       placeholder="Enter task title"
+                       data-testid="task-create-title-input"
+                       :class="{ 'is-danger': errors.title }">
+            </div>
+            <p class="help is-danger" x-show="errors.title" x-text="errors.title" data-testid="task-create-title-error"></p>
+        </div>
+
+        <!-- Description -->
+        <div class="field mb-4">
+            <label class="label">Description</label>
+            <div class="control">
+                <textarea class="textarea"
+                          x-model="formData.description"
+                          placeholder="Add details about this task (optional)"
+                          data-testid="task-create-description-input"
+                          rows="4"></textarea>
+            </div>
+        </div>
+
+        <!-- Status and Active Toggle Row -->
+        <div class="columns mb-4">
+            <div class="column is-half">
+                <div class="field">
+                    <label class="label">Status</label>
+                    <div class="control">
+                        <div class="select is-fullwidth">
+                            <select x-model="formData.status" data-testid="task-create-status-select">
+                                <option value="open">Open</option>
+                                <option value="waiting">Waiting</option>
+                                <option value="deferred">Deferred</option>
+                                <option value="declined">Declined</option>
+                                <option value="stale">Stale</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column is-half">
+                <div class="field">
+                    <label class="label">Active Status</label>
+                    <div class="control">
+                        <label class="checkbox">
+                            <input type="checkbox" x-model="formData.active" data-testid="task-create-active-checkbox">
+                            <span class="ml-2">Active (in working set)</span>
+                        </label>
+                        <p class="help">Uncheck to move to someday/maybe</p>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="column is-half">
-            <div class="field">
-                <label class="label">Active Status</label>
-                <div class="control">
-                    <label class="checkbox">
-                        <input type="checkbox" x-model="formData.active" data-testid="task-create-active-checkbox">
-                        <span class="ml-2">Active (in working set)</span>
-                    </label>
-                    <p class="help">Uncheck to move to someday/maybe</p>
-                </div>
+
+        <!-- Tags Section (Placeholder) -->
+        <div class="field mb-4">
+            <label class="label">
+                <span class="icon-text">
+                    <span class="icon">
+                        <i class="fas fa-tags"></i>
+                    </span>
+                    <span>Tags</span>
+                </span>
+            </label>
+            <div class="box has-background-light">
+                <p class="has-text-grey-dark">
+                    <span class="icon">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                    Tag management coming soon
+                </p>
             </div>
         </div>
-    </div>
 
-    <!-- Tags Section (Placeholder) -->
-    <div class="field mb-4">
-        <label class="label">
-            <span class="icon-text">
-                <span class="icon">
-                    <i class="fas fa-tags"></i>
+        <!-- Principles Section (Placeholder) -->
+        <div class="field mb-4">
+            <label class="label">
+                <span class="icon-text">
+                    <span class="icon">
+                        <i class="fas fa-compass"></i>
+                    </span>
+                    <span>Principles</span>
                 </span>
-                <span>Tags</span>
-            </span>
-        </label>
-        <div class="box has-background-light">
-            <p class="has-text-grey-dark">
-                <span class="icon">
-                    <i class="fas fa-info-circle"></i>
-                </span>
-                Tag management coming soon
-            </p>
+            </label>
+            <div class="box has-background-light">
+                <p class="has-text-grey-dark">
+                    <span class="icon">
+                        <i class="fas fa-info-circle"></i>
+                    </span>
+                    Principle management coming soon
+                </p>
+            </div>
         </div>
-    </div>
 
-    <!-- Principles Section (Placeholder) -->
-    <div class="field mb-4">
-        <label class="label">
-            <span class="icon-text">
-                <span class="icon">
-                    <i class="fas fa-compass"></i>
-                </span>
-                <span>Principles</span>
-            </span>
-        </label>
-        <div class="box has-background-light">
-            <p class="has-text-grey-dark">
-                <span class="icon">
-                    <i class="fas fa-info-circle"></i>
-                </span>
-                Principle management coming soon
-            </p>
+        <!-- Action Buttons -->
+        <div class="field is-grouped is-grouped-right">
+            <div class="control">
+                <button class="button" @click="cancel()" data-testid="task-create-cancel-button">
+                    <span class="icon">
+                        <i class="fas fa-times"></i>
+                    </span>
+                    <span>Cancel</span>
+                </button>
+            </div>
+            <div class="control">
+                <button class="button is-primary"
+                        @click="create()"
+                        :class="{ 'is-loading': saving }"
+                        :disabled="saving"
+                        data-testid="task-create-submit-button">
+                    <span class="icon">
+                        <i class="fas fa-plus"></i>
+                    </span>
+                    <span>Create Task</span>
+                </button>
+            </div>
         </div>
-    </div>
 
-    <!-- Action Buttons -->
-    <div class="field is-grouped is-grouped-right">
-        <div class="control">
-            <button class="button" @click="cancel()" data-testid="task-create-cancel-button">
-                <span class="icon">
-                    <i class="fas fa-times"></i>
-                </span>
-                <span>Cancel</span>
-            </button>
-        </div>
-        <div class="control">
-            <button class="button is-primary"
-                    @click="create()"
-                    :class="{ 'is-loading': saving }"
-                    :disabled="saving"
-                    data-testid="task-create-submit-button">
-                <span class="icon">
-                    <i class="fas fa-plus"></i>
-                </span>
-                <span>Create Task</span>
-            </button>
+        <!-- General Error -->
+        <div class="notification is-danger is-light mt-3" x-show="errors.general" data-testid="task-create-general-error">
+            <button class="delete" @click="errors.general = null"></button>
+            <span x-text="errors.general"></span>
         </div>
     </div>
 </div>

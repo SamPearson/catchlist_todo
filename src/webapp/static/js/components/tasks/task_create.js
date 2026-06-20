@@ -9,6 +9,11 @@ function taskCreate() {
         },
         errors: {},
         saving: false,
+        expanded: false, // Track expanded/collapsed state
+
+        toggleExpand() {
+            this.expanded = !this.expanded;
+        },
 
         validate() {
             this.errors = {};
@@ -34,27 +39,11 @@ function taskCreate() {
             this.saving = true;
 
             try {
-                // TODO: Replace with actual API call
-                // const result = await api.post('/api/tasks', this.formData);
-
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                console.log('Creating task:', this.formData);
-
-                // Create a mock task object with the form data
-                const newTask = {
-                    id: Math.floor(Math.random() * 1000), // Mock ID
-                    ...this.formData,
-                    completed: false,
-                    completed_at: null,
-                    project_id: null,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                };
+                const newTask = await api.post('/api/tasks', this.formData);
+                console.log('New task created:', newTask);
 
                 // Dispatch custom event with the new task
-                this.$dispatch('task-created', newTask);
+                this.$dispatch('task-created', { task: newTask });
 
                 // Reset form
                 this.formData = {
@@ -66,7 +55,7 @@ function taskCreate() {
 
             } catch (err) {
                 console.error('Error creating task:', err);
-                alert('Error creating task: ' + err.message);
+                this.errors.general = 'Error creating task: ' + err.message;
             } finally {
                 this.saving = false;
             }

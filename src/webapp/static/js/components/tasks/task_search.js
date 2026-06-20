@@ -2,7 +2,7 @@
 function taskSearch() {
     return {
         expanded: false,
-        simpleSearch: '',
+        loading: false,
         filters: {
             title: '',
             description: '',
@@ -13,15 +13,11 @@ function taskSearch() {
                 declined: false,
                 stale: false
             },
-            activeStatus: 'all', // 'active', 'all', 'inactive'
+            activeStatus: 'all',         // 'active', 'all', 'inactive'
             completionStatus: 'incomplete' // 'incomplete', 'all', 'complete'
         },
 
         expand() {
-            // When expanding, split simple search into title field
-            if (this.simpleSearch) {
-                this.filters.title = this.simpleSearch;
-            }
             this.expanded = true;
         },
 
@@ -29,28 +25,60 @@ function taskSearch() {
             this.expanded = false;
         },
 
-        applySimpleSearch() {
-            console.log('Simple search:', this.simpleSearch);
-            // TODO: Trigger search with simpleSearch value
-            // This would search both title and description
-            alert('Searching for: "' + this.simpleSearch + '" (Demo - no actual search)');
+        init() {
         },
 
-        applyFilters() {
-            console.log('Applying filters:', this.filters);
+        // Build the query params object from current filter state
+        buildParams(overrides = {}) {
+            const params = {};
 
-            // Build filter summary
-            const summary = this.getFilterSummary();
+            const title = overrides.title ?? this.filters.title;
+            const description = overrides.description ?? this.filters.description;
 
-            // TODO: Trigger filtered search with filters object
-            alert('Filters applied:\n' + summary + '\n\n(Demo - no actual search)');
+            if (title) params.title = title;
+            if (description) params.description = description;
 
-            // Collapse back to simple view
-            this.collapse();
+            // Status filter: if any checked, pass as comma-separated string
+            const selectedStatuses = Object.entries(this.filters.status)
+                .filter(([, v]) => v === true)
+                .map(([k]) => k);
+            if (selectedStatuses.length > 0) {
+                params.status = selectedStatuses.join(',');
+            }
+
+            // Active filter
+            if (this.filters.activeStatus === 'active') params.active = 'true';
+            if (this.filters.activeStatus === 'inactive') params.active = 'false';
+
+            // Completion filter
+            if (this.filters.completionStatus === 'all') params.include_completed = 'true';
+            if (this.filters.completionStatus === 'complete') {
+                params.include_completed = 'true';
+                params.completed = 'true';
+            }
+
+            return params;
         },
 
-        clearFilters() {
-            this.simpleSearch = '';
+        async fetchAndDispatch(params) {
+            this.loading = true;
+            try {
+                const tasks = await api.get('/api/tasks', params);
+                this.$dispatch('tasks-search', tasks || []);
+            } catch (err) {
+                console.error('Error fetching tasks:', err);
+                alert('Error searching tasks: ' + err.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        updateFilters() {
+            const params = this.buildParams();
+            this.$dispatch('tasks-search', params);
+        },
+
+        async clearFilters() {
             this.filters = {
                 title: '',
                 description: '',
@@ -65,20 +93,20 @@ function taskSearch() {
                 completionStatus: 'incomplete'
             };
 
-            console.log('Filters cleared');
+            // Re-fetch with cleared filters (back to default: incomplete tasks only)
+            await this.fetchAndDispatch({});
+
+            // Dispatch empty filters to ensure task list is reset
+            this.$dispatch('tasks-search', {});
         },
 
         hasActiveFilters() {
-            // Check if any filters are set
-            if (this.simpleSearch) return true;
             if (this.filters.title) return true;
             if (this.filters.description) return true;
 
-            // Check if any status checkboxes are checked
             const hasStatusFilter = Object.values(this.filters.status).some(v => v === true);
             if (hasStatusFilter) return true;
 
-            // Check if non-default radio options are selected
             if (this.filters.activeStatus !== 'all') return true;
             if (this.filters.completionStatus !== 'incomplete') return true;
 
@@ -88,11 +116,9 @@ function taskSearch() {
         getActiveFilterCount() {
             let count = 0;
 
-            if (this.simpleSearch) count++;
             if (this.filters.title) count++;
             if (this.filters.description) count++;
 
-            // Count status filters
             count += Object.values(this.filters.status).filter(v => v === true).length;
 
             if (this.filters.activeStatus !== 'all') count++;
@@ -104,29 +130,16 @@ function taskSearch() {
         getFilterSummary() {
             const parts = [];
 
-            if (this.filters.title) {
-                parts.push('Title contains: "' + this.filters.title + '"');
-            }
-
-            if (this.filters.description) {
-                parts.push('Description contains: "' + this.filters.description + '"');
-            }
+            if (this.filters.title) parts.push('Title contains: "' + this.filters.title + '"');
+            if (this.filters.description) parts.push('Description contains: "' + this.filters.description + '"');
 
             const selectedStatuses = Object.entries(this.filters.status)
-                .filter(([key, value]) => value === true)
-                .map(([key, value]) => key);
+                .filter(([, v]) => v === true)
+                .map(([k]) => k);
+            if (selectedStatuses.length > 0) parts.push('Status: ' + selectedStatuses.join(', '));
 
-            if (selectedStatuses.length > 0) {
-                parts.push('Status: ' + selectedStatuses.join(', '));
-            }
-
-            if (this.filters.activeStatus !== 'all') {
-                parts.push('Active: ' + this.filters.activeStatus);
-            }
-
-            if (this.filters.completionStatus !== 'incomplete') {
-                parts.push('Completion: ' + this.filters.completionStatus);
-            }
+            if (this.filters.activeStatus !== 'all') parts.push('Active: ' + this.filters.activeStatus);
+            if (this.filters.completionStatus !== 'incomplete') parts.push('Completion: ' + this.filters.completionStatus);
 
             return parts.length > 0 ? parts.join('\n') : 'No filters active';
         }

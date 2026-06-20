@@ -1,14 +1,13 @@
-{# Task Manager Component - Wrapper that handles view/edit mode switching for a task #}
+{# Task Card Component - Handles view/edit mode switching for a single task #}
 
-{% macro task_manager(task) %}
-<div x-data='taskManager({{ task | tojson }})' class="mb-4" data-testid="task-manager-{{ task.id }}">
-    <!-- View Mode: Display the task -->
+{% macro task_card(task) %}
+<div x-data='taskCard({{ task | tojson }})' class="mb-4" data-testid="task-card-{{ task.id }}">    <!-- View Mode: Display the task -->
     <template x-if="mode === 'view'">
         <div>
             <!-- Minimized State -->
             <div x-show="!expanded"
                  @click="toggleExpand()"
-                 class="box is-clickable"
+                 class="box is-clickable task-header"
                  :class="{ 'has-background-success-light': task.completed, 'opacity-70': !task.active && !task.completed }"
                  data-testid="task-item-{{ task.id }}-minimized"
                  style="cursor: pointer;">
@@ -43,9 +42,8 @@
 
             <!-- Expanded State -->
             <div x-show="expanded" class="box" :class="{ 'has-background-success-light': task.completed }" data-testid="task-item-{{ task.id }}-expanded">
-                <div class="is-flex is-justify-content-space-between is-align-items-start mb-3">
+                <div class="is-flex is-justify-content-space-between is-align-items-start mb-3 task-header" @click="toggleExpand()" style="cursor: pointer;">
                     <h3 class="title is-5 mb-0" x-text="task.title"></h3>
-                    <button @click="toggleExpand()" class="delete" data-testid="task-item-{{ task.id }}-collapse-button"></button>
                 </div>
 
                 <!-- Status and Metadata Bar -->
