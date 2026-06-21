@@ -3,19 +3,19 @@
 
 
 {% macro report_display(report) %}
-
-{% set task_commitments = report.commitments | selectattr("target_type", "equalto", "task") | list %}
-{% set session_commitments = report.commitments | selectattr("target_type", "equalto", "session") | list %}
-    <div class="px-5 pt-5 pb-4 is-flex is-justify-content-space-between is-align-items-flex-start">
+<div x-data="reportDisplay()">
+    {% set task_commitments = report.commitments | selectattr("target_type", "equalto", "task") | list %}
+    {% set session_commitments = report.commitments | selectattr("target_type", "equalto", "session") | list %}
+        <div class="px-5 pt-5 pb-4 is-flex is-justify-content-space-between is-align-items-flex-start">
         <div>
             <div class="is-flex is-align-items-center mb-1" style="gap: 0.6rem;">
                 <h2 class="title is-4 mb-0" x-text="report.label"></h2>
                 <span class="tag is-medium" :class="reportTypeBadgeClass()" x-text="report.report_type"></span>
             </div>
             <p class="has-text-grey is-size-7">
-                Created <span x-text="new Date(report.created_at).toLocaleDateString()"></span>
+                Created <span x-text="formatDate(report.created_at)"></span>
                 &bull;
-                Updated <span x-text="new Date(report.updated_at).toLocaleDateString()"></span>
+                Updated <span x-text="formatDate(report.updated_at)"></span>
             </p>
         </div>
         <div class="is-flex" style="gap: 0.5rem;">
@@ -253,6 +253,7 @@
             </div>
         </div>
 
+        </div>
     </div>
-</div>
+    </div>
 {% endmacro %}
