@@ -126,7 +126,7 @@ def test_update_task(auth_client):
         task_id = created['id']
 
     with allure.step("Update task"):
-        updated = auth_client.put(f'/api/tasks/{task_id}', {
+        updated = auth_client.patch(f'/api/tasks/{task_id}', {
             "title": "Updated title"
         })
 
