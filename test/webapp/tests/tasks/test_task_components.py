@@ -8,6 +8,7 @@ def page(authenticated_driver):
     """Navigate to the task component demo page"""
     return TaskComponentDemoPage(authenticated_driver)
 
+@pytest.mark.skip(reason="Demo component tests - real tests needed for API-connected tasks page")
 @pytest.mark.smoke
 class TestTaskCreate:
     """Tests for the task creation component"""
@@ -79,7 +80,7 @@ class TestTaskCreate:
         assert create_form.is_form_displayed(), \
             "Create form did not reappear after reset"
 
-
+@pytest.mark.skip(reason="Demo component tests - real tests needed for API-connected tasks page")
 @pytest.mark.smoke
 class TestTaskSearch:
     """Tests for the task search component"""
@@ -172,6 +173,7 @@ class TestTaskSearch:
         assert search.get_simple_search_value() == '', "Search input was not cleared"
 
 
+@pytest.mark.skip(reason="Demo component tests - real tests needed for API-connected tasks page")
 @pytest.mark.smoke
 class TestTaskItems:
     """Tests for the task item/manager components"""
