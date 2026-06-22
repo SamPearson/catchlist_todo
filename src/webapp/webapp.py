@@ -26,11 +26,13 @@ from src.webapp.routes.home import home_bp
 from src.webapp.routes.demo import demo_bp
 from src.webapp.routes.tasks import tasks_bp
 from src.webapp.routes.sessions import sessions_bp
+from src.webapp.routes.reports import reports_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(home_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(sessions_bp)
+app.register_blueprint(reports_bp)
 
 # Only register demo blueprint in development
 if os.getenv('FLASK_ENV') != 'production':

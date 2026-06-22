@@ -1,0 +1,36 @@
+
+{% extends "base.html" %}
+{% from "components/reports/report_selector.html" import report_selector %}
+{% from "components/reports/report_display.html" import report_display %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container" x-data="reportPageOrchestrator()" @report-selected.window="loadReport($event.detail)" @report-save.window="saveReport($event.detail)">
+        <h1 class="title">Reports</h1>
+
+        <!-- Selector Component -->
+        <div class="mb-5">
+            {{ report_selector() }}
+        </div>
+
+        <!-- Display Component with proper x-data binding -->
+        <div x-data="reportDisplay()" @load-report.window="syncReport($event.detail)">
+            {{ report_display(report) }}
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/reports/report_selector.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/reports/report_display.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tasks/task_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/sessions/session_display.js') }}"></script>
+
+<script>
+    const INITIAL_REPORT = {{ report | tojson }};
+</script>
+{% endblock %}
