@@ -19,16 +19,16 @@ function reportPageOrchestrator() {
 
             // Construct endpoint based on timeframe type
             if (timeframe.type === 'day' || timeframe.type === 'week') {
-                endpoint = `/api/reports/${timeframe.type}/${timeframe.date}?full=true&include_commitments=False`;
+                endpoint = `/api/reports/${timeframe.type}/${timeframe.date}?full=true`;
             } else if (timeframe.type === 'month') {
-                endpoint = `/api/reports/${timeframe.type}/${timeframe.year}-${String(timeframe.month).padStart(2, '0')}-01?full=true&include_commitments=False`;
+                endpoint = `/api/reports/${timeframe.type}/${timeframe.year}-${String(timeframe.month).padStart(2, '0')}-01?full=true`;
             } else if (timeframe.type === 'season') {
                 // Use first day of season: Jan for winter, Apr for spring, Jul for summer, Oct for fall
                 const seasonMonths = { winter: 1, spring: 4, summer: 7, fall: 10 };
                 const month = seasonMonths[timeframe.season];
-                endpoint = `/api/reports/${timeframe.type}/${timeframe.year}-${String(month).padStart(2, '0')}-01?full=true&include_commitments=False`;
+                endpoint = `/api/reports/${timeframe.type}/${timeframe.year}-${String(month).padStart(2, '0')}-01?full=true`;
             } else if (timeframe.type === 'year') {
-                endpoint = `/api/reports/${timeframe.type}/${timeframe.year}-01-01?full=true&include_commitments=False`;
+                endpoint = `/api/reports/${timeframe.type}/${timeframe.year}-01-01?full=true`;
             }
 
             console.log('[Orchestrator] Fetching from endpoint:', endpoint);
@@ -120,16 +120,20 @@ function reportDisplay() {
         // Commitment splitting
         get taskCommitments() {
             if (!this.report.commitments) return [];
-            return this.report.commitments
+            const tasks = this.report.commitments
                 .filter(c => c.target_type === 'task')
                 .map(c => c.target);
+            console.log('[Display] taskCommitments:', tasks);
+            return tasks;
         },
 
         get sessionCommitments() {
             if (!this.report.commitments) return [];
-            return this.report.commitments
+            const sessions = this.report.commitments
                 .filter(c => c.target_type === 'session')
                 .map(c => c.target);
+            console.log('[Display] sessionCommitments:', sessions);
+            return sessions;
         },
 
         // Windowed day stubs for week reports

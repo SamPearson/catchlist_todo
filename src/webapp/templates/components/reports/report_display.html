@@ -184,35 +184,40 @@
             {# Normal commitments view #}
             <div x-show="!(report.report_type === 'week' && showWindowed)">
 
-
-                {% if session_commitments %}
-                <div class="mb-4">
-                    <p class="heading mb-2">Sessions</p>
-                    <div class="box p-0">
-                        {% for commitment in session_commitments %}
-                            {{ session_display(commitment.target) }}
-                        {% endfor %}
+                {# Sessions #}
+                <template x-if="sessionCommitments.length > 0">
+                    <div class="mb-4">
+                        <p class="heading mb-2">Sessions</p>
+                        <div class="box p-0">
+                            <template x-for="commitment in sessionCommitments" :key="commitment.id">
+                                <div class="px-4 py-3">
+                                    <p x-text="commitment.routine_name"></p>
+                                    <p class="is-size-7 has-text-grey" x-text="`${commitment.start_time} - ${commitment.end_time}`"></p>
+                                </div>
+                            </template>
+                        </div>
                     </div>
-                </div>
-                {% endif %}
+                </template>
 
-                {% if not task_commitments and not session_commitments %}
-                <p class="has-text-grey is-italic">No commitments for this timeframe.</p>
-                {% endif %}
-
-
-                {% if task_commitments %}
-                <div class="mb-4">
-                    <p class="heading mb-2">Tasks</p>
-                    <div class="box p-0">
-                        {% for commitment in task_commitments %}
-                            {{ task_card(commitment.target) }}
-                        {% endfor %}
+                {# Tasks #}
+                <template x-if="taskCommitments.length > 0">
+                    <div class="mb-4">
+                        <p class="heading mb-2">Tasks</p>
+                        <div class="box p-0">
+                            <template x-for="commitment in taskCommitments" :key="commitment.id">
+                                <div class="px-4 py-3">
+                                    <p class="has-text-weight-semibold" x-text="commitment.title"></p>
+                                    <p class="is-size-7 has-text-grey" x-text="commitment.description"></p>
+                                </div>
+                            </template>
+                        </div>
                     </div>
-                </div>
-                {% endif %}
+                </template>
 
-
+                {# No commitments fallback #}
+                <template x-if="taskCommitments.length === 0 && sessionCommitments.length === 0">
+                    <p class="has-text-grey is-italic">No commitments for this timeframe.</p>
+                </template>
 
             </div>
         </div>
