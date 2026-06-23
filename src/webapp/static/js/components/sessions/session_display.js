@@ -8,22 +8,32 @@ document.addEventListener('alpine:init', () => {
         checkinsExpanded: false,
         showAddCheckin: false,
         newCheckin: { timestamp: '', notes: '' },
-        formData: {
-            title: session.title || '',
-            start_time: session.start_time
-                ? new Date(session.start_time).toISOString().slice(0, 16)
-                : '',
-            end_time: session.end_time
-                ? new Date(session.end_time).toISOString().slice(0, 16)
-                : '',
-            status: session.status || '',
-            notes: session.notes || '',
-            rpe: session.rpe || '',
-            routine_name: session.routine_name || ''
-        },
         errors: {},
 
+        formatLocalDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        },
+
         init() {
+            this.formData = {
+                title: this.session.title || '',
+                start_time: this.session.start_time
+                    ? this.formatLocalDateTime(new Date(this.session.start_time))
+                    : '',
+                end_time: this.session.end_time
+                    ? this.formatLocalDateTime(new Date(this.session.end_time))
+                    : '',
+                status: this.session.status || '',
+                notes: this.session.notes || '',
+                rpe: this.session.rpe || '',
+                routine_name: this.session.routine_name || ''
+            };
+
             this.formatDate = (datetime) => {
                 if (!datetime) return '';
                 const date = new Date(datetime);
@@ -68,6 +78,7 @@ document.addEventListener('alpine:init', () => {
                 }
             };
         },
+
 
         toggleEdit() {
             this.mode = this.mode === 'view' ? 'edit' : 'view';

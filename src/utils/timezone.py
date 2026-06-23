@@ -106,6 +106,26 @@ def utc_to_local_date(utc_dt: datetime, user_tz: str) -> date:
     return local_dt.date()
 
 
+def format_for_local_datetime_input(utc_dt: datetime, user_tz: str) -> str:
+    """
+    Convert a UTC datetime to local time and format for HTML datetime-local input.
+
+    Returns ISO format WITHOUT timezone offset (e.g., "2026-05-30T07:00:00").
+    This is what datetime-local inputs expect.
+
+    Args:
+        utc_dt: UTC datetime (from database)
+        user_tz: User's timezone string
+
+    Returns:
+        ISO format string without timezone info
+    """
+    local_dt = from_utc(utc_dt, user_tz)
+    # Remove timezone info before formatting
+    naive_local = local_dt.replace(tzinfo=None)
+    return naive_local.isoformat()
+
+
 def parse_dt(date_string: str, timezone: Optional[str] = None) -> datetime:
     """
     Parse a string to a datetime object.

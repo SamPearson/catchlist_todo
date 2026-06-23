@@ -3,7 +3,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.sessions.session_service import SessionService, SessionValidationError
-from src.utils.timezone import parse_dt, to_utc, from_utc
+from src.utils.timezone import parse_dt, to_utc, from_utc, format_for_local_datetime_input
 from src.database.users.user_models import User
 
 
@@ -11,6 +11,22 @@ def get_user_timezone(user_id):
     """Get the user's timezone or return UTC as default"""
     user = User.query.get(user_id)
     return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
+
+
+def format_session_for_response(session_dict: dict, user_timezone: str) -> dict:
+    """
+    Convert session timestamps from UTC to user's local timezone.
+    Formats times without timezone offset for datetime-local inputs.
+    """
+    session_dict['start_time'] = format_for_local_datetime_input(
+        parse_dt(session_dict['start_time']),
+        user_timezone
+    )
+    session_dict['end_time'] = format_for_local_datetime_input(
+        parse_dt(session_dict['end_time']),
+        user_timezone
+    )
+    return session_dict
 
 
 @jwt_required()
@@ -54,13 +70,11 @@ def list_sessions():
             routine_id=routine_id
         )
 
-        # Convert sessions to dicts and convert times to user timezone
-        session_dicts = []
-        for session in items:
-            session_dict = session.as_dict()
-            session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-            session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
-            session_dicts.append(session_dict)
+        # Convert sessions to dicts and format times
+        session_dicts = [
+            format_session_for_response(session.as_dict(), user_timezone)
+            for session in items
+        ]
 
         return jsonify(session_dicts)
     except ValueError as e:
@@ -75,15 +89,14 @@ def get_session(session_id: int):
     user_id = int(get_jwt_identity())
     service = SessionService(db.session)
     session_obj = service.get_session(session_id, user_id)
-    
+
     if not session_obj:
         return '', 404
 
     # Convert UTC times to user timezone
     user_timezone = get_user_timezone(user_id)
     session_dict = session_obj.as_dict()
-    session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-    session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+    session_dict = format_session_for_response(session_dict, user_timezone)
 
     return jsonify(session_dict)
 
@@ -116,8 +129,7 @@ def create_session(routine_id: int):
 
         # Convert response times back to user timezone
         session_dict = session_obj.as_dict()
-        session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-        session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+        session_dict = format_session_for_response(session_dict, user_timezone)
 
         return jsonify(session_dict), 201
     except (SessionValidationError, ValueError) as e:
@@ -163,8 +175,7 @@ def update_session(session_id: int):
 
         # Convert response times back to user timezone
         session_dict = updated.as_dict()
-        session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-        session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+        session_dict = format_session_for_response(session_dict, user_timezone)
 
         return jsonify(session_dict)
     except (SessionValidationError, ValueError) as e:
@@ -192,8 +203,7 @@ def set_session_status(session_id: int):
         # Convert UTC times to user timezone
         user_timezone = get_user_timezone(user_id)
         session_dict = session_obj.as_dict()
-        session_dict['start_time'] = from_utc(parse_dt(session_dict['start_time']), user_timezone).isoformat()
-        session_dict['end_time'] = from_utc(parse_dt(session_dict['end_time']), user_timezone).isoformat()
+        session_dict = format_session_for_response(session_dict, user_timezone)
 
         return jsonify(session_dict)
     except SessionValidationError as e:
@@ -205,6 +215,3 @@ def delete_session(session_id: int):
     user_id = int(get_jwt_identity())
     service = SessionService(db.session)
     return ('', 204) if service.delete_session(session_id, user_id) else ('', 404)
-
-
-
