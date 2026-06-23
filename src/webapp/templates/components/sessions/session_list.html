@@ -157,13 +157,9 @@
             <template x-if="mode === 'edit'">
                 <div class="box">
                     <form @submit.prevent="submitForm">
-                        <!-- Title -->
-                        <div class="field">
-                            <label class="label">Title</label>
-                            <div class="control">
-                                <input type="text" x-model="formData.title" class="input" required>
-                            </div>
-                            <p class="help is-danger" x-show="errors.title" x-text="errors.title"></p>
+                        <!-- Error Message -->
+                        <div class="message is-danger" x-show="errors.submit">
+                            <div class="message-body" x-text="errors.submit"></div>
                         </div>
 
                         <!-- Start Time -->
@@ -225,10 +221,13 @@
                         <!-- Submit and Cancel Buttons -->
                         <div class="field is-grouped mt-4">
                             <div class="control">
-                                <button type="submit" class="button is-success">Save</button>
+                                <button type="submit" class="button is-success" :disabled="submitLoading">
+                                    <span x-show="!submitLoading">Save</span>
+                                    <span x-show="submitLoading">Saving...</span>
+                                </button>
                             </div>
                             <div class="control">
-                                <button type="button" @click="toggleEdit()" class="button is-light">Cancel</button>
+                                <button type="button" @click="toggleEdit()" class="button is-light" :disabled="submitLoading">Cancel</button>
                             </div>
                         </div>
                     </form>

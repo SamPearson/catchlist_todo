@@ -9,6 +9,7 @@ document.addEventListener('alpine:init', () => {
         showAddCheckin: false,
         newCheckin: { timestamp: '', notes: '' },
         errors: {},
+        submitLoading: false,
 
         formatLocalDateTime(date) {
             const year = date.getFullYear();
@@ -21,7 +22,6 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             this.formData = {
-                title: this.session.title || '',
                 start_time: this.session.start_time
                     ? this.formatLocalDateTime(new Date(this.session.start_time))
                     : '',
@@ -33,6 +33,9 @@ document.addEventListener('alpine:init', () => {
                 rpe: this.session.rpe || '',
                 routine_name: this.session.routine_name || ''
             };
+
+            // Store original status to detect changes
+            this.originalStatus = this.session.status;
 
             this.formatDate = (datetime) => {
                 if (!datetime) return '';
@@ -69,7 +72,7 @@ document.addEventListener('alpine:init', () => {
 
             this.statusTagClass = () => {
                 const classes = 'tag is-medium';
-                switch (this.formData.status) {
+                switch (this.session.status) {
                     case 'scheduled': return `${classes} is-info`;
                     case 'completed': return `${classes} is-success`;
                     case 'skipped': return `${classes} is-warning`;
@@ -79,9 +82,11 @@ document.addEventListener('alpine:init', () => {
             };
         },
 
-
         toggleEdit() {
             this.mode = this.mode === 'view' ? 'edit' : 'view';
+            if (this.mode === 'edit') {
+                this.errors = {};
+            }
         },
 
         toggleExpand() {
@@ -106,18 +111,66 @@ document.addEventListener('alpine:init', () => {
             console.log('Checkin removed, remaining:', this.checkins);
         },
 
-        submitForm() {
+        async submitForm() {
             this.errors = {};
-            const requiredFields = ['title', 'start_time', 'end_time'];
+            const requiredFields = ['start_time', 'end_time'];
+            
+            // Validate required fields
             requiredFields.forEach(field => {
                 if (!this.formData[field]) {
                     this.errors[field] = 'This field is required';
                 }
             });
 
-            if (Object.keys(this.errors).length === 0) {
-                console.log('Session updated:', this.formData);
+            if (Object.keys(this.errors).length > 0) {
+                return;
+            }
+
+            this.submitLoading = true;
+            try {
+                // Prepare patchable fields (only what the API accepts)
+                const updateData = {
+                    start_time: this.formData.start_time,
+                    end_time: this.formData.end_time,
+                    notes: this.formData.notes,
+                    rpe: this.formData.rpe ? parseInt(this.formData.rpe) : null
+                };
+
+                // Update session via PATCH
+                const updatedSession = await api.patch(
+                    `/api/sessions/${this.session.id}`,
+                    updateData
+                );
+
+                if (!updatedSession) {
+                    this.errors.submit = 'Failed to update session';
+                    return;
+                }
+
+                // Update local session object with response
+                this.session = updatedSession;
+
+                // Handle status change if it occurred
+                if (this.formData.status !== this.originalStatus) {
+                    const statusUpdate = await api.patch(
+                        `/api/sessions/${this.session.id}/status`,
+                        { status: this.formData.status }
+                    );
+
+                    if (statusUpdate) {
+                        this.session = statusUpdate;
+                        this.originalStatus = this.formData.status;
+                    }
+                }
+
+                // Switch back to view mode
                 this.mode = 'view';
+
+            } catch (err) {
+                console.error('Error updating session:', err);
+                this.errors.submit = err.message || 'Error saving session';
+            } finally {
+                this.submitLoading = false;
             }
         },
 
