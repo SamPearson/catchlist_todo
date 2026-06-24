@@ -4,10 +4,11 @@ document.addEventListener('alpine:init', () => {
         expanded: false,
         showDeleteModal: false,
         session: session,
-        checkins: session.checkins || [],
+        checkins: [],
         checkinsExpanded: false,
         showAddCheckin: false,
-        newCheckin: { timestamp: '', notes: '' },
+        checkinsLoading: false,
+        newCheckin: { notes: '' },
         errors: {},
         submitLoading: false,
 
@@ -80,6 +81,26 @@ document.addEventListener('alpine:init', () => {
                     default: return classes;
                 }
             };
+
+            // Load checkins on init
+            this.loadCheckins();
+        },
+
+        async loadCheckins() {
+            this.checkinsLoading = true;
+            try {
+                const checkins = await api.get('/api/checkins', {
+                    target_type: 'session',
+                    target_id: this.session.id
+                });
+
+                this.checkins = checkins || [];
+            } catch (err) {
+                console.error('Error loading checkins:', err);
+                this.checkins = [];
+            } finally {
+                this.checkinsLoading = false;
+            }
         },
 
         toggleEdit() {
@@ -97,24 +118,58 @@ document.addEventListener('alpine:init', () => {
             this.checkinsExpanded = !this.checkinsExpanded;
         },
 
-        addCheckin() {
-            const timestamp = new Date().toISOString();
-            if (!this.newCheckin.notes && !timestamp) return;
-            this.checkins.push({ timestamp, notes: this.newCheckin.notes });
-            this.newCheckin = { timestamp: '', notes: '' };
-            this.showAddCheckin = false;
-            console.log('Checkin added:', this.checkins);
+        async addCheckin() {
+            // Validate note is not empty
+            if (!this.newCheckin.notes || !this.newCheckin.notes.trim()) {
+                alert('Checkin note cannot be empty');
+                return;
+            }
+
+            try {
+                const checkinData = {
+                    target_type: 'session',
+                    target_id: this.session.id,
+                    note: this.newCheckin.notes.trim(),
+                    occurred_at: new Date().toISOString()
+                };
+
+                const createdCheckin = await api.post('/api/checkins', checkinData);
+
+                if (createdCheckin) {
+                    this.checkins.unshift(createdCheckin); // Add to front (most recent first)
+                    this.newCheckin = { notes: '' };
+                    this.showAddCheckin = false;
+                    console.log('Checkin added:', createdCheckin);
+                }
+            } catch (err) {
+                console.error('Error adding checkin:', err);
+                alert('Error saving checkin: ' + err.message);
+            }
         },
 
-        removeCheckin(index) {
-            this.checkins.splice(index, 1);
-            console.log('Checkin removed, remaining:', this.checkins);
+        async removeCheckin(index) {
+            const checkin = this.checkins[index];
+            if (!checkin) return;
+
+            // Confirm deletion
+            if (!confirm('Are you sure you want to delete this checkin?')) {
+                return;
+            }
+
+            try {
+                await api.delete(`/api/checkins/${checkin.id}`);
+                this.checkins.splice(index, 1);
+                console.log('Checkin removed');
+            } catch (err) {
+                console.error('Error deleting checkin:', err);
+                alert('Error deleting checkin: ' + err.message);
+            }
         },
 
         async submitForm() {
             this.errors = {};
             const requiredFields = ['start_time', 'end_time'];
-            
+
             // Validate required fields
             requiredFields.forEach(field => {
                 if (!this.formData[field]) {
