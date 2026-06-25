@@ -24,7 +24,6 @@ def index():
     sessions = api_client.get('/api/sessions', token=token, params={'start': start, 'end': end}) or []
 
     # Sort most-recently-created first
-    # Sorting here keeps the logic in one place and makes it easy to swap out
-    sessions.sort(key=lambda t: t.get('created_at', ''), reverse=True)
+    sessions.sort(key=lambda t: t.get('start_time', ''))
 
     return render_template('pages/sessions/session_page.html', sessions=sessions)
