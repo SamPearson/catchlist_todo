@@ -91,50 +91,46 @@
         {# ------------------------------------------------------------------ #}
         {# PLANNING FIELDS                                                     #}
         {# ------------------------------------------------------------------ #}
-        <div class="mb-5">
-            <h3 class="title is-6 has-text-grey-dark mb-3">Planning</h3>
+        {# Plan #}
+        <div class="mb-3">
+            <p class="heading mb-1">Plan</p>
+            <template x-if="!editing">
+                <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                    <p x-show="report.plan" x-text="report.plan" class="mb-0 mt-0" style="white-space: pre-line;"></p>
+                    <p x-show="!report.plan" class="has-text-grey is-italic mb-0">No plan recorded.</p>
+                </div>
+            </template>
+            <template x-if="editing">
+                <textarea class="textarea" rows="3" placeholder="What do you intend to accomplish?" x-model="draft.plan"></textarea>
+            </template>
+        </div>
 
-            {# Plan #}
-            <div class="mb-3">
-                <p class="heading mb-1">Plan</p>
-                <template x-if="!editing">
-                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
-                        <p x-show="report.plan" x-text="report.plan" class="content mb-0"></p>
-                        <p x-show="!report.plan" class="has-text-grey is-italic mb-0">No plan recorded.</p>
-                    </div>
-                </template>
-                <template x-if="editing">
-                    <textarea class="textarea" rows="3" placeholder="What do you intend to accomplish?" x-model="draft.plan"></textarea>
-                </template>
-            </div>
+        {# Reason #}
+        <div class="mb-3">
+            <p class="heading mb-1">Reason</p>
+            <template x-if="!editing">
+                <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                    <p x-show="report.reason" x-text="report.reason" class="mb-0 mt-0" style="white-space: pre-line;"></p>
+                    <p x-show="!report.reason" class="has-text-grey is-italic mb-0">No reason recorded.</p>
+                </div>
+            </template>
+            <template x-if="editing">
+                <textarea class="textarea" rows="3" placeholder="Why does this timeframe matter?" x-model="draft.reason"></textarea>
+            </template>
+        </div>
 
-            {# Reason #}
-            <div class="mb-3">
-                <p class="heading mb-1">Reason</p>
-                <template x-if="!editing">
-                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
-                        <p x-show="report.reason" x-text="report.reason" class="content mb-0"></p>
-                        <p x-show="!report.reason" class="has-text-grey is-italic mb-0">No reason recorded.</p>
-                    </div>
-                </template>
-                <template x-if="editing">
-                    <textarea class="textarea" rows="3" placeholder="Why does this timeframe matter?" x-model="draft.reason"></textarea>
-                </template>
-            </div>
-
-            {# Pre-notes #}
-            <div class="mb-3">
-                <p class="heading mb-1">Pre-Notes</p>
-                <template x-if="!editing">
-                    <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
-                        <p x-show="report.pre_notes" x-text="report.pre_notes" class="content mb-0"></p>
-                        <p x-show="!report.pre_notes" class="has-text-grey is-italic mb-0">No pre-notes recorded.</p>
-                    </div>
-                </template>
-                <template x-if="editing">
-                    <textarea class="textarea" rows="3" placeholder="Thoughts and intentions before the timeframe begins..." x-model="draft.pre_notes"></textarea>
-                </template>
-            </div>
+        {# Pre-notes #}
+        <div class="mb-3">
+            <p class="heading mb-1">Pre-Notes</p>
+            <template x-if="!editing">
+                <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
+                    <p x-show="report.pre_notes" x-text="report.pre_notes" class="mb-0 mt-0" style="white-space: pre-line;"></p>
+                    <p x-show="!report.pre_notes" class="has-text-grey is-italic mb-0">No pre-notes recorded.</p>
+                </div>
+            </template>
+            <template x-if="editing">
+                <textarea class="textarea" rows="3" placeholder="Thoughts and intentions before the timeframe begins..." x-model="draft.pre_notes"></textarea>
+            </template>
         </div>
 
         {# ------------------------------------------------------------------ #}
@@ -231,8 +227,7 @@
                 <p class="heading mb-1">Post-Notes</p>
                 <template x-if="!editing">
                     <div class="px-3 py-2 has-background-white-ter" style="border-left: 3px solid #dbdbdb; border-radius: 2px;">
-                        <p x-show="report.post_notes" x-text="report.post_notes" class="content mb-0"></p>
-                        <p x-show="!report.post_notes" class="has-text-grey is-italic mb-0">No reflection recorded yet.</p>
+                    <p x-show="report.post_notes" x-text="report.post_notes" class="content mb-0" style="white-space: pre-wrap;"></p>                        <p x-show="!report.post_notes" class="has-text-grey is-italic mb-0">No reflection recorded yet.</p>
                     </div>
                 </template>
                 <template x-if="editing">
