@@ -79,6 +79,31 @@ def from_utc(dt: datetime, to_timezone: str) -> datetime:
         return dt_with_tz
 
 
+def convert_time_between_timezones(time_str: str, from_tz: str, to_tz: str) -> str:
+    """
+    Convert a time-of-day string from one timezone to another.
+
+    Args:
+        time_str: Time in HH:MM format
+        from_tz: Source timezone (e.g., 'America/Chicago')
+        to_tz: Target timezone (e.g., 'America/New_York')
+
+    Returns:
+        Time in HH:MM format in the target timezone
+    """
+    # Parse time
+    hours, minutes = map(int, time_str.split(':'))
+
+    # Create datetime in source timezone using today's date
+    today = date.today()
+    dt_source = datetime(today.year, today.month, today.day, hours, minutes, tzinfo=ZoneInfo(from_tz))
+
+    # Convert to target timezone
+    dt_target = dt_source.astimezone(ZoneInfo(to_tz))
+
+    return dt_target.strftime("%H:%M")
+
+
 def validate_timezone(tz: str) -> Optional[str]:
     """
     Validate a timezone string.
