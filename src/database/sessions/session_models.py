@@ -14,7 +14,8 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
     routine_id = Column(Integer, ForeignKey('routines.id'), nullable=False)
     routine_name = Column(String(255), nullable=True)
 
-    # Timing (stored in UTC)
+    # Timing (stored as UTC datetimes)
+    timezone = Column(String(50), default='UTC')  # IANA timezone for this session
     start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=False)
 
@@ -45,6 +46,7 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
             'routine_name': self.routine_name,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
+            'timezone': self.timezone,
             'status': self.status,
             'notes': self.notes,
             'rpe': self.rpe,

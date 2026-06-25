@@ -20,6 +20,7 @@ class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
     rrule = Column(String(200))  # iCalendar recurrence rule
     start_time = Column(Time, nullable=True)  # Time of day when the routine starts
     end_time = Column(Time, nullable=True)    # Time of day when the routine ends
+    timezone = Column(String(50), default='UTC')  # IANA timezone for this routine
     active = Column(Boolean, default=True)
 
     # External Integration Metadata
@@ -63,6 +64,7 @@ class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
             "rrule": self.rrule,
             "start_time": self.start_time.strftime('%H:%M') if self.start_time else None,
             "end_time": self.end_time.strftime('%H:%M') if self.end_time else None,
+            "timezone": self.timezone,
             "active": self.active,
             "external_uid": self.external_uid,
             "external_source": self.external_source,
