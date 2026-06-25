@@ -5,6 +5,8 @@ from src.database.calendars.calendar_service import CalendarService
 from src.api.utils.caldav_client import CalDAVClient, CalDAVConnectionError
 from src.database.base.exceptions import ValidationError
 import re
+from src.utils.timezone import get_user_timezone
+
 
 @jwt_required()
 def list_calendars():
@@ -70,10 +72,13 @@ def sync_calendar():
     if not password:
         return jsonify({"error": "password is required"}), 400
 
+    # Get user timezone for conversion
+    user_timezone = get_user_timezone(user_id)
+
     client = CalDAVClient(url, username, password)
     service = CalendarService(db.session)
     try:
-        result = service.sync_calendar(user_id, remote_uid, client)
+        result = service.sync_calendar(user_id, remote_uid, client, user_timezone)
         return jsonify(result)
     except CalDAVConnectionError as e:
         return jsonify({"error": str(e)}), 401
@@ -98,38 +103,41 @@ def get_calendar(calendar_id):
 def create_calendar():
     user_id = int(get_jwt_identity())
     data = request.get_json()
-    
+
     # Validate request body exists
     if not data:
         return jsonify({"error": "Request body is required"}), 400
-    
+
     # Validate name field
     if 'name' not in data:
         return jsonify({"error": "Calendar name is required"}), 400
-    
+
     name = data.get('name', '').strip()
-    
+
     # Validate name is not empty or whitespace-only
     if not name:
         return jsonify({"error": "Calendar name cannot be empty"}), 400
-    
+
     # Validate name length
     if len(name) > 200:
         return jsonify({"error": "Calendar name cannot exceed 200 characters"}), 400
-    
+
     # Validate color format if provided
     if 'color' in data:
         color = data.get('color', '')
         if not re.match(r'^#[0-9A-Fa-f]{6}$', color):
             return jsonify({"error": "Color must be in hex format (#RRGGBB)"}), 400
-    
+
+    # Get timezone: use provided timezone or default to user's timezone
+    user_timezone = get_user_timezone(user_id)
+    timezone = data.get('timezone', user_timezone)
+
     service = CalendarService(db.session)
     try:
-        cal = service.create_calendar(user_id, data)
+        cal = service.create_calendar(user_id, data, timezone)
         return jsonify(cal.as_dict()), 201
     except ValidationError as e:
         return jsonify({"error": e.message}), 400
-
 
 
 @jwt_required()

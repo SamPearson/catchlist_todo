@@ -21,12 +21,18 @@ class CalendarService:
         calendars = client.get_calendars()
         return [{"name": c.name, "uid": c.uid, "url": c.url, "color": c.color} for c in calendars]
 
-    def sync_calendar(self, user_id: int, remote_uid: str, client: CalDAVClient) -> Dict:
+    def sync_calendar(self, user_id: int, remote_uid: str, client: CalDAVClient, user_timezone: str) -> Dict:
         """
         Sync a single remote calendar:
         1. Ensure local Calendar record exists.
         2. Fetch remote events.
         3. Create/Update Routines (preventing duplicates).
+        
+        Args:
+            user_id: ID of the user
+            remote_uid: UID of the remote calendar
+            client: CalDAV client instance
+            user_timezone: User's IANA timezone string (e.g., 'America/Chicago')
         """
         if not client.connect():
             raise ValidationError("Failed to connect to CalDAV server.")
@@ -47,9 +53,14 @@ class CalendarService:
                 user_id=user_id,
                 name=remote_info.name,
                 color=remote_info.color,
+                timezone=user_timezone,
                 external_uid=remote_info.uid,
                 external_source='caldav'
             )
+        else:
+            # Update timezone if calendar already exists
+            local_cal.timezone = user_timezone
+            self.session.commit()
 
         # 3. Sync events as Routines
         events = client.get_events(remote_info.url)
@@ -65,7 +76,7 @@ class CalendarService:
             if hasattr(event.start, 'weekday'):
                 weekday = event.start.weekday()
                 weekday_names = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-                
+            
                 # If RRULE is weekly but doesn't specify BYDAY, add it
                 if 'FREQ=WEEKLY' in event.rrule and 'BYDAY' not in event.rrule:
                     event.rrule = f"{event.rrule};BYDAY={weekday_names[weekday]}"
@@ -80,7 +91,7 @@ class CalendarService:
             ).first()
 
             if not existing:
-                # Extract time components from the event's start/end times
+                # Extract time components from the event's start/end times (store as-is, no conversion)
                 start_time = event.start.time()
                 end_time = event.end.time() if event.end else None
 
@@ -90,6 +101,7 @@ class CalendarService:
                     "rrule": event.rrule,
                     "start_time": start_time.strftime('%H:%M'),
                     "end_time": end_time.strftime('%H:%M') if end_time else None,
+                    "timezone": user_timezone,
                     "calendar_id": local_cal.id,
                     "external_uid": event.uid,
                     "external_source": 'caldav'
@@ -98,15 +110,22 @@ class CalendarService:
 
         return {"calendar_id": local_cal.id, "created_routines": created_count}
 
-    def create_calendar(self, user_id: int, data: Dict[str, Any]) -> Calendar:
-        """Manually create a local calendar record"""
+    def create_calendar(self, user_id: int, data: Dict[str, Any], timezone: str = 'UTC') -> Calendar:
+        """Manually create a local calendar record
+        
+        Args:
+            user_id: ID of the user
+            data: Dictionary containing 'name' and optional 'color'
+            timezone: IANA timezone string (defaults to 'UTC')
+        """
         if not data.get('name'):
             raise ValidationError("Calendar name is required.")
-            
+        
         return self.repo.create(
             user_id=user_id,
             name=data['name'],
-            color=data.get('color', '#767676')
+            color=data.get('color', '#767676'),
+            timezone=timezone
         )
 
     def list_calendars(self, user_id: int, include_inactive: bool = False) -> List[Calendar]:

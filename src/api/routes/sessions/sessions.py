@@ -3,30 +3,8 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.sessions.session_service import SessionService, SessionValidationError
-from src.utils.timezone import parse_dt, to_utc, from_utc, format_for_local_datetime_input
-from src.database.users.user_models import User
-
-
-def get_user_timezone(user_id):
-    """Get the user's timezone or return UTC as default"""
-    user = User.query.get(user_id)
-    return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
-
-
-def format_session_for_response(session_dict: dict, user_timezone: str) -> dict:
-    """
-    Convert session timestamps from UTC to user's local timezone.
-    Formats times without timezone offset for datetime-local inputs.
-    """
-    session_dict['start_time'] = format_for_local_datetime_input(
-        parse_dt(session_dict['start_time']),
-        user_timezone
-    )
-    session_dict['end_time'] = format_for_local_datetime_input(
-        parse_dt(session_dict['end_time']),
-        user_timezone
-    )
-    return session_dict
+from src.database.sessions.session_presenter import SessionPresenter
+from src.utils.timezone import parse_dt, to_utc, from_utc, get_user_timezone
 
 
 @jwt_required()
@@ -56,8 +34,14 @@ def list_sessions():
     try:
         # Get user timezone and convert input dates to UTC
         user_timezone = get_user_timezone(user_id)
-        start = to_utc(parse_dt(start_str, user_timezone), user_timezone)
-        end = to_utc(parse_dt(end_str, user_timezone), user_timezone)
+
+        # Parse as naive datetimes (frontend sends datetime-local format with no tz info)
+        start_naive = parse_dt(start_str)  # No timezone arg - returns naive
+        end_naive = parse_dt(end_str)      # No timezone arg - returns naive
+
+        # Convert from user timezone to UTC
+        start = to_utc(start_naive, user_timezone)
+        end = to_utc(end_naive, user_timezone)
 
         # Get filtered sessions
         items = service.list_sessions_for_window_filtered(
@@ -70,11 +54,8 @@ def list_sessions():
             routine_id=routine_id
         )
 
-        # Convert sessions to dicts and format times
-        session_dicts = [
-            format_session_for_response(session.as_dict(), user_timezone)
-            for session in items
-        ]
+        # Present sessions with times converted to user timezone
+        session_dicts = SessionPresenter.present_list_for_user(items, user_timezone)
 
         return jsonify(session_dicts)
     except ValueError as e:
@@ -93,10 +74,9 @@ def get_session(session_id: int):
     if not session_obj:
         return '', 404
 
-    # Convert UTC times to user timezone
+    # Get user timezone and present session
     user_timezone = get_user_timezone(user_id)
-    session_dict = session_obj.as_dict()
-    session_dict = format_session_for_response(session_dict, user_timezone)
+    session_dict = SessionPresenter.present_for_user(session_obj, user_timezone)
 
     return jsonify(session_dict)
 
@@ -127,9 +107,8 @@ def create_session(routine_id: int):
             inherit_principles=inherit_principles
         )
 
-        # Convert response times back to user timezone
-        session_dict = session_obj.as_dict()
-        session_dict = format_session_for_response(session_dict, user_timezone)
+        # Present session with times converted to user timezone
+        session_dict = SessionPresenter.present_for_user(session_obj, user_timezone)
 
         return jsonify(session_dict), 201
     except (SessionValidationError, ValueError) as e:
@@ -147,16 +126,16 @@ def update_session(session_id: int):
         return jsonify({'error': 'No update data provided'}), 400
 
     # Check for disallowed fields
-    disallowed_fields = {'status', 'routine_id', 'user_id', 'id', 'created_at', 'updated_at'}
+    disallowed_fields = {'status', 'routine_id', 'user_id', 'id', 'created_at', 'updated_at', 'timezone'}
     if any(field in data for field in disallowed_fields):
         if 'status' in data:
             return jsonify({
                 'error': 'Cannot update status via this endpoint. Use PATCH /api/sessions/{id}/status instead. '
-                         'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
+                         'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at, timezone).'
             }), 400
         else:
             return jsonify({
-                'error': 'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at).'
+                'error': 'Cannot update read-only fields (id, user_id, routine_id, created_at, updated_at, timezone).'
             }), 400
 
     try:
@@ -173,9 +152,8 @@ def update_session(session_id: int):
         if not updated:
             return '', 404
 
-        # Convert response times back to user timezone
-        session_dict = updated.as_dict()
-        session_dict = format_session_for_response(session_dict, user_timezone)
+        # Present session with times converted to user timezone
+        session_dict = SessionPresenter.present_for_user(updated, user_timezone)
 
         return jsonify(session_dict)
     except (SessionValidationError, ValueError) as e:
@@ -200,10 +178,9 @@ def set_session_status(session_id: int):
         if not session_obj:
             return '', 404
 
-        # Convert UTC times to user timezone
+        # Get user timezone and present session
         user_timezone = get_user_timezone(user_id)
-        session_dict = session_obj.as_dict()
-        session_dict = format_session_for_response(session_dict, user_timezone)
+        session_dict = SessionPresenter.present_for_user(session_obj, user_timezone)
 
         return jsonify(session_dict)
     except SessionValidationError as e:

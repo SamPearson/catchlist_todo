@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from database.routines.routine_presenter import RoutinePresenter
 from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.routines.routine_service import RoutineService, RoutineValidationError
@@ -15,6 +16,7 @@ from src.database.users.user_models import User
 
 # Import the timezone utilities
 from src.utils.timezone import parse_dt, to_utc, from_utc, localize_dict
+from src.utils.timezone import get_user_timezone
 
 
 def get_user_timezone(user_id):
@@ -30,16 +32,9 @@ def list_routines():
     service = RoutineService(db.session)
     items = service.list_routines(user_id, active_only=active_only)
 
-    # Get user timezone
+    # Get user timezone and present routines
     user_timezone = get_user_timezone(user_id)
-
-    # Convert routines to dicts and localize timestamps
-    routine_dicts = []
-    for routine in items:
-        routine_dict = routine.as_dict()
-        # Only datetime fields will be converted, time-of-day fields pass through
-        localized = localize_dict(routine_dict, user_timezone)
-        routine_dicts.append(localized)
+    routine_dicts = RoutinePresenter.present_list_for_user(items, user_timezone)
 
     return jsonify(routine_dicts)
 
@@ -53,12 +48,11 @@ def get_routine(routine_id: int):
     if not routine:
         return jsonify({'error': f'Routine {routine_id} not found'}), 404
 
-    # Convert routine to dict and localize timestamps
-    routine_dict = routine.as_dict()
-    routine_timezone = routine_dict.get('timezone') or "UTC"
-    localized = localize_dict(routine_dict, routine_timezone)
+    # Get user timezone and present routine
+    user_timezone = get_user_timezone(user_id)
+    routine_dict = RoutinePresenter.present_for_user(routine, user_timezone)
 
-    return jsonify(localized)
+    return jsonify(routine_dict)
 
 
 @jwt_required()
@@ -72,16 +66,18 @@ def create_routine():
                                  "If this routine is connect to an external calendar, "
                                  "create it with the sync calendar endpoint instead."}), 400
 
-
     try:
+        # Get timezone: use provided timezone or default to user's timezone
+        user_timezone = get_user_timezone(user_id)
+        timezone = data.get('timezone', user_timezone)
+        data['timezone'] = timezone
+
         routine = service.create_routine(user_id, data)
 
-        # Get user timezone and localize the response
-        user_timezone = get_user_timezone(user_id)
-        routine_dict = routine.as_dict()
-        localized = localize_dict(routine_dict, user_timezone)
+        # Present routine for response
+        routine_dict = RoutinePresenter.present_for_user(routine, user_timezone)
 
-        return jsonify(localized), 201
+        return jsonify(routine_dict), 201
     except RoutineValidationError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -98,10 +94,10 @@ def update_routine(routine_id: int):
 
     # Check for disallowed fields
     disallowed_fields = {'id', 'user_id', 'created_at', 'updated_at', 'calendar_id', 'external_uid', 'external_source',
-                         'external_source_name'}
+                         'external_source_name', 'timezone'}
     if any(field in data for field in disallowed_fields):
         return jsonify({
-            'error': 'Cannot update read-only fields (id, user_id, created_at, updated_at, calendar_id, external_*). '
+            'error': 'Cannot update read-only fields (id, user_id, created_at, updated_at, calendar_id, external_*, timezone). '
                      'Use DELETE /api/routines/{id}/sessions/{future|past} to manage sessions.'
         }), 400
 
@@ -118,12 +114,11 @@ def update_routine(routine_id: int):
             cascade_past=cascade_past
         )
 
-        # Get user timezone and localize the response
+        # Get user timezone and present routine
         user_timezone = get_user_timezone(user_id)
-        routine_dict = updated.as_dict()
-        localized = localize_dict(routine_dict, user_timezone)
+        routine_dict = RoutinePresenter.present_for_user(updated, user_timezone)
 
-        return jsonify(localized)
+        return jsonify(routine_dict)
     except EntityNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except RoutineValidationError as e:

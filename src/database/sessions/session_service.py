@@ -130,6 +130,7 @@ class SessionService:
             routine_id=routine_id,
             start_time=data['start_time'],
             end_time=data['end_time'],
+            timezone=routine.timezone,  # Inherit timezone from routine
             status=data.get('status', 'scheduled'),
             notes=data.get('notes'),
             rpe=data.get('rpe')
@@ -302,6 +303,7 @@ class SessionService:
                     routine_id=routine_id,
                     start_time=session_start,
                     end_time=session_end,
+                    timezone=routine.timezone,  # Inherit timezone from routine
                     status='scheduled',
                     notes='Auto-generated from routine',
                     routine_name=routine.title

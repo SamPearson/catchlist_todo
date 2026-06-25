@@ -37,7 +37,7 @@ class RoutineService:
         return self.repo.list_for_user(user_id, **filters)
 
     def create_routine(self, user_id: int, data: Dict[str, Any]) -> Routine:
-        from ..calendars.calendar_service import CalendarService #importing here to avoid cicular import
+        from ..calendars.calendar_service import CalendarService  # importing here to avoid cicular import
         self.calendar_service = CalendarService(self.session)
 
         if not data.get('title'):
@@ -55,11 +55,10 @@ class RoutineService:
             except ValueError as e:
                 raise RoutineValidationError(f"Invalid rrule: {e}")
 
-
         # Convert time strings to time objects
         start_time = None
         end_time = None
-        
+
         if 'start_time' in data and data['start_time']:
             try:
                 # Accept HH:MM format
@@ -77,22 +76,22 @@ class RoutineService:
 
         calendar_id = data.get('calendar_id')
         if calendar_id and not self.calendar_service.get_calendar(calendar_id, user_id):
-            raise RoutineValidationError( f"Calendar {calendar_id} not found.")
+            raise RoutineValidationError(f"Calendar {calendar_id} not found.")
 
         return self.repo.create(
-            user_id = user_id,
-            title = data['title'],
-            description = data.get('description'),
-            rrule = data.get('rrule'),
-            start_time = start_time,
-            end_time = end_time,
-            active = data.get('active', True),
-            external_uid = data.get('external_uid'),
-            external_source = data.get('external_source'),
-            external_source_name = data.get('external_source_name'),
-            calendar_id = calendar_id
+            user_id=user_id,
+            title=data['title'],
+            description=data.get('description'),
+            rrule=data.get('rrule'),
+            start_time=start_time,
+            end_time=end_time,
+            timezone=data.get('timezone', 'UTC'),
+            active=data.get('active', True),
+            external_uid=data.get('external_uid'),
+            external_source=data.get('external_source'),
+            external_source_name=data.get('external_source_name'),
+            calendar_id=calendar_id
         )
-
 
     def get_future_sessions(self, routine_id: int, user_id: int,
                             reference_time: Optional[datetime] = None) -> List[RoutineSession]:
