@@ -8,6 +8,14 @@ from datetime import datetime, time, date, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 import logging
+from src.database.users.user_models import User
+
+
+
+def get_user_timezone(user_id):
+    """Get the user's timezone or return UTC as default"""
+    user = User.query.get(user_id)
+    return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
 
 
 def to_utc(dt: datetime, from_timezone: str) -> datetime:
