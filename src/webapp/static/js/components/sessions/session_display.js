@@ -76,7 +76,7 @@ document.addEventListener('alpine:init', () => {
         async loadCheckins() {
             this.checkinsLoading = true;
             try {
-                const checkins = await api.get('/api/checkins', {
+                const checkins = await api.get('/api/checkins/target', {
                     target_type: 'session',
                     target_id: this.session.id
                 });
