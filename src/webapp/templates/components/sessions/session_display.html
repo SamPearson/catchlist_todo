@@ -10,12 +10,21 @@
              class="is-flex is-justify-content-space-between is-align-items-center has-text-weight-bold has-text-black px-4 py-3"
              :data-testid="`session-item-${session.id}-minimized`"
              :style="session.calendar_color ? `background-color: ${session.calendar_color}20; border-left: 4px solid ${session.calendar_color}` : ''"
-             style="cursor: pointer; border-bottom: 1px solid #dbdbdb; position: relative;">            <div class="is-flex is-align-items-center" style="flex: 1;">
+             style="cursor: pointer; border-bottom: 1px solid #dbdbdb; position: relative;">
+            <div class="is-flex is-align-items-center" style="flex: 1;">
                 <h3 class="title is-5 mb-0" x-text="session.title"></h3>
                 <span class="has-text-grey" x-show="session.routine_name">
                     &mdash; <span x-text="session.routine_name"></span>
                 </span>
             </div>
+
+            <!-- Centered Status Badge -->
+            <div style="position: absolute; left: 50%; transform: translateX(-50%);">
+                <span class="tag is-medium" :class="statusTagClass()">
+                    <span x-text="session.status"></span>
+                </span>
+            </div>
+
             <div class="is-flex is-align-items-center">
                 <span x-text="formatDate(session.start_time)"></span>
                 <span> | </span>
@@ -24,12 +33,6 @@
                 <span x-text="formatTime(session.end_time)"></span>
             </div>
 
-            <!-- Centered Status Badge -->
-            <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 50%; transform: translateY(-50%);">
-                <span class="tag is-medium" :class="statusTagClass()">
-                    <span x-text="session.status"></span>
-                </span>
-            </div>
         </div>
         <!-- Expanded State -->
         <div x-show="expanded" class="px-4 py-3" :data-testid="`session-item-${session.id}-expanded`"
