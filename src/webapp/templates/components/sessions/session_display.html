@@ -3,7 +3,7 @@
 {% macro session_display_card() %}
 <!-- View Mode: Display the session -->
 <template x-if="mode === 'view'">
-    <div class="box">
+    <div>
         <!-- Minimized State -->
         <div x-show="!expanded"
              @click="toggleExpand()"
@@ -34,28 +34,14 @@
         <!-- Expanded State -->
         <div x-show="expanded" class="px-4 py-3" :data-testid="`session-item-${session.id}-expanded`"
              style="border-bottom: 1px solid #dbdbdb;">
-            <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
-                <div class="is-flex is-align-items-center is-flex-wrap-wrap" style="gap: 0.5rem;">
-                    <h3 class="title is-5 mb-0" x-text="session.title"></h3>
-                    <span class="has-text-grey" x-show="session.routine_name">
-                        &mdash; <span x-text="session.routine_name"></span>
-                    </span>
-                    <span class="tag is-medium" :class="statusTagClass()">
-                        <span x-text="session.status"></span>
-                    </span>
-                    <span x-text="formatDate(session.start_time)"></span>
-                    <span> | </span>
-                    <span x-text="formatTime(session.start_time)"></span>
-                    <span> → </span>
-                    <span x-text="formatTime(session.end_time)"></span>
-                </div>
-                <button @click="toggleEdit()" class="button is-small is-info" :data-testid="`session-item-${session.id}-edit-button`">
-                    <span class="icon is-small">
-                        <i class="fas fa-edit"></i>
-                    </span>
-                    <span>Edit</span>
-                </button>
-            </div>
+<!--            <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">-->
+<!--                <button @click="toggleEdit()" class="button is-small is-info" :data-testid="`session-item-${session.id}-edit-button`">-->
+<!--                    <span class="icon is-small">-->
+<!--                        <i class="fas fa-edit"></i>-->
+<!--                    </span>-->
+<!--                    <span>Edit</span>-->
+<!--                </button>-->
+<!--            </div>-->
 
             <!-- Tags and Principles -->
             <div class="is-flex is-flex-wrap-wrap mb-3">
@@ -145,6 +131,12 @@
             <!-- Metadata Section -->
             <div class="is-flex is-justify-content-space-between">
                 <span>Created: <span x-text="formatDateTime(session.created_at)"></span></span>
+                <button @click="toggleEdit()" class="button is-small is-info" :data-testid="`session-item-${session.id}-edit-button`">
+                    <span class="icon is-small">
+                        <i class="fas fa-edit"></i>
+                    </span>
+                    <span>Edit</span>
+                </button>
                 <span>Updated: <span x-text="formatDateTime(session.updated_at)"></span></span>
             </div>
         </div>
