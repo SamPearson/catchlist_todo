@@ -117,23 +117,24 @@ function reportDisplay() {
             }
         },
 
-        // Commitment splitting
-        get taskCommitments() {
-            if (!this.report.commitments) return [];
-            const tasks = this.report.commitments
-                .filter(c => c.target_type === 'task')
-                .map(c => c.target);
-            console.log('[Display] taskCommitments:', tasks);
-            return tasks;
-        },
-
         get sessionCommitments() {
             if (!this.report.commitments) return [];
             const sessions = this.report.commitments
                 .filter(c => c.target_type === 'session')
-                .map(c => c.target);
+                .map(c => c.target)  // Returns the target if it exists, undefined otherwise
+                .filter(s => s !== undefined);  // Filter out undefined (thin commitments)
             console.log('[Display] sessionCommitments:', sessions);
             return sessions;
+        },
+
+        get taskCommitments() {
+            if (!this.report.commitments) return [];
+            const tasks = this.report.commitments
+                .filter(c => c.target_type === 'task')
+                .map(c => c.target)  // Returns the target if it exists, undefined otherwise
+                .filter(t => t !== undefined);  // Filter out undefined (thin commitments)
+            console.log('[Display] taskCommitments:', tasks);
+            return tasks;
         },
 
         // Windowed day stubs for week reports
