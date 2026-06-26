@@ -9,6 +9,7 @@ from src.database.base.exceptions import ValidationError, EntityNotFoundError
 from src.database.reports.report_models import Report
 from src.database.reports.report_repository import ReportRepo
 from src.database.timeframes.timeframe_service import TimeframeService
+from src.utils.timezone import get_user_timezone
 
 
 @dataclass(frozen=True)
@@ -125,55 +126,48 @@ class ReportService:
     def build_report_dict(
             self,
             report: Report,
-            *,
-            commitment_scope: str = 'window',
             full: bool = False,
+            commitment_scope: str = 'window',
+            include_targets: bool = False,
     ) -> dict:
         """
-        Build a complete report dictionary with dynamic data.
+        Build a complete report dictionary for API responses.
 
         Args:
-            report: The report instance
-            commitment_scope: How to query commitments:
-                - 'window': All commitments within this timeframe's time boundaries (default)
-                - 'direct': Only commitments directly to this timeframe
-                - 'none': Don't include commitments or stats in response
-            full: Whether to include full metadata (id, timestamps, etc.)
+            report: The Report instance
+            full: Include full metadata and timeframe
+            commitment_scope: How to fetch commitments ('window', 'direct', 'none')
+            include_targets: If True, include full target objects in commitments
 
         Returns:
-            Complete report dictionary
+            Dictionary representation of the report
         """
-        # Start with base report data
         data = report.as_dict_full() if full else report.as_dict()
 
-        # Add label and report_type from timeframe
+        # Always include report_type and label from the timeframe
         if report.timeframe:
-            data['label'] = report.timeframe.label
             data['report_type'] = report.timeframe.kind
+            data['label'] = report.timeframe.label
 
-        # If scope is 'none', skip all commitment querying
-        if commitment_scope == 'none':
-            return data
+        if commitment_scope != 'none':
+            commitments = self._get_commitments_for_report(
+                report,
+                scope=commitment_scope,
+                include_targets=include_targets,
+            )
+            user_tz = get_user_timezone(report.user_id)
+            data['commitments'] = [c.as_dict(user_timezone=user_tz) for c in commitments]
 
-        # Query commitments
-        commitments = self._get_commitments_for_report(
-            report=report,
-            scope=commitment_scope,
-        )
-
-        # Add commitments and stats to response
-        data['commitments'] = [
-            self._serialize_commitment(c) for c in commitments
-        ]
-        data['stats'] = self._compute_stats(commitments)
+            # Compute stats
+            data['stats'] = self._compute_stats(commitments)
 
         return data
-
 
     def _get_commitments_for_report(
             self,
             report: Report,
             scope: str = 'window',
+            include_targets: bool = False,
     ) -> list:
         """
         Get commitments for a report based on the specified scope.
@@ -182,9 +176,10 @@ class ReportService:
             report: The report instance
             scope: 'direct' for commitments to this exact timeframe,
                    'window' for all commitments within the timeframe's boundaries
+            include_targets: If True, eagerly load full target objects
 
         Returns:
-            List of commitments with targets eagerly loaded
+            List of commitments with targets eagerly loaded if requested
         """
         from src.database.commitments.commitment_service import CommitmentService
         commitment_service = CommitmentService(self.session)
@@ -194,34 +189,22 @@ class ReportService:
             return commitment_service.search(
                 user_id=report.user_id,
                 timeframe_id=report.timeframe_id,
-                include_targets=True,
+                include_targets=include_targets,
             )
         else:
             # All commitments within this timeframe's time window
-            # This includes both:
-            # 1. Soft commitments to nested timeframes (weeks within a month, etc.)
-            # 2. Hard commitments with due dates in this window
-
             if not report.timeframe:
                 return []
 
-            # Query using time boundaries
-            # For hard commitments: use due_after/due_before
-            # For soft commitments: we need to query by nested timeframe boundaries
-
-            # Get all timeframes that fall within this timeframe's window
             nested_timeframes = self._get_nested_timeframes(report.timeframe)
             nested_timeframe_ids = [tf.id for tf in nested_timeframes]
-            nested_timeframe_ids.append(report.timeframe_id)  # Include the target timeframe itself
+            nested_timeframe_ids.append(report.timeframe_id)
 
-            # Query commitments:
-            # - Soft commitments to any of these timeframes
-            # - Hard commitments with due dates in this window
             soft_commitments = commitment_service.search(
                 user_id=report.user_id,
                 timeframe_ids=nested_timeframe_ids,
                 is_hard=False,
-                include_targets=True,
+                include_targets=include_targets,
             )
 
             hard_commitments = commitment_service.search(
@@ -229,7 +212,7 @@ class ReportService:
                 is_hard=True,
                 due_after=report.timeframe.start_at_utc,
                 due_before=report.timeframe.end_at_utc,
-                include_targets=True,
+                include_targets=include_targets,
             )
 
             # Combine and deduplicate by ID
