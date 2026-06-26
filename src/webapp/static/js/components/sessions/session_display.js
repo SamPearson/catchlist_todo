@@ -11,63 +11,48 @@ document.addEventListener('alpine:init', () => {
         newCheckin: { timestamp: '', notes: '' },
         errors: {},
         submitLoading: false,
+        formData: {
+            start_time: session.start_time,
+            end_time: session.end_time,
+            status: session.status || '',
+            notes: session.notes || '',
+            rpe: session.rpe || '',
+            routine_name: session.routine_name || ''
+        },
+        originalStatus: session.status,
+
+        statusTagClass() {
+            const classes = 'tag is-medium';
+            switch (this.session.status) {
+                case 'scheduled': return `${classes} is-info`;
+                case 'completed': return `${classes} is-success`;
+                case 'skipped': return `${classes} is-warning`;
+                case 'cancelled': return `${classes} is-danger`;
+                default: return classes;
+            }
+        },
+
+        formatDate(datetime) {
+            if (!datetime) return '';
+            const date = new Date(datetime);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        },
+
+        formatTime(datetime) {
+            if (!datetime) return '';
+            const date = new Date(datetime);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        },
+
+        formatDateTime(datetime) {
+            if (!datetime) return '';
+            const date = new Date(datetime);
+            return date.toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
+        },
 
         init() {
-            this.formData = {
-                start_time: this.session.start_time,
-                end_time: this.session.end_time,
-                status: this.session.status || '',
-                notes: this.session.notes || '',
-                rpe: this.session.rpe || '',
-                routine_name: this.session.routine_name || ''
-            };
-
             // Store original status to detect changes
             this.originalStatus = this.session.status;
-
-            this.formatDate = (datetime) => {
-                if (!datetime) return '';
-                const date = new Date(datetime);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-            };
-
-            this.formatTime = (datetime) => {
-                if (!datetime) return '';
-                const date = new Date(datetime);
-                return date.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            };
-
-            this.formatDateTime = (datetime) => {
-                if (!datetime) return '';
-                const date = new Date(datetime);
-                return date.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            };
-
-            this.statusTagClass = () => {
-                const classes = 'tag is-medium';
-                switch (this.session.status) {
-                    case 'scheduled': return `${classes} is-info`;
-                    case 'completed': return `${classes} is-success`;
-                    case 'skipped': return `${classes} is-warning`;
-                    case 'cancelled': return `${classes} is-danger`;
-                    default: return classes;
-                }
-            };
 
             // Load checkins on init
             this.loadCheckins();
