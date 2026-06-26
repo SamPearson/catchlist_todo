@@ -27,7 +27,7 @@ class CalendarService:
         1. Ensure local Calendar record exists.
         2. Fetch remote events.
         3. Create/Update Routines (preventing duplicates).
-        
+
         Args:
             user_id: ID of the user
             remote_uid: UID of the remote calendar
@@ -71,12 +71,11 @@ class CalendarService:
             if not event.rrule:
                 continue
 
-
             # If event.start is a datetime, we can get the weekday
             if hasattr(event.start, 'weekday'):
                 weekday = event.start.weekday()
                 weekday_names = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-            
+
                 # If RRULE is weekly but doesn't specify BYDAY, add it
                 if 'FREQ=WEEKLY' in event.rrule and 'BYDAY' not in event.rrule:
                     event.rrule = f"{event.rrule};BYDAY={weekday_names[weekday]}"
@@ -103,6 +102,7 @@ class CalendarService:
                     "end_time": end_time.strftime('%H:%M') if end_time else None,
                     "timezone": user_timezone,
                     "calendar_id": local_cal.id,
+                    "calendar_color": local_cal.color,
                     "external_uid": event.uid,
                     "external_source": 'caldav'
                 })
@@ -173,7 +173,54 @@ class CalendarService:
         if 'name' in update_data and not update_data['name']:
             raise ValidationError("Calendar name cannot be empty.")
 
+        # If color is being updated, cascade the change to routines and sessions
+        if 'color' in update_data:
+            updated_calendar = self.repo.update(calendar, **update_data)
+            self.cascade_color_change(user_id, calendar_id, update_data['color'])
+            return updated_calendar
+
         return self.repo.update(calendar, **update_data)
+
+    def cascade_color_change(self, user_id: int, calendar_id: int, new_color: str) -> int:
+        """
+        Cascade a calendar color change to all associated routines and their sessions.
+
+        Args:
+            user_id: ID of the user who owns the calendar
+            calendar_id: ID of the calendar whose color changed
+            new_color: The new color value (hex format, e.g., '#1a73e8')
+
+        Returns:
+            Number of routines (and their sessions) updated
+        """
+        calendar = self.repo.get(calendar_id, user_id)
+        if not calendar:
+            return 0
+
+        routine_service = RoutineService(self.session)
+        updated_count = 0
+
+        # Update all routines associated with this calendar
+        for routine in calendar.routines:
+            # Update the routine's calendar_color
+            self.session.query(Routine).filter_by(id=routine.id).update(
+                {'calendar_color': new_color}
+            )
+
+            # Cascade color change to all sessions of this routine
+            routine_service._cascade_to_sessions(
+                routine_id=routine.id,
+                user_id=user_id,
+                update_data={'calendar_color': new_color},
+                scope='all',
+                cascade_fields={'calendar_color'}
+            )
+
+            updated_count += 1
+
+        self.session.commit()
+        logging.info(f"Cascaded color change to {updated_count} routines and their sessions for calendar {calendar_id}")
+        return updated_count
 
     def activate_calendar(self, user_id: int, calendar_id: int, cascade: bool = False) -> Optional[Calendar]:
         """

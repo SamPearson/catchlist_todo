@@ -75,8 +75,13 @@ class RoutineService:
                 raise RoutineValidationError("end_time must be in HH:MM format")
 
         calendar_id = data.get('calendar_id')
+        calendar_color = None
         if calendar_id and not self.calendar_service.get_calendar(calendar_id, user_id):
             raise RoutineValidationError(f"Calendar {calendar_id} not found.")
+        elif calendar_id:
+            # Inherit calendar_color from the associated calendar
+            calendar = self.calendar_service.get_calendar(calendar_id, user_id)
+            calendar_color = calendar.color if calendar else None
 
         return self.repo.create(
             user_id=user_id,
@@ -90,7 +95,8 @@ class RoutineService:
             external_uid=data.get('external_uid'),
             external_source=data.get('external_source'),
             external_source_name=data.get('external_source_name'),
-            calendar_id=calendar_id
+            calendar_id=calendar_id,
+            calendar_color=calendar_color
         )
 
     def get_future_sessions(self, routine_id: int, user_id: int,
@@ -298,7 +304,7 @@ class RoutineService:
             user_id: ID of the user
             update_data: Dictionary of fields being updated
             scope: 'future', 'past', or 'all'
-            cascade_fields: Set of field names to cascade (title, start_time, end_time)
+            cascade_fields: Set of field names to cascade (title, start_time, end_time, calendar_color)
 
         Returns:
             Number of sessions updated
@@ -338,13 +344,16 @@ class RoutineService:
                 new_end_datetime = datetime.combine(session.end_time.date(), new_time)
                 session_update_data['end_time'] = new_end_datetime
 
+            # For calendar_color: direct cascade
+            if 'calendar_color' in cascade_fields and 'calendar_color' in update_data:
+                session_update_data['calendar_color'] = update_data['calendar_color']
+
             if session_update_data:
                 self.session_repo.update(session, **session_update_data)
                 updated_count += 1
 
         logging.info(f"Cascaded updates to {updated_count} {scope} sessions for routine {routine_id}")
         return updated_count
-
 
     def delete_routine(self, routine_id: int, user_id: int) -> bool:
         """
