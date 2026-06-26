@@ -9,8 +9,8 @@
              @click="toggleExpand()"
              class="is-flex is-justify-content-space-between is-align-items-center has-text-weight-bold has-text-black px-4 py-3"
              :data-testid="`session-item-${session.id}-minimized`"
-             style="cursor: pointer; border-bottom: 1px solid #dbdbdb; position: relative;">
-            <div class="is-flex is-align-items-center" style="flex: 1;">
+             :style="session.calendar_color ? `background-color: ${session.calendar_color}20; border-left: 4px solid ${session.calendar_color}` : ''"
+             style="cursor: pointer; border-bottom: 1px solid #dbdbdb; position: relative;">            <div class="is-flex is-align-items-center" style="flex: 1;">
                 <h3 class="title is-5 mb-0" x-text="session.title"></h3>
                 <span class="has-text-grey" x-show="session.routine_name">
                     &mdash; <span x-text="session.routine_name"></span>
@@ -34,14 +34,6 @@
         <!-- Expanded State -->
         <div x-show="expanded" class="px-4 py-3" :data-testid="`session-item-${session.id}-expanded`"
              style="border-bottom: 1px solid #dbdbdb;">
-<!--            <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">-->
-<!--                <button @click="toggleEdit()" class="button is-small is-info" :data-testid="`session-item-${session.id}-edit-button`">-->
-<!--                    <span class="icon is-small">-->
-<!--                        <i class="fas fa-edit"></i>-->
-<!--                    </span>-->
-<!--                    <span>Edit</span>-->
-<!--                </button>-->
-<!--            </div>-->
 
             <!-- Tags and Principles -->
             <div class="is-flex is-flex-wrap-wrap mb-3">
