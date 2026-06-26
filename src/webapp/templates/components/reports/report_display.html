@@ -1,5 +1,5 @@
 {% from "components/tasks/task_card.html" import task_card %}
-{% from "components/sessions/session_display.html" import session_display %}
+{% from "components/sessions/session_list.html" import session_list %}
 
 
 {% macro report_display(report) %}
@@ -184,13 +184,8 @@
                 <template x-if="sessionCommitments.length > 0">
                     <div class="mb-4">
                         <p class="heading mb-2">Sessions</p>
-                        <div class="box p-0">
-                            <template x-for="commitment in sessionCommitments" :key="commitment.id">
-                                <div class="px-4 py-3">
-                                    <p x-text="commitment.routine_name"></p>
-                                    <p class="is-size-7 has-text-grey" x-text="`${commitment.start_time} - ${commitment.end_time}`"></p>
-                                </div>
-                            </template>
+                        <div x-data="sessionList(sessionCommitments)" @init="init()">
+                            {{ session_list() }}
                         </div>
                     </div>
                 </template>
