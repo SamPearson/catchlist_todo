@@ -30,6 +30,7 @@ class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
 
     # Optional connection to a Calendar entity
     calendar_id = Column(Integer, ForeignKey('calendars.id'), nullable=True)
+    calendar_color = Column(String(7), nullable=True)  # Hex color inherited from calendar (e.g., '#767676')
 
     # Relationships
     calendar = relationship("Calendar", back_populates="routines")
@@ -70,6 +71,7 @@ class Routine(UserOwnedModel, TaggableMixin, PrincipledMixin):
             "external_source": self.external_source,
             "external_source_name": self.external_source_name,
             "calendar_id": self.calendar_id,
+            "calendar_color": self.calendar_color,
             "tags": [tag.as_dict() for tag in self.tags],
             "principles": [p.as_dict() for p in self.principles]
         })

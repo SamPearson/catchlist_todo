@@ -13,6 +13,7 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
 
     routine_id = Column(Integer, ForeignKey('routines.id'), nullable=False)
     routine_name = Column(String(255), nullable=True)
+    calendar_color = Column(String(7), nullable=True)  # Hex color inherited from routine/calendar
 
     # Timing (stored as UTC datetimes)
     timezone = Column(String(50), default='UTC')  # IANA timezone for this session
@@ -50,6 +51,7 @@ class RoutineSession(UserOwnedModel, TaggableMixin, PrincipledMixin):
             'status': self.status,
             'notes': self.notes,
             'rpe': self.rpe,
+            'calendar_color': self.calendar_color,
             'duration_minutes': self.duration_minutes,
             'tags': [tag.as_dict() for tag in self.tags],
             'principles': [p.as_dict() for p in self.principles]
