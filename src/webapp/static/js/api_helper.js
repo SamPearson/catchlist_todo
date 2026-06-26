@@ -75,9 +75,16 @@ const api = {
     async get(endpoint, params = null) {
         const url = new URL(`${this.getBaseUrl()}${endpoint}`);
         if (params) {
-            Object.keys(params).forEach(key =>
-                url.searchParams.append(key, params[key])
-            );
+            Object.keys(params).forEach(key => {
+                const value = params[key];
+                if (Array.isArray(value)) {
+                    // For arrays, append each value separately for repeated params
+                    value.forEach(v => url.searchParams.append(key, v));
+                } else {
+                    // For non-arrays, append as single value
+                    url.searchParams.append(key, value);
+                }
+            });
         }
 
         const response = await fetch(url, {
@@ -87,7 +94,7 @@ const api = {
 
         return this.handleResponse(response);
     },
-
+    
     /**
      * Make POST request
      */
