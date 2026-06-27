@@ -32,16 +32,12 @@ def list_sessions():
 
     service = SessionService(db.session)
     try:
-        # Get user timezone and convert input dates to UTC
+        # Get user timezone
         user_timezone = get_user_timezone(user_id)
 
-        # Parse as naive datetimes (frontend sends datetime-local format with no tz info)
-        start_naive = parse_dt(start_str)  # No timezone arg - returns naive
-        end_naive = parse_dt(end_str)      # No timezone arg - returns naive
-
-        # Convert from user timezone to UTC
-        start = to_utc(start_naive, user_timezone)
-        end = to_utc(end_naive, user_timezone)
+        # Parse input times as user timezone
+        start = parse_dt(start_str)
+        end = parse_dt(end_str)
 
         # Get filtered sessions
         items = service.list_sessions_for_window_filtered(
@@ -93,11 +89,11 @@ def create_session(routine_id: int):
         inherit_tags = request.args.get('inherit_tags', 'true').lower() == 'true'
         inherit_principles = request.args.get('inherit_principles', 'true').lower() == 'true'
 
-        # Convert input times from user timezone to UTC
+        # Parse input times as user timezone (naive datetimes)
         if 'start_time' in data:
-            data['start_time'] = to_utc(parse_dt(data['start_time'], user_timezone), user_timezone)
+            data['start_time'] = parse_dt(data['start_time'])
         if 'end_time' in data:
-            data['end_time'] = to_utc(parse_dt(data['end_time'], user_timezone), user_timezone)
+            data['end_time'] = parse_dt(data['end_time'])
 
         session_obj = service.create_session(
             user_id,
@@ -141,11 +137,11 @@ def update_session(session_id: int):
     try:
         user_timezone = get_user_timezone(user_id)
 
-        # Convert input times from user timezone to UTC
+        # Parse input times as user timezone (naive datetimes)
         if 'start_time' in data:
-            data['start_time'] = to_utc(parse_dt(data['start_time'], user_timezone), user_timezone)
+            data['start_time'] = parse_dt(data['start_time'])
         if 'end_time' in data:
-            data['end_time'] = to_utc(parse_dt(data['end_time'], user_timezone), user_timezone)
+            data['end_time'] = parse_dt(data['end_time'])
 
         updated = service.update_session(session_id, user_id, data)
 
