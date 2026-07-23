@@ -34,8 +34,9 @@
     <div class="container">
         <h2 class="title is-4">Sessions</h2>
         <p class="has-text-grey">Below are sessions rendered with the session display component.</p>
-        {{ session_list() }}
-    </div>
+        <div x-data="sessionList(INITIAL_SESSIONS)" @init="init()">
+            {{ session_list() }}
+        </div>    </div>
 </section>
 {% endblock %}
 
