@@ -105,6 +105,9 @@ function reportDisplay() {
             console.log('[Display] syncReport called with:', newReport);
             this.report = { ...newReport };
             console.log('[Display] report updated to:', this.report);
+            window.dispatchEvent(new CustomEvent('sessions-updated', {
+                detail: { sessions: this.sessionCommitments }
+            }));
         },
 
         // Format ISO datetime string safely
