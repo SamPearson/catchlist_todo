@@ -1,4 +1,5 @@
 {% from "components/tasks/task_card.html" import task_card %}
+{% from "components/tasks/task_list.html" import task_list %}
 {% from "components/sessions/session_list.html" import session_list %}
 
 
@@ -194,13 +195,8 @@
                 <template x-if="taskCommitments.length > 0">
                     <div class="mb-4">
                         <p class="heading mb-2">Tasks</p>
-                        <div class="box p-0">
-                            <template x-for="commitment in taskCommitments" :key="commitment.id">
-                                <div class="px-4 py-3">
-                                    <p class="has-text-weight-semibold" x-text="commitment.title"></p>
-                                    <p class="is-size-7 has-text-grey" x-text="commitment.description"></p>
-                                </div>
-                            </template>
+                        <div x-data="taskList(taskCommitments)" @init="init()">
+                            {{ task_list() }}
                         </div>
                     </div>
                 </template>
