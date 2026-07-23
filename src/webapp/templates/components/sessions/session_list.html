@@ -2,7 +2,7 @@
 {% from "components/sessions/session_display.html" import session_display_card %}
 
 {% macro session_list() %}
-<div class="box p-0" x-data="sessionList(INITIAL_SESSIONS)" @init="init()" style="margin-bottom: 0; padding: 0;">
+<div class="box p-0" x-data="sessionList([])" @init="init()" style="margin-bottom: 0; padding: 0;">
     <template x-for="session in sessions" :key="session.id">
         <div x-data='sessionDisplay(session)' :data-testid="`session-item-${session.id}`">
             {{ session_display_card() }}
