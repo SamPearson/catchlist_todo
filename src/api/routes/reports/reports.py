@@ -27,33 +27,36 @@ def get_user_timezone(user_id):
 def get_report(report_id):
     """
     Get a specific report by ID
-    
+
     Query params:
     - full (optional): If true, returns full representation with metadata (default: false)
     - commitment_scope (optional): How to include commitments:
         - 'window': All commitments in timeframe boundaries (default)
         - 'direct': Only commitments to this exact timeframe
         - 'none': Don't include commitments or stats
+    - include_targets (optional): If true, includes full target objects in commitments (default: true for full=true)
     """
     user_id = int(get_jwt_identity())
     service = get_report_service()
     report = service.get_report(report_id, user_id)
-    
+
     if not report:
         return ('', 404)
-    
+
     # Parse query params
     full = request.args.get('full', 'false').lower() == 'true'
     commitment_scope = request.args.get('commitment_scope', 'window')
-    
+    include_targets = request.args.get('include_targets', 'true' if full else 'false').lower() == 'true'
+
     # Validate commitment_scope
     if commitment_scope not in ('window', 'direct', 'none'):
         return jsonify({'error': "commitment_scope must be 'window', 'direct', or 'none'"}), 400
-    
+
     return jsonify(service.build_report_dict(
         report,
         full=full,
         commitment_scope=commitment_scope,
+        include_targets=include_targets,
     ))
 
 
@@ -106,11 +109,11 @@ def list_reports():
 def get_or_create_for_date(kind, date):
     """
     Get or create a report for a specific date and timeframe kind.
-    
+
     URL params:
     - kind: day, week, month, season, year
     - date: ISO date string (YYYY-MM-DD)
-    
+
     Query params:
     - timezone (optional): User's timezone (e.g., "America/Chicago"). Defaults to user's stored timezone.
     - full (optional): If true, returns full representation with metadata (default: false)
@@ -118,7 +121,8 @@ def get_or_create_for_date(kind, date):
         - 'window': All commitments in timeframe boundaries (default)
         - 'direct': Only commitments to this exact timeframe
         - 'none': Don't include commitments or stats
-    
+    - include_targets (optional): If true, includes full target objects in commitments (default: true for full=true)
+
     Examples:
     - GET /api/reports/day/2026-01-17
     - GET /api/reports/day/2026-01-17?timezone=America/Chicago
@@ -127,23 +131,23 @@ def get_or_create_for_date(kind, date):
     - GET /api/reports/season/2026-03-15?commitment_scope=none
     """
     user_id = int(get_jwt_identity())
-    
+
     # Get timezone from query params or use user's default
     timezone = request.args.get('timezone')
     if not timezone:
         timezone = get_user_timezone(user_id)
-    
+
     # Parse date
     try:
         local_day = datetime.strptime(date, '%Y-%m-%d').date()
     except ValueError:
         return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
-    
+
     # Validate kind
     valid_kinds = ['day', 'week', 'month', 'season', 'year']
     if kind not in valid_kinds:
         return jsonify({'error': f'Invalid kind. Must be one of: {", ".join(valid_kinds)}'}), 400
-    
+
     # Compute timeframe bounds
     try:
         start_utc, end_utc, label = compute_timeframe_bounds(
@@ -153,7 +157,7 @@ def get_or_create_for_date(kind, date):
         )
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
-    
+
     # Get or create timeframe
     timeframe_service = get_timeframe_service()
     timeframe = timeframe_service.get_or_create_for_bounds(
@@ -163,28 +167,30 @@ def get_or_create_for_date(kind, date):
         end_utc=end_utc,
         label=label,
     )
-    
+
     # Get or create report
     report_service = get_report_service()
-    
+
     try:
         report = report_service.get_or_create_for_timeframe(
             user_id=user_id,
             timeframe_id=timeframe.id,
         )
-        
+
         # Parse query params
         full = request.args.get('full', 'false').lower() == 'true'
         commitment_scope = request.args.get('commitment_scope', 'window')
-        
+        include_targets = request.args.get('include_targets', 'true' if full else 'false').lower() == 'true'
+
         # Validate commitment_scope
         if commitment_scope not in ('window', 'direct', 'none'):
             return jsonify({'error': "commitment_scope must be 'window', 'direct', or 'none'"}), 400
-        
+
         return jsonify(report_service.build_report_dict(
             report,
             full=full,
             commitment_scope=commitment_scope,
+            include_targets=include_targets,
         ))
     except ReportValidationError as e:
         return jsonify({'error': e.message}), 400

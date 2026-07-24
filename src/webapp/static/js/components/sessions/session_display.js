@@ -4,73 +4,82 @@ document.addEventListener('alpine:init', () => {
         expanded: false,
         showDeleteModal: false,
         session: session,
-        checkins: session.checkins || [],
+        checkins: [],
         checkinsExpanded: false,
         showAddCheckin: false,
+        checkinsLoading: false,
         newCheckin: { timestamp: '', notes: '' },
+        errors: {},
+        submitLoading: false,
         formData: {
-            title: session.title || '',
-            start_time: session.start_time
-                ? new Date(session.start_time).toISOString().slice(0, 16)
-                : '',
-            end_time: session.end_time
-                ? new Date(session.end_time).toISOString().slice(0, 16)
-                : '',
+            start_time: session.start_time,
+            end_time: session.end_time,
             status: session.status || '',
             notes: session.notes || '',
             rpe: session.rpe || '',
             routine_name: session.routine_name || ''
         },
-        errors: {},
+        originalStatus: session.status,
+
+        statusTagClass() {
+            const classes = 'tag is-medium';
+            switch (this.session.status) {
+                case 'scheduled': return `${classes} is-info`;
+                case 'completed': return `${classes} is-success`;
+                case 'skipped': return `${classes} is-warning`;
+                case 'cancelled': return `${classes} is-danger`;
+                default: return classes;
+            }
+        },
+
+        formatDate(datetime) {
+            if (!datetime) return '';
+            const date = new Date(datetime);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        },
+
+        formatTime(datetime) {
+            if (!datetime) return '';
+            const date = new Date(datetime);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        },
+
+        formatDateTime(datetime) {
+            if (!datetime) return '';
+            const date = new Date(datetime);
+            return date.toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
+        },
 
         init() {
-            this.formatDate = (datetime) => {
-                if (!datetime) return '';
-                const date = new Date(datetime);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-            };
+            // Store original status to detect changes
+            this.originalStatus = this.session.status;
 
-            this.formatTime = (datetime) => {
-                if (!datetime) return '';
-                const date = new Date(datetime);
-                return date.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            };
+            // Load checkins on init
+            this.loadCheckins();
+        },
 
-            this.formatDateTime = (datetime) => {
-                if (!datetime) return '';
-                const date = new Date(datetime);
-                return date.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: true
+        async loadCheckins() {
+            this.checkinsLoading = true;
+            try {
+                const checkins = await api.get('/api/checkins/target', {
+                    target_type: 'session',
+                    target_id: this.session.id
                 });
-            };
 
-            this.statusTagClass = () => {
-                const classes = 'tag is-medium';
-                switch (this.formData.status) {
-                    case 'scheduled': return `${classes} is-info`;
-                    case 'completed': return `${classes} is-success`;
-                    case 'skipped': return `${classes} is-warning`;
-                    case 'cancelled': return `${classes} is-danger`;
-                    default: return classes;
-                }
-            };
+                this.checkins = checkins || [];
+            } catch (err) {
+                console.error('Error loading checkins:', err);
+                this.checkins = [];
+            } finally {
+                this.checkinsLoading = false;
+            }
         },
 
         toggleEdit() {
             this.mode = this.mode === 'view' ? 'edit' : 'view';
+            if (this.mode === 'edit') {
+                this.errors = {};
+            }
         },
 
         toggleExpand() {
@@ -81,32 +90,114 @@ document.addEventListener('alpine:init', () => {
             this.checkinsExpanded = !this.checkinsExpanded;
         },
 
-        addCheckin() {
-            const timestamp = new Date().toISOString();
-            if (!this.newCheckin.notes && !timestamp) return;
-            this.checkins.push({ timestamp, notes: this.newCheckin.notes });
-            this.newCheckin = { timestamp: '', notes: '' };
-            this.showAddCheckin = false;
-            console.log('Checkin added:', this.checkins);
+        async addCheckin() {
+            // Validate note is not empty
+            if (!this.newCheckin.notes || !this.newCheckin.notes.trim()) {
+                alert('Checkin note cannot be empty');
+                return;
+            }
+
+            try {
+                const checkinData = {
+                    target_type: 'session',
+                    target_id: this.session.id,
+                    note: this.newCheckin.notes.trim(),
+                    occurred_at: new Date().toISOString()
+                };
+
+                const createdCheckin = await api.post('/api/checkins', checkinData);
+
+                if (createdCheckin) {
+                    this.checkins.unshift(createdCheckin); // Add to front (most recent first)
+                    this.newCheckin = { notes: '' };
+                    this.showAddCheckin = false;
+                    console.log('Checkin added:', createdCheckin);
+                }
+            } catch (err) {
+                console.error('Error adding checkin:', err);
+                alert('Error saving checkin: ' + err.message);
+            }
         },
 
-        removeCheckin(index) {
-            this.checkins.splice(index, 1);
-            console.log('Checkin removed, remaining:', this.checkins);
+        async removeCheckin(index) {
+            const checkin = this.checkins[index];
+            if (!checkin) return;
+
+            // Confirm deletion
+            if (!confirm('Are you sure you want to delete this checkin?')) {
+                return;
+            }
+
+            try {
+                await api.delete(`/api/checkins/${checkin.id}`);
+                this.checkins.splice(index, 1);
+                console.log('Checkin removed');
+            } catch (err) {
+                console.error('Error deleting checkin:', err);
+                alert('Error deleting checkin: ' + err.message);
+            }
         },
 
-        submitForm() {
+        async submitForm() {
             this.errors = {};
-            const requiredFields = ['title', 'start_time', 'end_time'];
+            const requiredFields = ['start_time', 'end_time'];
+
+            // Validate required fields
             requiredFields.forEach(field => {
                 if (!this.formData[field]) {
                     this.errors[field] = 'This field is required';
                 }
             });
 
-            if (Object.keys(this.errors).length === 0) {
-                console.log('Session updated:', this.formData);
+            if (Object.keys(this.errors).length > 0) {
+                return;
+            }
+
+            this.submitLoading = true;
+            try {
+                // Prepare patchable fields (only what the API accepts)
+                const updateData = {
+                    start_time: this.formData.start_time,
+                    end_time: this.formData.end_time,
+                    notes: this.formData.notes,
+                    rpe: this.formData.rpe ? parseInt(this.formData.rpe) : null
+                };
+
+                // Update session via PATCH
+                const updatedSession = await api.patch(
+                    `/api/sessions/${this.session.id}`,
+                    updateData
+                );
+
+                if (!updatedSession) {
+                    this.errors.submit = 'Failed to update session';
+                    return;
+                }
+
+                // Update local session object with response
+                this.session = updatedSession;
+
+                // Handle status change if it occurred
+                if (this.formData.status !== this.originalStatus) {
+                    const statusUpdate = await api.patch(
+                        `/api/sessions/${this.session.id}/status`,
+                        { status: this.formData.status }
+                    );
+
+                    if (statusUpdate) {
+                        this.session = statusUpdate;
+                        this.originalStatus = this.formData.status;
+                    }
+                }
+
+                // Switch back to view mode
                 this.mode = 'view';
+
+            } catch (err) {
+                console.error('Error updating session:', err);
+                this.errors.submit = err.message || 'Error saving session';
+            } finally {
+                this.submitLoading = false;
             }
         },
 

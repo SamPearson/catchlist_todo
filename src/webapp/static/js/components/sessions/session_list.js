@@ -8,11 +8,18 @@ function sessionList(initialSessions) {
         init() {
             if (!this.eventListenersAdded) {
                 window.addEventListener('sessions-search', (e) => this.onSessionsSearch(e));
+                window.addEventListener('sessions-updated', (e) => this.onSessionsUpdated(e));
                 this.eventListenersAdded = true;
             }
         },
 
         onSessionsSearch(event) {
+            const { sessions } = event.detail;
+            this.sessions = sessions;
+            this.error = null;
+        },
+
+        onSessionsUpdated(event) {
             const { sessions } = event.detail;
             this.sessions = sessions;
             this.error = null;

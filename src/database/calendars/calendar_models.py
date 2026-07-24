@@ -12,6 +12,7 @@ class Calendar(UserOwnedModel, TaggableMixin, PrincipledMixin):
 
     name = Column(String(200), nullable=False)
     color = Column(String(7), default='#767676')
+    timezone = Column(String(50), default='UTC')  # IANA timezone (e.g., 'America/Chicago')
     external_uid = Column(String(100))
     external_source = Column(String(50))
     active = Column(Boolean, default=True)
@@ -24,6 +25,7 @@ class Calendar(UserOwnedModel, TaggableMixin, PrincipledMixin):
         data.update({
             "name": self.name,
             "color": self.color,
+            "timezone": self.timezone,
             "external_uid": self.external_uid,
             "external_source": self.external_source,
             "active": self.active,

@@ -27,14 +27,16 @@ function taskList(initialTasks) {
         },
 
         onTaskUpdated(event) {
-            const task = event.detail.task;
-            this.tasks = this.tasks.map(t => t.id === task.id ? task : t);
+            const taskId = typeof event.detail === 'number' ? event.detail : event.detail.taskId;
+            this.tasks = this.tasks.filter(task => task.id !== taskId);
+            this.initialTasks = this.initialTasks.filter(task => task.id !== taskId);
         },
 
         onTaskDeleted(event) {
             const taskId = event.detail.taskId;
             this.tasks = this.tasks.filter(task => task.id !== taskId);
-        },
+            this.initialTasks = this.initialTasks.filter(task => task.id !== taskId);
+            },
 
         onTasksSearch(event) {
             const params = event.detail;
@@ -70,14 +72,10 @@ function taskList(initialTasks) {
                 }
 
                 // Completion status filter
-                if (params.include_completed === 'true') {
-                    matches = matches && (task.completed || task.completed === null);
-                } else if (params.include_completed === 'false') {
-                    matches = matches && !task.completed;
-                }
-
                 if (params.completed === 'true') {
                     matches = matches && task.completed;
+                } else if (params.completed === 'false') {
+                    matches = matches && !task.completed;
                 }
 
                 return matches;

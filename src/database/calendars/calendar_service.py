@@ -21,12 +21,18 @@ class CalendarService:
         calendars = client.get_calendars()
         return [{"name": c.name, "uid": c.uid, "url": c.url, "color": c.color} for c in calendars]
 
-    def sync_calendar(self, user_id: int, remote_uid: str, client: CalDAVClient) -> Dict:
+    def sync_calendar(self, user_id: int, remote_uid: str, client: CalDAVClient, user_timezone: str) -> Dict:
         """
         Sync a single remote calendar:
         1. Ensure local Calendar record exists.
         2. Fetch remote events.
         3. Create/Update Routines (preventing duplicates).
+
+        Args:
+            user_id: ID of the user
+            remote_uid: UID of the remote calendar
+            client: CalDAV client instance
+            user_timezone: User's IANA timezone string (e.g., 'America/Chicago')
         """
         if not client.connect():
             raise ValidationError("Failed to connect to CalDAV server.")
@@ -47,9 +53,14 @@ class CalendarService:
                 user_id=user_id,
                 name=remote_info.name,
                 color=remote_info.color,
+                timezone=user_timezone,
                 external_uid=remote_info.uid,
                 external_source='caldav'
             )
+        else:
+            # Update timezone if calendar already exists
+            local_cal.timezone = user_timezone
+            self.session.commit()
 
         # 3. Sync events as Routines
         events = client.get_events(remote_info.url)
@@ -60,12 +71,11 @@ class CalendarService:
             if not event.rrule:
                 continue
 
-
             # If event.start is a datetime, we can get the weekday
             if hasattr(event.start, 'weekday'):
                 weekday = event.start.weekday()
                 weekday_names = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-                
+
                 # If RRULE is weekly but doesn't specify BYDAY, add it
                 if 'FREQ=WEEKLY' in event.rrule and 'BYDAY' not in event.rrule:
                     event.rrule = f"{event.rrule};BYDAY={weekday_names[weekday]}"
@@ -80,7 +90,7 @@ class CalendarService:
             ).first()
 
             if not existing:
-                # Extract time components from the event's start/end times
+                # Extract time components from the event's start/end times (store as-is, no conversion)
                 start_time = event.start.time()
                 end_time = event.end.time() if event.end else None
 
@@ -90,7 +100,9 @@ class CalendarService:
                     "rrule": event.rrule,
                     "start_time": start_time.strftime('%H:%M'),
                     "end_time": end_time.strftime('%H:%M') if end_time else None,
+                    "timezone": user_timezone,
                     "calendar_id": local_cal.id,
+                    "calendar_color": local_cal.color,
                     "external_uid": event.uid,
                     "external_source": 'caldav'
                 })
@@ -98,15 +110,22 @@ class CalendarService:
 
         return {"calendar_id": local_cal.id, "created_routines": created_count}
 
-    def create_calendar(self, user_id: int, data: Dict[str, Any]) -> Calendar:
-        """Manually create a local calendar record"""
+    def create_calendar(self, user_id: int, data: Dict[str, Any], timezone: str = 'UTC') -> Calendar:
+        """Manually create a local calendar record
+        
+        Args:
+            user_id: ID of the user
+            data: Dictionary containing 'name' and optional 'color'
+            timezone: IANA timezone string (defaults to 'UTC')
+        """
         if not data.get('name'):
             raise ValidationError("Calendar name is required.")
-            
+        
         return self.repo.create(
             user_id=user_id,
             name=data['name'],
-            color=data.get('color', '#767676')
+            color=data.get('color', '#767676'),
+            timezone=timezone
         )
 
     def list_calendars(self, user_id: int, include_inactive: bool = False) -> List[Calendar]:
@@ -154,7 +173,54 @@ class CalendarService:
         if 'name' in update_data and not update_data['name']:
             raise ValidationError("Calendar name cannot be empty.")
 
+        # If color is being updated, cascade the change to routines and sessions
+        if 'color' in update_data:
+            updated_calendar = self.repo.update(calendar, **update_data)
+            self.cascade_color_change(user_id, calendar_id, update_data['color'])
+            return updated_calendar
+
         return self.repo.update(calendar, **update_data)
+
+    def cascade_color_change(self, user_id: int, calendar_id: int, new_color: str) -> int:
+        """
+        Cascade a calendar color change to all associated routines and their sessions.
+
+        Args:
+            user_id: ID of the user who owns the calendar
+            calendar_id: ID of the calendar whose color changed
+            new_color: The new color value (hex format, e.g., '#1a73e8')
+
+        Returns:
+            Number of routines (and their sessions) updated
+        """
+        calendar = self.repo.get(calendar_id, user_id)
+        if not calendar:
+            return 0
+
+        routine_service = RoutineService(self.session)
+        updated_count = 0
+
+        # Update all routines associated with this calendar
+        for routine in calendar.routines:
+            # Update the routine's calendar_color
+            self.session.query(Routine).filter_by(id=routine.id).update(
+                {'calendar_color': new_color}
+            )
+
+            # Cascade color change to all sessions of this routine
+            routine_service._cascade_to_sessions(
+                routine_id=routine.id,
+                user_id=user_id,
+                update_data={'calendar_color': new_color},
+                scope='all',
+                cascade_fields={'calendar_color'}
+            )
+
+            updated_count += 1
+
+        self.session.commit()
+        logging.info(f"Cascaded color change to {updated_count} routines and their sessions for calendar {calendar_id}")
+        return updated_count
 
     def activate_calendar(self, user_id: int, calendar_id: int, cascade: bool = False) -> Optional[Calendar]:
         """

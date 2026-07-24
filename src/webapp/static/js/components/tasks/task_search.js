@@ -25,8 +25,6 @@ function taskSearch() {
             this.expanded = false;
         },
 
-        init() {
-        },
 
         // Build the query params object from current filter state
         buildParams(overrides = {}) {
@@ -46,34 +44,28 @@ function taskSearch() {
                 params.status = selectedStatuses.join(',');
             }
 
-            // Active filter
-            if (this.filters.activeStatus === 'active') params.active = 'true';
-            if (this.filters.activeStatus === 'inactive') params.active = 'false';
+                // Active filter
+                if (this.filters.activeStatus === 'active') params.active = 'true';
+                if (this.filters.activeStatus === 'inactive') params.active = 'false';
 
-            // Completion filter
-            if (this.filters.completionStatus === 'all') params.include_completed = 'true';
-            if (this.filters.completionStatus === 'complete') {
-                params.include_completed = 'true';
-                params.completed = 'true';
-            }
+                // Completion filter
+                if (this.filters.completionStatus === 'incomplete') params.completed = 'false';
+                if (this.filters.completionStatus === 'complete') params.completed = 'true';
+                // 'all' means no completion filter, so don't add any param
+
 
             return params;
         },
 
-        async fetchAndDispatch(params) {
-            this.loading = true;
-            try {
-                const tasks = await api.get('/api/tasks', params);
-                this.$dispatch('tasks-search', tasks || []);
-            } catch (err) {
-                console.error('Error fetching tasks:', err);
-                alert('Error searching tasks: ' + err.message);
-            } finally {
-                this.loading = false;
-            }
-        },
 
         updateFilters() {
+
+            // Log which checkboxes Alpine thinks are checked
+            const checkedBoxes = Object.entries(this.filters.status)
+                .filter(([, v]) => v === true)
+                .map(([k]) => k);
+
+
             const params = this.buildParams();
             this.$dispatch('tasks-search', params);
         },
@@ -92,9 +84,6 @@ function taskSearch() {
                 activeStatus: 'all',
                 completionStatus: 'incomplete'
             };
-
-            // Re-fetch with cleared filters (back to default: incomplete tasks only)
-            await this.fetchAndDispatch({});
 
             // Dispatch empty filters to ensure task list is reset
             this.$dispatch('tasks-search', {});

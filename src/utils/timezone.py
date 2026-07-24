@@ -8,6 +8,14 @@ from datetime import datetime, time, date, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 import logging
+from src.database.users.user_models import User
+
+
+
+def get_user_timezone(user_id):
+    """Get the user's timezone or return UTC as default"""
+    user = User.query.get(user_id)
+    return user.timezone if user and hasattr(user, 'timezone') and user.timezone else "UTC"
 
 
 def to_utc(dt: datetime, from_timezone: str) -> datetime:
@@ -71,6 +79,31 @@ def from_utc(dt: datetime, to_timezone: str) -> datetime:
         return dt_with_tz
 
 
+def convert_time_between_timezones(time_str: str, from_tz: str, to_tz: str) -> str:
+    """
+    Convert a time-of-day string from one timezone to another.
+
+    Args:
+        time_str: Time in HH:MM format
+        from_tz: Source timezone (e.g., 'America/Chicago')
+        to_tz: Target timezone (e.g., 'America/New_York')
+
+    Returns:
+        Time in HH:MM format in the target timezone
+    """
+    # Parse time
+    hours, minutes = map(int, time_str.split(':'))
+
+    # Create datetime in source timezone using today's date
+    today = date.today()
+    dt_source = datetime(today.year, today.month, today.day, hours, minutes, tzinfo=ZoneInfo(from_tz))
+
+    # Convert to target timezone
+    dt_target = dt_source.astimezone(ZoneInfo(to_tz))
+
+    return dt_target.strftime("%H:%M")
+
+
 def validate_timezone(tz: str) -> Optional[str]:
     """
     Validate a timezone string.
@@ -104,6 +137,26 @@ def utc_to_local_date(utc_dt: datetime, user_tz: str) -> date:
     """
     local_dt = from_utc(utc_dt, user_tz)
     return local_dt.date()
+
+
+def format_for_local_datetime_input(utc_dt: datetime, user_tz: str) -> str:
+    """
+    Convert a UTC datetime to local time and format for HTML datetime-local input.
+
+    Returns ISO format WITHOUT timezone offset (e.g., "2026-05-30T07:00:00").
+    This is what datetime-local inputs expect.
+
+    Args:
+        utc_dt: UTC datetime (from database)
+        user_tz: User's timezone string
+
+    Returns:
+        ISO format string without timezone info
+    """
+    local_dt = from_utc(utc_dt, user_tz)
+    # Remove timezone info before formatting
+    naive_local = local_dt.replace(tzinfo=None)
+    return naive_local.isoformat()
 
 
 def parse_dt(date_string: str, timezone: Optional[str] = None) -> datetime:

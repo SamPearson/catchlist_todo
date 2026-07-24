@@ -120,7 +120,7 @@ class SessionService:
         if not data.get('start_time') or not data.get('end_time'):
             raise SessionValidationError("Start and end times are required for sessions")
 
-        # Get the routine to fetch its title
+        # Get the routine to fetch its title and calendar_color
         routine = self.session.query(Routine).filter_by(id=routine_id, user_id=user_id).first()
         if not routine:
             raise SessionValidationError(f"Routine with ID {routine_id} not found")
@@ -130,9 +130,11 @@ class SessionService:
             routine_id=routine_id,
             start_time=data['start_time'],
             end_time=data['end_time'],
+            timezone=routine.timezone,  # Inherit timezone from routine
             status=data.get('status', 'scheduled'),
             notes=data.get('notes'),
-            rpe=data.get('rpe')
+            rpe=data.get('rpe'),
+            calendar_color=routine.calendar_color  # Inherit calendar_color from routine
         )
 
 
@@ -302,9 +304,11 @@ class SessionService:
                     routine_id=routine_id,
                     start_time=session_start,
                     end_time=session_end,
+                    timezone=routine.timezone,  # Inherit timezone from routine
                     status='scheduled',
                     notes='Auto-generated from routine',
-                    routine_name=routine.title
+                    routine_name=routine.title,
+                    calendar_color=routine.calendar_color  # Inherit calendar_color from routine
                 )
                 created_sessions.append(session_obj)
 

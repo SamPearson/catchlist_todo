@@ -53,20 +53,21 @@ class Commitment(UserOwnedModel):
         """
         Convert commitment to dictionary representation.
         Timestamps are converted to user's timezone.
+        Includes target object if it was attached via _attach_targets().
         """
         data = super().as_dict(user_timezone=user_timezone)
-        
+
         # Convert start_at_utc and due_at_utc from naive UTC to user timezone
         start_at_str = None
         if self.start_at_utc:
             local_dt = from_utc(self.start_at_utc, user_timezone)
             start_at_str = local_dt.isoformat()
-        
+
         due_at_str = None
         if self.due_at_utc:
             local_dt = from_utc(self.due_at_utc, user_timezone)
             due_at_str = local_dt.isoformat()
-        
+
         data.update({
             "timeframe_id": self.timeframe_id,
             "target_type": self.target_type,
@@ -76,4 +77,9 @@ class Commitment(UserOwnedModel):
             "start_at": start_at_str,
             "due_at": due_at_str,
         })
+
+        # Include target if it was attached
+        if hasattr(self, 'target') and self.target is not None:
+            data["target"] = self.target.as_dict(user_timezone=user_timezone)
+
         return data

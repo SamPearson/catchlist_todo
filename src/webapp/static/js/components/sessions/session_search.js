@@ -28,8 +28,17 @@ function sessionSearch() {
             const end = new Date(today);
             end.setHours(23, 59, 59, 999);
 
-            this.dateRange.start = start.toISOString().slice(0, 16);
-            this.dateRange.end = end.toISOString().slice(0, 16);
+            this.dateRange.start = this.formatLocalDateTime(start);
+            this.dateRange.end = this.formatLocalDateTime(end);
+        },
+
+        formatLocalDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
         },
 
         expand() {
@@ -65,12 +74,12 @@ function sessionSearch() {
         buildParams() {
             const params = {};
 
-            // Add date range
+            // Add date range - send as naive ISO strings (local time, no timezone conversion)
             if (this.dateRange.start) {
-                params.start = new Date(this.dateRange.start).toISOString();
+                params.start = this.dateRange.start;
             }
             if (this.dateRange.end) {
-                params.end = new Date(this.dateRange.end).toISOString();
+                params.end = this.dateRange.end;
             }
 
             // Add status filters (repeated params for OR logic)
@@ -132,8 +141,8 @@ function sessionSearch() {
             const end = new Date(today);
             end.setHours(23, 59, 59, 999);
 
-            this.dateRange.start = start.toISOString().slice(0, 16);
-            this.dateRange.end = end.toISOString().slice(0, 16);
+            this.dateRange.start = this.formatLocalDateTime(start);
+            this.dateRange.end = this.formatLocalDateTime(end);
 
             await this.search();
         },
