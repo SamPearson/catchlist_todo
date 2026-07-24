@@ -8,7 +8,7 @@ from src.webapp.services.api_client import api_client
 @require_auth
 def index():
     token = get_auth_token()
-    tasks = api_client.get('/api/tasks', token=token) or []
+    tasks = api_client.get('/api/tasks?include_completed=true', token=token) or []
 
     # Sort most-recently-created first
     # Sorting here keeps the logic in one place and makes it easy to swap out
