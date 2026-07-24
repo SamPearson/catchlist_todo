@@ -35,7 +35,8 @@ function taskList(initialTasks) {
         onTaskDeleted(event) {
             const taskId = event.detail.taskId;
             this.tasks = this.tasks.filter(task => task.id !== taskId);
-        },
+            this.initialTasks = this.initialTasks.filter(task => task.id !== taskId);
+            },
 
         onTasksSearch(event) {
             const params = event.detail;
