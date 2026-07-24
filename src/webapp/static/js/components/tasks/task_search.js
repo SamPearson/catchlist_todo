@@ -25,8 +25,6 @@ function taskSearch() {
             this.expanded = false;
         },
 
-        init() {
-        },
 
         // Build the query params object from current filter state
         buildParams(overrides = {}) {
@@ -60,18 +58,6 @@ function taskSearch() {
             return params;
         },
 
-        async fetchAndDispatch(params) {
-            this.loading = true;
-            try {
-                const tasks = await api.get('/api/tasks', params);
-                this.$dispatch('tasks-search', tasks || []);
-            } catch (err) {
-                console.error('Error fetching tasks:', err);
-                alert('Error searching tasks: ' + err.message);
-            } finally {
-                this.loading = false;
-            }
-        },
 
         updateFilters() {
             const params = this.buildParams();
@@ -92,9 +78,6 @@ function taskSearch() {
                 activeStatus: 'all',
                 completionStatus: 'incomplete'
             };
-
-            // Re-fetch with cleared filters (back to default: incomplete tasks only)
-            await this.fetchAndDispatch({});
 
             // Dispatch empty filters to ensure task list is reset
             this.$dispatch('tasks-search', {});
