@@ -151,7 +151,7 @@ function taskCard(initialTask) {
 
             try {
                 await api.delete(`/api/tasks/${this.task.id}`);
-                this.$dispatch('task-deleted', this.task.id);
+                this.$dispatch('task-deleted', { taskId: this.task.id });
             } catch (err) {
                 console.error('Error deleting task:', err);
                 alert('Error deleting task: ' + err.message);
