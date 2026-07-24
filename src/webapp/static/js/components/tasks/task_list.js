@@ -72,6 +72,8 @@ function taskList(initialTasks) {
                 // Completion status filter
                 if (params.completed === 'true') {
                     matches = matches && task.completed;
+                } else if (params.completed === 'false') {
+                    matches = matches && !task.completed;
                 }
 
                 return matches;
