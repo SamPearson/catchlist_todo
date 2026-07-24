@@ -44,22 +44,28 @@ function taskSearch() {
                 params.status = selectedStatuses.join(',');
             }
 
-            // Active filter
-            if (this.filters.activeStatus === 'active') params.active = 'true';
-            if (this.filters.activeStatus === 'inactive') params.active = 'false';
+                // Active filter
+                if (this.filters.activeStatus === 'active') params.active = 'true';
+                if (this.filters.activeStatus === 'inactive') params.active = 'false';
 
-            // Completion filter
-            if (this.filters.completionStatus === 'all') params.include_completed = 'true';
-            if (this.filters.completionStatus === 'complete') {
-                params.include_completed = 'true';
-                params.completed = 'true';
-            }
+                // Completion filter
+                if (this.filters.completionStatus === 'incomplete') params.completed = 'false';
+                if (this.filters.completionStatus === 'complete') params.completed = 'true';
+                // 'all' means no completion filter, so don't add any param
+
 
             return params;
         },
 
 
         updateFilters() {
+
+            // Log which checkboxes Alpine thinks are checked
+            const checkedBoxes = Object.entries(this.filters.status)
+                .filter(([, v]) => v === true)
+                .map(([k]) => k);
+
+
             const params = this.buildParams();
             this.$dispatch('tasks-search', params);
         },

@@ -70,12 +70,6 @@ function taskList(initialTasks) {
                 }
 
                 // Completion status filter
-                if (params.include_completed === 'true') {
-                    matches = matches && (task.completed || task.completed === null);
-                } else if (params.include_completed === 'false') {
-                    matches = matches && !task.completed;
-                }
-
                 if (params.completed === 'true') {
                     matches = matches && task.completed;
                 }
