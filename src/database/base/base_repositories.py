@@ -82,3 +82,25 @@ class UserOwnedRepository(BaseRepository[T]):
         """List all records for a specific user."""
         filters['user_id'] = user_id
         return super().list(**filters)
+
+    def update(self, instance: T, user_id: int, **data) -> T:
+        """Update a record, ensuring it belongs to the user."""
+        try:
+            if not hasattr(instance, 'user_id') or instance.user_id != user_id:
+                raise RepositoryError(f"Permission denied: {self.model_class.__name__} does not belong to user {user_id}")
+            return super().update(instance, **data)
+        except RepositoryError:
+            raise
+        except Exception as e:
+            raise RepositoryError(f"Error updating {self.model_class.__name__}: {str(e)}")
+
+    def delete(self, instance: T, user_id: int) -> bool:
+        """Delete a record, ensuring it belongs to the user."""
+        try:
+            if not hasattr(instance, 'user_id') or instance.user_id != user_id:
+                raise RepositoryError(f"Permission denied: {self.model_class.__name__} does not belong to user {user_id}")
+            return super().delete(instance)
+        except RepositoryError:
+            raise
+        except Exception as e:
+            raise RepositoryError(f"Error deleting {self.model_class.__name__}: {str(e)}")
