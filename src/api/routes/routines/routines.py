@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from database.routines.routine_presenter import RoutinePresenter
+from src.database.routines.routine_presenter import RoutinePresenter
 from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.routines.routine_service import RoutineService, RoutineValidationError
