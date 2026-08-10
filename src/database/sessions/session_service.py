@@ -194,7 +194,7 @@ class SessionService:
             # Use PrincipleService to properly add each principle via PrincipleAssociation
             if routine.principles:
                 for principle in routine.principles:
-                    self.principle_service.attach_to_entity(principle.id, user_id, session_obj)
+                    self.principle_service.attach_to_entity(user_id, principle.id, session_obj)
                 logging.debug(f"Inherited {len(routine.principles)} principles to session {session_obj.id}")
         except Exception as e:
             logging.error(f"Error inheriting principles: {str(e)}")
