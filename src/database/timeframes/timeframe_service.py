@@ -226,7 +226,11 @@ class TimeframeService:
         )
         return created, True
 
-    def get_timeframe(self, timeframe_id: int, user_id: int) -> Timeframe | None:
-        """Retrieve a specific timeframe by ID and user_id"""
-        return self.repo.get(id=timeframe_id, user_id=user_id)
+    def get_timeframe(self, user_id: int, timeframe_id: int) -> Timeframe:
+        """Retrieve a specific timeframe by ID and user_id.
+
+        Raises EntityNotFoundError if missing or owned by another user;
+        the API layer maps that to HTTP 404.
+        """
+        return self.repo.get(user_id, timeframe_id)
 

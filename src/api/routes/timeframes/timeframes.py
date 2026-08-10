@@ -5,6 +5,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.db import db
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.timeframes.timeframe_service import TimeframeService, validate_kind, SUPPORTED_KINDS, UnsupportedTimeframeKind
 from src.database.users.user_models import User
 
@@ -169,8 +170,11 @@ def get_timeframe_by_id(timeframe_id: int):
     user_id = int(get_jwt_identity())
     user_tz = _get_user_timezone(user_id)
     service = TimeframeService(session=db.session)
-    tf = service.get_timeframe(timeframe_id, user_id=user_id)
-    return jsonify(tf.as_dict(user_timezone=user_tz)) if tf else ("", 404)
+    try:
+        tf = service.get_timeframe(user_id, timeframe_id)
+        return jsonify(tf.as_dict(user_timezone=user_tz))
+    except EntityNotFoundError:
+        return ("", 404)
 
 
 @jwt_required()
