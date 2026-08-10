@@ -228,5 +228,5 @@ class TimeframeService:
 
     def get_timeframe(self, timeframe_id: int, user_id: int) -> Timeframe | None:
         """Retrieve a specific timeframe by ID and user_id"""
-        return self.repo.get(timeframe_id, user_id=user_id)
+        return self.repo.get(id=timeframe_id, user_id=user_id)
 
