@@ -1,7 +1,7 @@
 from typing import TypeVar, Generic, Optional, List, Type, Any
 from sqlalchemy.orm import Session
 from .base_models import BaseModel
-from .exceptions import RepositoryError
+from .exceptions import RepositoryError, EntityNotFoundError
 
 T = TypeVar('T', bound=BaseModel)
 
@@ -68,39 +68,58 @@ class UserOwnedRepository(BaseRepository[T]):
     Repository for user-owned models with additional user filtering.
     """
 
-    def get(self, id: int, user_id: int) -> Optional[T]:
-        """Retrieve a record by ID and user_id."""
+    def get(self, user_id: int, id: int) -> T:
+        """Retrieve a record by user_id and ID.
+
+        Raises EntityNotFoundError if no owned record with this ID exists.
+        """
         try:
-            return self.session.query(self.model_class).filter_by(
+            instance = self.session.query(self.model_class).filter_by(
                 id=id,
                 user_id=user_id
             ).first()
+
+            if instance is None:
+                raise EntityNotFoundError(
+                    f"{self.model_class.__name__} {id} not found"
+                )
+
+            return instance
+
+        except EntityNotFoundError:
+            raise
         except Exception as e:
-            raise RepositoryError(f"Error retrieving {self.model_class.__name__}: {str(e)}")
+            raise RepositoryError(
+                f"Error retrieving {self.model_class.__name__}: {str(e)}"
+            )
 
     def list_for_user(self, user_id: int, **filters) -> List[T]:
         """List all records for a specific user."""
         filters['user_id'] = user_id
         return super().list(**filters)
 
-    def update(self, instance: T, user_id: int, **data) -> T:
-        """Update a record, ensuring it belongs to the user."""
-        try:
-            if not hasattr(instance, 'user_id') or instance.user_id != user_id:
-                raise RepositoryError(f"Permission denied: {self.model_class.__name__} does not belong to user {user_id}")
-            return super().update(instance, **data)
-        except RepositoryError:
-            raise
-        except Exception as e:
-            raise RepositoryError(f"Error updating {self.model_class.__name__}: {str(e)}")
+    def update(self, user_id: int, id: int, **data) -> T:
+        """Update a record owned by the user.
 
-    def delete(self, instance: T, user_id: int) -> bool:
-        """Delete a record, ensuring it belongs to the user."""
+        The record is fetched by user_id and ID first; raises
+        EntityNotFoundError if no owned record with this ID exists.
+        """
+        instance = self.get(user_id, id)
         try:
-            if not hasattr(instance, 'user_id') or instance.user_id != user_id:
-                raise RepositoryError(f"Permission denied: {self.model_class.__name__} does not belong to user {user_id}")
-            return super().delete(instance)
-        except RepositoryError:
-            raise
+            for key, value in data.items():
+                setattr(instance, key, value)
+            self.session.commit()
+            return instance
         except Exception as e:
-            raise RepositoryError(f"Error deleting {self.model_class.__name__}: {str(e)}")
+            self.session.rollback()
+            raise RepositoryError(
+                f"Error updating {self.model_class.__name__}: {str(e)}"
+            )
+
+    def delete(self, user_id: int, id: int) -> bool:
+        """Delete a record owned by the user.
+
+        Raises EntityNotFoundError if no owned record with this ID exists.
+        """
+        instance = self.get(user_id, id)
+        return super().delete(instance)

@@ -399,7 +399,7 @@ class CommitmentService:
 
 
     def get(self, *, user_id: int, commitment_id: int) -> Commitment | None:
-        return self.repo.get(commitment_id, user_id=user_id)
+        return self.repo.get(id=commitment_id, user_id=user_id)
 
     def delete(self, *, user_id: int, commitment_id: int) -> bool:
         c = self.get(user_id=user_id, commitment_id=commitment_id)

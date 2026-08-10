@@ -162,7 +162,7 @@ class CalendarService:
         Returns:
             Updated calendar or None if not found
         """
-        calendar = self.repo.get(calendar_id, user_id)
+        calendar = self.repo.get(id=calendar_id, user_id=user_id)
         if not calendar:
             return None
 
@@ -193,7 +193,7 @@ class CalendarService:
         Returns:
             Number of routines (and their sessions) updated
         """
-        calendar = self.repo.get(calendar_id, user_id)
+        calendar = self.repo.get(id=calendar_id, user_id=user_id)
         if not calendar:
             return 0
 
@@ -234,7 +234,7 @@ class CalendarService:
         Returns:
             Updated calendar or None if not found
         """
-        calendar = self.repo.get(calendar_id, user_id)
+        calendar = self.repo.get(id=calendar_id, user_id=user_id)
         if not calendar:
             return None
 
@@ -262,7 +262,7 @@ class CalendarService:
         Returns:
             Updated calendar or None if not found
         """
-        calendar = self.repo.get(calendar_id, user_id)
+        calendar = self.repo.get(id=calendar_id, user_id=user_id)
         if not calendar:
             return None
 
@@ -291,7 +291,7 @@ class CalendarService:
         Returns:
             bool: True if calendar was found and deleted, False otherwise
         """
-        calendar = self.repo.get(calendar_id, user_id)
+        calendar = self.repo.get(id=calendar_id, user_id=user_id)
         if not calendar:
             return False
 

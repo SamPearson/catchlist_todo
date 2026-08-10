@@ -16,7 +16,7 @@ class PrincipleService:
         self.repo = PrincipleRepo(session)
 
     def get_principle(self, principle_id: int, user_id: int) -> Optional[Principle]:
-        return self.repo.get(principle_id, user_id)
+        return self.repo.get(id=principle_id, user_id=user_id)
 
     def list_principles(self, user_id: int) -> List[Principle]:
         return self.repo.list_for_user(user_id)

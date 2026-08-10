@@ -75,7 +75,7 @@ class SessionService:
             logging.error(f"Error deleting commitment for session {session_id}: {str(e)}")
 
     def get_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
-        return self.repo.get(session_id, user_id)
+        return self.repo.get(id=session_id, user_id=user_id)
 
     def list_sessions_for_window(self, user_id: int, start: datetime, end: datetime) -> List[RoutineSession]:
         return self.repo.list_for_window(user_id, start, end)

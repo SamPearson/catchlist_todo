@@ -125,7 +125,7 @@ class CheckinService:
         )
 
     def get(self, *, user_id: int, checkin_id: int) -> CheckinRecord | None:
-        return self.repo.get(checkin_id, user_id=user_id)
+        return self.repo.get(id=checkin_id, user_id=user_id)
 
     def update(
             self,

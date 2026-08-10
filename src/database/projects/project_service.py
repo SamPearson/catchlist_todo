@@ -43,7 +43,7 @@ class ProjectService:
             raise ProjectValidationError(f"Project title cannot exceed {MAX_TITLE_LENGTH} characters")
 
     def get_project(self, project_id: int, user_id: int) -> Optional[Project]:
-        return self.repository.get(project_id, user_id)
+        return self.repository.get(id=project_id, user_id=user_id)
 
     def list_projects(self, user_id: int,
                       include_completed: bool = False,

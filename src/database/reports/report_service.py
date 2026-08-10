@@ -69,7 +69,7 @@ class ReportService:
 
     def get_report(self, report_id: int, user_id: int) -> Report | None:
         """Get a specific report by ID."""
-        return self.repo.get(report_id, user_id=user_id)
+        return self.repo.get(id=report_id, user_id=user_id)
 
     def get_by_timeframe(self, timeframe_id: int, user_id: int) -> Report | None:
         """Get a report by its timeframe ID."""

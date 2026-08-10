@@ -28,7 +28,7 @@ class RoutineService:
         self.commitment_service = CommitmentService(session)
 
     def get_routine(self, routine_id: int, user_id: int) -> Optional[Routine]:
-        return self.repo.get(routine_id, user_id)
+        return self.repo.get(id=routine_id, user_id=user_id)
 
     def list_routines(self, user_id: int, active_only: bool = True) -> List[Routine]:
         filters = {}
