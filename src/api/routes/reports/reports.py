@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 
 from src.database.db import db
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.reports.report_service import ReportService, ReportValidationError
 from src.database.timeframes.timeframe_service import TimeframeService
 from src.database.users.user_models import User
@@ -38,9 +39,9 @@ def get_report(report_id):
     """
     user_id = int(get_jwt_identity())
     service = get_report_service()
-    report = service.get_report(report_id, user_id)
-
-    if not report:
+    try:
+        report = service.get_report(user_id, report_id)
+    except EntityNotFoundError:
         return ('', 404)
 
     # Parse query params
@@ -216,18 +217,14 @@ def update_report(report_id):
     """
     user_id = int(get_jwt_identity())
     service = get_report_service()
-    report = service.get_report(report_id, user_id)
-    if not report:
-        return ('', 404)
-
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No update data provided'}), 400
 
     try:
         updated_report = service.update_report(
-            report_id=report_id,
             user_id=user_id,
+            report_id=report_id,
             plan=data.get('plan'),
             reason=data.get('reason'),
             pre_notes=data.get('pre_notes'),
@@ -247,6 +244,8 @@ def update_report(report_id):
             full=full,
             commitment_scope=commitment_scope,
         ))
+    except EntityNotFoundError:
+        return ('', 404)
     except ReportValidationError as e:
         return jsonify({'error': e.message}), 400
 
@@ -256,7 +255,10 @@ def delete_report(report_id):
     """Delete a report"""
     user_id = int(get_jwt_identity())
     service = get_report_service()
-    
-    deleted = service.delete_report(report_id, user_id)
-    return ('', 204) if deleted else ('', 404)
+
+    try:
+        service.delete_report(user_id, report_id)
+        return '', 204
+    except EntityNotFoundError:
+        return '', 404
 
