@@ -18,7 +18,7 @@ def test_update_task_title(auth_client):
         task_id = created['id']
 
     with allure.step("Update task title"):
-        updated = auth_client.put(f'/api/tasks/{task_id}', {
+        updated = auth_client.patch(f'/api/tasks/{task_id}', {
             "title": "Updated title"
         })
 
@@ -47,7 +47,7 @@ def test_update_task_description(auth_client):
         task_id = created['id']
 
     with allure.step("Update task description"):
-        updated = auth_client.put(f'/api/tasks/{task_id}', {
+        updated = auth_client.patch(f'/api/tasks/{task_id}', {
             "description": "Updated description"
         })
 
@@ -76,7 +76,7 @@ def test_update_task_title_and_description_together(auth_client):
         task_id = created['id']
 
     with allure.step("Update both title and description"):
-        updated = auth_client.put(f'/api/tasks/{task_id}', {
+        updated = auth_client.patch(f'/api/tasks/{task_id}', {
             "title": "New title",
             "description": "New description"
         })
@@ -102,7 +102,7 @@ def test_update_task_with_empty_title(auth_client):
         task_id = created['id']
 
     with allure.step("Attempt to update with empty title"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {
+        response = auth_client.patch(f'/api/tasks/{task_id}', {
             "title": ""
         }, handle_response=False)
 
@@ -125,7 +125,7 @@ def test_update_task_with_no_data(auth_client):
         task_id = task['id']
 
     with allure.step("Attempt to update with empty body"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {}, 
+        response = auth_client.patch(f'/api/tasks/{task_id}', {},
                                     handle_response=False)
 
     with allure.step("Verify 400 response"):
@@ -146,8 +146,8 @@ def test_update_task_with_disallowed_field_status(auth_client):
         })
         task_id = task['id']
 
-    with allure.step("Attempt to update status via PUT endpoint"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {
+    with allure.step("Attempt to update status via update endpoint"):
+        response = auth_client.patch(f'/api/tasks/{task_id}', {
             "status": "waiting"
         }, handle_response=False)
 
@@ -169,8 +169,8 @@ def test_update_task_with_disallowed_field_active(auth_client):
         })
         task_id = task['id']
 
-    with allure.step("Attempt to update active via PUT endpoint"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {
+    with allure.step("Attempt to update active via update endpoint"):
+        response = auth_client.patch(f'/api/tasks/{task_id}', {
             "active": False
         }, handle_response=False)
 
@@ -192,8 +192,8 @@ def test_update_task_with_disallowed_field_completed(auth_client):
         })
         task_id = task['id']
 
-    with allure.step("Attempt to update completed via PUT endpoint"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {
+    with allure.step("Attempt to update completed via update endpoint"):
+        response = auth_client.patch(f'/api/tasks/{task_id}', {
             "completed": True
         }, handle_response=False)
 
@@ -215,8 +215,8 @@ def test_update_task_with_disallowed_field_completed_at(auth_client):
         })
         task_id = task['id']
 
-    with allure.step("Attempt to update completed_at via PUT endpoint"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {
+    with allure.step("Attempt to update completed_at via update endpoint"):
+        response = auth_client.patch(f'/api/tasks/{task_id}', {
             "completed_at": "2025-01-01T00:00:00Z"
         }, handle_response=False)
 
@@ -238,8 +238,8 @@ def test_update_task_with_disallowed_field_project_id(auth_client):
         })
         task_id = task['id']
 
-    with allure.step("Attempt to update project_id via PUT endpoint"):
-        response = auth_client.put(f'/api/tasks/{task_id}', {
+    with allure.step("Attempt to update project_id via update endpoint"):
+        response = auth_client.patch(f'/api/tasks/{task_id}', {
             "project_id": 123
         }, handle_response=False)
 
@@ -256,7 +256,7 @@ def test_update_task_with_disallowed_field_project_id(auth_client):
 def test_update_nonexistent_task(auth_client):
     """Update nonexistent task returns 404"""
     with allure.step("Attempt to update nonexistent task"):
-        response = auth_client.put('/api/tasks/999999', {
+        response = auth_client.patch('/api/tasks/999999', {
             "title": "Updated title"
         }, handle_response=False)
 
@@ -279,7 +279,7 @@ def test_update_another_users_task(auth_client, secondary_auth_client):
         task_id = task['id']
 
     with allure.step("Attempt to update first user's task as second user"):
-        response = secondary_auth_client.put(f'/api/tasks/{task_id}', {
+        response = secondary_auth_client.patch(f'/api/tasks/{task_id}', {
             "title": "Hacked title"
         }, handle_response=False)
 
