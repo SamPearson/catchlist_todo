@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.tags.tag_service import TagService, TagValidationError
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 
 
@@ -45,8 +46,11 @@ def get_tag(tag_id):
     """Get a specific tag"""
     user_id = get_jwt_identity()
     tag_service = TagService(db.session)
-    tag = tag_service.get_tag(tag_id=tag_id, user_id=user_id)
-    return jsonify(tag.as_dict()) if tag else ('', 404)
+    try:
+        tag = tag_service.get_tag(user_id=user_id, tag_id=tag_id)
+    except EntityNotFoundError:
+        return ('', 404)
+    return jsonify(tag.as_dict())
 
 
 @jwt_required()
@@ -103,19 +107,16 @@ def update_tag(tag_id):
     if not input_data:
         return jsonify({'error': 'No update data provided'}), 400
 
-    tag = tag_service.get_tag(tag_id=tag_id, user_id=user_id)
-    if not tag:
-        return ('', 404)
-
-
     try:
         updated_tag = tag_service.update_tag(
-            tag_id=tag_id,
             user_id=user_id,
+            tag_id=tag_id,
             name=input_data.get('name'),
             color=input_data.get('color')
         )
-        return jsonify(updated_tag.as_dict()) if updated_tag else ('', 404)
+        return jsonify(updated_tag.as_dict())
+    except EntityNotFoundError:
+        return ('', 404)
     except TagValidationError as e:
         return jsonify({'error': e.message}), 400
 
@@ -125,9 +126,11 @@ def delete_tag(tag_id):
     """Delete a tag"""
     user_id = get_jwt_identity()
     tag_service = TagService(db.session)
-    if tag_service.delete_tag(tag_id=tag_id, user_id=user_id):
+    try:
+        tag_service.delete_tag(user_id=user_id, tag_id=tag_id)
         return ('', 204)
-    return ('', 404)
+    except EntityNotFoundError:
+        return ('', 404)
 
 
 @jwt_required()
@@ -144,8 +147,9 @@ def attach_tag():
         return jsonify({"error": "tag_id, target_type, and target_id required"}), 400
 
     service = TagService(db.session)
-    target_tag = service.get_tag(tag_id, user_id)
-    if not target_tag:
+    try:
+        target_tag = service.get_tag(user_id, tag_id)
+    except EntityNotFoundError:
         return jsonify({"error": f"Tag with id {tag_id} not found"}), 404
 
     entity, error = _get_target_entity(db.session, user_id, t_type, t_id)
@@ -157,7 +161,7 @@ def attach_tag():
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
     try:
-        if service.add_tag_to_entity(tag_id, user_id, entity):
+        if service.add_tag_to_entity(user_id, tag_id, entity):
             return jsonify({"success": True}), 200
     except TagValidationError as e:
         return jsonify({"error": e.message}), 400
@@ -178,8 +182,9 @@ def detach_tag():
         return jsonify({"error": "tag_id, target_type, and target_id required"}), 400
 
     service = TagService(db.session)
-    target_tag = service.get_tag(tag_id, user_id)
-    if not target_tag:
+    try:
+        target_tag = service.get_tag(user_id, tag_id)
+    except EntityNotFoundError:
         return jsonify({"error": f"Tag with id {tag_id} not found"}), 404
 
 
@@ -192,7 +197,7 @@ def detach_tag():
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
     try:
-        if service.remove_tag_from_entity(tag_id, user_id, entity):
+        if service.remove_tag_from_entity(user_id, tag_id, entity):
             return jsonify({"success": True}), 200
     except TagValidationError as e:
         return jsonify({"error": e.message}), 400

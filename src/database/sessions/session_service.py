@@ -170,7 +170,7 @@ class SessionService:
             # Use TagService to properly add each tag via TagAssociation
             if routine.tags:
                 for tag in routine.tags:
-                    self.tag_service.add_tag_to_entity(tag.id, user_id, session_obj)
+                    self.tag_service.add_tag_to_entity(user_id, tag.id, session_obj)
                 logging.debug(f"Inherited {len(routine.tags)} tags to session {session_obj.id}")
         except Exception as e:
             logging.error(f"Error inheriting tags: {str(e)}")
