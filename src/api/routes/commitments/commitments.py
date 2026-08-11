@@ -3,6 +3,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.timeframes.timeframe_service import TimeframeValidationError, UnsupportedTimeframeKind
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.commitments.commitment_service import (
     CommitmentService,
@@ -57,9 +58,9 @@ def get_commitment(commitment_id: int):
     user_tz = _get_user_timezone(user_id)
 
     service = CommitmentService(session=db.session)
-    c = service.get(user_id=user_id, commitment_id=commitment_id)
-
-    if not c:
+    try:
+        c = service.get(user_id=user_id, commitment_id=commitment_id)
+    except EntityNotFoundError:
         return ("", 404)
 
     return jsonify(c.as_dict(user_timezone=user_tz))
@@ -69,9 +70,11 @@ def get_commitment(commitment_id: int):
 def delete_commitment(commitment_id: int):
     user_id = int(get_jwt_identity())
     service = CommitmentService(session=db.session)
-    ok = service.delete(user_id=user_id, commitment_id=commitment_id)
-    return ("", 204) if ok \
-        else ({'error': f"Couldn't find commitment with ID {commitment_id}"}, 404)
+    try:
+        service.delete(user_id=user_id, commitment_id=commitment_id)
+        return ("", 204)
+    except EntityNotFoundError:
+        return ("", 404)
 
 
 @jwt_required()
@@ -278,8 +281,9 @@ def update_commitment(commitment_id: int):
     if "due_at" in data:
         if data["due_at"] is None:
             # Clear due_at using dedicated method
-            updated = service.clear_due_at(user_id=user_id, commitment_id=commitment_id)
-            if not updated:
+            try:
+                service.clear_due_at(user_id=user_id, commitment_id=commitment_id)
+            except EntityNotFoundError:
                 return ("", 404)
         else:
             due_at_local = _parse_datetime(data["due_at"])
@@ -290,8 +294,9 @@ def update_commitment(commitment_id: int):
     if "start_at" in data:
         if data["start_at"] is None:
             # Clear start_at using dedicated method
-            updated = service.clear_start_at(user_id=user_id, commitment_id=commitment_id)
-            if not updated:
+            try:
+                service.clear_start_at(user_id=user_id, commitment_id=commitment_id)
+            except EntityNotFoundError:
                 return ("", 404)
         else:
             start_at_local = _parse_datetime(data["start_at"])
@@ -301,9 +306,9 @@ def update_commitment(commitment_id: int):
 
     try:
         updated = service.update(user_id=user_id, commitment_id=commitment_id, **update_kwargs)
-        if not updated:
-            return ("", 404)
         return jsonify(updated.as_dict(user_timezone=user_tz))
+    except EntityNotFoundError:
+        return ("", 404)
     except CommitmentValidationError as e:
         return jsonify({"error": e.message}), 400
     except ValueError as e:

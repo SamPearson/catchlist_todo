@@ -392,21 +392,18 @@ class CommitmentService:
 
         count = 0
         for commitment in commitments:
-            self.repo.delete(commitment)
+            self.repo.delete(user_id, commitment.id)
             count += 1
 
         return count
 
 
-    def get(self, *, user_id: int, commitment_id: int) -> Commitment | None:
-        return self.repo.get(id=commitment_id, user_id=user_id)
+    def get(self, *, user_id: int, commitment_id: int) -> Commitment:
+        return self.repo.get(user_id, commitment_id)
 
-    def delete(self, *, user_id: int, commitment_id: int) -> bool:
-        c = self.get(user_id=user_id, commitment_id=commitment_id)
-        if not c:
-            return False
-        self.repo.delete(c)
-        return True
+    def delete(self, *, user_id: int, commitment_id: int) -> None:
+        self.repo.get(user_id, commitment_id)
+        self.repo.delete(user_id, commitment_id)
 
     def update(
             self,
@@ -418,7 +415,7 @@ class CommitmentService:
             due_at: datetime | None = None,
             start_at: datetime | None = None,
             timezone: str | None = None,
-    ) -> Commitment | None:
+    ) -> Commitment:
         """
         Update editable fields of a commitment.
 
@@ -435,14 +432,12 @@ class CommitmentService:
             timezone: Optional IANA timezone string (defaults to user's timezone)
 
         Returns:
-            Updated commitment, or None if not found
+            Updated commitment
 
         Raises:
             CommitmentValidationError: If status is invalid
         """
-        c = self.get(user_id=user_id, commitment_id=commitment_id)
-        if not c:
-            return None
+        c = self.repo.get(user_id, commitment_id)
 
         # Get timezone (use provided or default to user's timezone)
         if timezone is None:
@@ -477,11 +472,11 @@ class CommitmentService:
 
         # Apply updates
         if updates:
-            return self.repo.update(c, **updates)
+            return self.repo.update(user_id, commitment_id, **updates)
 
         return c
 
-    def clear_start_at(self, *, user_id: int, commitment_id: int) -> Commitment | None:
+    def clear_start_at(self, *, user_id: int, commitment_id: int) -> Commitment:
         """
         Clear the start_at_utc field from a commitment.
 
@@ -490,14 +485,12 @@ class CommitmentService:
             commitment_id: ID of the commitment to update
 
         Returns:
-            Updated commitment, or None if not found
+            Updated commitment
         """
-        c = self.get(user_id=user_id, commitment_id=commitment_id)
-        if not c:
-            return None
-        return self.repo.update(c, start_at_utc=None)
+        self.repo.get(user_id, commitment_id)
+        return self.repo.update(user_id, commitment_id, start_at_utc=None)
 
-    def clear_due_at(self, *, user_id: int, commitment_id: int) -> Commitment | None:
+    def clear_due_at(self, *, user_id: int, commitment_id: int) -> Commitment:
         """
         Clear the due_at_utc field from a commitment, converting it to a soft commitment.
 
@@ -509,12 +502,10 @@ class CommitmentService:
             commitment_id: ID of the commitment to update
 
         Returns:
-            Updated commitment, or None if not found
+            Updated commitment
         """
-        c = self.get(user_id=user_id, commitment_id=commitment_id)
-        if not c:
-            return None
-        return self.repo.update(c, due_at_utc=None)
+        self.repo.get(user_id, commitment_id)
+        return self.repo.update(user_id, commitment_id, due_at_utc=None)
 
 
     def list(self, *, user_id: int, timeframe_id: int | None = None) -> list[Commitment]:
