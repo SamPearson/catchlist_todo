@@ -76,12 +76,12 @@ class RoutineService:
 
         calendar_id = data.get('calendar_id')
         calendar_color = None
-        if calendar_id and not self.calendar_service.get_calendar(calendar_id, user_id):
-            raise RoutineValidationError(f"Calendar {calendar_id} not found.")
-        elif calendar_id:
-            # Inherit calendar_color from the associated calendar
-            calendar = self.calendar_service.get_calendar(calendar_id, user_id)
-            calendar_color = calendar.color if calendar else None
+        if calendar_id:
+            try:
+                calendar = self.calendar_service.get_calendar(user_id, calendar_id)
+                calendar_color = calendar.color
+            except EntityNotFoundError:
+                raise RoutineValidationError(f"Calendar {calendar_id} not found.")
 
         return self.repo.create(
             user_id=user_id,

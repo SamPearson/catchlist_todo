@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from .calendar_repository import CalendarRepo
 from .calendar_models import Calendar
@@ -144,11 +144,11 @@ class CalendarService:
             calendars = [c for c in calendars if c.active]
         return calendars
 
-    def get_calendar(self, calendar_id: int, user_id: int) -> Optional[Calendar]:
+    def get_calendar(self, user_id: int, calendar_id: int) -> Calendar:
         """Get a specific calendar, ensuring user ownership"""
-        return self.repo.get(id=calendar_id, user_id=user_id)
+        return self.repo.get(user_id, calendar_id)
 
-    def update_calendar(self, user_id: int, calendar_id: int, data: Dict[str, Any]) -> Optional[Calendar]:
+    def update_calendar(self, user_id: int, calendar_id: int, data: Dict[str, Any]) -> Calendar:
         """
         Update a calendar's properties.
         Only allows updating: name, color
@@ -160,11 +160,9 @@ class CalendarService:
             data: Dictionary of fields to update
 
         Returns:
-            Updated calendar or None if not found
+            Updated calendar
         """
-        calendar = self.repo.get(id=calendar_id, user_id=user_id)
-        if not calendar:
-            return None
+        self.repo.get(user_id, calendar_id)
 
         # Whitelist of updatable fields (removed 'active')
         updatable = ['name', 'color']
@@ -175,11 +173,11 @@ class CalendarService:
 
         # If color is being updated, cascade the change to routines and sessions
         if 'color' in update_data:
-            updated_calendar = self.repo.update(calendar, **update_data)
+            updated_calendar = self.repo.update(user_id, calendar_id, **update_data)
             self.cascade_color_change(user_id, calendar_id, update_data['color'])
             return updated_calendar
 
-        return self.repo.update(calendar, **update_data)
+        return self.repo.update(user_id, calendar_id, **update_data)
 
     def cascade_color_change(self, user_id: int, calendar_id: int, new_color: str) -> int:
         """
@@ -193,9 +191,7 @@ class CalendarService:
         Returns:
             Number of routines (and their sessions) updated
         """
-        calendar = self.repo.get(id=calendar_id, user_id=user_id)
-        if not calendar:
-            return 0
+        calendar = self.repo.get(user_id, calendar_id)
 
         routine_service = RoutineService(self.session)
         updated_count = 0
@@ -222,7 +218,7 @@ class CalendarService:
         logging.info(f"Cascaded color change to {updated_count} routines and their sessions for calendar {calendar_id}")
         return updated_count
 
-    def activate_calendar(self, user_id: int, calendar_id: int, cascade: bool = False) -> Optional[Calendar]:
+    def activate_calendar(self, user_id: int, calendar_id: int, cascade: bool = False) -> Calendar:
         """
         Activate a calendar.
 
@@ -232,14 +228,12 @@ class CalendarService:
             cascade: If True, also activate all routines in this calendar (default: False)
 
         Returns:
-            Updated calendar or None if not found
+            Updated calendar
         """
-        calendar = self.repo.get(id=calendar_id, user_id=user_id)
-        if not calendar:
-            return None
+        self.repo.get(user_id, calendar_id)
 
         # Activate the calendar
-        calendar = self.repo.update(calendar, active=True)
+        calendar = self.repo.update(user_id, calendar_id, active=True)
 
         # Cascade activation to routines if requested
         if cascade:
@@ -250,7 +244,7 @@ class CalendarService:
 
         return calendar
 
-    def deactivate_calendar(self, user_id: int, calendar_id: int, cascade: bool = True) -> Optional[Calendar]:
+    def deactivate_calendar(self, user_id: int, calendar_id: int, cascade: bool = True) -> Calendar:
         """
         Deactivate a calendar.
 
@@ -260,14 +254,12 @@ class CalendarService:
             cascade: If True, also deactivate all routines in this calendar (default: True)
 
         Returns:
-            Updated calendar or None if not found
+            Updated calendar
         """
-        calendar = self.repo.get(id=calendar_id, user_id=user_id)
-        if not calendar:
-            return None
+        self.repo.get(user_id, calendar_id)
 
         # Deactivate the calendar
-        calendar = self.repo.update(calendar, active=False)
+        calendar = self.repo.update(user_id, calendar_id, active=False)
 
         # Cascade deactivation to routines if requested
         if cascade:
@@ -279,20 +271,15 @@ class CalendarService:
         return calendar
 
 
-    def delete_calendar(self, user_id: int, calendar_id: int) -> bool:
+    def delete_calendar(self, user_id: int, calendar_id: int) -> None:
         """
         Delete a calendar and all its associated routines and sessions.
         Sessions are automatically deleted via cascade in Routine model.
-        
+
         Args:
             user_id: ID of the user who owns the calendar
             calendar_id: ID of the calendar to delete
-            
-        Returns:
-            bool: True if calendar was found and deleted, False otherwise
         """
-        calendar = self.repo.get(id=calendar_id, user_id=user_id)
-        if not calendar:
-            return False
+        self.repo.get(user_id, calendar_id)
 
-        return self.repo.delete(calendar)
+        self.repo.delete(user_id, calendar_id)
