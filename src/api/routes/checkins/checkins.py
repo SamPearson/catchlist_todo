@@ -2,6 +2,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from src.database.db import db
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.checkins.checkin_service import CheckinService, CheckinTargetNotFound, CheckinValidationError
 from src.database.users.user_models import User
 from src.utils.timezone import parse_dt, to_utc, from_utc
@@ -174,11 +175,11 @@ def list_all_checkins():
 def get_checkin(checkin_id: int):
     user_id = int(get_jwt_identity())
     service = CheckinService(session=db.session)
-    checkin = service.get(user_id=user_id, checkin_id=checkin_id)
-    
-    if not checkin:
+    try:
+        checkin = service.get(user_id=user_id, checkin_id=checkin_id)
+    except EntityNotFoundError:
         return "", 404
-    
+
     user_timezone = get_user_timezone(user_id)
     return jsonify(_localize_checkin(checkin.as_dict(), user_timezone))
 
@@ -218,9 +219,9 @@ def update_checkin(checkin_id: int):
             checkin_id=checkin_id,
             **update_kwargs
         )
-        if not updated:
-            return "", 404
         return jsonify(_localize_checkin(updated.as_dict(), user_timezone))
+    except EntityNotFoundError:
+        return "", 404
     except CheckinValidationError as e:
         return jsonify({"error": e.message}), 400
 
@@ -229,5 +230,8 @@ def update_checkin(checkin_id: int):
 def delete_checkin(checkin_id: int):
     user_id = int(get_jwt_identity())
     service = CheckinService(session=db.session)
-    ok = service.delete(user_id=user_id, checkin_id=checkin_id)
-    return ("", 204) if ok else ("", 404)
+    try:
+        service.delete(user_id=user_id, checkin_id=checkin_id)
+        return "", 204
+    except EntityNotFoundError:
+        return "", 404
