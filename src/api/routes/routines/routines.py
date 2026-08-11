@@ -43,9 +43,9 @@ def list_routines():
 def get_routine(routine_id: int):
     user_id = int(get_jwt_identity())
     service = RoutineService(db.session)
-    routine = service.get_routine(routine_id, user_id)
-
-    if not routine:
+    try:
+        routine = service.get_routine(user_id, routine_id)
+    except EntityNotFoundError:
         return jsonify({'error': f'Routine {routine_id} not found'}), 404
 
     # Get user timezone and present routine
@@ -107,8 +107,8 @@ def update_routine(routine_id: int):
         cascade_past = request.args.get('cascade_past', 'false').lower() == 'true'
 
         updated = service.update_routine(
-            routine_id,
             user_id,
+            routine_id,
             data,
             cascade_future=cascade_future,
             cascade_past=cascade_past
@@ -135,7 +135,7 @@ def delete_routine(routine_id: int):
     service = RoutineService(db.session)
 
     try:
-        service.delete_routine(routine_id, user_id)
+        service.delete_routine(user_id, routine_id)
         return ('', 204)
     except EntityNotFoundError as e:
         return jsonify({"error": str(e)}), 404
@@ -150,13 +150,9 @@ def delete_future_sessions(routine_id: int):
         # Parse parameters
         incomplete_only = request.args.get('incomplete_only', 'true').lower() == 'true'
 
-        routine = service.get_routine(routine_id, user_id)
-        if not routine:
-            return '', 404
-
         deleted_count = service.delete_future_sessions(
-            routine_id,
             user_id,
+            routine_id,
             incomplete_only=incomplete_only
         )
 
@@ -164,6 +160,8 @@ def delete_future_sessions(routine_id: int):
             'message': f'Deleted {deleted_count} future sessions',
             'deleted_count': deleted_count
         }), 200
+    except EntityNotFoundError:
+        return '', 404
     except Exception as e:
         logging.error(f"Error deleting future sessions: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -179,20 +177,16 @@ def delete_past_sessions(routine_id: int):
         # Parse parameters
         incomplete_only = request.args.get('incomplete_only', 'true').lower() == 'true'
 
-        routine = service.get_routine(routine_id, user_id)
-        if not routine:
-            return jsonify({'error': f'Routine {routine_id} not found'}), 404
-
         # Get past sessions and delete them
         if incomplete_only:
-            sessions_to_delete = [s for s in service.get_past_sessions(routine_id, user_id)
+            sessions_to_delete = [s for s in service.get_past_sessions(user_id, routine_id)
                                   if s.status == 'scheduled']
         else:
-            sessions_to_delete = service.get_past_sessions(routine_id, user_id)
+            sessions_to_delete = service.get_past_sessions(user_id, routine_id)
 
         deleted_count = 0
         for session in sessions_to_delete:
-            if service.session_repo.delete(session):
+            if service.session_repo.delete(session.user_id, session.id):
                 deleted_count += 1
 
         logging.info(f"Deleted {deleted_count} past sessions for routine {routine_id}")
@@ -201,6 +195,8 @@ def delete_past_sessions(routine_id: int):
             'message': f'Deleted {deleted_count} past sessions',
             'deleted_count': deleted_count
         }), 200
+    except EntityNotFoundError:
+        return jsonify({'error': f'Routine {routine_id} not found'}), 404
     except Exception as e:
         logging.error(f"Error deleting past sessions: {str(e)}")
         return jsonify({"error": str(e)}), 500
