@@ -13,7 +13,7 @@ class TagRepository(UserOwnedRepository[Tag]):
     def get_all_by_user_id(self, user_id: int) -> list[Tag]:
         """Retrieve all tags for a specific user"""
         return (
-            self.db_session.query(Tag)
+            self.session.query(Tag)
             .filter_by(user_id=user_id)
             .all()
         )
@@ -21,14 +21,14 @@ class TagRepository(UserOwnedRepository[Tag]):
     def get_by_name(self, name: str, user_id: int) -> Optional[Tag]:
         """Retrieve a tag by name for a specific user"""
         return (
-            self.db_session.query(Tag)
+            self.session.query(Tag)
             .filter_by(name=name, user_id=user_id)
             .first()
         )
 
     def exists_by_name(self, name: str, user_id: int, exclude_id: Optional[int] = None) -> bool:
         """Check if a tag with the given name exists for a user"""
-        query = self.db_session.query(Tag).filter_by(name=name, user_id=user_id)
+        query = self.session.query(Tag).filter_by(name=name, user_id=user_id)
         if exclude_id is not None:
             query = query.filter(Tag.id != exclude_id)
         return query.first() is not None
@@ -40,8 +40,8 @@ class TagRepository(UserOwnedRepository[Tag]):
             color=color,
             user_id=user_id
         )
-        self.db_session.add(tag)
-        self.db_session.commit()
+        self.session.add(tag)
+        self.session.commit()
         return tag
 
     def update(self, user_id: int, tag_id: int, name: Optional[str] = None, color: Optional[str] = None) -> Tag:
