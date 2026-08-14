@@ -32,7 +32,7 @@ class TaskRepository(UserOwnedRepository[Task]):
         tasks = super().list_for_user(user_id, **filters)
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 
-    def update(self, task: Task, title: Optional[str] = None, 
+    def update(self, user_id: int, task_id: int, title: Optional[str] = None, 
                description: Optional[str] = None, status: Optional[str] = None,
                active: Optional[bool] = None, project_id: Optional[int] = None,
                completed: Optional[bool] = None, completed_at: Optional[datetime] = None) -> Task:
@@ -54,19 +54,16 @@ class TaskRepository(UserOwnedRepository[Task]):
             # Set completed_at if provided, or clear it if uncompleting
             update_data['completed_at'] = completed_at
         
-        return super().update(task, **update_data)
+        return super().update(user_id, task_id, **update_data)
 
-    def set_project(self, task: Task, project_id: Optional[int]) -> Task:
+    def set_project(self, user_id: int, task_id: int, project_id: Optional[int]) -> Task:
         """Set or clear the task's project association"""
-        task.project_id = project_id
-        task.updated_at = datetime.utcnow()
-        self.session.commit()
-        return task
+        return super().update(user_id, task_id, project_id=project_id)
 
-    def mark_completed(self, task: Task) -> Task:
+    def mark_completed(self, user_id: int, task_id: int) -> Task:
         """Mark a task as completed with timestamp"""
-        return super().update(task, completed=True, completed_at=datetime.utcnow())
+        return super().update(user_id, task_id, completed=True, completed_at=datetime.utcnow())
 
-    def mark_incomplete(self, task: Task) -> Task:
+    def mark_incomplete(self, user_id: int, task_id: int) -> Task:
         """Mark a task as incomplete, clearing timestamp"""
-        return super().update(task, completed=False, completed_at=None)
+        return super().update(user_id, task_id, completed=False, completed_at=None)

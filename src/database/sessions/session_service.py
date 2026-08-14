@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, time
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from .session_models import RoutineSession
 from .session_repository import SessionRepo
@@ -74,8 +74,8 @@ class SessionService:
         except Exception as e:
             logging.error(f"Error deleting commitment for session {session_id}: {str(e)}")
 
-    def get_session(self, session_id: int, user_id: int) -> Optional[RoutineSession]:
-        return self.repo.get(session_id, user_id)
+    def get_session(self, user_id: int, session_id: int) -> RoutineSession:
+        return self.repo.get(user_id, session_id)
 
     def list_sessions_for_window(self, user_id: int, start: datetime, end: datetime) -> List[RoutineSession]:
         return self.repo.list_for_window(user_id, start, end)
@@ -170,7 +170,7 @@ class SessionService:
             # Use TagService to properly add each tag via TagAssociation
             if routine.tags:
                 for tag in routine.tags:
-                    self.tag_service.add_tag_to_entity(tag.id, user_id, session_obj)
+                    self.tag_service.add_tag_to_entity(user_id, tag.id, session_obj)
                 logging.debug(f"Inherited {len(routine.tags)} tags to session {session_obj.id}")
         except Exception as e:
             logging.error(f"Error inheriting tags: {str(e)}")
@@ -194,42 +194,38 @@ class SessionService:
             # Use PrincipleService to properly add each principle via PrincipleAssociation
             if routine.principles:
                 for principle in routine.principles:
-                    self.principle_service.attach_to_entity(principle.id, user_id, session_obj)
+                    self.principle_service.attach_to_entity(user_id, principle.id, session_obj)
                 logging.debug(f"Inherited {len(routine.principles)} principles to session {session_obj.id}")
         except Exception as e:
             logging.error(f"Error inheriting principles: {str(e)}")
             # Don't raise; this is non-critical to session creation
 
 
-    def update_session(self, session_id: int, user_id: int, data: Dict[str, Any]) -> Optional[RoutineSession]:
-        session_obj = self.get_session(session_id, user_id)
-        if not session_obj:
-            return None
+    def update_session(self, user_id: int, session_id: int, data: Dict[str, Any]) -> RoutineSession:
+        self.repo.get(user_id, session_id)
 
         # Exclude status from updates; use set_session_status() instead
         updatable = ['start_time', 'end_time', 'notes', 'rpe']
         update_data = {k: v for k, v in data.items() if k in updatable}
 
-        return self.repo.update(session_obj, **update_data)
+        return self.repo.update(user_id, session_id, **update_data)
 
-    def set_session_status(self, session_id: int, user_id: int, status: str) -> Optional[RoutineSession]:
+    def set_session_status(self, user_id: int, session_id: int, status: str) -> RoutineSession:
         """
         Set the status of a session to one of: scheduled, completed, skipped, cancelled
 
         Args:
-            session_id: ID of the session
             user_id: ID of the user who owns the session
+            session_id: ID of the session
             status: One of 'scheduled', 'completed', 'skipped', 'cancelled'
 
         Returns:
-            Updated session object or None if not found
+            Updated session object
 
         Raises:
             SessionValidationError if status is invalid
         """
-        session_obj = self.get_session(session_id, user_id)
-        if not session_obj:
-            return None
+        self.repo.get(user_id, session_id)
 
         valid_statuses = {'scheduled', 'completed', 'skipped', 'cancelled'}
         if status not in valid_statuses:
@@ -237,18 +233,15 @@ class SessionService:
                 f"Invalid status '{status}'. Must be one of: {', '.join(valid_statuses)}"
             )
 
-        return self.repo.update(session_obj, status=status)
+        return self.repo.update(user_id, session_id, status=status)
 
-
-    def delete_session(self, session_id: int, user_id: int) -> bool:
-        session_obj = self.get_session(session_id, user_id)
-        if not session_obj:
-            return False
+    def delete_session(self, user_id: int, session_id: int) -> None:
+        self.repo.get(user_id, session_id)
 
         # Delete associated commitment first
         self._delete_commitment_for_session(user_id, session_id)
 
-        return self.repo.delete(session_obj)
+        self.repo.delete(user_id, session_id)
 
 
     def create_sessions_for_period(self, user_id: int, routine_id: int, start_date: datetime,

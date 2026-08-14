@@ -176,6 +176,8 @@ class TagRepository(BaseRepository[Tag]):
 - `update(instance, **data)` - Update existing record
 - `delete(instance)` - Delete record
 
+**Note:** `update(instance, **data)` and `delete(instance)` operate on an already-fetched entity. They are only used internally (e.g. by `UserOwnedRepository`). Callers of user-owned entities must use the `(user_id, id)` variants below.
+
 #### UserOwnedRepository[T]
 
 Repository for user-scoped resources with additional user filtering.
@@ -192,7 +194,9 @@ class TaskRepository(UserOwnedRepository[Task]):
 ```
 **Provides:**
 - Everything from `BaseRepository`
-- `get(id, user_id)` - Retrieve by ID and user (enforces ownership)
+- `get(user_id, id)` - Retrieve by ID and user (enforces ownership; raises `EntityNotFoundError` if missing or unowned)
+- `update(user_id, id, **data)` - Update a record owned by the user (fetches internally; raises `EntityNotFoundError` if missing or unowned)
+- `delete(user_id, id)` - Delete a record owned by the user (fetches internally; raises `EntityNotFoundError` if missing or unowned)
 - `list_for_user(user_id, **filters)` - List all for specific user
 
 #### When to Extend
@@ -212,6 +216,19 @@ class TaskRepository(UserOwnedRepository[Task]):
             self.model_class.active == True
         ).all()
 ```
+#### Repository Contract (User-Owned Entities)
+
+All ownership-enforcing methods in `UserOwnedRepository` follow the same contract. Every user-owned entity's repository must conform:
+
+- **`user_id` always comes first**: `get(user_id, id)`, `update(user_id, id, **data)`, `delete(user_id, id)`, `list_for_user(user_id, **filters)`
+- **Never return falsy**: `get`/`update`/`delete` raise `EntityNotFoundError` (from `src.database.base.exceptions`) when the record is missing *or* owned by another user. Callers must `try/except EntityNotFoundError` — never branch on a falsy return value.
+- **Never pass a pre-fetched entity**: you cannot operate on a user-owned record by passing in the entity. Every method re-fetches by `(user_id, id)`, so ownership is re-verified at the repository layer on every operation.
+- **Cross-entity ownership** (e.g. attaching a task to a project) is validated inside the service by fetching *both* entities with the same `user_id`; the first `EntityNotFoundError` to propagate wins.
+
+At the API layer, `EntityNotFoundError` maps to HTTP **404** — including when the record exists but belongs to another user, so the API never reveals whether an entity exists. Do not return 403 for ownership violations on these endpoints.
+
+Routes and services must thread `(user_id, id)` all the way down. The old "get first, return 404 if falsy, then operate" convention is obsolete — the repository does that internally now. Fetch in the service (for business logic) or let the repository raise, then catch `EntityNotFoundError` at the route.
+
 ### Services
 
 Services implement validation and business logic. **All external access (API routes) must go through services.**
@@ -326,11 +343,10 @@ class NoteService:
         data["user_id"] = user_id
         return self.repo.create(**data)
     
-    def get_note(self, note_id: int, user_id: int) -> Note:
-        note = self.repo.get(note_id, user_id)
-        if not note:
-            raise ValueError(f"Note {note_id} not found")
-        return note
+    def get_note(self, user_id: int, note_id: int) -> Note:
+        # Raises EntityNotFoundError if missing or owned by another user;
+        # the API layer maps that to HTTP 404.
+        return self.repo.get(user_id, note_id)
     
     def _validate_title(self, title: str):
         if not title or len(title.strip()) == 0:
@@ -440,13 +456,15 @@ Database settings are defined in `database/config_db.py`:
 All user-scoped entities use `UserOwnedRepository`, which enforces ownership at the database level:
 
 ```python
-# This automatically filters by user_id
-task = task_repo.get(task_id, user_id)
+# user_id always comes first
+task = task_repo.get(user_id, task_id)
 
-# Users cannot access other users' data
-other_task = task_repo.get(task_id, other_user_id)  # Returns None
+# Users cannot access other users' data - raises EntityNotFoundError,
+# which the API layer maps to HTTP 404 (never reveal whether a record exists)
+task_repo.get(other_user_id, task_id)  # raises EntityNotFoundError
 ```
 
+`update(user_id, id, **data)` and `delete(user_id, id)` fetch the record the same way before touching it, so ownership is enforced on every write. Pass `(user_id, id)` through the service layer and down to the repository; never hand a pre-fetched entity to a repository method.
 
 This prevents data leakage and ensures users can only access their own resources.
 

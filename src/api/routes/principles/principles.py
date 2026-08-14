@@ -52,8 +52,11 @@ def get_principle(principle_id: int):
     """Get a specific principle by ID"""
     user_id = int(get_jwt_identity())
     service = PrincipleService(db.session)
-    item = service.get_principle(principle_id, user_id)
-    return jsonify(item.as_dict()) if item else ('', 404)
+    try:
+        item = service.get_principle(user_id, principle_id)
+        return jsonify(item.as_dict())
+    except EntityNotFoundError:
+        return ('', 404)
 
 @jwt_required()
 def create_principle():
@@ -92,10 +95,10 @@ def update_principle(principle_id: int):
 
     service = PrincipleService(db.session)
     try:
-        updated = service.update_principle(principle_id, user_id, data)
-        return jsonify(updated.as_dict()) if updated else ('', 404)
-    except EntityNotFoundError as e:
-        return jsonify({"error": str(e)}), 404
+        updated = service.update_principle(user_id, principle_id, data)
+        return jsonify(updated.as_dict())
+    except EntityNotFoundError:
+        return ('', 404)
     except PrincipleValidationError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -104,7 +107,11 @@ def delete_principle(principle_id: int):
     """Delete a principle"""
     user_id = int(get_jwt_identity())
     service = PrincipleService(db.session)
-    return ('', 204) if service.delete_principle(principle_id, user_id) else ('', 404)
+    try:
+        service.delete_principle(user_id, principle_id)
+        return '', 204
+    except EntityNotFoundError:
+        return '', 404
 
 
 @jwt_required()
@@ -130,7 +137,7 @@ def attach_principle():
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
     try:
-        if service.attach_to_entity(p_id, user_id, entity):
+        if service.attach_to_entity(user_id, p_id, entity):
             return jsonify({"success": True}), 200
     except EntityNotFoundError as e:
         return jsonify({"error": str(e)}), 404
@@ -163,7 +170,7 @@ def detach_principle():
         return jsonify({"error": f"Target {t_type} with id {t_id} not found"}), 404
 
     try:
-        if service.detach_from_entity(p_id, user_id, entity):
+        if service.detach_from_entity(user_id, p_id, entity):
             return jsonify({"success": True}), 200
     except EntityNotFoundError as e:
         return jsonify({"error": str(e)}), 404

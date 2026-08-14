@@ -27,8 +27,8 @@ class RoutineService:
         self.timeframe_service = TimeframeService(session)
         self.commitment_service = CommitmentService(session)
 
-    def get_routine(self, routine_id: int, user_id: int) -> Optional[Routine]:
-        return self.repo.get(routine_id, user_id)
+    def get_routine(self, user_id: int, routine_id: int) -> Routine:
+        return self.repo.get(user_id, routine_id)
 
     def list_routines(self, user_id: int, active_only: bool = True) -> List[Routine]:
         filters = {}
@@ -76,12 +76,12 @@ class RoutineService:
 
         calendar_id = data.get('calendar_id')
         calendar_color = None
-        if calendar_id and not self.calendar_service.get_calendar(calendar_id, user_id):
-            raise RoutineValidationError(f"Calendar {calendar_id} not found.")
-        elif calendar_id:
-            # Inherit calendar_color from the associated calendar
-            calendar = self.calendar_service.get_calendar(calendar_id, user_id)
-            calendar_color = calendar.color if calendar else None
+        if calendar_id:
+            try:
+                calendar = self.calendar_service.get_calendar(user_id, calendar_id)
+                calendar_color = calendar.color
+            except EntityNotFoundError:
+                raise RoutineValidationError(f"Calendar {calendar_id} not found.")
 
         return self.repo.create(
             user_id=user_id,
@@ -99,14 +99,14 @@ class RoutineService:
             calendar_color=calendar_color
         )
 
-    def get_future_sessions(self, routine_id: int, user_id: int,
+    def get_future_sessions(self, user_id: int, routine_id: int,
                             reference_time: Optional[datetime] = None) -> List[RoutineSession]:
         """
         Get all future sessions for a routine (excluding passed sessions).
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user who owns the routine
+            routine_id: ID of the routine
             reference_time: Time to compare against (default: now in UTC)
 
         Returns:
@@ -115,21 +115,18 @@ class RoutineService:
         if reference_time is None:
             reference_time = datetime.utcnow()
 
-        routine = self.get_routine(routine_id, user_id)
-        if not routine:
-            return []
-
+        routine = self.get_routine(user_id, routine_id)
         return [s for s in routine.sessions if s.start_time >= reference_time]
 
 
-    def get_past_sessions(self, routine_id: int, user_id: int,
+    def get_past_sessions(self, user_id: int, routine_id: int,
                           reference_time: Optional[datetime] = None) -> List[RoutineSession]:
         """
         Get all past sessions for a routine (excluding future sessions).
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user who owns the routine
+            routine_id: ID of the routine
             reference_time: Time to compare against (default: now in UTC)
 
         Returns:
@@ -138,10 +135,7 @@ class RoutineService:
         if reference_time is None:
             reference_time = datetime.utcnow()
 
-        routine = self.get_routine(routine_id, user_id)
-        if not routine:
-            return []
-
+        routine = self.get_routine(user_id, routine_id)
         return sorted(
             [s for s in routine.sessions if s.start_time < reference_time],
             key=lambda s: s.start_time,
@@ -149,32 +143,32 @@ class RoutineService:
         )
 
 
-    def get_incomplete_sessions(self, routine_id: int, user_id: int,
+    def get_incomplete_sessions(self, user_id: int, routine_id: int,
                                 reference_time: Optional[datetime] = None) -> List[RoutineSession]:
         """
         Get all incomplete (not completed/skipped/cancelled) future sessions for a routine.
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user who owns the routine
+            routine_id: ID of the routine
             reference_time: Time to compare against (default: now in UTC)
 
         Returns:
             List of future sessions with status='scheduled'
         """
-        future_sessions = self.get_future_sessions(routine_id, user_id, reference_time)
+        future_sessions = self.get_future_sessions(user_id, routine_id, reference_time)
         return [s for s in future_sessions if s.status == 'scheduled']
 
 
-    def delete_future_sessions(self, routine_id: int, user_id: int,
+    def delete_future_sessions(self, user_id: int, routine_id: int,
                                incomplete_only: bool = True,
                                reference_time: Optional[datetime] = None) -> int:
         """
         Delete future sessions for a routine.
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user who owns the routine
+            routine_id: ID of the routine
             incomplete_only: If True, only delete 'scheduled' sessions; if False, delete all
             reference_time: Time to compare against (default: now in UTC)
 
@@ -182,55 +176,53 @@ class RoutineService:
             Number of sessions deleted
         """
         if incomplete_only:
-            sessions_to_delete = self.get_incomplete_sessions(routine_id, user_id, reference_time)
+            sessions_to_delete = self.get_incomplete_sessions(user_id, routine_id, reference_time)
         else:
-            sessions_to_delete = self.get_future_sessions(routine_id, user_id, reference_time)
+            sessions_to_delete = self.get_future_sessions(user_id, routine_id, reference_time)
 
         deleted_count = 0
         for session in sessions_to_delete:
-            if self.session_repo.delete(session):
+            if self.session_repo.delete(session.user_id, session.id):
                 deleted_count += 1
 
         logging.info(f"Deleted {deleted_count} future sessions for routine {routine_id}")
         return deleted_count
 
 
-    def cascade_routine_name_to_sessions(self, routine_id: int, user_id: int,
+    def cascade_routine_name_to_sessions(self, user_id: int, routine_id: int,
                                          new_name: str,
                                          scope: str = 'all') -> int:
         """
         Update routine_name on associated sessions.
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user who owns the routine
+            routine_id: ID of the routine
             new_name: The new routine name
             scope: 'all' = all sessions, 'future' = only future sessions, 'past' = only past sessions
 
         Returns:
             Number of sessions updated
         """
-        routine = self.get_routine(routine_id, user_id)
-        if not routine:
-            return 0
+        routine = self.get_routine(user_id, routine_id)
 
         if scope == 'future':
-            sessions_to_update = self.get_future_sessions(routine_id, user_id)
+            sessions_to_update = self.get_future_sessions(user_id, routine_id)
         elif scope == 'past':
-            sessions_to_update = self.get_past_sessions(routine_id, user_id)
+            sessions_to_update = self.get_past_sessions(user_id, routine_id)
         else:  # 'all'
             sessions_to_update = routine.sessions
 
         updated_count = 0
         for session in sessions_to_update:
-            self.session_repo.update(session, routine_name=new_name)
+            self.session_repo.update(session.user_id, session.id, routine_name=new_name)
             updated_count += 1
 
         logging.info(f"Updated routine_name for {updated_count} sessions (scope: {scope})")
         return updated_count
 
-    def update_routine(self, routine_id: int, user_id: int, data: Dict[str, Any],
-                       cascade_future: bool = False, cascade_past: bool = False) -> Optional[Routine]:
+    def update_routine(self, user_id: int, routine_id: int, data: Dict[str, Any],
+                       cascade_future: bool = False, cascade_past: bool = False) -> Routine:
         """
         Update routine properties with optional cascade to sessions.
 
@@ -240,15 +232,13 @@ class RoutineService:
         - Other fields (description, rrule, active): No cascade
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user who owns the routine
+            routine_id: ID of the routine
             data: Dictionary of fields to update
             cascade_future: If True, cascade cascadeable fields to future sessions
             cascade_past: If True, cascade cascadeable fields to past sessions
         """
-        routine = self.get_routine(routine_id, user_id)
-        if not routine:
-            raise EntityNotFoundError(f"Routine {routine_id} not found")
+        self.repo.get(user_id, routine_id)
 
         # Standardize allowed update fields
         updatable = ['title', 'description', 'rrule', 'active', 'start_time', 'end_time']
@@ -285,23 +275,23 @@ class RoutineService:
         # Cascade changes to sessions if requested
         if fields_to_cascade:
             if cascade_future:
-                self._cascade_to_sessions(routine_id, user_id, update_data, scope='future',
+                self._cascade_to_sessions(user_id, routine_id, update_data, scope='future',
                                           cascade_fields=fields_to_cascade)
             if cascade_past:
-                self._cascade_to_sessions(routine_id, user_id, update_data, scope='past',
+                self._cascade_to_sessions(user_id, routine_id, update_data, scope='past',
                                           cascade_fields=fields_to_cascade)
 
         # Update the routine itself
-        return self.repo.update(routine, **update_data)
+        return self.repo.update(user_id, routine_id, **update_data)
 
-    def _cascade_to_sessions(self, routine_id: int, user_id: int, update_data: Dict[str, Any],
+    def _cascade_to_sessions(self, user_id: int, routine_id: int, update_data: Dict[str, Any],
                              scope: str = 'future', cascade_fields: Optional[set] = None) -> int:
         """
         Cascade routine updates to sessions.
 
         Args:
-            routine_id: ID of the routine
             user_id: ID of the user
+            routine_id: ID of the routine
             update_data: Dictionary of fields being updated
             scope: 'future', 'past', or 'all'
             cascade_fields: Set of field names to cascade (title, start_time, end_time, calendar_color)
@@ -314,12 +304,12 @@ class RoutineService:
 
         # Get sessions based on scope
         if scope == 'future':
-            sessions_to_update = self.get_future_sessions(routine_id, user_id)
+            sessions_to_update = self.get_future_sessions(user_id, routine_id)
         elif scope == 'past':
-            sessions_to_update = self.get_past_sessions(routine_id, user_id)
+            sessions_to_update = self.get_past_sessions(user_id, routine_id)
         else:  # 'all'
-            routine = self.get_routine(routine_id, user_id)
-            sessions_to_update = routine.sessions if routine else []
+            routine = self.get_routine(user_id, routine_id)
+            sessions_to_update = routine.sessions
 
         updated_count = 0
 
@@ -349,27 +339,21 @@ class RoutineService:
                 session_update_data['calendar_color'] = update_data['calendar_color']
 
             if session_update_data:
-                self.session_repo.update(session, **session_update_data)
+                self.session_repo.update(session.user_id, session.id, **session_update_data)
                 updated_count += 1
 
         logging.info(f"Cascaded updates to {updated_count} {scope} sessions for routine {routine_id}")
         return updated_count
 
-    def delete_routine(self, routine_id: int, user_id: int) -> bool:
+    def delete_routine(self, user_id: int, routine_id: int) -> None:
         """
         Delete a routine and all its associated sessions.
         Sessions will be automatically deleted due to cascade setting in relationship.
 
         Args:
-            routine_id: ID of the routine to delete
             user_id: ID of the user who owns the routine
-
-        Returns:
-            bool: True if routine was found and deleted, False otherwise
+            routine_id: ID of the routine to delete
         """
-        routine = self.get_routine(routine_id, user_id)
-        if not routine:
-            raise EntityNotFoundError(f"Routine {routine_id} not found")
+        self.repo.get(user_id, routine_id)
 
-
-        return self.repo.delete(routine)
+        self.repo.delete(user_id, routine_id)

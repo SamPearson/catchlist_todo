@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.calendars.calendar_service import CalendarService
 from src.api.utils.caldav_client import CalDAVClient, CalDAVConnectionError
-from src.database.base.exceptions import ValidationError
+from src.database.base.exceptions import ValidationError, EntityNotFoundError
 import re
 from src.utils.timezone import get_user_timezone
 
@@ -92,9 +92,10 @@ def get_calendar(calendar_id):
     user_id = int(get_jwt_identity())
     service = CalendarService(db.session)
 
-    calendar = service.get_calendar(calendar_id, user_id)
-    if not calendar:
-        return jsonify({"error": "Calendar not found"}), 404
+    try:
+        calendar = service.get_calendar(user_id, calendar_id)
+    except EntityNotFoundError:
+        return '', 404
 
     return jsonify(calendar.as_dict())
 
@@ -176,9 +177,9 @@ def update_calendar(calendar_id):
 
     try:
         calendar = service.update_calendar(user_id, calendar_id, data)
-        if not calendar:
-            return jsonify({"error": "Calendar not found"}), 404
         return jsonify(calendar.as_dict())
+    except EntityNotFoundError:
+        return '', 404
     except ValidationError as e:
         return jsonify({"error": e.message}), 400
 
@@ -195,9 +196,9 @@ def activate_calendar(calendar_id):
     
     try:
         calendar = service.activate_calendar(user_id, calendar_id, cascade=cascade)
-        if not calendar:
-            return jsonify({"error": "Calendar not found"}), 404
         return jsonify(calendar.as_dict())
+    except EntityNotFoundError:
+        return '', 404
     except ValidationError as e:
         return jsonify({"error": e.message}), 400
 
@@ -214,9 +215,9 @@ def deactivate_calendar(calendar_id):
     
     try:
         calendar = service.deactivate_calendar(user_id, calendar_id, cascade=cascade)
-        if not calendar:
-            return jsonify({"error": "Calendar not found"}), 404
         return jsonify(calendar.as_dict())
+    except EntityNotFoundError:
+        return '', 404
     except ValidationError as e:
         return jsonify({"error": e.message}), 400
 
@@ -227,7 +228,8 @@ def delete_calendar(calendar_id):
     user_id = int(get_jwt_identity())
     service = CalendarService(db.session)
 
-    if not service.delete_calendar(user_id, calendar_id):
-        return jsonify({"error": "Calendar not found"}), 404
-
-    return jsonify({"message": "Calendar deleted successfully"}), 204
+    try:
+        service.delete_calendar(user_id, calendar_id)
+        return '', 204
+    except EntityNotFoundError:
+        return '', 404

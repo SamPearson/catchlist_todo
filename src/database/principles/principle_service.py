@@ -1,7 +1,7 @@
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session
-from src.database.base.exceptions import ValidationError, EntityNotFoundError
+from src.database.base.exceptions import ValidationError
 from .principle_models import Principle, PrincipleAssociation
 from .principle_repository import PrincipleRepo
 
@@ -15,8 +15,10 @@ class PrincipleService:
         self.session = session
         self.repo = PrincipleRepo(session)
 
-    def get_principle(self, principle_id: int, user_id: int) -> Optional[Principle]:
-        return self.repo.get(principle_id, user_id)
+    def get_principle(self, user_id: int, principle_id: int) -> Principle:
+        # Raises EntityNotFoundError if missing or owned by another user;
+        # the API layer maps that to HTTP 404.
+        return self.repo.get(user_id, principle_id)
 
     def list_principles(self, user_id: int) -> List[Principle]:
         return self.repo.list_for_user(user_id)
@@ -49,10 +51,9 @@ class PrincipleService:
             color=data.get('color', 'ffd700')
         )
 
-    def update_principle(self, principle_id: int, user_id: int, data: Dict[str, Any]) -> Optional[Principle]:
-        principle = self.get_principle(principle_id, user_id)
-        if not principle:
-            raise EntityNotFoundError(f"Principle with ID {principle_id} not found.")
+    def update_principle(self, user_id: int, principle_id: int, data: Dict[str, Any]) -> Principle:
+        # Raises EntityNotFoundError if missing or owned by another user
+        self.repo.get(user_id, principle_id)
 
         update_data = {}
 
@@ -82,20 +83,18 @@ class PrincipleService:
         if 'reason' in data:
             update_data['reason'] = data['reason']
 
-        return self.repo.update(principle, **update_data)
+        return self.repo.update(user_id, principle_id, **update_data)
 
-    def delete_principle(self, principle_id: int, user_id: int) -> bool:
-        principle = self.get_principle(principle_id, user_id)
-        if not principle:
-            return False
-        return self.repo.delete(principle)
+    def delete_principle(self, user_id: int, principle_id: int) -> bool:
+        # Raises EntityNotFoundError if missing or owned by another user
+        self.repo.get(user_id, principle_id)
+        return self.repo.delete(user_id, principle_id)
 
-    def attach_to_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
+    def attach_to_entity(self, user_id: int, principle_id: int, entity: Any) -> bool:
         from .principle_models import PrincipleAssociation
-    
-        principle = self.get_principle(principle_id, user_id)
-        if not principle:
-            raise EntityNotFoundError(f"Principle with ID {principle_id} not found.")
+
+        # Raises EntityNotFoundError if missing or owned by another user
+        principle = self.repo.get(user_id, principle_id)
         if not hasattr(entity, 'principles'):
             logging.error(f"Entity {entity} does not support principles.\n{entity.__dict__}")
             raise PrincipleValidationError(f"Entity {entity} does not support principles.")
@@ -118,12 +117,9 @@ class PrincipleService:
             self.session.commit()
         return True
 
-    def detach_from_entity(self, principle_id: int, user_id: int, entity: Any) -> bool:
-
-        principle = self.get_principle(principle_id, user_id)
-        if not principle:
-            raise EntityNotFoundError(f"Principle with ID {principle_id} not found.")
-
+    def detach_from_entity(self, user_id: int, principle_id: int, entity: Any) -> bool:
+        # Raises EntityNotFoundError if missing or owned by another user
+        principle = self.repo.get(user_id, principle_id)
 
         # Directly delete the association instead of relying on relationship management
         association = self.session.query(PrincipleAssociation).filter_by(

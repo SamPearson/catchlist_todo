@@ -57,7 +57,7 @@ class ReportService:
             return existing
 
         # Get the timeframe to validate it exists
-        timeframe = self.timeframe_service.get_timeframe(timeframe_id, user_id)
+        timeframe = self.timeframe_service.get_timeframe(timeframe_id=timeframe_id, user_id=user_id)
         if not timeframe:
             raise ReportValidationError(f"Timeframe {timeframe_id} not found")
 
@@ -67,9 +67,13 @@ class ReportService:
             timeframe_id=timeframe_id,
         )
 
-    def get_report(self, report_id: int, user_id: int) -> Report | None:
-        """Get a specific report by ID."""
-        return self.repo.get(report_id, user_id=user_id)
+    def get_report(self, user_id: int, report_id: int) -> Report:
+        """Get a specific report by ID.
+
+        Raises EntityNotFoundError if missing or owned by another user;
+        the API layer maps that to HTTP 404.
+        """
+        return self.repo.get(user_id, report_id)
 
     def get_by_timeframe(self, timeframe_id: int, user_id: int) -> Report | None:
         """Get a report by its timeframe ID."""
@@ -78,30 +82,32 @@ class ReportService:
     def update_report(
             self,
             *,
-            report_id: int,
             user_id: int,
+            report_id: int,
             plan: str | None = None,
             reason: str | None = None,
             pre_notes: str | None = None,
             post_notes: str | None = None,
-    ) -> Report | None:
+    ) -> Report:
         """
         Update a report's editable fields.
 
         Args:
-            report_id: The report ID
             user_id: The user ID
+            report_id: The report ID
             plan: New plan text (or None to leave unchanged)
             reason: New reason text (or None to leave unchanged)
             pre_notes: New pre_notes text (or None to leave unchanged)
             post_notes: New post_notes text (or None to leave unchanged)
 
         Returns:
-            The updated report, or None if not found
+            The updated report
+
+        Raises:
+            EntityNotFoundError: if the report is missing or owned by another user
         """
-        report = self.get_report(report_id, user_id)
-        if not report:
-            return None
+        # Raises EntityNotFoundError if missing or owned by another user
+        self.repo.get(user_id, report_id)
 
         # Build update dict (only include non-None values)
         updates = {}
@@ -114,14 +120,17 @@ class ReportService:
         if post_notes is not None:
             updates['post_notes'] = post_notes
 
-        return self.repo.update(report, **updates)
+        return self.repo.update(user_id, report_id, **updates)
 
-    def delete_report(self, report_id: int, user_id: int) -> bool:
-        """Delete a report."""
-        report = self.get_report(report_id, user_id)
-        if not report:
-            return False
-        return self.repo.delete(report)
+    def delete_report(self, user_id: int, report_id: int) -> bool:
+        """Delete a report.
+
+        Raises EntityNotFoundError if missing or owned by another user;
+        the API layer maps that to HTTP 404.
+        """
+        # Raises EntityNotFoundError if missing or owned by another user
+        self.repo.get(user_id, report_id)
+        return self.repo.delete(user_id, report_id)
 
     def build_report_dict(
             self,

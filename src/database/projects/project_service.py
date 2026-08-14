@@ -42,8 +42,8 @@ class ProjectService:
         if len(title) > MAX_TITLE_LENGTH:
             raise ProjectValidationError(f"Project title cannot exceed {MAX_TITLE_LENGTH} characters")
 
-    def get_project(self, project_id: int, user_id: int) -> Optional[Project]:
-        return self.repository.get(project_id, user_id)
+    def get_project(self, user_id: int, project_id: int) -> Project:
+        return self.repository.get(user_id, project_id)
 
     def list_projects(self, user_id: int,
                       include_completed: bool = False,
@@ -81,15 +81,17 @@ class ProjectService:
         # If user requested active=True, validate and activate
         if should_activate:
             try:
-                project = self.activate_project(project)
+                project = self.activate_project(user_id, project.id)
             except ProjectValidationError:
                 # If activation fails, delete the created project and re-raise
-                self.repository.delete(project)
+                self.repository.delete(user_id, project.id)
                 raise
 
         return project
 
-    def update_project(self, project: Project, data: Dict[str, Any]) -> Project:
+    def update_project(self, user_id: int, project_id: int, data: Dict[str, Any]) -> Project:
+        self.repository.get(user_id, project_id)
+
         update_data = {}
         for field in ['title', 'description', 'win_condition', 'reason', 'next_step', 'active', 'status']:
             if field in data:
@@ -104,14 +106,15 @@ class ProjectService:
         if 'status' in update_data and update_data['status'] not in VALID_STATUSES:
             raise ProjectValidationError(f"Invalid status: {update_data['status']}. Must be one of: {', '.join(VALID_STATUSES)}")
 
-        return self.repository.update(project, **update_data)
+        return self.repository.update(user_id, project_id, **update_data)
 
-    def complete_project(self, project: Project) -> Project:
+    def complete_project(self, user_id: int, project_id: int) -> Project:
         """
         Mark a project as completed.
         - Fails if there are incomplete subtasks
         - Sets completed=True, completed_at=now, active=False
         """
+        project = self.repository.get(user_id, project_id)
         if project.completed:
             return project  # Already completed, no-op
 
@@ -120,34 +123,38 @@ class ProjectService:
             raise ProjectValidationError("Cannot complete project with incomplete subtasks")
 
         return self.repository.update(
-            project,
+            user_id,
+            project_id,
             completed=True,
             completed_at=datetime.utcnow(),
             active=False
         )
 
-    def uncomplete_project(self, project: Project) -> Project:
+    def uncomplete_project(self, user_id: int, project_id: int) -> Project:
         """
         Mark a project as not completed.
         - Clears completed and completed_at
         - Does NOT automatically set active=True (user decides)
         """
+        project = self.repository.get(user_id, project_id)
         if not project.completed:
             return project  # Already not completed, no-op
 
         return self.repository.update(
-            project,
+            user_id,
+            project_id,
             completed=False,
             completed_at=None
         )
 
 
-    def activate_project(self, project: Project) -> Project:
+    def activate_project(self, user_id: int, project_id: int) -> Project:
         """
         Activate a project (set active=true).
         - Validates that win_condition, reason, and next_step are populated
         - Returns validation error if any are missing
         """
+        project = self.repository.get(user_id, project_id)
         if project.active:
             return project  # Already active, no-op
 
@@ -156,38 +163,42 @@ class ProjectService:
                 "Cannot activate project; win_condition, reason, and next_step are required."
             )
 
-        return self.repository.update(project, active=True)
+        return self.repository.update(user_id, project_id, active=True)
 
-    def deactivate_project(self, project: Project) -> Project:
+    def deactivate_project(self, user_id: int, project_id: int) -> Project:
         """
         Deactivate a project (set active=false).
         - No validation required
         """
+        project = self.repository.get(user_id, project_id)
         if not project.active:
             return project  # Already inactive, no-op
 
-        return self.repository.update(project, active=False)
+        return self.repository.update(user_id, project_id, active=False)
 
 
-    def change_status(self, project: Project, new_status: str) -> Project:
+    def change_status(self, user_id: int, project_id: int, new_status: str) -> Project:
         """Change a project's status"""
         if not new_status or new_status not in VALID_STATUSES:
             raise ProjectValidationError(f"Invalid status: {new_status}. Must be one of: {', '.join(VALID_STATUSES)}")
 
+        project = self.repository.get(user_id, project_id)
         if project.status == new_status:
             return project
 
-        return self.repository.update(project, status=new_status)
+        return self.repository.update(user_id, project_id, status=new_status)
 
 
-    def delete_project(self, project: Project) -> None:
-        self.repository.delete(project)
+    def delete_project(self, user_id: int, project_id: int) -> None:
+        self.repository.get(user_id, project_id)
+        self.repository.delete(user_id, project_id)
 
     def get_project_tasks(self, project_id: int, user_id: int, include_completed: bool = False) -> List[Task]:
         return self.repository.get_project_tasks(project_id, user_id, include_completed)
 
-    def create_subtask(self, project: Project, user_id: int, title: str, data: Optional[Dict[str, Any]] = None) -> Task:
+    def create_subtask(self, user_id: int, project_id: int, title: str, data: Optional[Dict[str, Any]] = None) -> Task:
         """Create a task as a subtask of this project."""
+        project = self.repository.get(user_id, project_id)
         data = data or {}
         data['project_id'] = project.id
         return self.task_service.create_task(user_id, title, data)

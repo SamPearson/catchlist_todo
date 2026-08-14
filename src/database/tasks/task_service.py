@@ -49,13 +49,13 @@ class TaskService:
         # If project_id provided, attach it using the existing validation logic
         project_id = data.get('project_id')
         if project_id is not None:
-            task = self.attach_to_project(task, project_id, user_id)
+            task = self.attach_to_project(user_id, task.id, project_id)
         
         return task
 
-    def get_task(self, task_id: int, user_id: int) -> Optional[Task]:
+    def get_task(self, user_id: int, task_id: int) -> Task:
         """Get a specific task, ensuring user ownership"""
-        return self.repository.get(id=task_id, user_id=user_id)
+        return self.repository.get(user_id, task_id)
 
     def list_tasks(self, user_id: int, include_completed: bool = False) -> List[Task]:
         """List all tasks for a user"""
@@ -64,8 +64,11 @@ class TaskService:
             include_completed=include_completed
         )
 
-    def update_task(self, task: Task, data: Dict) -> Task:
+    def update_task(self, user_id: int, task_id: int, data: Dict) -> Task:
         """Update a task with the given data (excluding completion status)"""
+        # Fetch first so EntityNotFoundError is raised before any business logic runs
+        self.repository.get(user_id, task_id)
+
         # Check for disallowed fields
         disallowed_fields = {'status', 'active', 'completed', 'completed_at', 'project_id'}
         provided_disallowed = disallowed_fields.intersection(data.keys())
@@ -87,106 +90,112 @@ class TaskService:
             raise TaskValidationError("content is deprecated; use title.")
 
         return self.repository.update(
-            task,
+            user_id,
+            task_id,
             title=title,
             description=data.get("description")
         )
 
-    def delete_task(self, task: Task) -> None:
+    def delete_task(self, user_id: int, task_id: int) -> None:
         """Delete a task and cascade delete all associated records"""
+
+        # This will raise EntityNotFoundError if this task doesn't exist or isnt owned by this user,
+        # handle that exception at the api layer
+        task = self.repository.get(user_id, task_id)
 
         
         # Delete all checkins for this task
         checkin_service = CheckinService(db.session)
         checkin_service.delete_for_target(
-            user_id=task.user_id,
+            user_id=user_id,
             target_type='task',
-            target_id=task.id,
+            target_id=task_id,
         )
         
         # Delete all tag associations for this task
         from src.database.tags.tag_models import TagAssociation
         db.session.query(TagAssociation).filter_by(
-            entity_id=task.id,
+            entity_id=task_id,
             entity_type='task',
         ).delete()
         
         # Delete all principle associations for this task
         from src.database.principles.principle_models import PrincipleAssociation
         db.session.query(PrincipleAssociation).filter_by(
-            entity_id=task.id,
+            entity_id=task_id,
             entity_type='task',
         ).delete()
-        
+
+        # Delete the task itself
+        self.repository.delete(user_id, task_id)
+
         # Commit association deletions
         db.session.commit()
         
-        # Delete the task itself
-        self.repository.delete(task)
 
-    def complete_task(self, task: Task) -> Task:
+
+    def complete_task(self, user_id: int, task_id: int) -> Task:
         """Mark a task as completed with timestamp"""
+        task = self.repository.get(user_id, task_id)
         if task.completed:
             return task
-        return self.repository.mark_completed(task)
+        return self.repository.mark_completed(user_id, task_id)
 
-    def uncomplete_task(self, task: Task) -> Task:
+    def uncomplete_task(self, user_id: int, task_id: int) -> Task:
         """Mark a task as not completed, clearing timestamp"""
+        task = self.repository.get(user_id, task_id)
         if not task.completed:
             return task
-        return self.repository.mark_incomplete(task)
+        return self.repository.mark_incomplete(user_id, task_id)
 
-    def toggle_task_completion(self, task: Task) -> Task:
+    def toggle_task_completion(self, user_id: int, task_id: int) -> Task:
         """Toggle the completion status of a task"""
+        task = self.repository.get(user_id, task_id)
         if task.completed:
-            return self.uncomplete_task(task)
-        return self.complete_task(task)
+            return self.uncomplete_task(user_id, task_id)
+        return self.complete_task(user_id, task_id)
 
-    # Keep these for backwards compatibility, delegating to new methods
-    def mark_completed(self, task: Task) -> Task:
-        """Mark a task as completed"""
-        return self.complete_task(task)
-
-    def mark_incomplete(self, task: Task) -> Task:
-        """Mark a task as incomplete"""
-        return self.uncomplete_task(task)
-
-    def activate_task(self, task: Task) -> Task:
+    def activate_task(self, user_id: int, task_id: int) -> Task:
         """Activate a task (set active=true)"""
+        task = self.repository.get(user_id, task_id)
         if task.active:
             return task
-        return self.repository.update(task, active=True)
+        return self.repository.update(user_id, task_id, active=True)
 
-    def deactivate_task(self, task: Task) -> Task:
+    def deactivate_task(self, user_id: int, task_id: int) -> Task:
         """Deactivate a task (set active=false)"""
+        task = self.repository.get(user_id, task_id)
         if not task.active:
             return task
-        return self.repository.update(task, active=False)
+        return self.repository.update(user_id, task_id, active=False)
 
-    def change_status(self, task: Task, new_status: str) -> Task:
+    def change_status(self, user_id: int, task_id: int, new_status: str) -> Task:
         """Change a task's status"""
         if new_status not in VALID_STATUSES:
             raise TaskValidationError(f"Invalid status: {new_status}. Must be one of: {', '.join(VALID_STATUSES)}")
         
+        task = self.repository.get(user_id, task_id)
         if task.status == new_status:
             return task
         
-        return self.repository.update(task, status=new_status)
+        return self.repository.update(user_id, task_id, status=new_status)
 
-    def attach_to_project(self, task: Task, project_id: int, user_id: int) -> Task:
+    def attach_to_project(self, user_id: int, task_id: int, project_id: int) -> Task:
         """Attach a task to a project with ownership validation"""
         from src.database.projects.project_repository import ProjectRepository
         from src.database.db import db
 
+        # Raises EntityNotFoundError if the task is missing or unowned
+        self.repository.get(user_id, task_id)
+
         project_repo = ProjectRepository(db.session)
-        project = project_repo.get(id=project_id, user_id=user_id)
+        # Raises EntityNotFoundError if the project is missing or unowned
+        project_repo.get(user_id, project_id)
 
-        if not project:
-            raise TaskValidationError(f"Project not found or access denied")
+        return self.repository.set_project(user_id, task_id, project_id)
 
-        return self.repository.set_project(task, project_id)
-
-    def detach_from_project(self, task: Task) -> Task:
+    def detach_from_project(self, user_id: int, task_id: int) -> Task:
         """Detach a task from its project (make it standalone)"""
-        return self.repository.set_project(task, None)
+        self.repository.get(user_id, task_id)
+        return self.repository.set_project(user_id, task_id, None)
 

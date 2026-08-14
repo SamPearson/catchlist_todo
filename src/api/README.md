@@ -184,7 +184,7 @@ Most user-owned resources follow this pattern:
     GET    /api/{entity}              # List all for current user
     POST   /api/{entity}              # Create new for current user
     GET    /api/{entity}/<id>         # Get one (owned by current user)
-    PUT    /api/{entity}/<id>         # Update one (owned by current user)
+    PATCH  /api/{entity}/<id>         # Update one (owned by current user)
     DELETE /api/{entity}/<id>         # Delete one (owned by current user)
 
 **All require authentication** and are automatically scoped to the current user.
@@ -196,7 +196,7 @@ Standard CRUD:
     GET    /api/tasks                 # List tasks
     POST   /api/tasks                 # Create task
     GET    /api/tasks/123             # Get task
-    PUT    /api/tasks/123             # Update task
+    PATCH  /api/tasks/123             # Update task
     DELETE /api/tasks/123             # Delete task
 
 Domain-specific state management:
@@ -212,7 +212,7 @@ Relationship management:
     PATCH  /api/tasks/123/attach/456  # Attach to project 456
     PATCH  /api/tasks/123/detach      # Detach from project
 
-This pattern separates general updates (PUT) from specific state transitions (PATCH).
+All updates use **PATCH**: general field updates go to the resource itself, while domain-specific state transitions and relationship changes use dedicated PATCH sub-endpoints.
 
 ### Query Parameters
 
@@ -346,7 +346,7 @@ tasks_bp = Blueprint('tasks', __name__)
 tasks_bp.add_url_rule('/api/tasks', view_func=tasks.list_tasks, endpoint='list_tasks', methods=['GET'])
 tasks_bp.add_url_rule('/api/tasks', view_func=tasks.create_task, endpoint='create_task', methods=['POST'])
 tasks_bp.add_url_rule('/api/tasks/<int:task_id>', view_func=tasks.get_task, endpoint='get_task', methods=['GET'])
-tasks_bp.add_url_rule('/api/tasks/<int:task_id>', view_func=tasks.update_task, endpoint='update_task', methods=['PUT'])
+tasks_bp.add_url_rule('/api/tasks/<int:task_id>', view_func=tasks.update_task, endpoint='update_task', methods=['PATCH'])
 tasks_bp.add_url_rule('/api/tasks/<int:task_id>', view_func=tasks.delete_task, endpoint='delete_task', methods=['DELETE'])
 
 # State Management Routes
@@ -370,6 +370,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.tasks.task_service import TaskService, TaskValidationError
 from src.database.tasks.task_repository import TaskRepository
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 
 # Create a single instance of the service
@@ -379,8 +380,11 @@ task_service = TaskService(TaskRepository(db.session))
 def get_task(task_id):
     """Get a specific task"""
     user_id = get_jwt_identity()
-    task = task_service.get_task(task_id=task_id, user_id=user_id)
-    return jsonify(task.as_dict()) if task else ('', 404)
+    try:
+        task = task_service.get_task(user_id, task_id)
+        return jsonify(task.as_dict())
+    except EntityNotFoundError:
+        return ('', 404)
 
 @jwt_required()
 def create_task():
@@ -406,7 +410,7 @@ def create_task():
 1. Extract user ID from JWT token
 2. Validate request shape (required fields present)
 3. Call service layer with validated data
-4. Handle service exceptions and return appropriate responses
+4. Catch `EntityNotFoundError` from the service and return 404 (empty body); handle other service exceptions
 5. Use `as_dict()` for model serialization
 
 ## Adding New Endpoints
@@ -432,7 +436,7 @@ notes_bp = Blueprint('notes', __name__)
 notes_bp.add_url_rule('/api/notes', view_func=notes.list_notes, endpoint='list_notes', methods=['GET'])
 notes_bp.add_url_rule('/api/notes', view_func=notes.create_note, endpoint='create_note', methods=['POST'])
 notes_bp.add_url_rule('/api/notes/<int:note_id>', view_func=notes.get_note, endpoint='get_note', methods=['GET'])
-notes_bp.add_url_rule('/api/notes/<int:note_id>', view_func=notes.update_note, endpoint='update_note', methods=['PUT'])
+notes_bp.add_url_rule('/api/notes/<int:note_id>', view_func=notes.update_note, endpoint='update_note', methods=['PATCH'])
 notes_bp.add_url_rule('/api/notes/<int:note_id>', view_func=notes.delete_note, endpoint='delete_note', methods=['DELETE'])
 ```
 ### 3. Implement Route Handlers
@@ -443,6 +447,7 @@ from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.notes.note_service import NoteService, NoteValidationError
 from src.database.notes.note_repository import NoteRepository
+from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 
 note_service = NoteService(NoteRepository(db.session))
@@ -458,8 +463,11 @@ def list_notes():
 def get_note(note_id):
     """Get a specific note"""
     user_id = get_jwt_identity()
-    note = note_service.get_note(note_id=note_id, user_id=user_id)
-    return jsonify(note.as_dict()) if note else ('', 404)
+    try:
+        note = note_service.get_note(user_id, note_id)
+        return jsonify(note.as_dict())
+    except EntityNotFoundError:
+        return ('', 404)
 
 @jwt_required()
 def create_note():
@@ -480,17 +488,15 @@ def create_note():
 def update_note(note_id):
     """Update a note"""
     user_id = get_jwt_identity()
-    note = note_service.get_note(note_id=note_id, user_id=user_id)
-    if not note:
-        return ('', 404)
-    
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No update data provided'}), 400
     
     try:
-        updated_note = note_service.update_note(note, data)
+        updated_note = note_service.update_note(user_id, note_id, data)
         return jsonify(updated_note.as_dict())
+    except EntityNotFoundError:
+        return ('', 404)
     except NoteValidationError as e:
         return jsonify({'error': e.message}), 400
 
@@ -498,12 +504,12 @@ def update_note(note_id):
 def delete_note(note_id):
     """Delete a note"""
     user_id = get_jwt_identity()
-    note = note_service.get_note(note_id=note_id, user_id=user_id)
-    if not note:
-        return ('', 404)
-    
-    note_service.delete_note(note)
-    return ('', 204)
+
+    try:
+        note_service.delete_note(user_id, note_id)
+        return '', 204
+    except EntityNotFoundError:
+        return '', 404
 ```
 ### 4. Register Blueprint
 ```
@@ -531,7 +537,7 @@ task_service = TaskService(TaskRepository(db.session))
 @jwt_required()
 def get_task(task_id):
     user_id = get_jwt_identity()
-    task = task_service.get_task(task_id=task_id, user_id=user_id)
+    task = task_service.get_task(user_id, task_id)
     # ...
 ```
 This ensures consistent service behavior across all handlers.
@@ -570,21 +576,18 @@ python
 def complete_task(task_id):
     """Mark a task as completed. Query param toggle=true toggles completion instead."""
     user_id = get_jwt_identity()
-    task = task_service.get_task(task_id=task_id, user_id=user_id)
-    if not task:
-        return ('', 404)
-    
+
     try:
         toggle = request.args.get('toggle', 'false').lower() == 'true'
-        
+
         if toggle:
-            completed_task = task_service.toggle_task_completion(task)
+            completed_task = task_service.toggle_task_completion(user_id, task_id)
         else:
-            completed_task = task_service.complete_task(task)
-        
+            completed_task = task_service.complete_task(user_id, task_id)
+
         return jsonify(completed_task.as_dict())
-    except TaskValidationError as e:
-        return jsonify({'error': e.message}), 400
+    except EntityNotFoundError:
+        return ('', 404)
 ```
 This makes the API more expressive and self-documenting.
 
@@ -597,16 +600,12 @@ python
 def attach_to_project(task_id, project_id):
     """Attach a task to a project"""
     user_id = get_jwt_identity()
-    task = task_service.get_task(task_id=task_id, user_id=user_id)
-    if not task:
-        return ('', 404)
-    
+
     try:
-        attached_task = task_service.attach_to_project(task, project_id, user_id=user_id)
-        db.session.commit()
+        attached_task = task_service.attach_to_project(user_id, task_id, project_id)
         return jsonify(attached_task.as_dict())
-    except TaskValidationError as e:
-        return jsonify({'error': e.message}), 400
+    except EntityNotFoundError:
+        return ('', 404)
 ```
 ## Timezone Handling
 
@@ -616,10 +615,9 @@ python
 @jwt_required()
 def get_task(task_id):
     user_id = get_jwt_identity()
-    task = task_service.get_task(task_id=task_id, user_id=user_id)
-    if not task:
-        return ('', 404)
+    task = task_service.get_task(user_id, task_id)
     
+    # EntityNotFoundError is handled as shown in the examples above
     # User's timezone is retrieved from their profile
     # as_dict() handles conversion automatically
     return jsonify(task.as_dict(user_timezone=user.timezone))

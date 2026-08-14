@@ -124,8 +124,10 @@ class CheckinService:
             occurred_at_utc=occurred_at_utc,
         )
 
-    def get(self, *, user_id: int, checkin_id: int) -> CheckinRecord | None:
-        return self.repo.get(checkin_id, user_id=user_id)
+    def get(self, *, user_id: int, checkin_id: int) -> CheckinRecord:
+        # Raises EntityNotFoundError if missing or owned by another user;
+        # the API layer maps that to HTTP 404.
+        return self.repo.get(user_id, checkin_id)
 
     def update(
             self,
@@ -134,7 +136,7 @@ class CheckinService:
             checkin_id: int,
             note: str | None = None,
             occurred_at_utc: datetime | None = None,
-    ) -> CheckinRecord | None:
+    ) -> CheckinRecord:
         """
         Update a checkin record.
 
@@ -145,14 +147,13 @@ class CheckinService:
             occurred_at_utc: Optional new occurred_at timestamp (UTC)
 
         Returns:
-            Updated CheckinRecord or None if not found
+            Updated CheckinRecord
 
         Raises:
             CheckinValidationError: If validation fails
         """
-        checkin = self.get(user_id=user_id, checkin_id=checkin_id)
-        if not checkin:
-            return None
+        # Raises EntityNotFoundError if missing or owned by another user
+        checkin = self.repo.get(user_id, checkin_id)
 
         update_data = {}
 
@@ -165,14 +166,12 @@ class CheckinService:
         if not update_data:
             return checkin  # No changes needed
 
-        return self.repo.update(checkin, **update_data)
+        return self.repo.update(user_id, checkin_id, **update_data)
 
     def delete(self, *, user_id: int, checkin_id: int) -> bool:
-        checkin = self.get(user_id=user_id, checkin_id=checkin_id)
-        if not checkin:
-            return False
-        self.repo.delete(checkin)
-        return True
+        # Raises EntityNotFoundError if missing or owned by another user
+        self.repo.get(user_id, checkin_id)
+        return self.repo.delete(user_id, checkin_id)
 
     def list_for_target(
         self,

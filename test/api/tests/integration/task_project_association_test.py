@@ -77,7 +77,7 @@ def test_attach_task_already_attached_to_project_a_to_project_b(auth_client):
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_task_to_nonexistent_project(auth_client):
-    """Attach task to nonexistent project returns 400 error"""
+    """Attach task to nonexistent project returns 404 error"""
     with allure.step("Create standalone task"):
         task = auth_client.post('/api/tasks', {
             "title": "Standalone task"
@@ -88,8 +88,8 @@ def test_attach_task_to_nonexistent_project(auth_client):
         response = auth_client.patch(f'/api/tasks/{task_id}/attach/999999',
                                      handle_response=False)
 
-    with allure.step("Verify 400 response"):
-        assert response.status_code == 400
+    with allure.step("Verify 404 response"):
+        assert response.status_code == 404
 
 
 @allure.feature('Tasks')
@@ -99,7 +99,7 @@ def test_attach_task_to_nonexistent_project(auth_client):
 @pytest.mark.entity_integration
 @allure.severity(allure.severity_level.NORMAL)
 def test_attach_task_to_another_users_project(auth_client, secondary_auth_client):
-    """Attach task to another user's project returns 400 error"""
+    """Attach task to another user's project returns 404 error"""
     with allure.step("Create project as second user"):
         user2_project = secondary_auth_client.post('/api/projects', {
             "title": "User 2 project"
@@ -118,8 +118,8 @@ def test_attach_task_to_another_users_project(auth_client, secondary_auth_client
             handle_response=False
         )
 
-    with allure.step("Verify 400 response"):
-        assert response.status_code == 400
+    with allure.step("Verify 404 response"):
+        assert response.status_code == 404
 
 
 @allure.feature('Tasks')

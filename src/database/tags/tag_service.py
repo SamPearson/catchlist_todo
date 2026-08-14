@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy.orm import Session
 from src.database.db import db
 from src.database.tags.tag_models import Tag
@@ -15,9 +15,9 @@ class TagService:
         self.session = session
         self.repository = TagRepository(session)
 
-    def get_tag(self, tag_id: int, user_id: int) -> Optional[Tag]:
+    def get_tag(self, user_id: int, tag_id: int) -> Tag:
         """Get a specific tag ensuring ownership"""
-        return self.repository.get_by_id(tag_id, user_id)
+        return self.repository.get(user_id, tag_id)
 
     def get_all_by_user(self, user_id: int) -> list[Tag]:
         """Get all tags for a user"""
@@ -34,8 +34,7 @@ class TagService:
         
         return self.repository.create(name, user_id, color)
 
-    def update_tag(self, tag_id: int, user_id: int, name: Optional[str] = None, color: Optional[str] = None) -> \
-    Optional[Tag]:
+    def update_tag(self, user_id: int, tag_id: int, name: Optional[str] = None, color: Optional[str] = None) -> Tag:
         """Update an existing tag"""
         if name is not None:
             name = name.strip()
@@ -55,19 +54,17 @@ class TagService:
             if len(color) != 6:
                 raise TagValidationError("Invalid color format. Use #RRGGBB.")
 
-        return self.repository.update(tag_id, user_id, name, color)
+        return self.repository.update(user_id, tag_id, name, color)
 
-    def delete_tag(self, tag_id: int, user_id: int) -> bool:
+    def delete_tag(self, user_id: int, tag_id: int) -> None:
         """Delete a tag"""
-        return self.repository.delete(tag_id, user_id)
+        self.repository.delete(user_id, tag_id)
 
-    def add_tag_to_entity(self, tag_id: int, user_id: int, entity: any) -> bool:
+    def add_tag_to_entity(self, user_id: int, tag_id: int, entity: any) -> bool:
         """Add a tag to any entity that supports tags"""
         from src.database.tags.tag_models import TagAssociation
 
-        tag = self.get_tag(tag_id, user_id)
-        if not tag:
-            return False
+        tag = self.get_tag(user_id, tag_id)
 
         if not hasattr(entity, 'tags'):
             raise TagValidationError(f"Entity {type(entity).__name__} does not support tags")
@@ -90,13 +87,11 @@ class TagService:
             self.session.commit()
         return True
 
-    def remove_tag_from_entity(self, tag_id: int, user_id: int, entity: any) -> bool:
+    def remove_tag_from_entity(self, user_id: int, tag_id: int, entity: any) -> bool:
         """Remove a tag from any entity that supports tags"""
         from src.database.tags.tag_models import TagAssociation
         
-        tag = self.get_tag(tag_id, user_id)
-        if not tag:
-            return False
+        tag = self.get_tag(user_id, tag_id)
 
         if not hasattr(entity, 'tags'):
             raise TagValidationError(f"Entity {type(entity).__name__} does not support tags")

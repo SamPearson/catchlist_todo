@@ -28,7 +28,6 @@ def test_delete_calendar(auth_client):
         response = auth_client.get(f'/api/calendars/{calendar_id}',
                                    handle_response=False)
         assert response.status_code == 404
-        assert response['error'] == "Calendar not found"
 
 
 
@@ -92,7 +91,6 @@ def test_delete_nonexistent_calendar(auth_client):
 
     with allure.step("Verify 404 response"):
         assert response.status_code == 404
-        assert response['error'] == "Calendar not found"
 
 
 @allure.feature('Calendars')
@@ -115,7 +113,6 @@ def test_delete_another_users_calendar(auth_client, secondary_auth_client):
 
     with allure.step("Verify 404 response"):
         assert response.status_code == 404
-        assert response['error'] == "Calendar not found"
 
     with allure.step("Verify calendar still exists for primary user"):
         calendar = auth_client.get(f'/api/calendars/{primary_cal_id}')

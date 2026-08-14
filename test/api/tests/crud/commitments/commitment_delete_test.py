@@ -90,9 +90,6 @@ def test_delete_nonexistent_commitment(auth_client):
     with allure.step("Verify 404 error response"):
         assert response.status_code == 404
 
-    with allure.step("Verify error message"):
-        assert "Couldn't find commitment" in response['error']
-
 
 @allure.feature('Commitments')
 @allure.story('Delete Commitment')
@@ -119,7 +116,6 @@ def test_delete_another_user_commitment(auth_client, secondary_auth_client):
 
     with allure.step("Verify 404 error response"):
         assert response.status_code == 404
-        assert "Couldn't find commitment" in response['error']
 
     with allure.step("Verify commitment still exists for secondary user"):
         retrieved = secondary_auth_client.get(f'/api/commitments/{secondary_commitment_id}')

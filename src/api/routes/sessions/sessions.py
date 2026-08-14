@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.database.db import db
 from src.database.sessions.session_service import SessionService, SessionValidationError
 from src.database.sessions.session_presenter import SessionPresenter
+from src.database.base.exceptions import EntityNotFoundError
 from src.utils.timezone import parse_dt, to_utc, from_utc, get_user_timezone
 
 
@@ -65,9 +66,9 @@ def list_sessions():
 def get_session(session_id: int):
     user_id = int(get_jwt_identity())
     service = SessionService(db.session)
-    session_obj = service.get_session(session_id, user_id)
-
-    if not session_obj:
+    try:
+        session_obj = service.get_session(user_id, session_id)
+    except EntityNotFoundError:
         return '', 404
 
     # Get user timezone and present session
@@ -143,15 +144,14 @@ def update_session(session_id: int):
         if 'end_time' in data:
             data['end_time'] = parse_dt(data['end_time'])
 
-        updated = service.update_session(session_id, user_id, data)
-
-        if not updated:
-            return '', 404
+        updated = service.update_session(user_id, session_id, data)
 
         # Present session with times converted to user timezone
         session_dict = SessionPresenter.present_for_user(updated, user_timezone)
 
         return jsonify(session_dict)
+    except EntityNotFoundError:
+        return '', 404
     except (SessionValidationError, ValueError) as e:
         return jsonify({"error": str(e)}), 400
 
@@ -169,16 +169,15 @@ def set_session_status(session_id: int):
     status = data['status']
 
     try:
-        session_obj = service.set_session_status(session_id, user_id, status)
-
-        if not session_obj:
-            return '', 404
+        session_obj = service.set_session_status(user_id, session_id, status)
 
         # Get user timezone and present session
         user_timezone = get_user_timezone(user_id)
         session_dict = SessionPresenter.present_for_user(session_obj, user_timezone)
 
         return jsonify(session_dict)
+    except EntityNotFoundError:
+        return '', 404
     except SessionValidationError as e:
         return jsonify({'error': str(e)}), 400
 
@@ -187,4 +186,8 @@ def set_session_status(session_id: int):
 def delete_session(session_id: int):
     user_id = int(get_jwt_identity())
     service = SessionService(db.session)
-    return ('', 204) if service.delete_session(session_id, user_id) else ('', 404)
+    try:
+        service.delete_session(user_id, session_id)
+        return '', 204
+    except EntityNotFoundError:
+        return '', 404
