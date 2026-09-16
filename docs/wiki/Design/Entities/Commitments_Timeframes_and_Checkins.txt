@@ -58,10 +58,12 @@ Timeframes are bounded periods of time that serve as containers for commitments 
 | Kind | Description | Example Label |
 |------|-------------|---------------|
 | day | A single calendar day | "2025-06-08" |
-| week | A calendar week (Mon-Sun) | "2025-W23" |
+| week | A calendar week (Sun-Sat) | "2025-W23" |
 | month | A calendar month | "June 2025" |
 | season | Three months; see below | "Summer 2025" |
 | year | A calendar year | "2025" |
+
+*Note: Weeks start on Sunday (Sun-Sat) and week labels use Sunday-based numbering (e.g., "2025-W23").*
 
 **Season Definitions:**
 

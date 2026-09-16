@@ -10,7 +10,7 @@ API endpoints for user authentication and account management. These endpoints ha
 
 Authentication is handled via JWT (JSON Web Token) Bearer tokens. Most endpoints require authentication, except for registration and login.
 
-**Timezone Handling:** All timestamp fields in responses are converted to the authenticated user's timezone (configured in their user profile). Timestamps are returned in ISO 8601 format with timezone information.
+**Timezone Handling:** Timestamps are returned in ISO 8601 format representing UTC server time (e.g., "2026-03-18T14:30:00"). No timezone conversion is applied to response timestamps.
 
 
 ===== Authentication Endpoints =====
@@ -93,7 +93,8 @@ Updates the authenticated user's profile information.
 |----------|--------|------------------------------------------|
 | name     | string | Display name for the user                |
 | timezone | string | User's timezone (IANA format)            |
-| username | string | Username (subject to validation)         |
+
+**Note:** `username` cannot be updated — any value provided for it is ignored.
 
 **Response:** Updated user object (200)
 
@@ -153,13 +154,12 @@ Permanently deletes the authenticated user's account. Requires password confirma
 
 ===== User Object =====
 
-| Field      | Type     | Description                                                   |
-|------------|----------|---------------------------------------------------------------|
-| id         | integer  | Primary key                                                   |
-| username   | string   | Unique username                                               |
-| name       | string   | Display name                                                  |
-| timezone   | string   | User's timezone (IANA format)                                 |
-| created_at | datetime | When account was created (ISO 8601 format in user's timezone) |
-| updated_at | datetime | When last modified (ISO 8601 format in user's timezone)       |
+| Field      | Type     | Description                                       |
+|------------|----------|---------------------------------------------------|
+| id         | integer  | Primary key                                       |
+| username   | string   | Unique username                                   |
+| name       | string   | Display name                                      |
+| timezone   | string   | User's timezone (IANA format)                     |
+| created_at | datetime | When account was created (UTC, ISO 8601 format)   |
 
-**Note:** Password hashes are never included in API responses. All datetime fields are stored in UTC on the server but are automatically converted to the user's configured timezone in API responses. The timezone offset is included in the ISO 8601 format (e.g., "2026-03-18T14:30:00-05:00" for Central Time).
+**Note:** Password hashes are never included in API responses. Datetime fields are stored in UTC on the server and returned as-is (naive UTC, without timezone conversion or offset), e.g. "2026-03-18T14:30:00".

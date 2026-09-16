@@ -28,6 +28,7 @@ Returns the report for the specified timeframe kind and date. Creates the timefr
 | timezone          | string  | query    | no       | User's timezone. Defaults to user's stored timezone |
 | full              | boolean | query    | no       | Include full metadata (id, timestamps, etc.). Default false |
 | commitment_scope  | string  | query    | no       | How to include commitments (see Commitment Scopes). Default 'window' |
+| include_targets   | boolean | query    | no       | Include full target objects in commitments. Default: true when full=true, else false |
 
 **Example Response:**
 {{{code: lang="json" linenumbers="True"
@@ -41,17 +42,16 @@ Returns the report for the specified timeframe kind and date. Creates the timefr
   "commitments": [
     {
       "id": 1,
+      "user_id": 3,
       "status": "planned",
       "target_type": "task",
       "target_id": 5,
       "timeframe_id": 2,
-      "due_at_utc": "2026-03-16T18:00:00+00:00",
-      "target": {
-        "id": 5,
-        "title": "Write project proposal",
-        "status": "open",
-        "completed": false
-      }
+      "notes": null,
+      "start_at": "2026-03-16T09:00:00-05:00",
+      "due_at": "2026-03-16T18:00:00-05:00",
+      "created_at": "2026-03-14T12:00:00-05:00",
+      "updated_at": "2026-03-14T12:00:00-05:00"
     }
   ],
   "stats": {
@@ -70,6 +70,8 @@ Returns the report for the specified timeframe kind and date. Creates the timefr
 }
 }}}
 
+**Note:** This example uses default query parameters. Timestamps are localized to the user's timezone. Soft commitments have ''start_at''/''due_at'' set to ''null''; only hard commitments carry dates. A ''target'' object is included in each commitment only when ''include_targets=true''.
+
 **Response:** Report object (200)
 
 **Errors:**
@@ -86,6 +88,7 @@ Returns a specific report by ID.
 |-------------------|---------|----------|----------|------------------------------------------------|
 | full              | boolean | query    | no       | Include full metadata. Default false           |
 | commitment_scope  | string  | query    | no       | How to include commitments. Default 'window'   |
+| include_targets   | boolean | query    | no       | Include full target objects in commitments. Default: true when full=true, else false |
 
 **Response:** Report object, or 404 if not found
 
@@ -109,13 +112,17 @@ Returns all reports for the authenticated user.
     "plan": "Complete Q2 planning",
     "reason": "Critical milestone",
     "pre_notes": "Ready to start",
-    "post_notes": "Accomplished most goals"
+    "post_notes": "Accomplished most goals",
+    "report_type": "season",
+    "label": "Spring 2026"
   },
   {
     "plan": "Focus on health",
     "reason": "Need to prioritize wellness",
     "pre_notes": null,
-    "post_notes": null
+    "post_notes": null,
+    "report_type": "week",
+    "label": "2026-W11"
   }
 ]
 }}}
@@ -192,19 +199,23 @@ The ''commitment_scope'' query parameter controls what commitment data is includ
 * Does not query commitments at all
 * Omits ''commitments'' and ''stats'' fields entirely
 * Performance optimization for listing many reports
-* Returns only stored text fields (plan, reason, pre_notes, post_notes)
+* Returns only stored text fields (plan, reason, pre_notes, post_notes) plus ''report_type'' and ''label'' (always included)
 
 
 ===== Report Object =====
 
 **Minimal Response (commitment_scope=none):**
 
-| Field      | Type | Description                          |
-|------------|------|--------------------------------------|
-| plan       | text | Planning text                        |
-| reason     | text | Why this timeframe matters           |
-| pre_notes  | text | Thoughts before timeframe begins     |
-| post_notes | text | Reflection after timeframe ends      |
+''report_type'' and ''label'' are always included, regardless of scope.
+
+| Field       | Type   | Description                         |
+|-------------|--------|-------------------------------------|
+| plan        | text   | Planning text                       |
+| reason      | text   | Why this timeframe matters          |
+| pre_notes   | text   | Thoughts before timeframe begins    |
+| post_notes  | text   | Reflection after timeframe ends     |
+| report_type | string | Timeframe kind (day/week/month/season/year) |
+| label       | string | Timeframe label (e.g., "Spring 2026")       |
 
 **Full Response (commitment_scope=window or direct):**
 
@@ -212,9 +223,7 @@ Includes all minimal fields plus:
 
 | Field       | Type     | Description                                  |
 |-------------|----------|----------------------------------------------|
-| label       | string   | Timeframe label (e.g., "Spring 2026")        |
-| report_type | string   | Timeframe kind (day/week/month/season/year)  |
-| commitments | array    | Array of commitment objects with targets     |
+| commitments | array    | Array of commitment objects (with targets when include_targets=true) |
 | stats       | object   | Aggregated statistics                        |
 
 **With full=true:**

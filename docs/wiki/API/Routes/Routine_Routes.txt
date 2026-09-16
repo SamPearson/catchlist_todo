@@ -10,7 +10,7 @@ API endpoints for managing routines. Routines are templates for recurring or ad-
 
 All endpoints require authentication via JWT Bearer token.
 
-All datetime fields in responses are localized to the user's timezone for display.
+Only the start_time and end_time times of day are localized to the user's timezone for display; created_at and updated_at are returned as stored (naive UTC).
 
 
 ===== Routine Endpoints =====
@@ -37,7 +37,9 @@ Returns all routines for the authenticated user.
     "start_time": "18:00",
     "end_time": "19:30",
     "active": true,
+    "timezone": "America/Chicago",
     "calendar_id": 3,
+    "calendar_color": null,
     "external_uid": null,
     "external_source": null,
     "external_source_name": null,
@@ -67,9 +69,7 @@ Creates a new routine.
 | end_time             | string  | no       | Time of day routine ends (HH:MM format)                  |
 | active               | boolean | no       | Default true                                             |
 | calendar_id          | integer | no       | Parent calendar ID                                       |
-| external_uid         | string  | no       | UID from external source                                 |
-| external_source      | string  | no       | Source identifier (e.g., "caldav")                       |
-| external_source_name | string  | no       | Human-readable source name                               |
+| timezone             | string  | no       | IANA timezone for this routine (defaults to the user's timezone, or UTC) |
 
 **Example Request:**
 {{{code: lang="json" linenumbers="True"
@@ -88,6 +88,7 @@ Creates a new routine.
 
 **Errors:**
 * 400 if validation fails (e.g., missing title, invalid RRULE format)
+* 400 if external_uid, external_source, or external_source_name is provided (they cannot be set manually; create the routine via the calendar sync endpoint instead)
 
 
 ==== Get Routine ====
@@ -125,14 +126,14 @@ Updates a routine's properties with optional cascading to existing sessions.
 
 **Read-Only Fields (Cannot Update):**
 * id, user_id, created_at, updated_at
-* calendar_id, external_uid, external_source, external_source_name
+* calendar_id, external_uid, external_source, external_source_name, timezone
 
 **Business Logic:**
 * Editing rrule, description, or active status does NOT affect already-generated sessions
 * Editing title, start_time, or end_time CAN cascade to existing sessions based on query parameters
 * When cascading title: updates routine_name field on sessions
 * When cascading times: updates start_time/end_time fields on sessions
-* Future sessions = start_time > now; Past sessions = start_time <= now
+* Future sessions = start_time >= now; Past sessions = start_time < now
 * Use DELETE `/api/routines/{id}/sessions/{future|past}` endpoints to manage session deletion
 
 **Example Request:**
@@ -178,7 +179,7 @@ Generates sessions for a routine within a date range based on its RRULE.
 | inherit_principles  | boolean | no       | If true (default), sessions inherit principles from routine |
 
 **Business Logic:**
-* Requires routine to have an RRULE and start_time
+* Requires routine to have an RRULE, start_time, and end_time
 * Uses RRULE to calculate occurrences within the date range
 * Skips dates where a session already exists (duplicate detection)
 * Each generated session auto-creates an associated hard Commitment (due_at = session's end_time)
@@ -199,9 +200,8 @@ Generates sessions for a routine within a date range based on its RRULE.
 **Response:** Array of created session objects (201)
 
 **Errors:**
-* 400 if routine has no RRULE or start_time
-* 400 if invalid date format
-* 404 if routine not found
+* 400 if start_date or end_date is missing, or the date format is invalid
+* 500 if the routine is not found, has no RRULE, or has no start/end time (these currently surface as an "Unexpected error" response)
 
 
 ==== Delete Future Sessions ====
@@ -217,10 +217,10 @@ Deletes future sessions for a routine.
 | incomplete_only | boolean | true    | If true, only delete sessions with status='scheduled'; if false, delete all future sessions |
 
 **Business Logic:**
-* Future = start_time > now
+* Future = start_time >= now
 * If incomplete_only=true: only deletes sessions with status='scheduled'
 * If incomplete_only=false: deletes all future sessions regardless of status
-* Cascade deletes associated commitments
+* Does NOT cascade-delete associated commitments (only the sessions are deleted; commitments are left in place)
 
 **Example Response:**
 {{{code: lang="json" linenumbers="True"
@@ -246,10 +246,10 @@ Deletes past sessions for a routine.
 | incomplete_only | boolean | true    | If true, only delete sessions with status='scheduled'; if false, delete all past sessions |
 
 **Business Logic:**
-* Past = start_time <= now
+* Past = start_time < now
 * If incomplete_only=true: only deletes sessions with status='scheduled'
 * If incomplete_only=false: deletes all past sessions regardless of status
-* Cascade deletes associated commitments
+* Does NOT cascade-delete associated commitments (only the sessions are deleted; commitments are left in place)
 
 **Example Response:**
 {{{code: lang="json" linenumbers="True"
@@ -273,15 +273,17 @@ Deletes past sessions for a routine.
 | rrule                | string   | iCalendar recurrence rule (optional)      |
 | start_time           | string   | Time of day (HH:MM format)                |
 | end_time             | string   | Time of day (HH:MM format)                |
+| timezone             | string   | IANA timezone for this routine (default UTC) |
 | active               | boolean  | Active flag                               |
 | calendar_id          | integer  | Parent calendar ID (null if standalone)   |
+| calendar_color       | string   | Hex color inherited from parent calendar (e.g. '#767676'); null if none |
 | external_uid         | string   | UID from external source                  |
 | external_source      | string   | Source identifier                         |
 | external_source_name | string   | Human-readable source name                |
 | tags                 | array    | Attached tags                             |
 | principles           | array    | Attached principles                       |
-| created_at           | datetime | When created (localized to user timezone) |
-| updated_at           | datetime | When last modified (localized to user timezone) |
+| created_at           | datetime | When created (stored UTC, not localized)  |
+| updated_at           | datetime | When last modified (stored UTC, not localized) |
 
 
 ===== RRULE Examples =====

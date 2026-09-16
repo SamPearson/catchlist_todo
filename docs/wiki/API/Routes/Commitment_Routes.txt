@@ -168,6 +168,7 @@ Content-Type: application/json
 * 400 if validation fails or both approaches specified
 * 404 if target or timeframe not found
 * 409 if commitment already exists for this target and timeframe
+* 500 if target_id or timeframe_id cannot be parsed as an integer (currently an unhandled exception)
 
 
 ==== Create Hard Commitment ====
@@ -213,7 +214,7 @@ Content-Type: application/json
 **Response:** Created commitment object with timestamps in user's local timezone (201)
 
 **Errors:**
-* 400 if validation fails, invalid timezone, or user timezone not configured
+* 400 if validation fails or invalid timezone
 * 404 if target not found
 * 409 if commitment already exists for this target on that day
 

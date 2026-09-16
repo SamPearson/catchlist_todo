@@ -19,9 +19,10 @@ All endpoints require authentication via JWT Bearer token.
 
 Returns all projects for the authenticated user.
 
-| Parameter         | Type    | Location | Required | Description                                                   |
-|-------------------|---------|----------|----------|---------------------------------------------------------------|
-| include_completed | boolean | query    | no       | If true, includes completed/inactive projects. Default false. |
+| Parameter         | Type    | Location | Required | Description                                                        |
+|-------------------|---------|----------|----------|--------------------------------------------------------------------|
+| include_completed | boolean | query    | no       | If true, includes completed/inactive projects. Default false.      |
+| include_inactive  | boolean | query    | no       | If true, includes inactive (not active) projects. Default false.   |
 
 **Response:** Array of project objects
 
@@ -40,9 +41,13 @@ Creates a new project.
 | reason        | text    | no       | Why this project matters (required to activate)                  |
 | next_step     | string  | no       | The immediate next action (max 200 chars)                        |
 | status        | string  | no       | One of: open, waiting, deferred, declined, stale. Default "open" |
-| active        | boolean | no       | Default true; false means "not on deck"                          |
+| active        | boolean | no       | Default false. Setting true requires win_condition, reason, and next_step to be populated. |
 
 **Response:** Created project object (201)
+
+**Error Responses:**
+* 400 if title is missing/invalid or status is invalid
+* 400 if `active: true` is requested but win_condition, reason, or next_step is missing — the project is not created (rolled back)
 
 
 ==== Get Project ====
@@ -116,8 +121,8 @@ Marks a project as not completed.
 
 Activates a project (sets active=true).
 
-* Validates that both win_condition and reason are populated
-* Returns 400 error if either field is missing
+* Validates that win_condition, reason, and next_step are all populated
+* Returns 400 error if any of them is missing
 * Sets active=true on success
 
 **Response:** Updated project object, or 400 if validation fails, or 404 if not found
@@ -184,8 +189,8 @@ Creates a new task as a subtask of this project.
 
 To attach an existing task to a project or detach a task from a project, use the Task endpoints:
 
-* **POST /api/tasks/<task_id>/attach/<project_id>** - Attach task to project
-* **POST /api/tasks/<task_id>/detach** - Detach task from project (makes it standalone)
+* **PATCH /api/tasks/<task_id>/attach/<project_id>** - Attach task to project
+* **PATCH /api/tasks/<task_id>/detach** - Detach task from project (makes it standalone)
 
 See [[Task Routes]] for details.
 

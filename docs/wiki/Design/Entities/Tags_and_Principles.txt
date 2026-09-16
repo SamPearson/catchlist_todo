@@ -52,7 +52,7 @@ Examples: "work", "home", "urgent", "health", "learning", "errands"
 
 **Detach from Entity**
 * Removes association between tag and entity
-* Idempotent: detaching non-attached tag has no effect
+* Returns 400 if the tag is not attached to the entity (e.g., `Tag "work" is not attached to this task`)
 
 ==== Taggable Entities ====
 The following entities can have tags attached:
@@ -83,7 +83,7 @@ Examples: "Be dependable", "Prioritize health", "Continuous learning", "Financia
 |----------|------|----------|-------------|
 | id | integer | auto | Primary key |
 | user_id | integer | auto | Owner |
-| title | string(100) | yes | The principle statement (e.g., "Be dependable") |
+| title | string(50)  | yes | The principle statement (e.g., "Be dependable") |
 | description | text | no | What this principle means to you; clarification of your personal definition |
 | reason | text | no | Why this principle matters to you; motivation and inspiration |
 | color | string(10) | no | Hex color; defaults to #ffd700 (gold) |
@@ -112,7 +112,7 @@ Examples: "Be dependable", "Prioritize health", "Continuous learning", "Financia
 
 **Detach from Entity**
 * Removes association between principle and entity
-* Idempotent: detaching non-attached principle has no effect
+* Returns 400 ("Failed to detach principle") if the principle is not attached to the entity
 
 ==== Principled Entities ====
 The following entities can have principles attached:

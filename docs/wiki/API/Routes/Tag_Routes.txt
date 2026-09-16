@@ -33,11 +33,11 @@ Creates a new tag.
 | Field | Type   | Required | Description                                             |
 |-------|--------|----------|---------------------------------------------------------|
 | name  | string | yes      | Tag label (max 50 chars, cannot be empty)               |
-| color | string | no       | Hex color code (max 10 chars). Default "#6c757d" (gray) |
+| color | string | no       | Hex color code, e.g. "#RRGGBB" (leading "#" optional, stripped before storing; exactly 6 hex digits required). Default "6c757d" (gray) |
 
 **Response:** Created tag object (201)
 
-**Errors:** 400 if name is missing or empty
+**Errors:** 400 if name is missing/empty, exceeds 50 characters, color is malformed (not 6 hex digits), or a tag with that name already exists
 
 
 ==== Get Tag ====
@@ -58,11 +58,11 @@ Updates a tag's properties.
 | Field | Type   | Description                                           |
 |-------|--------|-------------------------------------------------------|
 | name  | string | Tag label (max 50 chars, cannot be empty if provided) |
-| color | string | Hex color code (max 10 chars)                         |
+| color | string | Hex color code, e.g. "#RRGGBB" (leading "#" optional, stripped before storing; exactly 6 hex digits required) |
 
 **Response:** Updated tag object (200), or 404 if not found
 
-**Errors:** 400 if name is set to empty
+**Errors:** 400 if name is set to empty, exceeds 50 characters, color is malformed, duplicate name, or no update data provided
 
 
 ==== Delete Tag ====
@@ -113,7 +113,7 @@ Removes a tag from an entity.
 | target_id   | integer | yes      | ID of the target entity             |
 
 **Business Logic:**
-* Idempotent: detaching a non-attached tag has no effect
+* Returns 400 if the tag is not actually attached to the entity (e.g. `Tag "work" is not attached to this task`)
 
 **Response:** { "success": true } (200)
 
@@ -144,6 +144,6 @@ The following entity types are supported for tag attachment/detachment:
 | id         | integer    | Primary key        |
 | user_id    | integer    | Owner              |
 | name       | string(50) | Tag label          |
-| color      | string(10) | Hex color code     |
+| color      | string(6) | Hex color code (6 hex digits, no leading "#") |
 | created_at | datetime   | When created       |
 | updated_at | datetime   | When last modified |

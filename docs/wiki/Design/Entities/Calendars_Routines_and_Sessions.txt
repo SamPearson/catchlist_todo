@@ -52,16 +52,16 @@ Calendars can be created manually or imported from external calendar sources (Ca
 * Can be created manually or populated via CalDAV import
 
 **Update**
-* Via PUT `/api/calendars/{id}`
+* Via PATCH `/api/calendars/{id}`
 * Updatable fields: name, color
 * Read-only fields (cannot be updated): id, user_id, created_at, updated_at, external_uid, external_source, active
 * Calendar name cannot be empty
 * The active field must be changed using the activate/deactivate endpoints
 
 **Activate/Deactivate**
-* Via PUT `/api/calendars/{id}/activate` or `/api/calendars/{id}/deactivate`
-* Optional URL parameter `cascade` (default: false for activate, true for deactivate):
-  - Activate endpoint: If cascade=true, sets all contained routines to active=true; if false (default), only activates the calendar
+* Via PATCH `/api/calendars/{id}/activate` or `/api/calendars/{id}/deactivate`
+* Optional URL parameter `cascade` (default: true for both endpoints):
+  - Activate endpoint: If cascade=true (default), sets all contained routines to active=true; if false, only activates the calendar
   - Deactivate endpoint: If cascade=true (default), sets all contained routines to active=false; if false, only deactivates the calendar
 * Activating makes the calendar visible in views
 * Deactivating hides the calendar from normal views and (if cascaded) prevents new session generation for its routines
@@ -126,7 +126,7 @@ Examples:
 * Can be created manually or imported from CalDAV
 
 **Update**
-* All fields except id, user_id, created_at are updatable via PATCH `/api/routines/{id}`
+* Via PATCH `/api/routines/{id}`, updatable fields include title, description, rrule, start_time, end_time, and active. Read-only fields (id, user_id, created_at, updated_at, calendar_id, timezone, and the external_* fields) cannot be changed via the API.
 * Editing RRULE, description, or active status does NOT cascade to existing sessions
 * Editing title, start_time, or end_time CAN optionally cascade to existing sessions via URL parameters:
   - `cascade_future` (default: false): If true, cascade changes to all future sessions
@@ -193,8 +193,8 @@ Examples:
 | id         | integer  | auto     | Primary key                                                       |
 | user_id    | integer  | auto     | Owner of the session                                              |
 | routine_id | integer  | yes      | Parent routine                                                    |
-| start_time | datetime | yes      | When the session starts (UTC, displayed in user's timezone)       |
-| end_time | datetime | yes      | When the session ends (UTC, displayed in user's timezone)         |
+| start_time | datetime | yes      | When the session starts (stored in the session's timezone; displayed in the user's timezone) |
+| end_time | datetime | yes      | When the session ends (stored in the session's timezone; displayed in the user's timezone) |
 | status     | string   | yes      | Current state of the session; see Status Values below             |
 | notes      | text     | no       | Freeform notes about this session                                 |
 | rpe        | integer  | no       | Rate of Perceived Exertion (1-10); measure of effort expended     |
@@ -281,8 +281,8 @@ Status is the authoritative indicator of session execution. There is no separate
 **Scenario 3: Seasonal Activity Management**
 1. Create a Calendar (e.g., "Outdoor Activities")
 2. Create multiple Routines within it (e.g., "Trail Running", "Rock Climbing")
-3. In winter, deactivate the calendar with cascade: PUT `/api/calendars/{id}/deactivate?cascade=true` → all routines become inactive → no new sessions generated
-4. Come spring, activate the calendar: PUT `/api/calendars/{id}/activate?cascade=true` → routines reactivate → generate sessions as usual
+3. In winter, deactivate the calendar with cascade: PATCH `/api/calendars/{id}/deactivate?cascade=true` → all routines become inactive → no new sessions generated
+4. Come spring, activate the calendar: PATCH `/api/calendars/{id}/activate?cascade=true` → routines reactivate → generate sessions as usual
 
 **Scenario 4: Updating Routine Details**
 1. Update a routine's title: PATCH `/api/routines/{id}?cascade_future=true&cascade_past=true` with `{"title": "New Name"}`
