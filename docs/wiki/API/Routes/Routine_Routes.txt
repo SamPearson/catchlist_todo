@@ -201,7 +201,8 @@ Generates sessions for a routine within a date range based on its RRULE.
 
 **Errors:**
 * 400 if start_date or end_date is missing, or the date format is invalid
-* 500 if the routine is not found, has no RRULE, or has no start/end time (these currently surface as an "Unexpected error" response)
+* 400 if the routine has no RRULE, no start time, or no end time
+* 404 if the routine is not found
 
 
 ==== Delete Future Sessions ====
