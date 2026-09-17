@@ -137,14 +137,21 @@ def create_soft_commitment():
     if missing:
         return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
 
+    # Validate target_id and timeframe_id are integers
+    try:
+        target_id = int(data["target_id"])
+        timeframe_id = int(timeframe_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "target_id and timeframe_id must be integers."}), 400
+
     # Create the soft commitment with the derived or provided timeframe_id
     service = CommitmentService(session=db.session)
     try:
         c = service.create_soft(
             user_id=user_id,
             target_type=data["target_type"],
-            target_id=int(data["target_id"]),
-            timeframe_id=int(timeframe_id),
+            target_id=target_id,
+            timeframe_id=timeframe_id,
             status=data.get("status"),
             notes=data.get("notes"),
         )

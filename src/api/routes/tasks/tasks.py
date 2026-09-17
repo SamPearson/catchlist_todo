@@ -48,6 +48,8 @@ def create_task():
         return jsonify(task.as_dict()), 201
     except TaskValidationError as e:
         return jsonify({'error': e.message}), 400
+    except EntityNotFoundError:
+        return jsonify({'error': 'Project not found.'}), 400
 
 
 @jwt_required()

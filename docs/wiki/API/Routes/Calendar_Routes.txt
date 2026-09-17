@@ -56,8 +56,9 @@ Creates a new calendar manually.
 |-----------------|--------|----------|------------------------------------------------------|
 | name            | string | yes      | Calendar name (max 200 chars)                        |
 | color           | string | no       | Hex color code (e.g., "#ff5733"). Default "#767676"  |
-| external_uid    | string | no       | UID from external source (for sync)                  |
-| external_source | string | no       | Source identifier (e.g., "caldav")                   |
+| timezone        | string | no       | IANA timezone for the calendar. Defaults to user's timezone (or UTC) |
+
+**Note:** `external_uid` and `external_source` cannot be set manually. They are only populated when a calendar is created or synced via the CalDAV sync endpoint (POST /api/calendars/sync); any values provided here are ignored.
 
 **Example Request:**
 ''{''
@@ -79,7 +80,7 @@ Returns a specific calendar by ID.
 
 ==== Update Calendar ====
 
-**PUT /api/calendars/<calendar_id>**
+**PATCH /api/calendars/<calendar_id>**
 
 Updates a calendar's properties. Does not allow updating the active status - use the activate/deactivate endpoints instead.
 
@@ -110,7 +111,7 @@ Updates a calendar's properties. Does not allow updating the active status - use
 
 ==== Activate Calendar ====
 
-**PUT /api/calendars/<calendar_id>/activate**
+**PATCH /api/calendars/<calendar_id>/activate**
 
 Activates a calendar, optionally cascading the activation to all contained routines.
 
@@ -118,15 +119,15 @@ Activates a calendar, optionally cascading the activation to all contained routi
 
 | Parameter | Type    | Location | Required | Description                                                              |
 |-----------|---------|----------|----------|--------------------------------------------------------------------------|
-| cascade   | boolean | query    | no       | If true, activates all contained routines. Default false.                |
+| cascade   | boolean | query    | no       | If true, activates all contained routines. Default true.                 |
 
 **Example Request:**
-''PUT /api/calendars/5/activate?cascade=true''
+''PATCH /api/calendars/5/activate?cascade=true''
 
 **Business Logic:**
 * Sets the calendar's active flag to true
-* If cascade=true, sets all contained routines' active flag to true
-* If cascade=false (default), only activates the calendar itself
+* If cascade=true (default), sets all contained routines' active flag to true
+* If cascade=false, only activates the calendar itself
 * Activating a calendar makes it visible in calendar views
 
 **Response:** 200 - Updated calendar object, or 404 if not found
@@ -137,7 +138,7 @@ Activates a calendar, optionally cascading the activation to all contained routi
 
 ==== Deactivate Calendar ====
 
-**PUT /api/calendars/<calendar_id>/deactivate**
+**PATCH /api/calendars/<calendar_id>/deactivate**
 
 Deactivates a calendar, optionally cascading the deactivation to all contained routines.
 
@@ -148,7 +149,7 @@ Deactivates a calendar, optionally cascading the deactivation to all contained r
 | cascade   | boolean | query    | no       | If true, deactivates all contained routines. Default true.               |
 
 **Example Request:**
-''PUT /api/calendars/5/deactivate?cascade=false''
+''PATCH /api/calendars/5/deactivate?cascade=false''
 
 **Business Logic:**
 * Sets the calendar's active flag to false
@@ -197,21 +198,23 @@ Tests CalDAV credentials and returns available remote calendars without saving a
 
 **Example Response:**
 ''[''
-  ''{''
-    ''"name": "Work Calendar",''
-    ''"uid": "google-cal-abc123",''
-    ''"url": "https://caldav.google.com/calendars/work/",''
-    ''"color": "#1a73e8"''
-  ''},''
-  ''{''
-    ''"name": "Personal",''
-    ''"uid": "google-cal-xyz789",''
-    ''"url": "https://caldav.google.com/calendars/personal/",''
-    ''"color": "#e67c73"''
-  ''}''
+''{''
+  ''"name": "Work Calendar",''
+  ''"uid": "google-cal-abc123",''
+  ''"url": "https://caldav.google.com/calendars/work/",''
+  ''"color": "#767676"''
+''},''
+''{''
+  ''"name": "Personal",''
+  ''"uid": "google-cal-xyz789",''
+  ''"url": "https://caldav.google.com/calendars/personal/",''
+  ''"color": "#767676"''
+''}''
 '']''
 
 **Response:** 200 - Array of remote calendar info objects with fields: name, uid, url, color
+
+**Note:** `color` is always "#767676" (the default). Calendar colors are not read from the CalDAV server.
 
 **Errors:**
 * 400 - Validation error (missing required fields)
@@ -274,6 +277,7 @@ Standard calendar object returned by all endpoints:
 | user_id         | integer  | Owner                                    |
 | name            | string   | Calendar name (max 200 chars)            |
 | color           | string   | Hex color code (7 chars including #)     |
+| timezone        | string   | IANA timezone for the calendar           |
 | active          | boolean  | Active flag (true = visible)             |
 | external_uid    | string   | UID from external source (null if local) |
 | external_source | string   | Source identifier (null if local)        |

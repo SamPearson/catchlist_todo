@@ -85,7 +85,7 @@ def create_app():
     return app
 ```
 **Key Features:**
-- CORS configured for local development (ports 5000/5001)
+- CORS configured for local development (frontend on port 5000)
 - JWT tokens can be revoked via blacklist
 - Database initialized on app creation
 - Extension initialization within app context
@@ -121,7 +121,7 @@ Protected routes require a JWT token in the Authorization header:
 
 **Getting a Token:**
 
-    POST /api/login
+    POST /api/auth/login
     Content-Type: application/json
 
     {
@@ -132,6 +132,7 @@ Protected routes require a JWT token in the Authorization header:
 **Response:**
 
     {
+      "message": "Login successful",
       "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
       "user": {
         "id": 1,
@@ -148,7 +149,7 @@ Protected routes require a JWT token in the Authorization header:
 
 **Logging Out (Blacklisting Token):**
 
-    POST /api/logout
+    POST /api/auth/logout
     Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 
 Adds the token's JTI (JWT ID) to the blacklist, preventing further use.
@@ -170,10 +171,22 @@ def list_tasks():
 
 ### Token Configuration
 
-Configured in `database/config_db.py`:
-- **JWT_SECRET_KEY**: Secret for signing tokens (must be set in environment)
+Configured in `src/api/config/config.py` (the `APIConfig` class):
+- **JWT_SECRET_KEY**: Secret for signing tokens (loaded from the environment / `.env` file in `src/api/config/`)
 - **JWT_TOKEN_LOCATION**: Tokens accepted in headers and cookies
-- Token expiration handled via `Config.get_token_expires_delta()`
+- Token expiration handled via `APIConfig.get_token_expires_delta()` (default: 12 hours)
+
+### Additional Auth Endpoints
+
+The users blueprint (`routes/users/`) also exposes these endpoints under the `/api/auth/` prefix:
+
+- `POST /api/auth/register` — Create a new user account
+- `GET /api/auth/user-info` — Get the current user's information
+- `PATCH /api/auth/user` — Update the current user's information
+- `POST /api/auth/change-password` — Change the current user's password
+- `POST /api/auth/delete-account` — Delete the current user's account
+
+Note: these endpoints return errors with a `message` key (e.g. `{"message": "Missing username or password"}`) rather than an `error` key.
 
 ## Endpoint Patterns
 
@@ -188,6 +201,8 @@ Most user-owned resources follow this pattern:
     DELETE /api/{entity}/<id>         # Delete one (owned by current user)
 
 **All require authentication** and are automatically scoped to the current user.
+
+**Note:** `projects` uses `PUT` instead of `PATCH` for updates (`PUT /api/projects/<id>`).
 
 ### Example: Tasks
 
@@ -696,7 +711,7 @@ Required environment variables:
 - **JWT_SECRET_KEY**: Secret for signing JWT tokens (must be secure in production)
 
 Optional:
-- **DATABASE_URL**: Override default SQLite database location
+- **DATABASE_URI**: Override default SQLite database location
 
 ## Health Check
 
@@ -712,6 +727,20 @@ json
 }
 ```
 Use this for monitoring and load balancer health checks.
+
+### CalDAV Connection Test
+
+    POST /api/caldav/test-connection
+    Content-Type: application/json
+    Authorization: Bearer <token>
+
+    {
+      "url": "https://caldav.example.com",
+      "username": "user@example.com",
+      "password": "secret"
+    }
+
+Validates credentials against a CalDAV server and returns the discovered calendars plus sample events.
 
 ## Further Reading
 

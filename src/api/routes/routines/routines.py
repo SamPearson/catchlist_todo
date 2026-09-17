@@ -10,7 +10,7 @@ from src.database.routines.routine_presenter import RoutinePresenter
 from src.database.base.exceptions import EntityNotFoundError
 from src.database.db import db
 from src.database.routines.routine_service import RoutineService, RoutineValidationError
-from src.database.sessions.session_service import SessionService
+from src.database.sessions.session_service import SessionService, SessionValidationError
 from src.api.utils.caldav_client import CalDAVClient
 from src.database.users.user_models import User
 
@@ -248,6 +248,10 @@ def generate_routine_sessions(routine_id: int):
 
     except ValueError as e:
         return jsonify({"error": f"Invalid date format: {str(e)}. Use ISO format: YYYY-MM-DD or YYYY-MM-DDThh:mm:ss"}), 400
+    except SessionValidationError as e:
+        if "not found" in str(e):
+            return jsonify({"error": str(e)}), 404
+        return jsonify({"error": str(e)}), 400
     except RoutineValidationError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
