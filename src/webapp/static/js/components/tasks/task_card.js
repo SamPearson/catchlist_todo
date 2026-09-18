@@ -160,13 +160,13 @@ function taskCard(initialTask) {
 
         getStatusColor() {
             const statusColors = {
-                'open': 'has-text-success',
-                'waiting': 'has-text-warning',
-                'deferred': 'has-text-info',
-                'declined': 'has-text-danger',
-                'stale': 'has-text-grey'
+                'open': 'status-open',
+                'waiting': 'status-waiting',
+                'deferred': 'status-deferred',
+                'declined': 'status-declined',
+                'stale': 'status-stale'
             };
-            return statusColors[this.task.status] || 'has-text-grey';
+            return statusColors[this.task.status] || 'status-stale';
         },
 
         getStatusTagClass() {
