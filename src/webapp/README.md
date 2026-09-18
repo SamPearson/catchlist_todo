@@ -6,11 +6,11 @@ The webapp provides a server-side rendered web interface for the productivity ma
 
 **Technology Stack:**
 - **Backend**: Python 3.10.12, Flask
-- **Frontend**: Bulma CSS, Alpine.js, Font Awesome
+- **Frontend**: Custom CSS design system (`static/css/app.css`), Alpine.js, Font Awesome
 - **Architecture**: Server-side rendering with client-side interactivity
 - **Authentication**: JWT token authentication via cookies
 
-**Current Status:** The webapp is in a proof-of-concept phase. While the API is feature-complete, the webapp is being built incrementally with a focus on creating reusable UI components and component demos.
+**Current Status:** The webapp is in active development. The API is feature-complete, and the webapp is built incrementally from reusable UI components (Jinja component templates, Alpine.js behavior, and the shared custom CSS design system).
 
 ## Directory Structure
 
@@ -19,12 +19,12 @@ The webapp provides a server-side rendered web interface for the productivity ma
     │   ├── auth/                    # Authentication routes
     │   │   ├── __init__.py          # Blueprint registration
     │   │   └── auth_handlers.py    # Route handler functions
-    │   ├── home/                    # Home/landing routes
+    │   ├── home/                    # Home/landing + dashboard routes
     │   │   ├── __init__.py
     │   │   └── home_handlers.py
-    │   └── demo/                    # UI component demos (dev only)
-    │       ├── __init__.py
-    │       └── component_demo_handlers.py
+    │   ├── tasks/                   # Task page routes
+    │   ├── sessions/                # Session page routes
+    │   └── reports/                 # Report page routes
     ├── services/                    # Shared services
     │   ├── api_client.py            # Server-side API client
     │   └── auth.py                  # Auth utilities and decorators
@@ -32,25 +32,34 @@ The webapp provides a server-side rendered web interface for the productivity ma
     │   ├── base.html                # Base layout template
     │   ├── components/              # Reusable UI components
     │   │   ├── navbar.html
-    │   │   └── tasks/               # Task-related components
-    │   │       ├── task_create.html
-    │   │       ├── task_edit.html
-    │   │       ├── task_item.html
-    │   │       ├── task_manager.html
-    │   │       └── task_search.html
+    │   │   ├── tasks/               # Task components
+    │   │   │   ├── task_card.html
+    │   │   │   ├── task_create.html
+    │   │   │   ├── task_list.html
+    │   │   │   └── task_search.html
+    │   │   ├── sessions/            # Session components
+    │   │   │   ├── session_display.html
+    │   │   │   ├── session_list.html
+    │   │   │   └── session_search.html
+    │   │   └── reports/             # Report components
+    │   │       ├── report_display.html
+    │   │       └── report_selector.html
     │   └── pages/                   # Full page templates
     │       ├── auth/                # Authentication pages
     │       │   ├── login.html
     │       │   ├── register.html
     │       │   └── account.html
-    │       ├── component_demo/      # Component demo pages
-    │       │   ├── component_demo.html
-    │       │   └── task_component_demo.html
+    │       ├── tasks/               # Task page (task_page.html)
+    │       ├── sessions/            # Session page (session_page.html)
+    │       ├── reports/             # Report page (report_page.html)
     │       ├── landing.html         # Landing page
     │       └── dashboard.html       # Main dashboard
     ├── static/                      # Static assets
+    │   ├── css/
+    │   │   └── app.css              # Custom CSS design system
     │   ├── js/
-    │   │   └── api_helper.js        # Client-side API utilities
+    │   │   ├── api_helper.js        # Client-side API utilities
+    │   │   └── components/          # Alpine.js components (per feature)
     │   └── images/
     └── webapp.py                    # Main Flask application
 
@@ -60,58 +69,39 @@ The webapp follows a component-based approach where UI elements are built as reu
 
 ### Component Structure
 
-Components live in `templates/components/` organized by feature:
+Components live in `templates/components/` organized by feature, with matching Alpine.js logic in `static/js/components/`:
 
     templates/components/
     ├── navbar.html
-    └── tasks/
-        ├── task_create.html
-        ├── task_edit.html
-        ├── task_item.html
-        ├── task_manager.html
-        └── task_search.html
+    ├── tasks/
+    │   ├── task_card.html
+    │   ├── task_create.html
+    │   ├── task_list.html
+    │   └── task_search.html
+    ├── sessions/
+    │   ├── session_display.html
+    │   ├── session_list.html
+    │   └── session_search.html
+    └── reports/
+        ├── report_display.html
+        └── report_selector.html
 
 Each component is:
-- **Self-contained**: Includes its own Alpine.js logic
-- **Reusable**: Can be included in multiple pages
-- **Testable**: Has a corresponding demo page
+- **Self-contained**: Includes its own Alpine.js logic, which either lives in the component/paging template or in a matching file under `static/js/components/`
+- **Reusable**: Can be included in multiple pages, either directly or via Jinja macros
+- **Styleable**: Uses classes from the shared design system in `static/css/app.css`
 
-### Component Demos
+Pages compose components inside their own layout shell (`.page-head`, `.container`, etc.). Some components render their own `.box` shell (e.g. the task/session search and create forms); page templates should not re-wrap those in another box. Pages load the component JS they need in their `scripts` block:
 
-Every component(group) has a demo page in `templates/pages/component_demo/` for development and testing:
-```
-html
-<!-- templates/pages/component_demo/task_component_demo.html -->
-{% extends "base.html" %}
-
-{% block title %}Task Components Demo{% endblock %}
-
-{% block content %}
-<section class="section">
-    <div class="container">
-        <h1 class="title">Task Components</h1>
-        
-        <div class="box">
-            <h2 class="subtitle">Task Manager</h2>
-            {% include 'components/tasks/task_manager.html' %}
-        </div>
-        
-        <div class="box">
-            <h2 class="subtitle">Task Create Form</h2>
-            {% include 'components/tasks/task_create.html' %}
-        </div>
-    </div>
-</section>
-{% endblock %}
-```
-**Benefits:**
-- Test components in isolation
-- Validate component behavior without building full features
-- Provide visual reference for component library
-- Debug component logic without page complexity
-- Potential to set up pages for complex selenium tests without involving api calls or database interactions 
-
-**Note:** Component demo routes are only registered in non-production environments.
+    <!-- templates/pages/tasks/task_page.html -->
+    ...
+    {% block scripts %}
+    <script>const INITIAL_TASKS = {{ initial_tasks | tojson }};</script>
+    <script src="{{ url_for('static', filename='js/components/tasks/task_card.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/components/tasks/task_list.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/components/tasks/task_create.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/components/tasks/task_search.js') }}"></script>
+    {% endblock %}
 
 ## API Communication
 
@@ -309,7 +299,7 @@ url_for('my_feature.detail')       # /my-feature/detail
 
 **base.html:**
 - Root template with HTML structure
-- Includes Bulma CSS, Alpine.js, Font Awesome
+- Includes the custom design system (`static/css/app.css`), Alpine.js, Font Awesome
 - Defines navbar via `{% include 'components/navbar.html' %}`
 - Defines blocks: `title`, `styles`, `content`, `scripts`
 
@@ -320,7 +310,7 @@ url_for('my_feature.detail')       # /my-feature/detail
 
 **pages/:**
 - Full page templates organized in subdirectories by feature
-- Each feature gets its own subdirectory (e.g., `pages/auth/`, `pages/component_demo/`)
+- Each feature gets its own subdirectory (e.g., `pages/auth/`, `pages/tasks/`)
 - General pages (landing, dashboard) can live at the root of `pages/`
 - Extend base.html via `{% extends "base.html" %}`
 - Override blocks as needed
@@ -330,7 +320,9 @@ url_for('my_feature.detail')       # /my-feature/detail
 Templates should mirror the route blueprint structure:
 
     routes/auth/          →  templates/pages/auth/
-    routes/demo/          →  templates/pages/component_demo/
+    routes/tasks/         →  templates/pages/tasks/
+    routes/sessions/      →  templates/pages/sessions/
+    routes/reports/       →  templates/pages/reports/
     routes/home/          →  templates/pages/ (landing.html, dashboard.html)
 
 ### Creating a New Page
@@ -364,7 +356,7 @@ html
 ```
 python
 render_template('pages/auth/login.html')
-render_template('pages/component_demo/component_demo.html')
+render_template('pages/tasks/task_page.html')
 render_template('pages/dashboard.html')
 ```
 ## Alpine.js Patterns
@@ -443,72 +435,133 @@ const updated = await api.patch('/api/endpoint/123', { field: 'new value' });
 // DELETE
 await api.delete('/api/endpoint/123');
 ```
-## Bulma CSS Patterns
+## Custom CSS Design System
 
-### Layout
+The webapp uses a custom design system defined in `static/css/app.css` — there is no CSS framework. It is built on CSS custom properties (design tokens) with light and dark themes:
 
-**Container:**
 ```
-html
-<div class="container">
-    <!-- Content constrained to readable width -->
-</div>
+css
+:root { ... }                    /* Light theme tokens */
+:root[data-theme='dark'] { ... } /* Dark theme tokens */
 ```
-**Columns:**
-```
-html
-<div class="columns">
-    <div class="column is-half">Half width</div>
-    <div class="column is-half">Half width</div>
-</div>
-```
-**Section:**
+
+A small pre-paint script in `base.html` applies the theme by reading a saved preference from `localStorage` (falling back to `prefers-color-scheme`), so there is no flash of the wrong theme.
+
+### Design Tokens
+
+- **Colors**: `--gold`, `--gold-strong`, `--gold-soft`, `--bg`, `--surface`, `--surface-2`, `--hairline`, `--text`, `--muted`, `--success`, `--warning`, `--info`, `--danger`, `--grey`, plus soft variants (`--success-soft`, etc.) and `--hover`, `--field`, `--field-focus-ring`
+- **Type**: `--font` (EB Garamond) for body, `--font-display` (Cormorant Garamond) for headings, `--mono` (IBM Plex Mono) for metadata and readouts
+- **Misc**: `--radius`, `--shadow-warm` (engraved feel)
+
+### Page Layout
+
+Pages share a `section.section > div.container` shell with a `.page-head` banner:
+
 ```
 html
 <section class="section">
-    <!-- Adds consistent padding -->
+    <div class="container">
+        <div class="page-head">
+            <h1 class="page-title">Tasks</h1>
+            <p class="page-subtitle">Capture and clear your work</p>
+        </div>
+        <!-- page content: boxes, cards, components -->
+    </div>
 </section>
 ```
-### Components
 
-**Box:**
+- `.page-head` — adds a decorative `✦ ❖ ✦` rule beneath the title
+- `.page-title` — large display heading (Cormorant, ~40px)
+- `.page-subtitle` — muted secondary line
+
+### Boxes & Cards
+
 ```
 html
 <div class="box">
-    <!-- Card-like container with shadow -->
+    <div class="box-header">
+        <h2 class="box-title"><span class="icon"><i class="fas fa-tasks"></i></span> Section Title</h2>
+    </div>
+    <div class="box-body">
+        <!-- content -->
+    </div>
 </div>
 ```
-**Buttons:**
+
+- `.box` / `.box-pad` — primary card container (surface, gold border, warm shadow)
+- `.box-header` / `.box-title` / `.box-body` — section framing (optionally collapsible)
+- `.card` — used for grids such as the dashboard; variants `.card.live`, `.card.disabled`, plus `.card-icon`, `.card-title`, `.card-desc`
+- `.grid` — responsive 3-column grid (collapses to fewer columns on smaller screens); `.grid-2` for two columns
+
+### Buttons
+
+Both `class="button"` and `class="btn"` map to the same base; the legacy `is-*` modifiers are kept as aliases:
+
 ```
 html
 <button class="button is-primary">Primary</button>
+<button class="btn btn-ghost">Ghost</button>
 <button class="button is-danger">Danger</button>
-<button class="button is-loading">Loading...</button>
+<button class="button is-success">Success</button>
+<button class="button is-warning">Warning</button>
+<button class="button is-info">Info</button>
+<button class="btn btn-link">Link</button>
+
+<button class="button is-primary is-fullwidth">Block</button>   <!-- also .btn-full -->
+<button class="btn btn-sm">Small</button>                        <!-- also .button.is-small -->
 ```
-**Forms:**
+
+Use `:class="{ 'is-loading': saving }"` in Alpine components to show a spinner while a request is in flight.
+
+### Forms
+
 ```
 html
 <div class="field">
-    <label class="label">Label</label>
+    <label class="label">Email</label>
     <div class="control has-icons-left">
-        <input class="input" type="text">
-        <span class="icon is-small is-left">
-            <i class="fas fa-user"></i>
-        </span>
+        <input class="input" type="email">
+        <span class="icon is-small"><i class="fas fa-envelope"></i></span>
     </div>
-    <p class="help">Help text</p>
+    <p class="help">We'll never share your email.</p>
 </div>
+
+<select class="select">...</select>           <!-- styled select -->
+<select class="select is-fullwidth">...</select>
 ```
-**Notifications:**
+
+### Notifications
+
 ```
 html
 <div class="notification is-success">
-    Success message
+    <span>&#10003; Saved</span>
+    <button class="note-close" @click="show = false">&#10005;</button>
 </div>
+
 <div class="notification is-danger">
-    Error message
+    <span x-text="error"></span>
 </div>
 ```
+
+Variants: `is-success`, `is-danger`, `is-info`, `is-warning`, `is-light`. Use `.note-close` as the dismiss button (the legacy `.delete` has no visible glyph).
+
+### Feature Components
+
+`app.css` also defines styles for each feature area:
+
+- **Tasks**: `.task-card`, `.task-status-icon`, `.status-open`, `.status-waiting`, `.status-deferred`, `.status-declined`, `.status-stale`, `.task-title`, `.task-badges`, `.task-detail`, `.task-meta`, `.task-actions`, `.empty-state`
+- **Sessions**: `.session-card`, `.session-row`, `.session-color`, `.session-title`, `.session-when`, `.session-detail`, `.checkin`, `.rpe`, `.session-list`
+- **Reports**: `.tabs`, `.tab`, `.picker-row`, `.report-nav`, `.report-head`, `.report-meta`, `.stats`, `.stat`, `.stat-blue`, `.stat-green`, `.block`, `.block-label`, `.block-input`, `.section-title`, `.chip-row`, `.chip`, `.day-stub`, `.check-row`, `.mini-list`, `.mini-item`, `.mini-empty`
+- **Shared**: `.tag` plus `.tag-info/.tag-success/.tag-warning/.tag-danger/.tag-grey/.tag-link`, `.notification`, `.modal`, `.section-title`
+
+### Utilities
+
+Spacing (`mt-*`, `mb-*`, `ml-*`, `mr-*`, `p-*`, `px-*`, `py-*`, etc.), flex helpers (`is-flex`, `is-flex-grow-1`, `is-flex-wrap-wrap`, `is-align-items-*`, `is-justify-content-*`), visibility (`.hidden`), and text/background helpers (`has-text-*`, `has-background-*`, `is-size-1`…`is-size-7`) are available for quick composition.
+
+### Legacy Class Names
+
+For backwards compatibility, a number of legacy class names (`columns`, `column is-*`, `title is-*`, `subtitle`, `section`, `container`, `button is-*`, etc.) still resolve to the design system. **New code should prefer the native classes above.**
 ## Common Tasks
 
 ### Adding a New Page
@@ -522,11 +575,11 @@ html
 
 ### Adding a Reusable Component
 
-1. Create component file in `templates/components/` (organized by feature if appropriate)
-2. Create a demo page in `templates/pages/component_demo/` for testing
-3. Add demo route handler in `routes/demo/component_demo_handlers.py`
-4. Include component in pages with `{% include 'components/name.html' %}`
-5. For parameterized components, use Jinja macros
+1. Create the component markup in `templates/components/` (organized by feature if appropriate)
+2. Add its Alpine.js logic in `static/js/components/<feature>/<name>.js` (or inline in the template for small self-contained widgets)
+3. Include the component in pages with `{% include 'components/name.html' %}` (or a Jinja macro for parameterized components)
+4. Load the matching JS in the page's `scripts` block
+5. Use classes from the design system (`static/css/app.css`) for styling; add new styles there if the component needs them
 
 ### Protecting a Route
 ```
@@ -562,18 +615,7 @@ const data = await api.get('/api/endpoint');
 
 ## Development vs Production
 
-### Environment-Specific Features
-
-The component demo blueprint is only registered in non-production environments:
-
-```python
-# In webapp.py
-if os.getenv('FLASK_ENV') != 'production':
-    app.register_blueprint(demo_bp)
-```
-
-
-**Environment Detection:**
+### Environment Detection
 - Local: `FLASK_ENV` not set or set to `development`
 - Staging: `FLASK_ENV=staging`
 - Production: `FLASK_ENV=production`
@@ -587,10 +629,9 @@ if os.getenv('FLASK_ENV') != 'production':
 - ✅ Wrap API calls in try/catch and show user-friendly errors
 - ✅ Show loading indicators during async operations
 - ✅ Extract common HTML patterns into components
-- ✅ Create demo pages for all reusable components
 - ✅ Use descriptive names for blueprints, handlers, and Alpine components
 - ✅ Mirror route structure in `templates/pages/` subdirectories
-- ✅ Test components in isolation via demo pages
+- ✅ Add new styles to `static/css/app.css` rather than relying on legacy class names
 
 ### DON'T
 
@@ -598,7 +639,7 @@ if os.getenv('FLASK_ENV') != 'production':
 - ❌ Trust client-side auth alone (API validates everything)
 - ❌ Skip error handling on API calls
 - ❌ Duplicate component logic (extract to reusable components)
-- ❌ Build full features before testing components
+- ❌ Wrap a component that renders its own `.box` in another box
 - ❌ Forget to register blueprints in `webapp.py`
 - ❌ Use absolute URLs (use `url_for()` in templates)
 
@@ -634,9 +675,10 @@ For production deployment instructions, see `infrastructure/README.md`.
 ## Further Reading
 
 For detailed implementation examples, refer to:
-- `routes/demo/` - Component demo routes and handlers
-- `templates/components/tasks/` - Complete set of task-related components
-- `templates/pages/component_demo/` - Component demo pages
+- `templates/components/` - Reusable component templates (tasks, sessions, reports, navbar)
+- `templates/pages/` - Page shells built on the design system
+- `static/css/app.css` - The custom design system (tokens, layout, and component styles)
+- `static/js/components/` - Alpine.js component logic organized by feature
 - `static/js/api_helper.js` - Client-side API utilities
 - `services/api_client.py` - Server-side API client
 
