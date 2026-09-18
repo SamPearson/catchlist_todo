@@ -3,6 +3,8 @@ function sessionSearch() {
     return {
         expanded: false,
         loading: false,
+        showTagForm: false,
+        showPrincipleForm: false,
         filters: {
             status: {
                 scheduled: false,
@@ -133,6 +135,8 @@ function sessionSearch() {
                 tagInput: '',
                 principleInput: ''
             };
+            this.showTagForm = false;
+            this.showPrincipleForm = false;
 
             // Reset to today and fetch
             const today = new Date();

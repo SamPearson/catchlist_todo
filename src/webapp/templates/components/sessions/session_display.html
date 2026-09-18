@@ -4,135 +4,120 @@
 <!-- View Mode: Display the session -->
 <template x-if="mode === 'view'">
     <div>
-        <!-- Minimized State -->
-        <div x-show="!expanded"
+        <!-- Collapsed Row (always visible) -->
+        <div class="session-row"
              @click="toggleExpand()"
-             class="is-flex is-justify-content-space-between is-align-items-center has-text-weight-bold has-text-black px-4 py-3"
              :data-testid="`session-item-${session.id}-minimized`"
-             :style="session.calendar_color ? `background-color: ${session.calendar_color}20; border-left: 4px solid ${session.calendar_color}` : ''"
-             style="cursor: pointer; border-bottom: 1px solid #dbdbdb; position: relative;">
-            <div class="is-flex is-align-items-center" style="flex: 1;">
-                <h3 class="title is-5 mb-0" x-text="session.title"></h3>
-                <span class="has-text-grey" x-show="session.routine_name">
+             :style="session.calendar_color ? `background-color: ${session.calendar_color}20;` : ''">
+            <span class="session-color"
+                  x-show="session.calendar_color"
+                  :style="session.calendar_color ? `background-color: ${session.calendar_color}; color: ${session.calendar_color};` : ''"></span>
+
+            <div class="session-title">
+                <h3 x-text="session.title"></h3>
+                <span class="routine" x-show="session.routine_name">
                     &mdash; <span x-text="session.routine_name"></span>
                 </span>
             </div>
 
-            <!-- Centered Status Badge -->
-            <div style="position: absolute; left: 50%; transform: translateX(-50%);">
-                <span class="tag is-medium" :class="statusTagClass()">
+            <span class="session-badge">
+                <span class="tag" :class="statusTagClass()">
                     <span x-text="session.status"></span>
                 </span>
-            </div>
+            </span>
 
-            <div class="is-flex is-align-items-center">
-                <span x-text="formatDate(session.start_time)"></span>
-                <span> | </span>
-                <span x-text="formatTime(session.start_time)"></span>
-                <span> → </span>
-                <span x-text="formatTime(session.end_time)"></span>
+            <div class="session-when">
+                <span x-text="formatDate(session.start_time)"></span><br>
+                <span x-text="formatTime(session.start_time)"></span>&rarr;<span x-text="formatTime(session.end_time)"></span>
             </div>
-
         </div>
-        <!-- Expanded State -->
-        <div x-show="expanded" class="px-4 py-3" :data-testid="`session-item-${session.id}-expanded`"
-             style="border-bottom: 1px solid #dbdbdb;">
 
-            <!-- Tags and Principles -->
-            <div class="is-flex is-flex-wrap-wrap mb-3">
-                <div class="mr-2 mb-2">
-                    <strong>Tags:</strong>
-                    <div class="mt-1">
-                        <template x-for="tag in session.tags">
-                            <span class="tag is-light mr-1" x-text="tag.name || tag"></span>
-                        </template>
-                    </div>
-                </div>
-                <div>
-                    <strong>Principles:</strong>
-                    <div class="mt-1">
-                        <template x-for="principle in session.principles">
-                            <span class="tag is-light mr-1" x-text="principle.name || principle"></span>
-                        </template>
-                    </div>
-                </div>
-                <div class="is-flex is-align-items-center ml-auto">
-                    <span class="mr-2">RPE:</span>
-                    <span x-text="session.rpe || '-'"></span>
+        <!-- Expanded Detail -->
+        <div class="session-detail" x-show="expanded" :data-testid="`session-item-${session.id}-expanded`">
+            <!-- Tags -->
+            <div class="detail-block" x-show="session.tags && session.tags.length">
+                <p class="detail-label">Tags</p>
+                <div class="chip-row">
+                    <template x-for="tag in session.tags">
+                        <span class="chip" x-text="tag.name || tag"></span>
+                    </template>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <strong>Notes:</strong>
-                <p class="ml-1" x-text="session.notes || 'No notes'"></p>
+            <!-- Principles -->
+            <div class="detail-block" x-show="session.principles && session.principles.length">
+                <p class="detail-label">Principles</p>
+                <div class="chip-row">
+                    <template x-for="principle in session.principles">
+                        <span class="chip" x-text="principle.name || principle"></span>
+                    </template>
+                </div>
             </div>
 
-            <!-- Checkins Section -->
-            <div class="mb-3">
-                <div class="is-flex is-align-items-center" style="gap: 0.75rem;">
-                    <strong>Checkins</strong>
-                    <span class="tag is-light" x-text="checkins.length"></span>
-                    <button @click="toggleCheckins()" class="button is-small is-ghost p-0 has-text-link">
+            <!-- Notes -->
+            <div class="detail-block">
+                <p class="detail-label">Notes</p>
+                <p class="detail-text muted" x-show="!session.notes">No notes for this session yet.</p>
+                <p class="detail-text" x-show="session.notes" x-text="session.notes"></p>
+            </div>
+
+            <!-- Checkins -->
+            <div class="detail-block">
+                <div class="is-flex is-align-items-center" style="gap: 8px;">
+                    <p class="detail-label" style="margin-bottom: 0;">Checkins</p>
+                    <span class="tag tag-grey" x-text="checkins.length"></span>
+                    <button @click="toggleCheckins()" class="btn btn-ghost btn-sm">
                         <span x-text="checkinsExpanded ? '▲ Hide' : '▼ Show'"></span>
                     </button>
                 </div>
 
-                <div x-show="checkinsExpanded" class="mt-3">
+                <div x-show="checkinsExpanded" class="mt-2">
                     <template x-if="checkins.length === 0">
-                        <p class="has-text-grey">No checkins yet.</p>
+                        <p class="muted">No checkins yet.</p>
                     </template>
 
-                    <template x-for="(checkin, index) in checkins" :key="index">
-                        <div class="is-flex is-justify-content-space-between is-align-items-start p-3 mb-2"
-                             style="border: 1px solid #dbdbdb; border-radius: 6px; background: #fafafa;">
-                            <div>
-                                <p class="has-text-weight-semibold is-size-7" x-text="formatDateTime(checkin.occurred_at)"></p>
-                                <p class="mt-1" x-text="checkin.note"></p>
+                    <template x-for="(checkin, index) in checkins" :key="checkin.id || index">
+                        <div class="checkin">
+                            <p class="checkin-time" x-text="formatDateTime(checkin.occurred_at)"></p>
+                            <div class="checkin-note">
+                                <span x-text="checkin.note"></span>
+                                <button @click="removeCheckin(index)"
+                                        class="tag-delete"
+                                        title="Delete checkin"
+                                        aria-label="Delete checkin">&times;</button>
                             </div>
-                            <button @click="removeCheckin(index)"
-                                    class="delete"
-                                    title="Remove checkin">
-                            </button>
                         </div>
                     </template>
 
                     <!-- Add Checkin -->
-                    <div class="mt-3" x-show="!showAddCheckin">
-                        <button @click="showAddCheckin = true" class="button is-small is-link is-light" :disabled="checkinsLoading">
-                            + Add Checkin
+                    <div x-show="!showAddCheckin" class="mt-2">
+                        <button @click="showAddCheckin = true" class="btn btn-link btn-sm" :disabled="checkinsLoading">
+                            + Add checkin
                         </button>
                     </div>
-                    <div x-show="showAddCheckin" class="mt-3 p-3" style="border: 1px solid #dbdbdb; border-radius: 6px;">
-                        <form @submit.prevent="addCheckin()">
-                            <div class="field">
-                                <label class="label is-small">Notes</label>
-                                <div class="control">
-                                    <textarea x-model="newCheckin.notes" class="textarea is-small" rows="2" placeholder="Enter your checkin note..."></textarea>
-                                </div>
-                            </div>
-                            <div class="field is-grouped">
-                                <div class="control">
-                                    <button type="submit" class="button is-small is-success">Save</button>
-                                </div>
-                                <div class="control">
-                                    <button type="button" @click="showAddCheckin = false; newCheckin = { notes: '' }" class="button is-small is-light">Cancel</button>
-                                </div>
-                            </div>
-                        </form>
+                    <div x-show="showAddCheckin" class="chip-add-form mt-2">
+                        <textarea x-model="newCheckin.notes" class="textarea" rows="2" placeholder="Enter your checkin note..."></textarea>
+                        <div class="actions">
+                            <button type="button" @click="showAddCheckin = false; newCheckin = { notes: '' }" class="btn btn-ghost btn-sm">Cancel</button>
+                            <button type="button" @click="addCheckin()" class="btn btn-success btn-sm">Save</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Metadata Section -->
-            <div class="is-flex is-justify-content-space-between">
-                <span>Created: <span x-text="formatDateTime(session.created_at)"></span></span>
-                <button @click="toggleEdit()" class="button is-small is-info" :data-testid="`session-item-${session.id}-edit-button`">
-                    <span class="icon is-small">
-                        <i class="fas fa-edit"></i>
-                    </span>
-                    <span>Edit</span>
+            <!-- Metadata + Actions -->
+            <div class="meta-row">
+                <span>Created <span x-text="formatDate(session.created_at)"></span></span>
+                <button @click="toggleEdit()" class="btn btn-link btn-sm" :data-testid="`session-item-${session.id}-edit-button`">
+                    <i class="fas fa-edit"></i> Edit
                 </button>
-                <span>Updated: <span x-text="formatDateTime(session.updated_at)"></span></span>
+                <span class="rpe" x-show="session.rpe">RPE: <span x-text="session.rpe"></span></span>
+            </div>
+
+            <div class="mt-3">
+                <button @click="showDeleteModal = true" class="btn btn-danger btn-sm" :data-testid="`session-item-${session.id}-delete-button`">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
             </div>
         </div>
     </div>
@@ -140,83 +125,72 @@
 
 <!-- Edit Mode: Form to update session -->
 <template x-if="mode === 'edit'">
-    <div class="box">
-        <form @submit.prevent="submitForm">
-            <!-- Error Message -->
-            <div class="message is-danger" x-show="errors.submit">
-                <div class="message-body" x-text="errors.submit"></div>
-            </div>
+    <form class="edit-form" @submit.prevent="submitForm">
+        <!-- Error Message -->
+        <div class="notification is-danger is-light" x-show="errors.submit">
+            <span x-text="errors.submit"></span>
+        </div>
 
+        <div class="grid-2">
             <!-- Start Time -->
             <div class="field">
-                <label class="label">Start Time</label>
-                <div class="control">
-                    <input type="datetime-local" x-model="formData.start_time" class="input" required>
-                </div>
-                <p class="help is-danger" x-show="errors.start_time" x-text="errors.start_time"></p>
+                <label class="label">Start Time <span class="req">*</span></label>
+                <input type="datetime-local" x-model="formData.start_time" class="input" :class="{ 'is-danger': errors.start_time }">
+                <p class="help has-text-danger" x-show="errors.start_time" x-text="errors.start_time"></p>
             </div>
 
             <!-- End Time -->
             <div class="field">
-                <label class="label">End Time</label>
-                <div class="control">
-                    <input type="datetime-local" x-model="formData.end_time" class="input" required>
-                </div>
-                <p class="help is-danger" x-show="errors.end_time" x-text="errors.end_time"></p>
+                <label class="label">End Time <span class="req">*</span></label>
+                <input type="datetime-local" x-model="formData.end_time" class="input" :class="{ 'is-danger': errors.end_time }">
+                <p class="help has-text-danger" x-show="errors.end_time" x-text="errors.end_time"></p>
             </div>
+        </div>
 
-            <!-- Status -->
-            <div class="field">
-                <label class="label">Status</label>
-                <div class="control">
-                    <select x-model="formData.status" class="input">
-                        <option value="scheduled">Scheduled</option>
-                        <option value="completed">Completed</option>
-                        <option value="skipped">Skipped</option>
-                        <option value="cancelled">Cancelled</option>
-                    </select>
-                </div>
-            </div>
+        <!-- Status -->
+        <div class="field">
+            <label class="label">Status</label>
+            <select x-model="formData.status" class="select is-fullwidth">
+                <option value="scheduled">Scheduled</option>
+                <option value="completed">Completed</option>
+                <option value="skipped">Skipped</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+        </div>
 
-            <!-- Notes -->
-            <div class="field">
-                <label class="label">Notes</label>
-                <div class="control">
-                    <textarea x-model="formData.notes" class="textarea" rows="3"></textarea>
-                </div>
-            </div>
+        <!-- Notes -->
+        <div class="field">
+            <label class="label">Notes</label>
+            <textarea x-model="formData.notes" class="textarea" rows="3"></textarea>
+        </div>
 
-            <!-- RPE -->
-            <div class="field">
-                <label class="label">RPE (1-10)</label>
-                <div class="control">
-                    <input type="range" x-model="formData.rpe" min="1" max="10" class="input">
-                    <span class="ml-2" x-text="formData.rpe"></span>
-                </div>
+        <!-- RPE -->
+        <div class="field">
+            <label class="label">RPE</label>
+            <div class="rpe-row">
+                <input type="range" x-model="formData.rpe" min="1" max="10">
+                <span class="rpe-value" x-text="formData.rpe || '-'"></span>
             </div>
+        </div>
 
-            <!-- Routine Name (read-only) -->
-            <div class="field">
-                <label class="label">Routine</label>
-                <div class="control">
-                    <input type="text" :value="formData.routine_name" class="input" readonly>
-                </div>
-            </div>
+        <!-- Routine (read-only) -->
+        <div class="field">
+            <label class="label">Routine</label>
+            <input type="text" :value="formData.routine_name" class="input" readonly>
+        </div>
 
-            <!-- Submit and Cancel Buttons -->
-            <div class="field is-grouped mt-4">
-                <div class="control">
-                    <button type="submit" class="button is-success" :disabled="submitLoading">
-                        <span x-show="!submitLoading">Save</span>
-                        <span x-show="submitLoading">Saving...</span>
-                    </button>
-                </div>
-                <div class="control">
-                    <button type="button" @click="toggleEdit()" class="button is-light" :disabled="submitLoading">Cancel</button>
-                </div>
-            </div>
-        </form>
-    </div>
+        <!-- Actions -->
+        <div class="actions">
+            <button type="button" @click="toggleEdit()" class="btn btn-ghost" :disabled="submitLoading">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" :class="{ 'is-loading': submitLoading }" :disabled="submitLoading">
+                <i class="fas fa-save"></i>
+                <span x-show="!submitLoading">Save Changes</span>
+                <span x-show="submitLoading">Saving...</span>
+            </button>
+        </div>
+    </form>
 </template>
 
 <!-- Delete Confirmation Modal -->
@@ -230,15 +204,15 @@
             <p>Are you sure you want to delete this session?</p>
         </section>
         <footer class="modal-card-foot">
-            <button class="button is-danger" @click="deleteSession">Delete</button>
-            <button class="button is-light" @click="showDeleteModal = false">Cancel</button>
+            <button class="btn btn-danger" @click="deleteSession">Delete</button>
+            <button class="btn btn-ghost" @click="showDeleteModal = false">Cancel</button>
         </footer>
     </div>
 </div>
 {% endmacro %}
 
 {% macro session_display(session_data) %}
-<div x-data='sessionDisplay(sessionData)' class="mb-6" :data-testid="`session-item-${sessionData.id}`">
+<article class="session-card mb-6" x-data='sessionDisplay(session_data)' :data-testid="`session-item-${session_data.id}`">
     {{ session_display_card() }}
-</div>
+</article>
 {% endmacro %}

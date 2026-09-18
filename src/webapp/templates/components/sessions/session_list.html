@@ -2,15 +2,22 @@
 {% from "components/sessions/session_display.html" import session_display_card %}
 
 {% macro session_list() %}
-<div class="box p-0" style="margin-bottom: 0; padding: 0;">
-    <template x-for="session in sessions" :key="session.id">
-        <div x-data='sessionDisplay(session)' :data-testid="`session-item-${session.id}`">
-            {{ session_display_card() }}
-        </div>
-    </template>
-
-    <div x-show="sessions.length === 0" class="p-5 has-text-centered has-text-grey">
-        <p>No sessions found.</p>
+<section class="box" data-testid="session-list">
+    <!-- Empty State -->
+    <div x-show="sessions.length === 0" class="empty-state" data-testid="session-list-empty">
+        <span class="icon has-text-grey">
+            <i class="fas fa-calendar-check"></i>
+        </span>
+        <p class="has-text-grey">No sessions found.</p>
     </div>
-</div>
+
+    <!-- Session Items -->
+    <div class="session-list">
+        <template x-for="session in sessions" :key="session.id">
+            <article class="session-card" x-data='sessionDisplay(session)' :data-testid="`session-card-${session.id}`">
+                {{ session_display_card() }}
+            </article>
+        </template>
+    </div>
+</section>
 {% endmacro %}
