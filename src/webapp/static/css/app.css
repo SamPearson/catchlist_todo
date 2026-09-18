@@ -432,6 +432,19 @@ hr {
 
 .input::placeholder, .textarea::placeholder { color: var(--muted); opacity: 0.7; }
 
+.input.is-danger,
+.select select.is-danger,
+.textarea.is-danger {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+.input.is-danger:focus,
+.select select.is-danger:focus,
+.textarea.is-danger:focus {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
 .textarea {
     resize: vertical;
     min-height: 76px;
@@ -512,6 +525,13 @@ input[type="radio"] {
     padding: 12px 14px;
     border-radius: var(--radius);
     margin-top: 14px;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
 }
 
 /* --------------------------------------------------------------------------
@@ -1107,7 +1127,12 @@ input[type="radio"] {
     box-shadow: inset 0 0 0 1px currentColor;
     background: var(--surface);
     flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
+
+.task-status-icon i { font-size: 10px; }
 
 .status-open { color: var(--success); }
 .status-waiting { color: var(--warning); }
@@ -1136,41 +1161,63 @@ input[type="radio"] {
     gap: 6px;
 }
 
-.task-detail { padding: 0 20px 20px 41px; }
+.task-detail { padding: 0 20px 20px; }
 
-.task-description { font-size: 15px; }
+.task-description {
+    color: var(--text);
+    margin-bottom: 16px;
+    font-size: 15px;
+}
 
 .task-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     font-family: var(--mono);
     font-size: 0.82em;
+    line-height: 1.6;
+    margin-bottom: 18px;
     background: var(--surface-2);
     border: 1px solid var(--hairline);
     border-radius: var(--radius);
-    padding: 10px 14px;
+    padding: 10px 12px 10px 14px;
     color: var(--muted);
 }
 
 .task-meta > span {
     display: flex;
+    align-items: baseline;
     gap: 10px;
-    justify-content: space-between;
     padding: 4px 0;
     border-bottom: 1px dashed var(--hairline);
 }
 
-.task-meta > span:last-child { border-bottom: none; }
+.task-meta > span:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
 
 .task-meta > span::before {
     content: "\203A";
     color: var(--gold-strong);
+    opacity: 0.7;
+    flex: none;
+    font-size: 0.92em;
 }
 
 .task-meta strong {
     min-width: 66px;
     color: var(--text);
+    font-weight: 600;
 }
 
 .task-meta .tag { font-size: 0.9em; }
+
+.task-meta-tags {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    align-items: center;
+}
 
 .task-actions {
     display: flex;
@@ -1181,15 +1228,18 @@ input[type="radio"] {
 
 .empty-state {
     border-top: 1px solid var(--hairline);
+    margin-top: 8px;
     text-align: center;
-    padding: 28px 20px;
+    padding: 40px 18px;
     color: var(--muted);
+    letter-spacing: 0.03em;
 }
 
 .empty-state .icon {
     display: block;
     font-size: 28px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    color: var(--grey);
 }
 
 /* Edit form (tasks + sessions) */
@@ -1209,7 +1259,13 @@ input[type="radio"] {
     border-radius: var(--radius);
     padding: 10px 14px;
     color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 14px;
 }
+
+.meta-box strong { color: var(--text); font-weight: 600; }
 
 .danger-zone {
     border-top: 1px solid var(--danger-soft);
@@ -1251,11 +1307,13 @@ input[type="radio"] {
 .session-list .session-card:hover::before { opacity: 0.6; }
 
 .session-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 14px 18px 14px 21px;
     cursor: pointer;
+    border-bottom: 1px solid var(--hairline);
     transition: background 0.15s ease;
 }
 
@@ -1292,8 +1350,9 @@ input[type="radio"] {
 
 .session-badge {
     position: absolute;
+    left: 50%;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
 }
 
 .session-when {
@@ -1301,9 +1360,11 @@ input[type="radio"] {
     font-size: 0.85em;
     color: var(--muted);
     flex: none;
+    text-align: right;
+    line-height: 1.4;
 }
 
-.session-detail { padding: 0 21px 18px 55px; }
+.session-detail { padding: 0 21px 18px 21px; }
 
 .detail-block { margin-bottom: 14px; }
 .detail-block:last-child { margin-bottom: 0; }
@@ -1344,6 +1405,7 @@ input[type="radio"] {
     margin: 2px 0 0;
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 10px;
 }
 

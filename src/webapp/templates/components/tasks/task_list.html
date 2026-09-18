@@ -1,311 +1,234 @@
 {# Task List Component - Manages and renders a dynamic list of task cards #}
 
 {% macro task_list() %}
-<style>
-    .task-header:hover {
-        background-color: #f1f1f1;
-        transition: background-color 0.2s;
-    }
-</style>
-<div x-data="taskList(INITIAL_TASKS)" x-init="init()" data-testid="task-list">
+<section class="box" data-testid="task-list">
+    <div x-data="taskList(INITIAL_TASKS)" x-init="init()">
 
-    <!-- Error State -->
-    <div x-show="error" class="notification is-danger is-light">
-        <button class="delete" @click="error = null"></button>
-        <span x-text="error"></span>
-    </div>
+        <!-- Error State -->
+        <div x-show="error" class="notification is-danger is-light">
+            <button class="delete" @click="error = null"></button>
+            <span x-text="error"></span>
+        </div>
 
-    <!-- Empty State -->
-    <div x-show="!error && tasks.length === 0"
-         class="box has-text-centered py-6"
-         data-testid="task-list-empty">
-        <span class="icon is-large has-text-grey">
-            <i class="fas fa-check-circle fa-2x"></i>
-        </span>
-        <p class="has-text-grey mt-2">No tasks found.</p>
-    </div>
+        <!-- Empty State -->
+        <div x-show="!error && tasks.length === 0"
+             class="empty-state"
+             data-testid="task-list-empty">
+            <span class="icon has-text-grey">
+                <i class="fas fa-check-circle"></i>
+            </span>
+            <p class="has-text-grey">No tasks found.</p>
+        </div>
 
-    <!-- Task Items -->
-    <template x-for="task in tasks" :key="task.id">
-        <div x-data="taskCard(task)"
-             :data-testid="`task-card-${task.id}`"
-             class="mb-4">
+        <!-- Task Items -->
+        <div class="task-list">
+        <template x-for="task in tasks" :key="task.id">
+            <article class="task-card"
+                     x-data="taskCard(task)"
+                     :data-testid="`task-card-${task.id}`"
+                     :class="task.completed ? 'card-completed' : (!task.active && !task.completed ? 'card-inactive' : '')">
 
-            <!-- View Mode -->
-            <template x-if="mode === 'view'">
-                <div>
-                    <!-- Minimized State -->
-                    <div x-show="!expanded"
+            <!-- Task Row (always visible) -->
+                    <div class="task-row"
                          @click="toggleExpand()"
-                         class="box is-clickable task-header"
-                         :class="{ 'has-background-success-light': task.completed, 'opacity-70': !task.active && !task.completed }"
                          style="cursor: pointer;">
-                        <div class="is-flex is-align-items-center is-justify-content-space-between">
-                            <div class="is-flex is-align-items-center" style="flex: 1;">
-                                <span class="icon" :class="task.completed ? 'has-text-success' : getStatusColor()">
-                                    <i class="fas" :class="task.completed ? 'fa-check-circle' : 'fa-circle'" :style="task.completed ? '' : 'font-size: 0.5rem;'"></i>
-                                </span>
-                                <span class="ml-2"
-                                      :class="task.completed ? 'has-text-grey-light' : ''"
-                                      :style="task.completed ? 'text-decoration: line-through;' : ''"
-                                      x-text="task.title"></span>
-                            </div>
-                            <div class="is-flex is-align-items-center">
-                                <span x-show="task.completed" class="tag is-success">Completed</span>
-                                <span x-show="task.project_id && !task.completed" class="tag is-link is-light mr-2">
-                                    <span class="icon is-small"><i class="fas fa-folder"></i></span>
-                                    <span>Subtask</span>
-                                </span>
-                                <span x-show="!task.active && !task.completed" class="tag is-warning is-light mr-2">Someday/Maybe</span>
-                            </div>
-                        </div>
-                    </div>
+                        <span class="task-status-icon" :class="task.completed ? 'has-text-success' : getStatusColor()">
+                            <i class="fas" :class="task.completed ? 'fa-check-circle' : 'fa-circle'"></i>
+                        </span>
 
-                    <!-- Expanded State -->
-                    <div x-show="expanded"
-                         class="box"
-                         :class="{ 'has-background-success-light': task.completed }">
-                        <div class="is-flex is-justify-content-space-between is-align-items-start mb-3 task-header"
-                             @click="toggleExpand()"
-                             style="cursor: pointer;">
-                            <h3 class="title is-5 mb-0" x-text="task.title"></h3>
-                        </div>
+                        <h3 class="task-title"
+                            :class="{ 'completed': task.completed }"
+                            x-text="task.title"></h3>
 
-                        <div class="is-flex is-flex-wrap-wrap mb-3" style="gap: 0.5rem;">
-                            <span class="tag" :class="getStatusTagClass()" x-text="task.status"></span>
-                            <span x-show="task.project_id" class="tag is-link is-light">
+                        <div class="task-badges">
+                            <span x-show="task.completed" class="tag tag-success">Completed</span>
+                            <span x-show="task.project_id && !task.completed" class="tag tag-link">
                                 <span class="icon is-small"><i class="fas fa-folder"></i></span>
                                 <span>Subtask</span>
                             </span>
-                            <span x-show="!task.active" class="tag is-warning is-light">Someday/Maybe</span>
-                            <span x-show="task.completed" class="tag is-success">
-                                <span class="icon is-small"><i class="fas fa-check"></i></span>
-                                <span>Completed</span>
+                            <span x-show="!task.active && !task.completed" class="tag tag-warning">Someday/Maybe</span>
+                        </div>
+
+                        <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+                    </div>
+
+                    <!-- Task Detail (expanded state) -->
+                    <div class="task-detail" x-show="expanded && mode === 'view'">
+                        <p class="task-description" x-show="task.description" x-text="task.description"></p>
+
+                        <div class="task-meta">
+                            <span class="task-meta-tags">
+                                <span class="tag" :class="getStatusTagClass()" x-text="task.status"></span>
+                                <span x-show="task.project_id" class="tag tag-link">
+                                    <span class="icon is-small"><i class="fas fa-folder"></i></span>
+                                    <span>Subtask</span>
+                                </span>
+                                <span x-show="!task.active" class="tag tag-warning">Someday/Maybe</span>
+                                <span x-show="task.completed" class="tag tag-success">
+                                    <span class="icon is-small"><i class="fas fa-check"></i></span>
+                                    <span>Completed</span>
+                                </span>
                             </span>
+                            <span><strong>Created:</strong> <span x-text="formatDate(task.created_at)"></span></span>
+                            <span><strong>Updated:</strong> <span x-text="formatDate(task.updated_at)"></span></span>
+                            <span x-show="task.completed_at"><strong>Completed:</strong> <span x-text="formatDate(task.completed_at)"></span></span>
                         </div>
 
-                        <div x-show="task.description" class="content mb-3">
-                            <p x-text="task.description"></p>
-                        </div>
-
-                        <div class="is-size-7 has-text-grey">
-                            <p class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-plus"></i></span>
-                                Created: <span x-text="formatDate(task.created_at)"></span>
-                            </p>
-                            <p class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-edit"></i></span>
-                                Updated: <span x-text="formatDate(task.updated_at)"></span>
-                            </p>
-                            <p x-show="task.completed_at" class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-check-circle"></i></span>
-                                Completed: <span x-text="formatDate(task.completed_at)"></span>
-                            </p>
-                        </div>
-
-                        <div class="buttons mt-4">
+                        <div class="task-actions">
                             <template x-if="task.active && !task.completed">
-                                <div class="buttons">
-                                    <button class="button is-small is-success" @click="completeTask()">
-                                        <span class="icon is-small"><i class="fas fa-check"></i></span>
-                                        <span>Complete</span>
+                                {# x-if with multiple direct children renders only the first child; wrap siblings in one root div. #}
+                                <div>
+                                    <button class="btn btn-success btn-sm" @click="completeTask()">
+                                        <i class="fas fa-check"></i>
+                                        Complete
                                     </button>
-                                    <button class="button is-small is-info" @click="edit()">
-                                        <span class="icon is-small"><i class="fas fa-edit"></i></span>
-                                        <span>Edit</span>
+                                    <button class="btn btn-link btn-sm" @click="edit()">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
                                     </button>
-                                    <button class="button is-small is-danger" @click="deleteTask()">
-                                        <span class="icon is-small"><i class="fas fa-trash"></i></span>
-                                        <span>Delete</span>
+                                    <button class="btn btn-danger btn-sm" @click="deleteTask()">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
                                     </button>
                                 </div>
                             </template>
+
                             <template x-if="task.completed">
-                                <div class="buttons">
-                                    <button class="button is-small is-warning" @click="uncompleteTask()">
-                                        <span class="icon is-small"><i class="fas fa-undo"></i></span>
-                                        <span>Uncomplete</span>
+                                {# x-if with multiple direct children renders only the first child; wrap siblings in one root div. #}
+                                <div>
+                                    <button class="btn btn-warning btn-sm" @click="uncompleteTask()">
+                                        <i class="fas fa-undo"></i>
+                                        Uncomplete
                                     </button>
-                                    <button class="button is-small is-danger" @click="deleteTask()">
-                                        <span class="icon is-small"><i class="fas fa-trash"></i></span>
-                                        <span>Delete</span>
+                                    <button class="btn btn-danger btn-sm" @click="deleteTask()">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
                                     </button>
                                 </div>
                             </template>
+
                             <template x-if="!task.active && !task.completed">
-                                <div class="buttons">
-                                    <button class="button is-small is-primary" @click="activateTask()">
-                                        <span class="icon is-small"><i class="fas fa-play"></i></span>
-                                        <span>Activate</span>
+                                {# x-if with multiple direct children renders only the first child; wrap siblings in one root div. #}
+                                <div>
+                                    <button class="btn btn-primary btn-sm" @click="activateTask()">
+                                        <i class="fas fa-play"></i>
+                                        Activate
                                     </button>
-                                    <button class="button is-small is-info" @click="edit()">
-                                        <span class="icon is-small"><i class="fas fa-edit"></i></span>
-                                        <span>Edit</span>
+                                    <button class="btn btn-link btn-sm" @click="edit()">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
                                     </button>
-                                    <button class="button is-small is-danger" @click="deleteTask()">
-                                        <span class="icon is-small"><i class="fas fa-trash"></i></span>
-                                        <span>Delete</span>
+                                    <button class="btn btn-danger btn-sm" @click="deleteTask()">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
                                     </button>
                                 </div>
                             </template>
                         </div>
                     </div>
-                </div>
-            </template>
 
-            <!-- Edit Mode -->
-            <template x-if="mode === 'edit'">
-                <div class="box">
-                    <div class="field mb-4">
-                        <label class="label">Task Title *</label>
-                        <div class="control">
+                    <!-- Edit Mode -->
+                    <div class="edit-form" x-show="mode === 'edit'">
+                        <div class="field">
+                            <label class="label">Task Title <span class="req">*</span></label>
                             <input class="input" type="text" x-model="formData.title"
                                    placeholder="Enter task title"
                                    :class="{ 'is-danger': errors.title }">
+                            <p class="help has-text-danger" x-show="errors.title" x-text="errors.title"></p>
                         </div>
-                        <p class="help is-danger" x-show="errors.title" x-text="errors.title"></p>
-                    </div>
 
-                    <div class="field mb-4">
-                        <label class="label">Description</label>
-                        <div class="control">
+                        <div class="field">
+                            <label class="label">Description</label>
                             <textarea class="textarea" x-model="formData.description"
                                       placeholder="Add details about this task (optional)"
                                       rows="4"></textarea>
                         </div>
-                    </div>
 
-                    <div class="columns mb-4">
-                        <div class="column is-half">
+                        <div class="grid-2">
                             <div class="field">
                                 <label class="label">Status</label>
-                                <div class="control">
-                                    <div class="select is-fullwidth">
-                                        <select x-model="formData.status">
-                                            <option value="open">Open</option>
-                                            <option value="waiting">Waiting</option>
-                                            <option value="deferred">Deferred</option>
-                                            <option value="declined">Declined</option>
-                                            <option value="stale">Stale</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                <select class="select is-fullwidth" x-model="formData.status">
+                                    <option value="open">Open</option>
+                                    <option value="waiting">Waiting</option>
+                                    <option value="deferred">Deferred</option>
+                                    <option value="declined">Declined</option>
+                                    <option value="stale">Stale</option>
+                                </select>
                             </div>
-                        </div>
-                        <div class="column is-half">
                             <div class="field">
                                 <label class="label">Active Status</label>
-                                <div class="control">
-                                    <label class="checkbox">
-                                        <input type="checkbox" x-model="formData.active">
-                                        <span class="ml-2">Active (in working set)</span>
-                                    </label>
-                                    <p class="help">Uncheck to move to someday/maybe</p>
-                                </div>
+                                <label class="check-row">
+                                    <input type="checkbox" x-model="formData.active">
+                                    Active (in working set)
+                                </label>
+                                <p class="help">Uncheck to move to someday/maybe</p>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="field mb-4" x-show="task.project_id">
-                        <label class="label">Project</label>
-                        <div class="box has-background-light">
-                            <span class="icon-text">
-                                <span class="icon has-text-link"><i class="fas fa-folder"></i></span>
-                                <span>This task is a subtask of Project #<span x-text="task.project_id"></span></span>
-                            </span>
+                        <div class="field" x-show="task.project_id">
+                            <label class="label">Project</label>
+                            <div class="placeholder-box">
+                                <i class="fas fa-folder has-text-link"></i>
+                                This task is a subtask of Project #<span x-text="task.project_id"></span>
+                            </div>
                             <p class="help mt-2">Project association cannot be changed from here</p>
                         </div>
-                    </div>
 
-                    <div class="field mb-4">
-                        <label class="label">
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-tags"></i></span>
-                                <span>Tags</span>
-                            </span>
-                        </label>
-                        <div class="box has-background-light">
-                            <p class="has-text-grey-dark">
-                                <span class="icon"><i class="fas fa-info-circle"></i></span>
+                        <div class="field">
+                            <label class="label"><i class="fas fa-tags"></i> Tags</label>
+                            <div class="placeholder-box">
+                                <i class="fas fa-info-circle"></i>
                                 Tag management coming soon
-                            </p>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="field mb-4">
-                        <label class="label">
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-compass"></i></span>
-                                <span>Principles</span>
-                            </span>
-                        </label>
-                        <div class="box has-background-light">
-                            <p class="has-text-grey-dark">
-                                <span class="icon"><i class="fas fa-info-circle"></i></span>
+                        <div class="field">
+                            <label class="label"><i class="fas fa-compass"></i> Principles</label>
+                            <div class="placeholder-box">
+                                <i class="fas fa-info-circle"></i>
                                 Principle management coming soon
-                            </p>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="box has-background-white-bis mb-4">
-                        <p class="heading">Metadata</p>
-                        <div class="is-size-7 has-text-grey">
-                            <p class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-hashtag"></i></span>
-                                ID: <span x-text="task.id"></span>
-                            </p>
-                            <p class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-plus"></i></span>
-                                Created: <span x-text="formatDate(task.created_at)"></span>
-                            </p>
-                            <p class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-edit"></i></span>
-                                Last Updated: <span x-text="formatDate(task.updated_at)"></span>
-                            </p>
-                            <p x-show="task.completed" class="mb-1">
-                                <span class="icon is-small"><i class="fas fa-check-circle"></i></span>
-                                Completed: <span x-text="formatDate(task.completed_at)"></span>
-                            </p>
+                        <div class="meta-box">
+                            <p class="section-title">Metadata</p>
+                            <span><strong>ID:</strong> <span x-text="task.id"></span></span>
+                            <span><strong>Created:</strong> <span x-text="formatDate(task.created_at)"></span></span>
+                            <span><strong>Last Updated:</strong> <span x-text="formatDate(task.updated_at)"></span></span>
+                            <span x-show="task.completed"><strong>Completed:</strong> <span x-text="formatDate(task.completed_at)"></span></span>
                         </div>
-                    </div>
 
-                    <div class="field is-grouped is-grouped-right">
-                        <div class="control">
-                            <button class="button" @click="cancelEdit()">
-                                <span class="icon"><i class="fas fa-times"></i></span>
-                                <span>Cancel</span>
+                        <div class="actions">
+                            <button class="btn btn-ghost" @click="cancelEdit()">
+                                <i class="fas fa-times"></i>
+                                Cancel
                             </button>
-                        </div>
-                        <div class="control">
-                            <button class="button is-primary"
+                            <button class="btn btn-primary"
                                     @click="save()"
                                     :class="{ 'is-loading': saving }"
                                     :disabled="saving">
-                                <span class="icon"><i class="fas fa-save"></i></span>
-                                <span>Save Changes</span>
+                                <i class="fas fa-save"></i>
+                                Save Changes
                             </button>
                         </div>
-                    </div>
 
-                    <hr>
-                    <div class="has-background-danger-light p-4" style="border-radius: 6px;">
-                        <p class="heading has-text-danger">Danger Zone</p>
-                        <div class="is-flex is-justify-content-space-between is-align-items-center">
-                            <div>
-                                <p class="has-text-weight-semibold">Delete this task</p>
-                                <p class="is-size-7 has-text-grey-dark">This action cannot be undone</p>
+                        <div class="danger-zone">
+                            <p class="danger-title">Danger Zone</p>
+                            <div class="is-flex is-justify-content-space-between is-align-items-center">
+                                <div>
+                                    <p class="has-text-weight-semibold">Delete this task</p>
+                                    <p class="is-size-7 has-text-grey-dark">This action cannot be undone</p>
+                                </div>
+                                <button class="btn btn-danger" @click="deleteTask()">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
                             </div>
-                            <button class="button is-danger" @click="deleteTask()">
-                                <span class="icon"><i class="fas fa-trash"></i></span>
-                                <span>Delete</span>
-                            </button>
                         </div>
                     </div>
-                </div>
+                </article>
             </template>
-
         </div>
-    </template>
-
-</div>
+    </div>
+</section>
 {% endmacro %}

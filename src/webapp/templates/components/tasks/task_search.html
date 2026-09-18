@@ -1,228 +1,104 @@
-{# Task Search Component - Collapsible search and filter interface #}
-
+{# Task Search Component #}
 {% macro task_search() %}
-<div x-data='taskSearch()' class="mb-4" data-testid="task-search-component">
-    <!-- Collapsed State: Simple search box -->
-    <div x-show="!expanded" class="box" data-testid="task-search-simple">
-        <div class="field has-addons">
-            <div class="control is-expanded has-icons-left">
-                <input class="input"
-                    type="text"
-                    x-model="filters.title"
-                    @input="updateFilters()"
-                    data-testid="task-search-simple-input"
-                    placeholder="Search tasks...">
-                <span class="icon is-small is-left">
-                    <i class="fas fa-search"></i>
-                </span>
-            </div>
-            <div class="control">
-                <button class="button is-info" @click="expand()" data-testid="task-search-expand-button">
-                    <span class="icon">
-                        <i class="fas fa-filter"></i>
-                    </span>
-                    <span>Advanced</span>
-                </button>
-            </div>
-        </div>
+<section class="box" x-data='taskSearch()' class="mb-4" data-testid="task-search-component">
 
-        <!-- Active filters display -->
-        <div x-show="hasActiveFilters()" class="tags mt-3" data-testid="task-search-active-filters">
-            <span class="tag is-info is-light">
-                <span x-text="getActiveFilterCount()"></span> filter(s) active
-            </span>
-            <button class="tag is-delete" @click="clearFilters()" data-testid="task-search-clear-filters-tag"></button>
+    <div class="search-row">
+        <div class="search-input-wrap" x-show="!expanded" data-testid="task-search-simple">
+            <span class="icon"><i class="fas fa-search"></i></span>
+            <input class="input" type="text" x-model="filters.title"
+                   @input="updateFilters()" placeholder="Search tasks..."
+                   data-testid="task-search-simple-input">
         </div>
+        <button class="btn btn-ghost" @click="expand()" x-show="!expanded"
+                data-testid="task-search-expand-button">
+            <span class="icon"><i class="fas fa-filter"></i></span>
+            Advanced
+        </button>
     </div>
 
-    <!-- Expanded State: Advanced filters -->
-    <div x-show="expanded" class="box" data-testid="task-search-advanced">
+    <div class="filter-strip" x-show="hasActiveFilters()"
+         data-testid="task-search-active-filters">
+        <span class="tag tag-info">
+            <span x-text="getActiveFilterCount()"></span> filter(s) active
+        </span>
+        <button class="tag tag-info tag-delete" @click="clearFilters()"
+                data-testid="task-search-clear-filters-tag">Clear</button>
+    </div>
+
+    <div class="search-advanced" x-show="expanded" data-testid="task-search-advanced">
         <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
-            <h3 class="title is-5 mb-0">Search & Filter Tasks</h3>
-            <button @click="collapse()" class="delete" data-testid="task-search-collapse-button"></button>
+            <h2 class="box-title">Search &amp; Filter Tasks</h2>
+            <button class="delete" @click="collapse()"
+                    aria-label="Close search" data-testid="task-search-collapse-button"></button>
         </div>
 
-        <!-- Title Search -->
-        <div class="field mb-4">
-            <label class="label">Title</label>
-            <div class="control has-icons-left">
-                <input class="input"
-                    type="text"
-                    x-model="filters.title"
-                    @input="updateFilters()"
-                    data-testid="task-search-title-input"
-                    placeholder="Search in task titles...">
-                <span class="icon is-small is-left">
-                    <i class="fas fa-heading"></i>
-                </span>
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Title</label>
+                <input class="input" type="text" x-model="filters.title"
+                       @input="updateFilters()" placeholder="Search in task titles..."
+                       data-testid="task-search-title-input">
+            </div>
+            <div class="field">
+                <label class="label">Description</label>
+                <input class="input" type="text" x-model="filters.description"
+                       @input="updateFilters()" placeholder="Search in task descriptions..."
+                       data-testid="task-search-description-input">
             </div>
         </div>
 
-        <!-- Description Search -->
-        <div class="field mb-4">
-            <label class="label">Description</label>
-            <div class="control has-icons-left">
-                <input class="input"
-                    type="text"
-                    x-model="filters.description"
-                    @input="updateFilters()"
-                    data-testid="task-search-description-input"
-                    placeholder="Search in task descriptions...">
-                <span class="icon is-small is-left">
-                    <i class="fas fa-align-left"></i>
-                </span>
-            </div>
-        </div>
-
-        <!-- Status Filter -->
-        <div class="field mb-4">
+        <div class="field">
             <label class="label">Status</label>
-            <div class="control">
-                <div class="field is-grouped is-grouped-multiline">
-                    <div class="control">
-                        <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.open" value="open" @change="updateFilters()" data-testid="task-search-status-open-checkbox">
-                            <span class="ml-2">Open</span>
-                        </label>
-                    </div>
-                    <div class="control">
-                        <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.waiting" value="waiting" @change="updateFilters()" data-testid="task-search-status-waiting-checkbox">
-                            <span class="ml-2">Waiting</span>
-                        </label>
-                    </div>
-                    <div class="control">
-                        <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.deferred" value="deferred" @change="updateFilters()" data-testid="task-search-status-deferred-checkbox">
-                            <span class="ml-2">Deferred</span>
-                        </label>
-                    </div>
-                    <div class="control">
-                        <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.declined" value="declined" @change="updateFilters()" data-testid="task-search-status-declined-checkbox">
-                            <span class="ml-2">Declined</span>
-                        </label>
-                    </div>
-                    <div class="control">
-                        <label class="checkbox">
-                            <input type="checkbox" x-model="filters.status.stale" value="stale" @change="updateFilters()" data-testid="task-search-status-stale-checkbox">
-                            <span class="ml-2">Stale</span>
-                        </label>
-                    </div>
+            <div class="check-group">
+                <label class="radio-label"><input type="checkbox" x-model="filters.status.open" value="open" @change="updateFilters()" data-testid="task-search-status-open-checkbox"> Open</label>
+                <label class="radio-label"><input type="checkbox" x-model="filters.status.waiting" value="waiting" @change="updateFilters()" data-testid="task-search-status-waiting-checkbox"> Waiting</label>
+                <label class="radio-label"><input type="checkbox" x-model="filters.status.deferred" value="deferred" @change="updateFilters()" data-testid="task-search-status-deferred-checkbox"> Deferred</label>
+                <label class="radio-label"><input type="checkbox" x-model="filters.status.declined" value="declined" @change="updateFilters()" data-testid="task-search-status-declined-checkbox"> Declined</label>
+                <label class="radio-label"><input type="checkbox" x-model="filters.status.stale" value="stale" @change="updateFilters()" data-testid="task-search-status-stale-checkbox"> Stale</label>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Active Status</label>
+                <div class="check-group">
+                    <label class="radio-label"><input type="radio" name="active-status" x-model="filters.activeStatus" value="active" @change="updateFilters()" data-testid="task-search-active-status-active-radio"> Active only</label>
+                    <label class="radio-label"><input type="radio" name="active-status" x-model="filters.activeStatus" value="all" @change="updateFilters()" data-testid="task-search-active-status-all-radio"> All</label>
+                    <label class="radio-label"><input type="radio" name="active-status" x-model="filters.activeStatus" value="inactive" @change="updateFilters()" data-testid="task-search-active-status-inactive-radio"> Someday/Maybe only</label>
+                </div>
+                <p class="help">Filter by whether tasks are in your active working set</p>
+            </div>
+
+            <div class="field">
+                <label class="label">Completion Status</label>
+                <div class="check-group">
+                    <label class="radio-label"><input type="radio" name="completion-status" x-model="filters.completionStatus" value="incomplete" @change="updateFilters()" data-testid="task-search-completion-status-incomplete-radio"> Incomplete only</label>
+                    <label class="radio-label"><input type="radio" name="completion-status" x-model="filters.completionStatus" value="all" @change="updateFilters()" data-testid="task-search-completion-status-all-radio"> All</label>
+                    <label class="radio-label"><input type="radio" name="completion-status" x-model="filters.completionStatus" value="complete" @change="updateFilters()" data-testid="task-search-completion-status-complete-radio"> Completed only</label>
                 </div>
             </div>
         </div>
 
-        <!-- Active Status Filter -->
-        <div class="field mb-4">
-            <label class="label">Active Status</label>
-            <div class="control">
-                <label class="radio">
-                    <input type="radio" x-model="filters.activeStatus" @change="updateFilters()" value="active" data-testid="task-search-active-status-active-radio">
-                    Active only
-                </label>
-                <label class="radio ml-4">
-                    <input type="radio" x-model="filters.activeStatus" @change="updateFilters()" value="all" data-testid="task-search-active-status-all-radio">
-                    All
-                </label>
-                <label class="radio ml-4">
-                    <input type="radio" x-model="filters.activeStatus" @change="updateFilters()" value="inactive" data-testid="task-search-active-status-inactive-radio">
-                    Someday/Maybe only
-                </label>
-            </div>
-            <p class="help">Filter by whether tasks are in your active working set</p>
+        <div class="placeholder-box">
+            <i class="fas fa-folder"></i>
+            Project filtering coming soon.
+        </div>
+        <div class="placeholder-box">
+            <i class="fas fa-tags"></i>
+            Tag filtering coming soon.
+        </div>
+        <div class="placeholder-box">
+            <i class="fas fa-compass"></i>
+            Principle filtering coming soon.
         </div>
 
-        <!-- Completion Status Filter -->
-        <div class="field mb-4">
-            <label class="label">Completion Status</label>
-            <div class="control">
-                <label class="radio">
-                    <input type="radio" x-model="filters.completionStatus" @change="updateFilters()" value="incomplete" data-testid="task-search-completion-status-incomplete-radio">
-                    Incomplete only
-                </label>
-                <label class="radio ml-4">
-                    <input type="radio" x-model="filters.completionStatus" @change="updateFilters()" value="all" data-testid="task-search-completion-status-all-radio">
-                    All
-                </label>
-                <label class="radio ml-4">
-                    <input type="radio" x-model="filters.completionStatus" @change="updateFilters()" value="complete" data-testid="task-search-completion-status-complete-radio">
-                    Completed only
-                </label>
-            </div>
-        </div>
-
-        <!-- Project Filter (Placeholder) -->
-        <div class="field mb-4">
-            <label class="label">
-                <span class="icon-text">
-                    <span class="icon">
-                        <i class="fas fa-folder"></i>
-                    </span>
-                    <span>Project</span>
-                </span>
-            </label>
-            <div class="box has-background-light">
-                <p class="has-text-grey-dark">
-                    <span class="icon">
-                        <i class="fas fa-info-circle"></i>
-                    </span>
-                    Project filtering coming soon
-                </p>
-            </div>
-        </div>
-
-        <!-- Tags Filter (Placeholder) -->
-        <div class="field mb-4">
-            <label class="label">
-                <span class="icon-text">
-                    <span class="icon">
-                        <i class="fas fa-tags"></i>
-                    </span>
-                    <span>Tags</span>
-                </span>
-            </label>
-            <div class="box has-background-light">
-                <p class="has-text-grey-dark">
-                    <span class="icon">
-                        <i class="fas fa-info-circle"></i>
-                    </span>
-                    Tag filtering coming soon
-                </p>
-            </div>
-        </div>
-
-        <!-- Principles Filter (Placeholder) -->
-        <div class="field mb-4">
-            <label class="label">
-                <span class="icon-text">
-                    <span class="icon">
-                        <i class="fas fa-compass"></i>
-                    </span>
-                    <span>Principles</span>
-                </span>
-            </label>
-            <div class="box has-background-light">
-                <p class="has-text-grey-dark">
-                    <span class="icon">
-                        <i class="fas fa-info-circle"></i>
-                    </span>
-                    Principle filtering coming soon
-                </p>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="field is-grouped is-grouped-right">
-            <div class="control">
-                <button class="button" @click="clearFilters()" data-testid="task-search-clear-filters-button">
-                    <span class="icon">
-                        <i class="fas fa-times"></i>
-                    </span>
-                    <span>Clear Filters</span>
-                </button>
-            </div>
+        <div class="actions">
+            <button class="btn btn-ghost" @click="clearFilters()"
+                    data-testid="task-search-clear-filters-button">
+                <i class="fas fa-times"></i>
+                Clear Filters
+            </button>
         </div>
     </div>
-</div>
+</section>
 {% endmacro %}
