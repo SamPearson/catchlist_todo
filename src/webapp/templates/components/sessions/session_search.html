@@ -1,53 +1,46 @@
 {# Session Search Component - Filter and search sessions #}
 
 {% macro session_search() %}
-<div class="box">
-    <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
-        <h2 class="title is-4 mb-0">Search Sessions</h2>
-        <button @click="expanded ? collapse() : expand()" class="button is-small" :class="expanded ? 'is-info' : 'is-light'">
-            <span x-text="expanded ? '▲ Collapse' : '▼ Expand'"></span>
-        </button>
+<section class="box" data-testid="session-search-component">
+    <div class="box-header" @click="expanded ? collapse() : expand()" data-testid="session-search-expand-button">
+        <h2 class="box-title">
+            <span class="icon"><i class="fas fa-search"></i></span>
+            Search Sessions
+        </h2>
+        <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
     </div>
 
-    <div x-show="expanded" class="mt-4">
+    <div class="box-body" x-show="expanded">
         <!-- Date Range -->
-        <div class="columns">
-            <div class="column">
-                <div class="field">
-                    <label class="label">Start Date</label>
-                    <div class="control">
-                        <input type="datetime-local" x-model="dateRange.start" class="input">
-                    </div>
-                </div>
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Start Date</label>
+                <input type="datetime-local" x-model="dateRange.start" class="input" data-testid="session-search-start-input">
             </div>
-            <div class="column">
-                <div class="field">
-                    <label class="label">End Date</label>
-                    <div class="control">
-                        <input type="datetime-local" x-model="dateRange.end" class="input">
-                    </div>
-                </div>
+            <div class="field">
+                <label class="label">End Date</label>
+                <input type="datetime-local" x-model="dateRange.end" class="input" data-testid="session-search-end-input">
             </div>
         </div>
 
         <!-- Status Filter -->
         <div class="field">
             <label class="label">Status</label>
-            <div class="control">
-                <label class="checkbox mr-3">
-                    <input type="checkbox" x-model="filters.status.scheduled">
+            <div class="check-group">
+                <label class="radio-label">
+                    <input type="checkbox" x-model="filters.status.scheduled" data-testid="session-search-status-scheduled-checkbox">
                     Scheduled
                 </label>
-                <label class="checkbox mr-3">
-                    <input type="checkbox" x-model="filters.status.completed">
+                <label class="radio-label">
+                    <input type="checkbox" x-model="filters.status.completed" data-testid="session-search-status-completed-checkbox">
                     Completed
                 </label>
-                <label class="checkbox mr-3">
-                    <input type="checkbox" x-model="filters.status.skipped">
+                <label class="radio-label">
+                    <input type="checkbox" x-model="filters.status.skipped" data-testid="session-search-status-skipped-checkbox">
                     Skipped
                 </label>
-                <label class="checkbox">
-                    <input type="checkbox" x-model="filters.status.cancelled">
+                <label class="radio-label">
+                    <input type="checkbox" x-model="filters.status.cancelled" data-testid="session-search-status-cancelled-checkbox">
                     Cancelled
                 </label>
             </div>
@@ -56,58 +49,68 @@
         <!-- Tags Filter -->
         <div class="field">
             <label class="label">Tags</label>
-            <div class="control mb-2">
-                <div class="is-flex" style="gap: 0.5rem;">
-                    <input type="text" x-model="filters.tagInput" class="input" placeholder="Add tag...">
-                    <button @click="addTag()" class="button is-info">Add</button>
-                </div>
-            </div>
-            <div class="is-flex is-flex-wrap-wrap" style="gap: 0.5rem;">
+            <div class="chip-row">
                 <template x-for="(tag, index) in filters.tags" :key="index">
-                    <div class="is-flex is-align-items-center" style="gap: 0.5rem;">
-                        <span class="tag" x-text="tag"></span>
-                        <button @click="removeTag(index)" class="delete is-small"></button>
-                    </div>
+                    <span class="chip">
+                        <span x-text="tag"></span>
+                        <button class="tag-delete" @click="removeTag(index)" title="Remove tag" aria-label="Remove tag">&times;</button>
+                    </span>
                 </template>
+                <button class="chip add-chip" @click="showTagForm = !showTagForm; if (showTagForm) $nextTick(() => $refs.tagInput.focus())">
+                    + Add
+                </button>
+                <div class="chip-add-form" x-show="showTagForm">
+                    <input x-ref="tagInput" type="text" x-model="filters.tagInput" class="input"
+                           placeholder="Add a tag and press Enter"
+                           @keydown.enter.prevent="addTag()"
+                           data-testid="session-search-tag-input">
+                    <button class="btn btn-ghost btn-sm" @click="showTagForm = false">Done</button>
+                </div>
             </div>
         </div>
 
         <!-- Principles Filter -->
         <div class="field">
             <label class="label">Principles</label>
-            <div class="control mb-2">
-                <div class="is-flex" style="gap: 0.5rem;">
-                    <input type="text" x-model="filters.principleInput" class="input" placeholder="Add principle...">
-                    <button @click="addPrinciple()" class="button is-info">Add</button>
-                </div>
-            </div>
-            <div class="is-flex is-flex-wrap-wrap" style="gap: 0.5rem;">
+            <div class="chip-row">
                 <template x-for="(principle, index) in filters.principles" :key="index">
-                    <div class="is-flex is-align-items-center" style="gap: 0.5rem;">
-                        <span class="tag" x-text="principle"></span>
-                        <button @click="removePrinciple(index)" class="delete is-small"></button>
-                    </div>
+                    <span class="chip">
+                        <span x-text="principle"></span>
+                        <button class="tag-delete" @click="removePrinciple(index)" title="Remove principle" aria-label="Remove principle">&times;</button>
+                    </span>
                 </template>
+                <button class="chip add-chip" @click="showPrincipleForm = !showPrincipleForm; if (showPrincipleForm) $nextTick(() => $refs.principleInput.focus())">
+                    + Add
+                </button>
+                <div class="chip-add-form" x-show="showPrincipleForm">
+                    <input x-ref="principleInput" type="text" x-model="filters.principleInput" class="input"
+                           placeholder="Add a principle and press Enter"
+                           @keydown.enter.prevent="addPrinciple()"
+                           data-testid="session-search-principle-input">
+                    <button class="btn btn-ghost btn-sm" @click="showPrincipleForm = false">Done</button>
+                </div>
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="field is-grouped mt-4">
-            <div class="control">
-                <button @click="search()" class="button is-success" :disabled="loading">
-                    <span x-show="!loading">Search</span>
-                    <span x-show="loading">Searching...</span>
-                </button>
-            </div>
-            <div class="control">
-                <button @click="clearFilters()" class="button is-light" x-show="hasActiveFilters()">
-                    Clear Filters
-                </button>
-            </div>
-            <div class="control" x-show="hasActiveFilters()">
-                <span class="tag is-info" x-text="`${getActiveFilterCount()} filter${getActiveFilterCount() !== 1 ? 's' : ''} active`"></span>
-            </div>
+        <!-- Active Filters -->
+        <div class="filter-strip" x-show="hasActiveFilters()" data-testid="session-search-active-filters">
+            <span class="tag tag-info">
+                <span x-text="getActiveFilterCount()"></span>&nbsp;filter(s) active
+            </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn btn-ghost" @click="clearFilters()" data-testid="session-search-clear-filters-button">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
+            <button class="btn btn-primary" @click="search()" :class="{ 'is-loading': loading }" :disabled="loading"
+                    data-testid="session-search-submit-button">
+                <i class="fas fa-search"></i>
+                <span x-show="!loading">Search</span>
+                <span x-show="loading">Searching...</span>
+            </button>
         </div>
     </div>
-</div>
+</section>
 {% endmacro %}

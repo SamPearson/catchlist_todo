@@ -160,24 +160,24 @@ function taskCard(initialTask) {
 
         getStatusColor() {
             const statusColors = {
-                'open': 'has-text-success',
-                'waiting': 'has-text-warning',
-                'deferred': 'has-text-info',
-                'declined': 'has-text-danger',
-                'stale': 'has-text-grey'
+                'open': 'status-open',
+                'waiting': 'status-waiting',
+                'deferred': 'status-deferred',
+                'declined': 'status-declined',
+                'stale': 'status-stale'
             };
-            return statusColors[this.task.status] || 'has-text-grey';
+            return statusColors[this.task.status] || 'status-stale';
         },
 
         getStatusTagClass() {
             const statusClasses = {
-                'open': 'is-success is-light',
-                'waiting': 'is-warning is-light',
-                'deferred': 'is-info is-light',
-                'declined': 'is-danger is-light',
-                'stale': 'is-light'
+                'open': 'tag-success',
+                'waiting': 'tag-warning',
+                'deferred': 'tag-info',
+                'declined': 'tag-danger',
+                'stale': 'tag-grey'
             };
-            return statusClasses[this.task.status] || 'is-light';
+            return statusClasses[this.task.status] || 'tag-grey';
         },
 
         formatDate(dateString) {

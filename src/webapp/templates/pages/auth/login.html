@@ -6,13 +6,13 @@
 <section class="hero is-fullheight-with-navbar">
     <div class="hero-body">
         <div class="container">
-            <div class="columns is-centered">
-                <div class="column is-5-tablet is-4-desktop">
-                    <div class="box">
-                        <h1 class="title has-text-centered">Login</h1>
-                        <p class="subtitle has-text-centered has-text-grey">
-                            Welcome back to Catchlist
-                        </p>
+            <div class="auth-shell">
+                <div class="box">
+                    <div class="box-pad">
+                        <div class="page-head">
+                            <h1 class="page-title">Login</h1>
+                            <p class="page-subtitle">Welcome back to Catchlist</p>
+                        </div>
 
                         <div x-data="loginForm()">
                             <form @submit.prevent="handleSubmit">
@@ -52,14 +52,14 @@
 
                                 <!-- Error message -->
                                 <div x-show="error" class="notification is-danger is-light" data-testid="login-error-message" x-transition>
-                                    <button class="delete" @click="error = ''"></button>
+                                    <button class="note-close" @click="error = ''">&#10005;</button>
                                     <span x-text="error"></span>
                                 </div>
 
                                 <div class="field">
                                     <div class="control">
                                         <button
-                                            class="button is-primary is-fullwidth"
+                                            class="button is-primary btn-full"
                                             :class="{ 'is-loading': loading }"
                                             type="submit"
                                             data-testid="login-submit-button"

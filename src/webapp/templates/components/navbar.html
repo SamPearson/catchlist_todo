@@ -1,65 +1,82 @@
-<nav class="navbar is-light" role="navigation" aria-label="main navigation" x-data="{ isLoggedIn: api.getAuthToken() !== null }">
-    <div class="navbar-brand">
-        <a class="navbar-item" href="/" data-testid="navbar-brand-link">
-            <strong>Catchlist</strong>
+<header class="navbar" role="navigation" aria-label="main navigation"
+        x-data="{ isLoggedIn: api.getAuthToken() !== null, navOpen: false }">
+    {% set current_path = request.path.rstrip('/') %}
+    <div class="navbar-inner">
+        <a class="brand" href="/" data-testid="navbar-brand-link">
+            <span class="brand-mark"></span>
+            Catchlist
         </a>
 
-        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false"
-           data-target="navbarBasic"
+        <a role="button" class="navbar-burger" aria-label="menu"
            data-testid="navbar-burger"
-           @click="$el.classList.toggle('is-active'); document.getElementById('navbarBasic').classList.toggle('is-active')">
+           :class="{ 'is-active': navOpen }"
+           :aria-expanded="navOpen ? 'true' : 'false'"
+           @click="navOpen = !navOpen">
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
         </a>
-    </div>
 
-    <div id="navbarBasic" class="navbar-menu">
         {# Logged in navigation #}
         <template x-if="isLoggedIn">
-            <div class="navbar-start">
-                <a class="navbar-item" href="/desk" data-testid="navbar-desk-link">Desk</a>
-                <a class="navbar-item" href="/tasks" data-testid="navbar-tasks-link">Tasks</a>
-                <a class="navbar-item" href="/projects" data-testid="navbar-projects-link">Projects</a>
-                <a class="navbar-item" href="/routines" data-testid="navbar-routines-link">Routines</a>
-                <a class="navbar-item" href="/reports" data-testid="navbar-reports-link">Reports</a>
-            </div>
+            <nav class="nav-links" :class="{ 'is-active': navOpen }">
+                <a href="/desk" data-testid="navbar-desk-link" {% if current_path == '/desk' %}class="active"{% endif %} @click="navOpen = false">Desk</a>
+                <a href="/tasks" data-testid="navbar-tasks-link" {% if current_path == '/tasks' %}class="active"{% endif %} @click="navOpen = false">Tasks</a>
+                <a href="/projects" data-testid="navbar-projects-link" {% if current_path == '/projects' %}class="active"{% endif %} @click="navOpen = false">Projects</a>
+                <a href="/routines" data-testid="navbar-routines-link" {% if current_path == '/routines' %}class="active"{% endif %} @click="navOpen = false">Routines</a>
+                <a href="/reports" data-testid="navbar-reports-link" {% if current_path == '/reports' %}class="active"{% endif %} @click="navOpen = false">Reports</a>
+            </nav>
         </template>
 
-        <div class="navbar-end">
-            <div class="navbar-item">
-                <div class="buttons">
-                    {# Logged in buttons #}
-                    <template x-if="isLoggedIn">
-                        <div class="buttons">
-                            <a class="button is-light" href="/auth/account" data-testid="navbar-account-button">
-                                <span class="icon">
-                                    <i class="fas fa-user"></i>
-                                </span>
-                                <span>Account</span>
-                            </a>
-                            <a class="button is-danger" href="/auth/logout" data-testid="navbar-logout-button">
-                                <span class="icon">
-                                    <i class="fas fa-sign-out-alt"></i>
-                                </span>
-                                <span>Logout</span>
-                            </a>
-                        </div>
-                    </template>
+        <div class="nav-actions">
+            <button class="theme-toggle" id="theme-toggle" type="button" role="switch"
+                    aria-checked="false" aria-label="Toggle dark mode" title="Toggle dark mode">
+                <span class="theme-track"><span class="theme-thumb">&#9789;</span></span>
+            </button>
 
-                    {# Logged out buttons #}
-                    <template x-if="!isLoggedIn">
-                        <div class="buttons">
-                            <a class="button is-primary" href="/auth/register" data-testid="navbar-register-button">
-                                <strong>Sign up</strong>
-                            </a>
-                            <a class="button is-light" href="/auth/login" data-testid="navbar-login-button">
-                                Log in
-                            </a>
-                        </div>
-                    </template>
-                </div>
-            </div>
+            {# Logged in buttons #}
+            <template x-if="isLoggedIn">
+                <span class="nav-actions-group">
+                    <a class="btn btn-ghost" href="/auth/account" data-testid="navbar-account-button">
+                        <i class="fas fa-user" aria-hidden="true"></i> Account
+                    </a>
+                    <a class="btn btn-danger" href="/auth/logout" data-testid="navbar-logout-button">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Log out
+                    </a>
+                </span>
+            </template>
+
+            {# Logged out buttons #}
+            <template x-if="!isLoggedIn">
+                <span class="nav-actions-group">
+                    <a class="btn btn-primary" href="/auth/register" data-testid="navbar-register-button">
+                        <strong>Sign up</strong>
+                    </a>
+                    <a class="btn btn-ghost" href="/auth/login" data-testid="navbar-login-button">
+                        Log in
+                    </a>
+                </span>
+            </template>
         </div>
     </div>
-</nav>
+</header>
+
+<script>
+    (function () {
+        const btn = document.getElementById("theme-toggle");
+        if (!btn) return;
+        const thumb = btn.querySelector(".theme-thumb");
+        function apply() {
+            const dark = document.documentElement.getAttribute("data-theme") === "dark";
+            thumb.innerHTML = dark ? "&#9728;" : "&#9789;";
+            btn.setAttribute("aria-checked", dark ? "true" : "false");
+        }
+        btn.addEventListener("click", () => {
+            const dark = document.documentElement.getAttribute("data-theme") !== "dark";
+            document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+            localStorage.setItem("catchlist-theme", dark ? "dark" : "light");
+            apply();
+        });
+        apply();
+    })();
+</script>

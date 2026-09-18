@@ -18,14 +18,14 @@
                         <p class="subtitle is-4 has-text-white">
                             Organize your thoughts, one task at a time
                         </p>
-                        <div class="buttons is-centered">
+                        <div class="is-flex is-justify-content-center" style="gap: 12px; flex-wrap: wrap;">
                             <a href="/auth/login" class="button is-primary is-large" data-testid="landing-login-button">
                                 <span class="icon">
                                     <i class="fas fa-sign-in-alt"></i>
                                 </span>
                                 <span>Login</span>
                             </a>
-                            <a href="/auth/register" class="button is-light is-large is-outlined" data-testid="landing-register-button">
+                            <a href="/auth/register" class="button is-light is-outlined is-large" data-testid="landing-register-button">
                                 <span class="icon">
                                     <i class="fas fa-user-plus"></i>
                                 </span>
@@ -39,53 +39,3 @@
     </div>
 </section>
 {% endblock %}
-
-{% block styles %}
-<style>
-    .image-container {
-        position: relative;
-        width: 100%;
-        overflow: hidden;
-    }
-
-    .image-container img {
-        width: 100%;
-        height: auto;
-        display: block;
-    }
-
-    .overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-    }
-
-    .overlay .title {
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        margin-bottom: 1rem;
-    }
-
-    .overlay .subtitle {
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        margin-bottom: 2rem;
-    }
-
-    /* Make buttons more visible on overlay */
-    .overlay .button.is-light.is-outlined {
-        border-width: 2px;
-        font-weight: 600;
-    }
-
-    .overlay .button.is-light.is-outlined:hover {
-        background-color: white;
-        color: hsl(171, 100%, 41%);
-    }
-</style>
-{% endblock %} 
