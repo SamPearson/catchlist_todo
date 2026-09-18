@@ -1558,6 +1558,15 @@ input[type="radio"] {
 .report-head .btn,
 .report-head .button { margin-left: auto; }
 
+.report-head .report-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.report-head .report-actions .btn,
+.report-head .report-actions .button { margin-left: 0; }
+
 .report-meta {
     font-family: var(--mono);
     font-size: 0.85em;
@@ -1787,6 +1796,16 @@ textarea.block-input:focus {
     background: var(--warning-soft);
     color: var(--warning);
     border-color: var(--warning);
+}
+
+.note-close {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px;
 }
 
 /* --------------------------------------------------------------------------

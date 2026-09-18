@@ -1,109 +1,102 @@
 {% macro report_selector() %}
 <div x-data="reportSelector()" class="box">
+    <div class="box-pad">
 
-    {# --- Type Tab Bar --- #}
-    <div class="tabs is-boxed is-fullwidth mb-4">
-        <ul>
+        {# --- Type Tab Bar --- #}
+        <div class="tabs">
             <template x-for="type in reportTypes" :key="type">
-                <li :class="{ 'is-active': reportType === type }">
-                    <a @click="reportType = type" x-text="type.charAt(0).toUpperCase() + type.slice(1)"></a>
-                </li>
+                <button type="button" class="tab" :class="{ 'active': reportType === type }"
+                        @click="reportType = type"
+                        x-text="type.charAt(0).toUpperCase() + type.slice(1)"></button>
             </template>
-        </ul>
-    </div>
+        </div>
 
-    {# --- Contextual Date Picker --- #}
-    <div class="field is-grouped is-align-items-flex-end">
+        {# --- Contextual Date Picker --- #}
 
         {# Day #}
         <template x-if="reportType === 'day'">
-            <div class="control is-expanded">
+            <div class="field">
                 <label class="label">Date</label>
-                <input class="input" type="date" x-model="day.date">
+                <div class="picker-row">
+                    <input class="input" type="date" x-model="day.date">
+                </div>
             </div>
         </template>
 
         {# Week #}
         <template x-if="reportType === 'week'">
-            <div class="control is-expanded">
+            <div class="field">
                 <label class="label">Any date within the week</label>
-                <input class="input" type="date" x-model="week.date">
+                <div class="picker-row">
+                    <input class="input" type="date" x-model="week.date">
+                </div>
             </div>
         </template>
 
         {# Month #}
         <template x-if="reportType === 'month'">
-            <div class="field is-grouped mb-0">
-                <div class="control">
-                    <label class="label">Month</label>
-                    <div class="select">
-                        <select x-model.number="month.month">
-                            <option value="1">January</option>
-                            <option value="2">February</option>
-                            <option value="3">March</option>
-                            <option value="4">April</option>
-                            <option value="5">May</option>
-                            <option value="6">June</option>
-                            <option value="7">July</option>
-                            <option value="8">August</option>
-                            <option value="9">September</option>
-                            <option value="10">October</option>
-                            <option value="11">November</option>
-                            <option value="12">December</option>
-                        </select>
+            <div class="field">
+                <label class="label">Month</label>
+                <div class="picker-row">
+                    <select class="select" style="width: 12rem;" x-model.number="month.month">
+                        <option value="1">January</option>
+                        <option value="2">February</option>
+                        <option value="3">March</option>
+                        <option value="4">April</option>
+                        <option value="5">May</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                        <option value="8">August</option>
+                        <option value="9">September</option>
+                        <option value="10">October</option>
+                        <option value="11">November</option>
+                        <option value="12">December</option>
+                    </select>
+                    <div class="field">
+                        <input class="input input-year" type="number" x-model.number="month.year" min="2000" max="2100">
                     </div>
-                </div>
-                <div class="control">
-                    <label class="label">Year</label>
-                    <input class="input" type="number" x-model.number="month.year" style="width: 6rem;">
                 </div>
             </div>
         </template>
 
         {# Season #}
         <template x-if="reportType === 'season'">
-            <div class="field is-grouped mb-0">
-                <div class="control">
-                    <label class="label">Season</label>
-                    <div class="select">
-                        <select x-model="season.season">
-                            <option value="winter">Winter</option>
-                            <option value="spring">Spring</option>
-                            <option value="summer">Summer</option>
-                            <option value="fall">Fall</option>
-                        </select>
+            <div class="field">
+                <label class="label">Season</label>
+                <div class="picker-row">
+                    <select class="select" style="width: 12rem;" x-model="season.season">
+                        <option value="winter">Winter</option>
+                        <option value="spring">Spring</option>
+                        <option value="summer">Summer</option>
+                        <option value="fall">Fall</option>
+                    </select>
+                    <div class="field">
+                        <input class="input input-year" type="number" x-model.number="season.year" min="2000" max="2100">
                     </div>
-                </div>
-                <div class="control">
-                    <label class="label">Year</label>
-                    <input class="input" type="number" x-model.number="season.year" style="width: 6rem;">
                 </div>
             </div>
         </template>
 
         {# Year #}
         <template x-if="reportType === 'year'">
-            <div class="control">
+            <div class="field">
                 <label class="label">Year</label>
-                <input class="input" type="number" x-model.number="year.year" style="width: 6rem;">
+                <div class="picker-row">
+                    <div class="field">
+                        <input class="input input-year" type="number" x-model.number="year.year" min="2000" max="2100">
+                    </div>
+                </div>
             </div>
         </template>
 
-    </div>
+        {# --- Selection Summary + Navigation + Load --- #}
+        <div class="report-nav">
+            <button class="nav-arrow" @click="prev()" title="Previous">&#9664;</button>
+            <span class="nav-label" x-text="selectionLabel"></span>
+            <button class="nav-arrow" @click="next()" title="Next">&#9654;</button>
+            <button class="btn btn-primary" @click="loadReport()">Load Report</button>
+        </div>
 
-    {# --- Selection Summary + Navigation + Load --- #}
-    <div class="is-flex is-align-items-center mt-4" style="gap: 0.75rem;">
-        <button class="button" @click="prev()" title="Previous">
-            <span class="icon"><i class="arrow-left">◀</i></span>
-        </button>
-        <span class="has-text-weight-semibold is-flex-grow-1 has-text-centered" x-text="selectionLabel"></span>
-        <button class="button" @click="next()" title="Next">
-            <span class="icon"><i class="arrow-right">▶</i></span>
-        </button>
-        <button class="button is-primary" @click="loadReport()">
-            Load Report
-        </button>
     </div>
-
 </div>
 {% endmacro %}

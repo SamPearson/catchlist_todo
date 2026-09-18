@@ -198,13 +198,13 @@ function reportDisplay() {
 
         reportTypeBadgeClass() {
             const classes = {
-                day:    'is-info',
-                week:   'is-link',
-                month:  'is-primary',
-                season: 'is-success',
-                year:   'is-warning',
+                day:    'tag-info',
+                week:   'tag-grey',
+                month:  'tag-success',
+                season: 'tag-warning',
+                year:   'tag-danger',
             };
-            return classes[this.report.report_type] || 'is-light';
+            return classes[this.report.report_type] || 'tag-grey';
         },
     };
 }
