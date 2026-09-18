@@ -5,99 +5,53 @@
 {% block content %}
 <section class="section">
     <div class="container">
-        <h1 class="title">Dashboard</h1>
-        <p class="subtitle">Welcome back to Catchlist</p>
+        <div class="page-head">
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">Welcome back to Catchlist</p>
+        </div>
 
+        <div class="grid">
 
-        <div class="columns is-multiline">
-            <div class="column is-one-third">
-                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-desk-card">
-                    <h2 class="title is-4">
-                        <span class="icon-text">
-                            <span class="icon has-text-grey">
-                                <i class="fas fa-inbox"></i>
-                            </span>
-                            <span class="has-text-grey">Desk</span>
-                        </span>
-                    </h2>
-                    <p class="content has-text-grey">Your daily workspace will appear here.</p>
-                    <button class="button is-light" disabled data-testid="dashboard-desk-button">Coming Soon</button>
-                </div>
+            <div class="card disabled" data-testid="dashboard-desk-card">
+                <div class="card-icon"><i class="fas fa-inbox"></i></div>
+                <h3 class="card-title">Desk</h3>
+                <p class="card-desc">Your daily workspace will appear here.</p>
+                <div class="btn" data-testid="dashboard-desk-button">Coming Soon</div>
             </div>
 
-            <div class="column is-one-third">
-                <div class="box" data-testid="dashboard-tasks-card">
-                    <h2 class="title is-4">
-                        <span class="icon-text">
-                            <span class="icon icon-text">
-                                <i class="fas fa-tasks"></i>
-                            </span>
-                            <span class="icon-text">Tasks</span>
-                        </span>
-                    </h2>
-                    <p class="content">Manage your tasks and to-dos.</p>
-                    <a href="/tasks" class="button is-light" data-testid="dashboard-reports-button">Tasks</a>
-                </div>
+            <div class="card live" data-testid="dashboard-tasks-card">
+                <div class="card-icon"><i class="fas fa-tasks"></i></div>
+                <h3 class="card-title">Tasks</h3>
+                <p class="card-desc">Manage your tasks and to-dos.</p>
+                <a href="/tasks" class="btn btn-primary" data-testid="dashboard-tasks-button">Tasks</a>
             </div>
 
-            <div class="column is-one-third">
-                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-projects-card">
-                    <h2 class="title is-4">
-                        <span class="icon-text">
-                            <span class="icon has-text-grey">
-                                <i class="fas fa-folder"></i>
-                            </span>
-                            <span class="has-text-grey">Projects</span>
-                        </span>
-                    </h2>
-                    <p class="content has-text-grey">Organize tasks into projects.</p>
-                    <button class="button is-light" disabled data-testid="dashboard-projects-button">Coming Soon</button>
-                </div>
+            <div class="card disabled" data-testid="dashboard-projects-card">
+                <div class="card-icon"><i class="fas fa-folder"></i></div>
+                <h3 class="card-title">Projects</h3>
+                <p class="card-desc">Organize tasks into projects.</p>
+                <div class="btn" data-testid="dashboard-projects-button">Coming Soon</div>
             </div>
 
-            <div class="column is-one-third">
-                <div class="box has-background-light" style="opacity: 0.6;" data-testid="dashboard-routines-card">
-                    <h2 class="title is-4">
-                        <span class="icon-text">
-                            <span class="icon has-text-grey">
-                                <i class="fas fa-repeat"></i>
-                            </span>
-                            <span class="has-text-grey">Routines</span>
-                        </span>
-                    </h2>
-                    <p class="content has-text-grey">Set up recurring tasks and habits.</p>
-                    <button class="button is-light" disabled data-testid="dashboard-routines-button">Coming Soon</button>
-                </div>
+            <div class="card disabled" data-testid="dashboard-routines-card">
+                <div class="card-icon"><i class="fas fa-repeat"></i></div>
+                <h3 class="card-title">Routines</h3>
+                <p class="card-desc">Set up recurring tasks and habits.</p>
+                <div class="btn" data-testid="dashboard-routines-button">Coming Soon</div>
             </div>
 
-            <div class="column is-one-third">
-                <div class="box" data-testid="dashboard-reports-card">
-                    <h2 class="title is-4">
-                        <span class="icon-text">
-                            <span class="icon icon-text">
-                                <i class="fas repeat"></i>
-                            </span>
-                            <span class="icon-text">Sessions</span>
-                        </span>
-                    </h2>
-                    <p class="content icon-text">Individual Routine Sessions.</p>
-                    <a href="/sessions" class="button is-light" data-testid="dashboard-reports-button">Sessions</a>
-                </div>
+            <div class="card live" data-testid="dashboard-sessions-card">
+                <div class="card-icon"><i class="fas fa-repeat"></i></div>
+                <h3 class="card-title">Sessions</h3>
+                <p class="card-desc">Individual Routine Sessions.</p>
+                <a href="/sessions" class="btn btn-primary" data-testid="dashboard-sessions-button">Sessions</a>
             </div>
 
-            <div class="column is-one-third">
-                <div class="box" data-testid="dashboard-reports-card">
-                    <h2 class="title is-4">
-                        <span class="icon-text">
-                            <span class="icon icon-text">
-                                <i class="fas fa-chart-bar"></i>
-                            </span>
-                            <span class="icon-text">Reports</span>
-                        </span>
-                    </h2>
-                    <p class="content icon-text">View your productivity insights.</p>
-                    <a href="/reports" class="button is-light" data-testid="dashboard-reports-button">Reports</a>
-                </div>
+            <div class="card live" data-testid="dashboard-reports-card">
+                <div class="card-icon"><i class="fas fa-chart-bar"></i></div>
+                <h3 class="card-title">Reports</h3>
+                <p class="card-desc">View your productivity insights.</p>
+                <a href="/reports" class="btn btn-primary" data-testid="dashboard-reports-button">Reports</a>
             </div>
 
         </div>

@@ -8,7 +8,10 @@
 {% block content %}
 <section class="section">
     <div class="container" x-data="reportPageOrchestrator()" @report-selected.window="loadReport($event.detail)" @report-save.window="saveReport($event.detail)">
-        <h1 class="title">Reports</h1>
+        <div class="page-head">
+            <h1 class="page-title">Reports</h1>
+            <p class="page-subtitle">Reflect on your work, one window at a time</p>
+        </div>
 
         <!-- Selector Component -->
         <div class="mb-5">

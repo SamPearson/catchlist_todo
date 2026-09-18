@@ -8,13 +8,16 @@
 {% block content %}
 <section class="section">
     <div class="container">
-        <h1 class="title">Tasks</h1>
+        <div class="page-head">
+            <h1 class="page-title">Tasks</h1>
+            <p class="page-subtitle">Capture and clear your work, one task at a time</p>
+        </div>
 
         <!-- Create Task -->
         {{ task_create() }}
 
         <!-- Search Component -->
-        <div class="mb-4">
+        <div class="mt-4">
             {{ task_search() }}
         </div>
 

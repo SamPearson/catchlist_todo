@@ -7,36 +7,36 @@
 {% block content %}
 <section class="section">
     <div class="container">
-        <h1 class="title">Sessions</h1>
-        <p class="subtitle">Instances of routines</p>
-    </div>
-</section>
+        <div class="page-head">
+            <h1 class="page-title">Sessions</h1>
+            <p class="page-subtitle">Instances of routines</p>
+        </div>
 
-<!-- Search -->
-<section class="section">
-    <div class="container">
+        <!-- Search -->
         <div x-data="sessionSearch()" @init="init()">
             {{ session_search() }}
         </div>
-    </div>
-</section>
 
-<!-- Create Placeholder -->
-<section class="section">
-    <div class="container">
-        <h2 class="title is-4">Create Session</h2>
-        <p class="has-text-grey">This will be replaced with a session creation form in the future.</p>
-    </div>
-</section>
+        <!-- Create Placeholder -->
+        <div class="box mt-4">
+            <div class="box-pad">
+                <h2 class="box-title">
+                    <span class="icon"><i class="fas fa-plus"></i></span>
+                    Create Session
+                </h2>
+                <p class="mini-empty">This will be replaced with a session creation form in the future.</p>
+            </div>
+        </div>
 
-<!-- Sessions List -->
-<section class="section">
-    <div class="container">
-        <h2 class="title is-4">Sessions</h2>
-        <p class="has-text-grey">Below are sessions rendered with the session display component.</p>
-        <div x-data="sessionList(INITIAL_SESSIONS)" @init="init()">
-            {{ session_list() }}
-        </div>    </div>
+        <!-- Sessions List -->
+        <div class="mt-5">
+            <h2 class="section-title">Sessions</h2>
+            <p class="mini-empty">Below are sessions rendered with the session display component.</p>
+            <div class="mt-4" x-data="sessionList(INITIAL_SESSIONS)" @init="init()">
+                {{ session_list() }}
+            </div>
+        </div>
+    </div>
 </section>
 {% endblock %}
 
