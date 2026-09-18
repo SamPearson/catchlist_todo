@@ -1,0 +1,43 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-09-16T09:00:00-06:00
+
+
+====== CalDAV Routes ======
+
+===== Overview =====
+
+API endpoints for testing connections to external CalDAV servers (e.g., Nextcloud Calendar, Apple iCloud). These endpoints do not store or sync any data — they exist to verify that a server URL, username, and password work before configuring CalDAV elsewhere in the application.
+
+All endpoints require authentication via JWT Bearer token.
+
+
+===== Test Connection =====
+
+Tests whether the application can connect to a CalDAV server, list calendars, and read events from the first calendar.
+
+**Endpoint:** `POST /api/caldav/test-connection`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| url | string | Yes | The CalDAV server base URL (e.g., `https://cloud.example.com/remote.php/dav`) |
+| username | string | Yes | CalDAV account username |
+| password | string | Yes | CalDAV account password |
+
+**Success response (200):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | boolean | Always `true` |
+| message | string | Summary of the connection result, including the number of calendars found and events in the first calendar |
+| calendars | array of strings | Names of all calendars found on the server |
+| sample_events | array | Up to 5 sample events from the first calendar (empty array if the first calendar has no events) |
+
+**Error responses:**
+* 400 if `url` is missing
+* 400 if `username` or `password` is missing
+* 400 if the connection attempt fails (unreachable server, bad credentials, etc.)
+* 400 if the server is reachable but returns no calendars
+* 500 if an unexpected error occurs while connecting (e.g., malformed response or library failure)
