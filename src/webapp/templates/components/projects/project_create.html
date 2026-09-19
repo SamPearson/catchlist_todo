@@ -1,0 +1,112 @@
+{# Project Create Component - Collapsible form to create a new project #}
+
+{% macro project_create() %}
+<section class="box" x-data='projectCreate()' data-testid="project-create-form">
+    <div class="box-header" @click="toggleExpand()" style="cursor: pointer;">
+        <h2 class="box-title">
+            <span class="icon">
+                <i class="fas fa-plus"></i>
+            </span>
+            Create New Project
+        </h2>
+        <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+    </div>
+
+    <div class="box-body box-pad" x-show="expanded">
+        <div x-show="errors.general" class="notification is-danger is-light mt-3" role="alert" data-testid="project-create-general-error">
+            <button class="delete" @click="errors.general = ''"></button>
+            <div><strong>Project could not be created:</strong></div>
+            <span x-text="errors.general"></span>
+        </div>
+
+        <div class="field">
+            <label class="label">Project Title <span class="req">*</span></label>
+            <input class="input"
+                   type="text"
+                   x-model="formData.title"
+                   placeholder="e.g. Launch the Catchlist marketing site"
+                   :class="{ 'is-danger': errors.title }"
+                   data-testid="project-create-title-input">
+            <p class="help has-text-danger" x-show="errors.title" x-text="errors.title"></p>
+        </div>
+
+        <div class="field">
+            <label class="label">Description</label>
+            <textarea class="textarea"
+                      x-model="formData.description"
+                      placeholder="What is this project about?"
+                      rows="3"></textarea>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Win Condition</label>
+                <textarea class="textarea"
+                          x-model="formData.win_condition"
+                          placeholder="What does done look like?"
+                          rows="2"
+                          :class="{ 'is-danger': errors.win_condition }"
+                          data-testid="project-create-win-condition-input"></textarea>
+                <p class="help has-text-danger" x-show="errors.win_condition" x-text="errors.win_condition"></p>
+            </div>
+            <div class="field">
+                <label class="label">Next Step</label>
+                <input class="input"
+                       type="text"
+                       x-model="formData.next_step"
+                       placeholder="What is the very next action?"
+                       :class="{ 'is-danger': errors.next_step }"
+                       data-testid="project-create-next-step-input">
+                <p class="help has-text-danger" x-show="errors.next_step" x-text="errors.next_step"></p>
+            </div>
+        </div>
+
+        <div class="field">
+            <label class="label">Reason</label>
+            <textarea class="textarea"
+                      x-model="formData.reason"
+                      placeholder="Why does this matter?"
+                      rows="2"
+                      :class="{ 'is-danger': errors.reason }"
+                      data-testid="project-create-reason-input"></textarea>
+            <p class="help has-text-danger" x-show="errors.reason" x-text="errors.reason"></p>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Status</label>
+                <select class="select is-fullwidth" x-model="formData.status">
+                    <option value="open">Open</option>
+                    <option value="waiting">Waiting</option>
+                    <option value="deferred">Deferred</option>
+                    <option value="declined">Declined</option>
+                    <option value="stale">Stale</option>
+                </select>
+            </div>
+            <div class="field">
+                <label class="label">Start as Active</label>
+                <label class="check-row">
+                    <input type="checkbox" x-model="formData.active">
+                    <span>Active (in working set)</span>
+                </label>
+                <p class="help">Requires a win condition, reason, and next step.</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-ghost" @click="cancel()">
+                <i class="fas fa-times"></i>
+                Cancel
+            </button>
+            <button class="btn btn-primary"
+                    @click="create()"
+                    :class="{ 'is-loading': saving }"
+                    :disabled="saving"
+                    data-testid="project-create-submit-button">
+                <i class="fas fa-plus"></i>
+                Create Project
+            </button>
+        </div>
+    </div>
+</section>
+{% endmacro %}

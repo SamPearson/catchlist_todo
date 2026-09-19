@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "components/projects/project_list.html" import project_list %}
+{% from "components/projects/project_create.html" import project_create %}
+{% from "components/projects/project_search.html" import project_search %}
+
+{% block title %}Projects{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <div class="page-head">
+            <h1 class="page-title">Projects</h1>
+            <p class="page-subtitle">Outcomes that require more than one action</p>
+        </div>
+
+        <!-- Create Project -->
+        {{ project_create() }}
+
+        <!-- Search Component -->
+        <div class="mt-4">
+            {{ project_search() }}
+        </div>
+
+        <!-- Project List -->
+        {{ project_list() }}
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/projects/project_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/projects/project_list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/projects/project_create.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/projects/project_search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/shared/tag_principle_picker.js') }}"></script>
+
+<script>
+    const INITIAL_PROJECTS = {{ projects | tojson }};
+</script>
+{% endblock %}
