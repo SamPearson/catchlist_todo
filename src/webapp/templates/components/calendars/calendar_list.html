@@ -1,0 +1,171 @@
+{% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+
+{% macro calendar_list() %}
+<section class="box" data-testid="calendar-list">
+  <div x-data="calendarList(INITIAL_CALENDARS)" x-init="init()">
+    <div class="notification is-danger is-light" role="alert" x-show="error" x-cloak>
+      <button type="button" class="delete" @click="error = ''" aria-label="close"></button>
+      <span x-text="error"></span>
+    </div>
+
+    <div class="empty-state" x-show="!error && calendars.length === 0" data-testid="calendar-list-empty" x-cloak>
+      <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+      <p>No calendars found. Create one above, or sync a remote calendar.</p>
+    </div>
+
+    <div class="calendar-list">
+      <template x-for="calendar in calendars" :key="calendar.id">
+        <article class="calendar-card" x-data="calendarCard(calendar)" :data-testid="`calendar-card-${calendar.id}`" :class="{ 'card-inactive': !calendar.active }">
+          <template x-if="mode === 'view'">
+            <div>
+              <div class="calendar-row" @click="toggleExpand()" :data-testid="`calendar-item-${calendar.id}-minimized`">
+                <span class="calendar-color" x-show="calendar.color" :style="`background-color: ${calendar.color}; color: ${calendar.color};`"></span>
+                <div class="calendar-title">
+                  <h3 x-text="calendar.name"></h3>
+                  <span class="calendar-source" x-show="calendar.external_source" x-text="calendar.external_source"></span>
+                </div>
+                <span class="calendar-badge">
+                  <span class="tag" :class="calendar.active ? 'tag-success' : 'tag-grey'" x-text="calendar.active ? 'Active' : 'Inactive'"></span>
+                </span>
+                <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+              </div>
+
+              <div class="calendar-detail" x-show="expanded" x-cloak>
+                <p class="calendar-description" x-show="calendar.timezone" x-cloak>
+                  <i class="fa fa-globe"></i> <span x-text="calendar.timezone"></span>
+                </p>
+
+                <div class="calendar-meta">
+                  <span class="tag tag-info" x-show="calendar.color" x-cloak><span class="tag-swatch" :style="`background-color: ${calendar.color}`"></span> <span x-text="calendar.color"></span></span>
+                  <span class="tag tag-grey" x-show="calendar.external_uid" x-cloak>Sync source:
+                    <code class="tag-uid" x-text="calendar.external_uid"></code>
+                  </span>
+                  <span class="tag tag-grey">ID <span x-text="calendar.id"></span></span>
+                </div>
+
+                <div class="calendar-meta">
+                  <strong class="meta-label">Created:</strong> <span x-text="formatDate(calendar.created_at)"></span>
+                  <strong class="meta-label ml-3">Updated:</strong> <span x-text="formatDate(calendar.updated_at)"></span>
+                </div>
+
+                <div class="calendar-actions">
+                  <template x-if="!calendar.active">
+                    <div>
+                      <button class="btn btn-primary btn-sm" type="button" @click="showActionModal('activate')" data-testid="calendar-item-activate-button">
+                        <i class="fa fa-play"></i> Activate
+                      </button>
+                    </div>
+                  </template>
+                  <template x-if="calendar.active">
+                    <div>
+                      <button class="btn btn-warning btn-sm" type="button" @click="showActionModal('deactivate')" data-testid="calendar-item-deactivate-button">
+                        <i class="fa fa-pause"></i> Deactivate
+                      </button>
+                    </div>
+                  </template>
+                  <div>
+                    <button class="btn btn-link btn-sm" type="button" @click="edit()" data-testid="calendar-item-edit-button">
+                      <i class="fa fa-edit"></i> Edit
+                    </button>
+                    <button class="btn btn-danger btn-sm" type="button" @click="showActionModal('delete')" data-testid="calendar-item-delete-button">
+                      <i class="fa fa-trash"></i> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="mode === 'edit'">
+            <div class="box edit-form-wrap calendar-edit-wrap">
+              <div class="box-header">
+                <h2 class="box-title">
+                  <span class="icon"><i class="fa fa-edit"></i></span> Edit Calendar
+                </h2>
+              </div>
+              <div class="box-body">
+                <div class="notification is-danger is-light" role="alert" x-show="errors.general" x-cloak>
+                  <button type="button" class="delete" @click="errors.general = ''" aria-label="close"></button>
+                  <strong>Calendar could not be updated:</strong>
+                  <span x-text="errors.general"></span>
+                </div>
+                <div class="field">
+                  <label class="label" for="calendar-edit-name-input">Name <span class="req">*</span></label>
+                  <div class="control">
+                    <input class="input" type="text" id="calendar-edit-name-input" x-model="formData.name"
+                           :class="{ 'is-danger': errors.name }" data-testid="calendar-edit-name-input">
+                  </div>
+                  <p class="help has-text-danger" x-show="errors.name" x-text="errors.name"></p>
+                </div>
+                <div class="field">
+                  <label class="label" for="calendar-edit-color-input">Color <span class="req">*</span></label>
+                  <div class="control">
+                    <input class="color-field" type="color" id="calendar-edit-color-input" x-model="formData.color"
+                           data-testid="calendar-edit-color-input">
+                  </div>
+                  <p class="help has-text-danger" x-show="errors.color" x-text="errors.color"></p>
+                </div>
+                <div class="field">
+                  <label class="label">Tags</label>
+                  <div class="control">
+                    {{ tag_principle_picker('calendar', 'calendar.id', 'calendar.tags', 'calendar.principles', 'calendar-card') }}
+                  </div>
+                </div>
+                <div class="meta-box">
+                  <strong>ID:</strong> <span x-text="calendar.id"></span><br>
+                  <strong>Created:</strong> <span x-text="formatDate(calendar.created_at)"></span><br>
+                  <strong>Last Updated:</strong> <span x-text="formatDate(calendar.updated_at)"></span>
+                </div>
+                <div class="actions">
+                  <button class="btn btn-ghost" type="button" @click="cancelEdit()">
+                    <i class="fa fa-times"></i> Cancel
+                  </button>
+                  <button class="btn btn-primary" type="button" @click="save()"
+                          :class="{ 'is-loading': saving }" :disabled="saving"
+                          data-testid="calendar-save-button">
+                    <i class="fa fa-check"></i> Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div class="modal is-active" x-show="actionModal.open" x-cloak data-testid="calendar-action-modal">
+            <div class="modal-background" @click="closeActionModal()"></div>
+            <div class="modal-card">
+              <header class="modal-card-head">
+                <p class="modal-card-title" x-text="actionModal.title"></p>
+                <button class="delete" type="button" @click="closeActionModal()" aria-label="close"></button>
+              </header>
+              <section class="modal-card-body">
+                <p x-text="actionModal.message"></p>
+                <div class="field mt-3" x-show="actionModal.type !== 'delete'">
+                  <label class="check-row" data-testid="calendars-cascade-checkbox">
+                    <input type="checkbox" x-model="actionModal.cascade">
+                    <span>Apply to all routines in this calendar (cascade)</span>
+                  </label>
+                  <p class="help">Calendars are organizational containers for routines. Cascading changes the status of every routine they contain.</p>
+                </div>
+                <div class="notification is-warning is-light mt-3" x-show="actionModal.type === 'delete'" x-cloak>
+                  This will permanently delete the calendar and all of its routines and their sessions.
+                </div>
+              </section>
+              <footer class="modal-card-foot">
+                <button class="btn btn-ghost" type="button" @click="closeActionModal()">
+                  Cancel
+                </button>
+                <button class="btn" type="button"
+                        :class="{ 'btn-danger': actionModal.type === 'delete', 'btn-primary': actionModal.type === 'activate', 'btn-warning': actionModal.type === 'deactivate', 'is-loading': actionModal.saving }"
+                        :disabled="actionModal.saving"
+                        @click="confirmAction()" :data-testid="`calendar-${actionModal.type}-confirm`">
+                  <span x-text="actionModal.confirmLabel"></span>
+                </button>
+              </footer>
+            </div>
+          </div>
+        </article>
+      </template>
+    </div>
+  </div>
+</section>
+{% endmacro %}
