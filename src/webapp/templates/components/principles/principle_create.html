@@ -1,0 +1,71 @@
+{# Principle Create Component #}
+{% macro principle_create() %}
+<section class="box" x-data='principleCreate()' data-testid="principle-create-form">
+    <div class="box-header" @click="toggleExpand()">
+        <h2 class="box-title">
+            <span class="icon"><i class="fas fa-gem"></i></span>
+            Create New Principle
+        </h2>
+        <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+    </div>
+
+    <div class="box-body" x-show="expanded">
+        <div class="field">
+            <label class="label">Title <span class="req">*</span></label>
+            <input class="input" type="text" x-model="formData.title"
+                   placeholder="e.g. Be dependable, Prioritize health"
+                   data-testid="principle-create-title-input"
+                   :class="{ 'is-danger': errors.title }">
+            <p class="help has-text-danger" x-show="errors.title"
+               x-text="errors.title" data-testid="principle-create-title-error"></p>
+        </div>
+
+        <div class="field">
+            <label class="label">Description</label>
+            <textarea class="textarea" rows="2" x-model="formData.description"
+                      placeholder="What this principle means in practice"
+                      data-testid="principle-create-description-input"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="label">Reason</label>
+            <textarea class="textarea" rows="2" x-model="formData.reason"
+                      placeholder="Why this principle matters to you"
+                      data-testid="principle-create-reason-input"></textarea>
+            <p class="help">Together, description and reason form your pocket motivation statement.</p>
+        </div>
+
+        <div class="field">
+            <label class="label">Color <span class="req">*</span></label>
+            <div class="color-field">
+                <input type="color" x-model="formData.color"
+                       data-testid="principle-create-color-input"
+                       :class="{ 'is-danger': errors.color }">
+                <span class="color-hex" x-text="formData.color"></span>
+            </div>
+            <p class="help has-text-danger" x-show="errors.color"
+               x-text="errors.color" data-testid="principle-create-color-error"></p>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-ghost" @click="cancel()"
+                    data-testid="principle-create-cancel-button">
+                <i class="fas fa-times"></i>
+                Cancel
+            </button>
+            <button class="btn btn-primary" @click="create()"
+                    :class="{ 'is-loading': saving }" :disabled="saving"
+                    data-testid="principle-create-submit-button">
+                <i class="fas fa-plus"></i>
+                Create Principle
+            </button>
+        </div>
+
+        <div class="notification is-danger is-light mt-3" role="alert"
+             x-show="errors.general" data-testid="principle-create-general-error">
+            <button class="delete" @click="errors.general = null"></button>
+            <span x-text="errors.general"></span>
+        </div>
+    </div>
+</section>
+{% endmacro %}

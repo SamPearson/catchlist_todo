@@ -1,0 +1,130 @@
+{# Shared Tag + Principle Picker Component #}
+{#
+    Renders an Alpine-managed picker that attaches/detaches tags and
+    principles to an entity via the Attach/Detach API endpoints.
+
+    Parameters:
+        target_type       - string, entity type (task, project, routine, session, calendar, report)
+        target_id_expr    - Alpine expression resolving to the entity id (e.g. task.id, createdTask.id)
+        attached_tags_expr      - Alpine expression for already-attached tags array (e.g. task.tags)
+        attached_principles_expr- Alpine expression for already-attached principles array
+        testid            - string prefix for data-testid attributes
+#}
+{% macro tag_principle_picker(target_type, target_id_expr, attached_tags_expr, attached_principles_expr, testid) %}
+<div x-data="tagPrinciplePicker({
+        targetType: '{{ target_type }}',
+        targetId: {{ target_id_expr }},
+        attachedTags: {{ attached_tags_expr }} || [],
+        attachedPrinciples: {{ attached_principles_expr }} || [],
+        testid: '{{ testid }}'
+    })"
+     class="shared-picker">
+
+    <p class="has-text-danger" x-show="error" x-text="error"
+       :data-testid="`${testid}-picker-error`"></p>
+
+    {# ============ Tags ============ #}
+    <div class="field">
+        <label class="label"><i class="fas fa-tags"></i> Tags</label>
+
+        <div class="chip-row" x-show="attachedTags.length" data-testid="picker-tags-chip-row">
+            <template x-for="tag in attachedTags" :key="tag.id">
+                <span class="chip" :data-testid="`${testid}-tag-chip-${tag.id}`">
+                    <span class="chip-dot" :style="`background-color: ${cssColor(tag.color)}`"></span>
+                    <span x-text="tag.name"></span>
+                    <button class="tag-delete" @click="detachTag(tag)"
+                            :aria-label="`Remove tag ${tag.name}`">&times;</button>
+                </span>
+            </template>
+        </div>
+
+        <p class="help has-text-grey" x-show="!attachedTags.length && !tagSearching"
+           data-testid="picker-tags-empty">
+            No tags attached
+        </p>
+
+        <div class="picker-add" :data-testid="`${testid}-tag-add`">
+            <div class="chip-add-form" x-show="!tagSearching">
+                <span class="chip add-chip" @click="startTagSearch()">
+                    <i class="fas fa-plus"></i> Add tag
+                </span>
+            </div>
+            <div class="chip-add-form" x-show="tagSearching">
+                <input class="input" type="text" x-model="tagQuery" x-ref="tagInput"
+                       @keydown.enter.prevent="attachMatchedTag()"
+                       @keydown.escape.prevent="cancelTagSearch()"
+                       @focusout="onTagFocusOut()"
+                       placeholder="Search tags..."
+                       :data-testid="`${testid}-tag-input`">
+                <span class="chip add-chip" @click="attachMatchedTag()">Add</span>
+            </div>
+            <ul class="picker-options" x-show="tagSearching && tagQuery && tagResults.length"
+                :data-testid="`${testid}-tag-options`">
+                <template x-for="tag in tagResults" :key="tag.id">
+                    <li @mousedown.prevent="attachTag(tag)"
+                        :data-testid="`${testid}-tag-option-${tag.id}`">
+                        <span class="chip-dot" :style="`background-color: ${cssColor(tag.color)}`"></span>
+                        <span x-text="tag.name"></span>
+                    </li>
+                </template>
+            </ul>
+            <p class="help has-text-grey" x-show="tagSearching && tagQuery && !tagResults.length"
+               data-testid="picker-tags-no-match">
+                No matching tags
+            </p>
+        </div>
+    </div>
+
+    {# ============ Principles ============ #}
+    <div class="field">
+        <label class="label"><i class="fas fa-compass"></i> Principles</label>
+
+        <div class="chip-row" x-show="attachedPrinciples.length" data-testid="picker-principles-chip-row">
+            <template x-for="principle in attachedPrinciples" :key="principle.id">
+                <span class="chip" :data-testid="`${testid}-principle-chip-${principle.id}`">
+                    <span class="chip-dot" :style="`background-color: ${cssColor(principle.color)}`"></span>
+                    <span x-text="principle.title"></span>
+                    <button class="tag-delete" @click="detachPrinciple(principle)"
+                            :aria-label="`Remove principle ${principle.title}`">&times;</button>
+                </span>
+            </template>
+        </div>
+
+        <p class="help has-text-grey" x-show="!attachedPrinciples.length && !principleSearching"
+           data-testid="picker-principles-empty">
+            No principles attached
+        </p>
+
+        <div class="picker-add" :data-testid="`${testid}-principle-add`">
+            <div class="chip-add-form" x-show="!principleSearching">
+                <span class="chip add-chip" @click="startPrincipleSearch()">
+                    <i class="fas fa-plus"></i> Add principle
+                </span>
+            </div>
+            <div class="chip-add-form" x-show="principleSearching">
+                <input class="input" type="text" x-model="principleQuery" x-ref="principleInput"
+                       @keydown.enter.prevent="attachMatchedPrinciple()"
+                       @keydown.escape.prevent="cancelPrincipleSearch()"
+                       @focusout="onPrincipleFocusOut()"
+                       placeholder="Search principles..."
+                       :data-testid="`${testid}-principle-input`">
+                <span class="chip add-chip" @click="attachMatchedPrinciple()">Add</span>
+            </div>
+            <ul class="picker-options" x-show="principleSearching && principleQuery && principleResults.length"
+                :data-testid="`${testid}-principle-options`">
+                <template x-for="principle in principleResults" :key="principle.id">
+                    <li @mousedown.prevent="attachPrinciple(principle)"
+                        :data-testid="`${testid}-principle-option-${principle.id}`">
+                        <span class="chip-dot" :style="`background-color: ${cssColor(principle.color)}`"></span>
+                        <span x-text="principle.title"></span>
+                    </li>
+                </template>
+            </ul>
+            <p class="help has-text-grey" x-show="principleSearching && principleQuery && !principleResults.length"
+               data-testid="picker-principles-no-match">
+                No matching principles
+            </p>
+        </div>
+    </div>
+</div>
+{% endmacro %}

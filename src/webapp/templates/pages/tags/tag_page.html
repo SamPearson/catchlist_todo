@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "components/tags/tag_list.html" import tag_list %}
+{% from "components/tags/tag_create.html" import tag_create %}
+
+{% block title %}Tags{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <div class="page-head">
+            <h1 class="page-title">Tags</h1>
+            <p class="page-subtitle">Organize your tasks and projects with lightweight labels</p>
+        </div>
+
+        <!-- Create Tag -->
+        {{ tag_create() }}
+
+        <!-- Tag List -->
+        <div class="mt-4">
+            {{ tag_list() }}
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/tags/tag_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tags/tag_list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/tags/tag_create.js') }}"></script>
+
+<script>
+    const INITIAL_TAGS = {{ tags | tojson }};
+</script>
+{% endblock %}
