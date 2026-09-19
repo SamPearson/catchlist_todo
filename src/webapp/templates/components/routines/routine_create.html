@@ -1,0 +1,147 @@
+{# Routine Create Component - Collapsible form to create a new routine #}
+
+{% macro routine_create() %}
+<section class="box" x-data='routineCreate()' data-testid="routine-create-form">
+    <div class="box-header" @click="toggleExpand()" style="cursor: pointer;">
+        <h2 class="box-title">
+            <span class="icon">
+                <i class="fas fa-plus"></i>
+            </span>
+            Create New Routine
+        </h2>
+        <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+    </div>
+
+    <div class="box-body box-pad" x-show="expanded">
+        <div x-show="errors.general" class="notification is-danger is-light mt-3" role="alert" data-testid="routine-create-general-error">
+            <button class="delete" @click="errors.general = ''"></button>
+            <div><strong>Routine could not be created:</strong></div>
+            <span x-text="errors.general"></span>
+        </div>
+
+        <div class="field">
+            <label class="label">Routine Title <span class="req">*</span></label>
+            <input class="input"
+                   type="text"
+                   x-model="formData.title"
+                   placeholder="e.g. Morning Reading"
+                   :class="{ 'is-danger': errors.title }"
+                   data-testid="routine-create-title-input">
+            <p class="help has-text-danger" x-show="errors.title" x-text="errors.title"></p>
+        </div>
+
+        <div class="field">
+            <label class="label">Description</label>
+            <textarea class="textarea"
+                      x-model="formData.description"
+                      placeholder="What is this routine for?"
+                      rows="2"></textarea>
+        </div>
+
+        <div class="field">
+            <label class="label">Repeat <span class="req">*</span></label>
+            <div class="grid-2">
+                <div>
+                    <select class="select is-fullwidth" x-model="rrule.pattern" data-testid="routine-create-pattern-select">
+                        <option value="none">Does not repeat</option>
+                        <option value="daily">Every day</option>
+                        <option value="weekly">Every week</option>
+                        <option value="weekdays">Selected weekdays</option>
+                        <option value="biweekly">Every other week</option>
+                        <option value="monthly">Every month</option>
+                    </select>
+                </div>
+                <div x-show="rrule.pattern === 'weekly' || rrule.pattern === 'biweekly'">
+                    <select class="select is-fullwidth" x-model="rrule.day" data-testid="routine-create-day-select">
+                        <option value="MO">Monday</option>
+                        <option value="TU">Tuesday</option>
+                        <option value="WE">Wednesday</option>
+                        <option value="TH">Thursday</option>
+                        <option value="FR">Friday</option>
+                        <option value="SA">Saturday</option>
+                        <option value="SU">Sunday</option>
+                    </select>
+                </div>
+                <div x-show="rrule.pattern === 'monthly'">
+                    <input class="input"
+                           type="number"
+                           min="1"
+                           max="31"
+                           x-model.number="rrule.monthDay"
+                           placeholder="Day of month (1-31)"
+                           data-testid="routine-create-monthday-input">
+                </div>
+            </div>
+
+            <div x-show="rrule.pattern === 'weekdays'" class="mt-2">
+                <template x-for="d in dayOptions" :key="d.key">
+                    <label class="check-row">
+                        <input type="checkbox" :value="d.key" x-model="rrule.days">
+                        <span x-text="d.label"></span>
+                    </label>
+                </template>
+            </div>
+
+            <p class="help" x-show="rrule.pattern !== 'none'" data-testid="routine-create-rrule-preview">
+                <span x-text="rrulePreview()"></span>
+            </p>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Start Time</label>
+                <input class="input"
+                       type="time"
+                       x-model="formData.start_time"
+                       :class="{ 'is-danger': errors.start_time }"
+                       data-testid="routine-create-start-time-input">
+                <p class="help has-text-danger" x-show="errors.start_time" x-text="errors.start_time"></p>
+            </div>
+            <div class="field">
+                <label class="label">End Time</label>
+                <input class="input"
+                       type="time"
+                       x-model="formData.end_time"
+                       :class="{ 'is-danger': errors.end_time }"
+                       data-testid="routine-create-end-time-input">
+                <p class="help has-text-danger" x-show="errors.end_time" x-text="errors.end_time"></p>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="field">
+                <label class="label">Calendar</label>
+                <select class="select is-fullwidth" x-model="formData.calendar_id" data-testid="routine-create-calendar-select">
+                    <option value="">No calendar</option>
+                    <template x-for="cal in calendars" :key="cal.id">
+                        <option :value="cal.id" x-text="cal.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="field">
+                <label class="label">Status</label>
+                <label class="check-row">
+                    <input type="checkbox" x-model="formData.active" data-testid="routine-create-active-checkbox">
+                    <span>Active</span>
+                </label>
+                <p class="help">Active routines are ready to generate sessions.</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-ghost" @click="cancel()">
+                <i class="fas fa-times"></i>
+                Cancel
+            </button>
+            <button class="btn btn-primary"
+                    @click="create()"
+                    :class="{ 'is-loading': saving }"
+                    :disabled="saving"
+                    data-testid="routine-create-submit-button">
+                <i class="fas fa-plus"></i>
+                Create Routine
+            </button>
+        </div>
+    </div>
+</section>
+{% endmacro %}

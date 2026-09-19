@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "components/routines/routine_list.html" import routine_list %}
+{% from "components/routines/routine_create.html" import routine_create %}
+
+{% block title %}Routines{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <div class="page-head">
+            <h1 class="page-title">Routines</h1>
+            <p class="page-subtitle">Recurring commitments that keep your days on track</p>
+        </div>
+
+        <!-- Create Routine -->
+        {{ routine_create() }}
+
+        <!-- Routine List -->
+        {{ routine_list() }}
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/routines/rrule_builder.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/routines/routine_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/routines/routine_list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/routines/routine_create.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/shared/tag_principle_picker.js') }}"></script>
+
+<script>
+    const INITIAL_ROUTINES = {{ routines | tojson }};
+    const INITIAL_CALENDARS = {{ calendars | tojson }};
+</script>
+{% endblock %}
