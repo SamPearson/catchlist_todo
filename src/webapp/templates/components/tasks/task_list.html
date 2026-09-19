@@ -1,6 +1,7 @@
 {# Task List Component - Manages and renders a dynamic list of task cards #}
 
 {% macro task_list() %}
+{% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
 <section class="box" data-testid="task-list">
     <div x-data="taskList(INITIAL_TASKS)" x-init="init()">
 
@@ -174,21 +175,7 @@
                             <p class="help mt-2">Project association cannot be changed from here</p>
                         </div>
 
-                        <div class="field">
-                            <label class="label"><i class="fas fa-tags"></i> Tags</label>
-                            <div class="placeholder-box">
-                                <i class="fas fa-info-circle"></i>
-                                Tag management coming soon
-                            </div>
-                        </div>
-
-                        <div class="field">
-                            <label class="label"><i class="fas fa-compass"></i> Principles</label>
-                            <div class="placeholder-box">
-                                <i class="fas fa-info-circle"></i>
-                                Principle management coming soon
-                            </div>
-                        </div>
+                        {{ tag_principle_picker('task', 'task.id', 'task.tags', 'task.principles', 'task-card') }}
 
                         <div class="meta-box">
                             <p class="section-title">Metadata</p>

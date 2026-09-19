@@ -50,14 +50,18 @@
             </div>
         </div>
 
-        <div class="placeholder-box">
-            <i class="fas fa-tags"></i>
-            Tag management coming soon.
+        <div class="placeholder-box" x-show="!createdTask">
+            <i class="fas fa-info-circle"></i>
+            Tags and principles can be added after the task is created.
         </div>
-        <div class="placeholder-box">
-            <i class="fas fa-compass"></i>
-            Principle management coming soon.
+
+        <template x-if="createdTask">
+        <div>
+            {% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+            {{ tag_principle_picker('task', 'createdTask.id', 'createdTask.tags', 'createdTask.principles', 'task-create') }}
+            <hr>
         </div>
+        </template>
 
         <div class="actions">
             <button class="btn btn-ghost" @click="cancel()"
