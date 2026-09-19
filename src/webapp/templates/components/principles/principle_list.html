@@ -1,0 +1,110 @@
+{# Principle List Component #}
+{% macro principle_list() %}
+<section class="box" data-testid="principle-list">
+    <div x-data="principleList(INITIAL_PRINCIPLES)" x-init="init()">
+
+        <div class="notification is-danger is-light" x-show="error" role="alert"
+             data-testid="principle-list-error">
+            <button class="delete" @click="error = null"></button>
+            <span x-text="error"></span>
+        </div>
+
+        <div class="empty-state" x-show="!error && principles.length === 0"
+             data-testid="principle-list-empty">
+            <span class="icon"><i class="fas fa-gem"></i></span>
+            <p>No principles found. Create your first principle above.</p>
+        </div>
+
+        <div class="grid" x-show="principles.length > 0">
+            <template x-for="principle in principles" :key="principle.id">
+                <article class="card" :class="{ 'live': mode === 'view' }"
+                         x-data="principleCard(principle)"
+                         :data-testid="'principle-card-' + principle.id">
+                    <template x-if="mode === 'view'">
+                        <div>
+                            <div class="card-top">
+                                <span class="tag-swatch"
+                                      :style="{ 'background-color': cssColor(principle.color) }"></span>
+                                <h3 class="card-title" x-text="principle.title"></h3>
+                            </div>
+                            <p class="card-desc" x-show="principle.description"
+                               x-text="principle.description"></p>
+                            <div class="meta-box" x-show="principle.reason">
+                                <strong>Why it matters</strong>
+                                <span x-text="principle.reason"></span>
+                            </div>
+                            <p class="card-desc">
+                                <span x-text="'Created ' + formatDate(principle.created_at)"></span>
+                            </p>
+                            <div class="actions">
+                                <button class="btn btn-link btn-sm" @click="edit()"
+                                        data-testid="principle-edit-button">
+                                    <i class="fas fa-edit"></i>
+                                    Edit
+                                </button>
+                                <button class="btn btn-danger btn-sm" @click="deletePrinciple()"
+                                        data-testid="principle-delete-button">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="mode === 'edit'">
+                        <div class="edit-form">
+                            <div class="field">
+                                <label class="label">Title</label>
+                                <input class="input" type="text" x-model="formData.title"
+                                       data-testid="principle-edit-title-input"
+                                       :class="{ 'is-danger': errors.title }">
+                                <p class="help has-text-danger" x-show="errors.title"
+                                   x-text="errors.title"></p>
+                            </div>
+                            <div class="field">
+                                <label class="label">Description</label>
+                                <textarea class="textarea" rows="2" x-model="formData.description"
+                                          data-testid="principle-edit-description-input"></textarea>
+                            </div>
+                            <div class="field">
+                                <label class="label">Reason</label>
+                                <textarea class="textarea" rows="2" x-model="formData.reason"
+                                          data-testid="principle-edit-reason-input"></textarea>
+                            </div>
+                            <div class="field">
+                                <label class="label">Color</label>
+                                <div class="color-field">
+                                    <input type="color" x-model="formData.color"
+                                           data-testid="principle-edit-color-input"
+                                           :class="{ 'is-danger': errors.color }">
+                                    <span class="color-hex" x-text="formData.color"></span>
+                                </div>
+                                <p class="help has-text-danger" x-show="errors.color"
+                                   x-text="errors.color"></p>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-ghost" @click="cancelEdit()">
+                                    <i class="fas fa-times"></i>
+                                    Cancel
+                                </button>
+                                <button class="btn btn-primary" @click="save()"
+                                        :class="{ 'is-loading': saving }" :disabled="saving"
+                                        data-testid="principle-save-button">
+                                    <i class="fas fa-check"></i>
+                                    Save
+                                </button>
+                            </div>
+                            <div class="notification is-danger is-light mt-3" x-show="errors.general"
+                                 role="alert">
+                                <button class="delete" @click="errors.general = null"></button>
+                                <span x-text="errors.general"></span>
+                            </div>
+                        </div>
+                    </template>
+                </article>
+            </template>
+        </div>
+
+    </div>
+</section>
+{% endmacro %}

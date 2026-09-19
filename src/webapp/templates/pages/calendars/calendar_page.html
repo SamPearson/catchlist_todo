@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% from "components/calendars/calendar_create.html" import calendar_create %}
+{% from "components/calendars/calendar_list.html" import calendar_list %}
+
+{% block title %}Calendars{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="page-head">
+      <h1 class="page-title">Calendars</h1>
+      <p class="page-subtitle">Organize your routines into themed calendars.</p>
+    </div>
+    {{ calendar_create() }}
+    <div class="mt-4">
+      {{ calendar_list() }}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/calendars/calendar_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/calendars/calendar_list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/calendars/calendar_create.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/shared/tag_principle_picker.js') }}"></script>
+<script>
+  const INITIAL_CALENDARS = {{ calendars | tojson }};
+</script>
+{% endblock %}

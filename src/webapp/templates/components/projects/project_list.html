@@ -1,0 +1,329 @@
+{# Project List Component - Manages and renders a dynamic list of project cards #}
+
+{% macro project_list() %}
+{% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+<section class="box" data-testid="project-list">
+    <div x-data="projectList(INITIAL_PROJECTS)" x-init="init()">
+
+        <!-- Error State -->
+        <div x-show="error" class="notification is-danger is-light">
+            <button class="delete" @click="error = null"></button>
+            <span x-text="error"></span>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="!error && projects.length === 0"
+             class="empty-state"
+             data-testid="project-list-empty">
+            <span class="icon has-text-grey">
+                <i class="fas fa-folder-open"></i>
+            </span>
+            <p class="has-text-grey">No projects found.</p>
+        </div>
+
+        <!-- Project Items -->
+        <div class="project-list">
+        <template x-for="project in projects" :key="project.id">
+            <article class="task-card"
+                     x-data="projectCard(project)"
+                     :data-testid="`project-card-${project.id}`"
+                     :class="project.completed ? 'card-completed' : (!project.active && !project.completed ? 'card-inactive' : '')">
+
+            <!-- Project Row (always visible) -->
+                    <div class="task-row"
+                         @click="toggleExpand()"
+                         style="cursor: pointer;">
+                        <span class="task-status-icon" :class="project.completed ? 'has-text-success' : getStatusColor()">
+                            <i class="fas" :class="project.completed ? 'fa-check-circle' : 'fa-circle'"></i>
+                        </span>
+
+                        <h3 class="task-title"
+                            :class="{ 'completed': project.completed }"
+                            x-text="project.title"></h3>
+
+                        <div class="task-badges">
+                            <span x-show="project.completed" class="tag tag-success">Completed</span>
+                            <span x-show="!project.active && !project.completed" class="tag tag-warning">Someday/Maybe</span>
+                        </div>
+
+                        <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+                    </div>
+
+                    <!-- Project Detail (expanded, view mode) -->
+                    <div class="task-detail" x-show="expanded && mode === 'view'">
+                        <p class="task-description" x-show="project.description" x-text="project.description"></p>
+
+                        <div class="project-goals" x-show="project.win_condition || project.reason || project.next_step">
+                            <p class="section-title">Why this matters</p>
+                            <div x-show="project.win_condition" class="goal-row">
+                                <strong>Win Condition:</strong>
+                                <span x-text="project.win_condition"></span>
+                            </div>
+                            <div x-show="project.reason" class="goal-row">
+                                <strong>Reason:</strong>
+                                <span x-text="project.reason"></span>
+                            </div>
+                            <div x-show="project.next_step" class="goal-row">
+                                <strong>Next Step:</strong>
+                                <span x-text="project.next_step"></span>
+                            </div>
+                        </div>
+
+                        <!-- Activation setup (fields missing) -->
+                        <div x-show="showActivateForm" class="edit-form mt-2">
+                            <p class="section-title has-text-danger">Activation requires a win condition, reason, and next step</p>
+                            <div class="field">
+                                <label class="label">Win Condition <span class="req">*</span></label>
+                                <textarea class="textarea" x-model="formData.win_condition"
+                                          placeholder="What does done look like?" rows="2"></textarea>
+                            </div>
+                            <div class="field">
+                                <label class="label">Reason <span class="req">*</span></label>
+                                <textarea class="textarea" x-model="formData.reason"
+                                          placeholder="Why does this matter?" rows="2"></textarea>
+                            </div>
+                            <div class="field">
+                                <label class="label">Next Step <span class="req">*</span></label>
+                                <input class="input" type="text" x-model="formData.next_step"
+                                       placeholder="What is the very next action?">
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-ghost" @click="cancelActivate()">
+                                    <i class="fas fa-times"></i>
+                                    Cancel
+                                </button>
+                                <button class="btn btn-primary"
+                                        @click="saveAndActivate()"
+                                        :class="{ 'is-loading': saving }"
+                                        :disabled="saving">
+                                    <i class="fas fa-play"></i>
+                                    Activate Project
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Subtasks -->
+                        <div class="project-subtasks">
+                            <div class="is-flex is-align-items-center is-justify-content-space-between mb-2">
+                                <p class="section-title mb-0">
+                                    <i class="fas fa-tasks"></i>
+                                    Subtasks <span class="tag tag-info" x-text="subtasks.length"></span>
+                                </p>
+                            </div>
+
+                            <div x-show="subtasksError" class="notification is-danger is-light">
+                                <span x-text="subtasksError"></span>
+                            </div>
+                            <div x-show="loadingSubtasks" class="has-text-grey is-size-7">Loading subtasks...</div>
+
+                            <div x-show="!loadingSubtasks && subtasks.length === 0" class="has-text-grey is-size-7 mb-2">
+                                No subtasks yet.
+                            </div>
+
+                            <template x-for="sub in subtasks" :key="sub.id">
+                                <div class="subtask-row" :data-testid="`project-subtask-${sub.id}`">
+                                    <i class="fas fa-arrow-right has-text-link"></i>
+                                    <span class="subtask-title"
+                                          :class="{ 'completed': sub.completed }"
+                                          x-text="sub.title"></span>
+                                    <span x-show="sub.completed" class="tag tag-success">Done</span>
+                                    <div class="subtask-actions">
+                                        <button class="btn btn-ghost btn-sm" @click="completeSubtask(sub)" x-show="!sub.completed">
+                                            <i class="fas fa-check"></i> Complete
+                                        </button>
+                                        <button class="btn btn-ghost btn-sm" @click="detachSubtask(sub)">
+                                            <i class="fas fa-unlink"></i> Detach
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <!-- Quick create subtask -->
+                            <form class="subtask-quick-form" @submit.prevent="quickCreateSubtask()" data-testid="project-subtask-create">
+                                <input class="input" type="text"
+                                       x-model="quickTitle"
+                                       placeholder="Quick add a subtask..."
+                                       data-testid="project-subtask-create-input">
+                                <button class="btn btn-primary btn-sm" type="submit" :class="{ 'is-loading': savingSubtask }" :disabled="savingSubtask">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </form>
+
+                            <!-- Attach existing task -->
+                            <button class="btn btn-ghost btn-sm mt-2" @click="attachMode = !attachMode" x-show="!attachMode">
+                                <i class="fas fa-link"></i> Attach existing task
+                            </button>
+                            <div x-show="attachMode" class="attach-form mt-2">
+                                <select class="select is-fullwidth" x-model="attachTaskId"
+                                        data-testid="project-subtask-attach-select">
+                                    <option value="">Select a standalone task...</option>
+                                    <template x-for="t in standaloneTasks" :key="t.id">
+                                        <option :value="t.id" x-text="t.title"></option>
+                                    </template>
+                                </select>
+                                <button class="btn btn-primary btn-sm" @click="attachSubtask()" :class="{ 'is-loading': attaching }" :disabled="attaching">
+                                    <i class="fas fa-link"></i> Attach
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="task-meta">
+                            <span class="task-meta-tags">
+                                <span class="tag" :class="getStatusTagClass()" x-text="project.status"></span>
+                                <span x-show="!project.active" class="tag tag-warning">Someday/Maybe</span>
+                                <span x-show="project.completed" class="tag tag-success">Completed</span>
+                            </span>
+                            <span><strong>Created:</strong> <span x-text="formatDate(project.created_at)"></span></span>
+                            <span><strong>Updated:</strong> <span x-text="formatDate(project.updated_at)"></span></span>
+                            <span x-show="project.completed_at"><strong>Completed:</strong> <span x-text="formatDate(project.completed_at)"></span></span>
+                        </div>
+
+                        <div class="task-actions">
+                            <template x-if="project.active && !project.completed">
+                                {# x-if with multiple direct children renders only the first child; wrap siblings in one root div. #}
+                                <div>
+                                    <button class="btn btn-success btn-sm" @click="completeProject()">
+                                        <i class="fas fa-check"></i>
+                                        Complete
+                                    </button>
+                                    <button class="btn btn-link btn-sm" @click="edit()">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @click="deleteProject()">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </template>
+
+                            <template x-if="project.completed">
+                                {# x-if with multiple direct children renders only the first child; wrap siblings in one root div. #}
+                                <div>
+                                    <button class="btn btn-warning btn-sm" @click="uncompleteProject()">
+                                        <i class="fas fa-undo"></i>
+                                        Uncomplete
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @click="deleteProject()">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </template>
+
+                            <template x-if="!project.active && !project.completed">
+                                {# x-if with multiple direct children renders only the first child; wrap siblings in one root div. #}
+                                <div>
+                                    <button class="btn btn-primary btn-sm" @click="requestActivate()">
+                                        <i class="fas fa-play"></i>
+                                        Activate
+                                    </button>
+                                    <button class="btn btn-link btn-sm" @click="edit()">
+                                        <i class="fas fa-edit"></i>
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" @click="deleteProject()">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Edit Mode -->
+                    <div class="edit-form" x-show="mode === 'edit'">
+                        <div x-show="error" class="notification is-danger is-light">
+                            <button class="delete" @click="error = null"></button>
+                            <span x-text="error"></span>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Project Title <span class="req">*</span></label>
+                            <input class="input" type="text" x-model="formData.title"
+                                   placeholder="Enter project title"
+                                   :class="{ 'is-danger': errors.title }">
+                            <p class="help has-text-danger" x-show="errors.title" x-text="errors.title"></p>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Description</label>
+                            <textarea class="textarea" x-model="formData.description"
+                                      placeholder="What is this project about?" rows="3"></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Win Condition</label>
+                            <textarea class="textarea" x-model="formData.win_condition"
+                                      placeholder="What does done look like?" rows="2"></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Reason</label>
+                            <textarea class="textarea" x-model="formData.reason"
+                                      placeholder="Why does this matter?" rows="2"></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label class="label">Next Step</label>
+                            <input class="input" type="text" x-model="formData.next_step"
+                                   placeholder="What is the very next action?">
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="field">
+                                <label class="label">Status</label>
+                                <select class="select is-fullwidth" x-model="formData.status">
+                                    <option value="open">Open</option>
+                                    <option value="waiting">Waiting</option>
+                                    <option value="deferred">Deferred</option>
+                                    <option value="declined">Declined</option>
+                                    <option value="stale">Stale</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {{ tag_principle_picker('project', 'project.id', 'project.tags', 'project.principles', 'project-card') }}
+
+                        <div class="meta-box">
+                            <p class="section-title">Metadata</p>
+                            <span><strong>ID:</strong> <span x-text="project.id"></span></span>
+                            <span><strong>Created:</strong> <span x-text="formatDate(project.created_at)"></span></span>
+                            <span><strong>Last Updated:</strong> <span x-text="formatDate(project.updated_at)"></span></span>
+                            <span x-show="project.completed"><strong>Completed:</strong> <span x-text="formatDate(project.completed_at)"></span></span>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn btn-ghost" @click="cancelEdit()">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </button>
+                            <button class="btn btn-primary"
+                                    @click="save()"
+                                    :class="{ 'is-loading': saving }"
+                                    :disabled="saving">
+                                <i class="fas fa-save"></i>
+                                Save Changes
+                            </button>
+                        </div>
+
+                        <div class="danger-zone">
+                            <p class="danger-title">Danger Zone</p>
+                            <div class="is-flex is-justify-content-space-between is-align-items-center">
+                                <div>
+                                    <p class="has-text-weight-semibold">Delete this project</p>
+                                    <p class="is-size-7 has-text-grey-dark">All subtasks will be deleted. This cannot be undone.</p>
+                                </div>
+                                <button class="btn btn-danger" @click="deleteProject()">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </template>
+        </div>
+    </div>
+</section>
+{% endmacro %}

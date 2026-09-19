@@ -198,23 +198,9 @@
                     <p class="help mt-2">Project association cannot be changed from here</p>
                 </div>
 
-                <!-- Tags Section (Placeholder) -->
-                <div class="field">
-                    <label class="label"><i class="fas fa-tags"></i> Tags</label>
-                    <div class="placeholder-box">
-                        <i class="fas fa-info-circle"></i>
-                        Tag management coming soon
-                    </div>
-                </div>
-
-                <!-- Principles Section (Placeholder) -->
-                <div class="field">
-                    <label class="label"><i class="fas fa-compass"></i> Principles</label>
-                    <div class="placeholder-box">
-                        <i class="fas fa-info-circle"></i>
-                        Principle management coming soon
-                    </div>
-                </div>
+                <!-- Tags + Principles Picker -->
+                {% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+                {{ tag_principle_picker('task', 'task.id', 'task.tags', 'task.principles', 'task-card') }}
 
                 <!-- Metadata (Read-only) -->
                 <div class="meta-box">

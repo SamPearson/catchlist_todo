@@ -1,0 +1,56 @@
+{% macro calendar_create() %}
+<section class="box" x-data="calendarCreate()" data-testid="calendar-create-form">
+  <div class="box-header" @click="expanded = !expanded">
+    <h2 class="box-title">
+      <span class="icon"><i class="fa fa-calendar-plus"></i></span>
+      Create New Calendar
+    </h2>
+    <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+  </div>
+  <div class="box-body" x-show="expanded" x-cloak>
+    <div class="notification is-danger is-light mt-3" role="alert" x-show="errors.general" x-cloak>
+      <button type="button" class="delete" @click="errors.general = ''" aria-label="close"></button>
+      <strong>Calendar could not be created:</strong>
+      <span x-text="errors.general"></span>
+    </div>
+    <div class="field">
+      <label class="label" for="calendar-create-name-input">Name <span class="req">*</span></label>
+      <div class="control">
+        <input class="input" type="text" id="calendar-create-name-input" x-model="formData.name"
+               placeholder="e.g. Workouts, Personal, Home" :class="{ 'is-danger': errors.name }"
+               data-testid="calendar-create-name-input">
+      </div>
+      <p class="help" x-show="!errors.name">Give the calendar a memorable name.</p>
+      <p class="help has-text-danger" x-show="errors.name" x-text="errors.name"></p>
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label class="label" for="calendar-create-color-input">Color <span class="req">*</span></label>
+        <div class="control">
+          <input class="color-field" type="color" id="calendar-create-color-input" x-model="formData.color"
+                 data-testid="calendar-create-color-input">
+        </div>
+        <p class="help has-text-danger" x-show="errors.color" x-text="errors.color"></p>
+      </div>
+      <div class="field">
+        <label class="label" for="calendar-create-timezone-input">Timezone</label>
+        <div class="control">
+          <input class="input" type="text" id="calendar-create-timezone-input" x-model="formData.timezone"
+                 placeholder="e.g. America/Chicago" data-testid="calendar-create-timezone-input">
+        </div>
+        <p class="help">Leave blank to use your account timezone.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" type="button" @click="cancel()">
+        <i class="fa fa-times"></i> Cancel
+      </button>
+      <button class="btn btn-primary" type="button" @click="create()"
+              :class="{ 'is-loading': saving }" :disabled="saving"
+              data-testid="calendar-create-submit-button">
+        <i class="fa fa-plus"></i> Create Calendar
+      </button>
+    </div>
+  </div>
+</section>
+{% endmacro %}

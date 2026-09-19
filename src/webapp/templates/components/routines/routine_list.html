@@ -1,0 +1,335 @@
+{# Routine List Component - Displays routines as cards with view/edit modes #}
+
+{% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+
+{% macro routine_list() %}
+<section class="box" data-testid="routine-list">
+    <div x-data="routineList(INITIAL_ROUTINES)" x-init="init()">
+        <div x-show="error" class="notification is-danger is-light mt-3" role="alert" data-testid="routine-list-error">
+            <button class="delete" @click="error = ''"></button>
+            <span x-text="error"></span>
+        </div>
+
+        <div x-show="!error && routines.length === 0" class="empty-state" data-testid="routine-list-empty">
+            <i class="fas fa-calendar-alt"></i>
+            <p>No routines found. Create one above.</p>
+        </div>
+
+        <div x-show="!error && routines.length > 0" class="routine-list">
+            <template x-for="routine in routines" :key="routine.id">
+                <article class="routine-card" :data-testid="`routine-card-${routine.id}`">
+                    <div x-data="routineCard(routine)">
+
+                        <template x-if="mode === 'view'">
+                            <div>
+                                <div class="routine-row"
+                                     @click="toggleExpand()"
+                                     :data-testid="`routine-item-${routine.id}-minimized`"
+                                     style="cursor: pointer;">
+                                    <span class="routine-color" x-show="calendarColor()"
+                                          :style="calendarColor() ? `background-color: ${calendarColor()}; color: ${calendarColor()};` : ''"></span>
+                                    <div class="routine-title">
+                                        <h3 x-text="routine.title"></h3>
+                                        <span class="routine-schedule" x-text="`${rruleSummary()} • ${formatTime(routine.start_time)} – ${formatTime(routine.end_time)}`"></span>
+                                    </div>
+                                    <span class="routine-badge" x-show="!routine.active">
+                                        <span class="tag tag-warning">Someday</span>
+                                    </span>
+                                    <span class="chevron" :class="{ 'up': expanded }">&#9660;</span>
+                                </div>
+
+                                <div class="routine-detail" x-show="expanded">
+                                    <div x-show="routine.description" class="routine-description" x-text="routine.description"></div>
+
+                                    <div class="routine-meta">
+                                        <span class="tag" :class="routine.active ? 'tag-success' : 'tag-warning'" x-text="routine.active ? 'Active' : 'Inactive'"></span>
+                                        <span class="tag tag-grey" x-show="calendarName() !== 'No calendar'" x-text="calendarName()"></span>
+                                        <span class="tag tag-grey" x-text="`ID ${routine.id}`"></span>
+                                    </div>
+
+                                    <div class="routine-goals" x-show="routine.rrule">
+                                        <div class="section-title">Schedule</div>
+                                        <div class="goal-row">
+                                            <strong>Repeats</strong>
+                                            <span x-text="rruleSummary()"></span>
+                                        </div>
+                                        <div class="goal-row" x-show="routine.start_time || routine.end_time">
+                                            <strong>Time</strong>
+                                            <span x-text="`${formatTime(routine.start_time)} – ${formatTime(routine.end_time)}`"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="routine-tags" x-show="routine.tags && routine.tags.length">
+                                        <div class="section-title">Tags</div>
+                                        <div class="chip-row">
+                                            <template x-for="tag in routine.tags" :key="tag.id">
+                                                <span class="chip" x-text="tag.name"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <div class="routine-tags" x-show="routine.principles && routine.principles.length">
+                                        <div class="section-title">Principles</div>
+                                        <div class="chip-row">
+                                            <template x-for="principle in routine.principles" :key="principle.id">
+                                                <span class="chip" :style="principle.color ? `--chip-bg: ${cssColor(principle.color)}33; --chip-color: ${cssColor(principle.color)};` : ''" x-text="principle.title"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <div class="routine-actions">
+                                        <template x-if="!routine.active">
+                                            <div>
+                                                <button class="btn btn-primary" @click="activate()" data-testid="routine-item-activate-button">
+                                                    <i class="fas fa-play"></i> Activate
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="routine.active">
+                                            <div>
+                                                <button class="btn btn-warning" @click="deactivate()" data-testid="routine-item-deactivate-button">
+                                                    <i class="fas fa-pause"></i> Deactivate
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="true">
+                                            <div>
+                                                <button class="btn btn-link" @click="edit()" data-testid="routine-item-edit-button">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <button class="btn btn-info" @click="generateOpen = !generateOpen" data-testid="routine-item-generate-button">
+                                                    <i class="fas fa-calendar-plus"></i> Generate Sessions
+                                                </button>
+                                                <button class="btn btn-danger" @click="showDeleteModal = true" data-testid="routine-item-delete-button">
+                                                    <i class="fas fa-trash"></i> Delete
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div class="routine-generate" x-show="generateOpen">
+                                        <div class="section-title">Generate Sessions</div>
+                                        <p class="help">Sessions will be generated for each occurrence between the dates. Existing sessions on those dates are skipped.</p>
+                                        <div class="grid-2">
+                                            <div class="field">
+                                                <label class="label">Start Date</label>
+                                                <input class="input" type="date" x-model="genStartDate" :max="genEndDate || undefined" data-testid="routine-generate-start-date">
+                                            </div>
+                                            <div class="field">
+                                                <label class="label">End Date</label>
+                                                <input class="input" type="date" x-model="genEndDate" :min="genStartDate || undefined" data-testid="routine-generate-end-date">
+                                            </div>
+                                        </div>
+                                        <div class="check-row">
+                                            <label>
+                                                <input type="checkbox" x-model="inheritTags">
+                                                <span>Inherit routine tags</span>
+                                            </label>
+                                        </div>
+                                        <div class="check-row">
+                                            <label>
+                                                <input type="checkbox" x-model="inheritPrinciples">
+                                                <span>Inherit routine principles</span>
+                                            </label>
+                                        </div>
+                                        <div x-show="genError" class="help has-text-danger" x-text="genError"></div>
+                                        <div x-show="genMessage" class="notification is-success is-light mt-2" x-text="genMessage"></div>
+                                        <div class="actions mt-2">
+                                            <button class="btn btn-ghost" @click="generateOpen = false">Cancel</button>
+                                            <button class="btn btn-primary" @click="generateSessions()" :class="{ 'is-loading': generating }" :disabled="generating" data-testid="routine-generate-submit">
+                                                <i class="fas fa-calendar-plus"></i> Generate
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="routine-maintenance">
+                                        <div class="section-title">Maintenance</div>
+                                        <div class="maintenance-row">
+                                            <button class="btn btn-sm btn-ghost" @click="clearFutureOpen = !clearFutureOpen" data-testid="routine-clear-future-toggle">
+                                                <i class="fas fa-forward"></i> Clear future sessions
+                                            </button>
+                                            <button class="btn btn-sm btn-ghost" @click="clearPastOpen = !clearPastOpen" data-testid="routine-clear-past-toggle">
+                                                <i class="fas fa-backward"></i> Clear past sessions
+                                            </button>
+                                        </div>
+                                        <div x-show="clearFutureOpen" class="maintenance-panel">
+                                            <p class="help">Delete all future sessions for this routine. This does not delete associated commitments.</p>
+                                            <button class="btn btn-sm btn-danger" @click="clearFutureSessions()" :class="{ 'is-loading': clearingFuture }" :disabled="clearingFuture" data-testid="routine-clear-future-confirm">
+                                                Delete future sessions
+                                            </button>
+                                        </div>
+                                        <div x-show="clearPastOpen" class="maintenance-panel">
+                                            <p class="help">Delete all past sessions for this routine (scheduled ones only by default). This does not delete associated commitments.</p>
+                                            <button class="btn btn-sm btn-danger" @click="clearPastSessions()" :class="{ 'is-loading': clearingPast }" :disabled="clearingPast" data-testid="routine-clear-past-confirm">
+                                                Delete past sessions
+                                            </button>
+                                        </div>
+                                        <div x-show="clearError" class="help has-text-danger mt-2" x-text="clearError"></div>
+                                        <div x-show="clearMessage" class="notification is-success is-light mt-2" x-text="clearMessage"></div>
+                                    </div>
+
+                                    <div class="task-meta">
+                                        <span><strong>Created:</strong> <span x-text="formatDate(routine.created_at)"></span></span>
+                                        <span><strong>Updated:</strong> <span x-text="formatDate(routine.updated_at)"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="mode === 'edit'">
+                            <div class="box edit-form-wrap routine-edit-wrap">
+                                <div x-show="errors.general" class="notification is-danger is-light mt-3" role="alert">
+                                    <button class="delete" @click="errors.general = ''"></button>
+                                    <span x-text="errors.general"></span>
+                                </div>
+
+                                <div class="box-header">
+                                    <h2 class="box-title">
+                                        <span class="icon"><i class="fas fa-edit"></i></span>
+                                        Edit Routine
+                                    </h2>
+                                </div>
+
+                                <div class="box-body box-pad">
+                                    <div class="field">
+                                        <label class="label">Routine Title <span class="req">*</span></label>
+                                        <input class="input" type="text" x-model="formData.title" :class="{ 'is-danger': errors.title }" data-testid="routine-edit-title-input">
+                                        <p class="help has-text-danger" x-show="errors.title" x-text="errors.title"></p>
+                                    </div>
+
+                                    <div class="field">
+                                        <label class="label">Description</label>
+                                        <textarea class="textarea" x-model="formData.description" rows="2"></textarea>
+                                    </div>
+
+                                    <div class="field">
+                                        <label class="label">Repeat</label>
+                                        <div class="grid-2">
+                                            <div>
+                                                <select class="select is-fullwidth" x-model="rrule.pattern" data-testid="routine-edit-pattern-select">
+                                                    <option value="none">Does not repeat</option>
+                                                    <option value="daily">Every day</option>
+                                                    <option value="weekly">Every week</option>
+                                                    <option value="weekdays">Selected weekdays</option>
+                                                    <option value="biweekly">Every other week</option>
+                                                    <option value="monthly">Every month</option>
+                                                </select>
+                                            </div>
+                                            <div x-show="rrule.pattern === 'weekly' || rrule.pattern === 'biweekly'">
+                                                <select class="select is-fullwidth" x-model="rrule.day" data-testid="routine-edit-day-select">
+                                                    <option value="MO">Monday</option>
+                                                    <option value="TU">Tuesday</option>
+                                                    <option value="WE">Wednesday</option>
+                                                    <option value="TH">Thursday</option>
+                                                    <option value="FR">Friday</option>
+                                                    <option value="SA">Saturday</option>
+                                                    <option value="SU">Sunday</option>
+                                                </select>
+                                            </div>
+                                            <div x-show="rrule.pattern === 'monthly'">
+                                                <input class="input" type="number" min="1" max="31" x-model.number="rrule.monthDay" data-testid="routine-edit-monthday-input">
+                                            </div>
+                                        </div>
+                                        <div x-show="rrule.pattern === 'weekdays'" class="mt-2">
+                                            <template x-for="d in dayOptions" :key="d.key">
+                                                <label class="check-row">
+                                                    <input type="checkbox" :value="d.key" x-model="rrule.days">
+                                                    <span x-text="d.label"></span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                        <p class="help" x-show="rrule.pattern !== 'none'" x-text="rrulePreview()"></p>
+                                    </div>
+
+                                    <div class="grid-2">
+                                        <div class="field">
+                                            <label class="label">Start Time</label>
+                                            <input class="input" type="time" x-model="formData.start_time" data-testid="routine-edit-start-time-input">
+                                        </div>
+                                        <div class="field">
+                                            <label class="label">End Time</label>
+                                            <input class="input" type="time" x-model="formData.end_time" data-testid="routine-edit-end-time-input">
+                                        </div>
+                                    </div>
+
+                                    <div class="grid-2">
+                                        <div class="field">
+                                            <label class="label">Calendar</label>
+                                            <select class="select is-fullwidth" x-model="formData.calendar_id" data-testid="routine-edit-calendar-select">
+                                                <option value="">No calendar</option>
+                                                <template x-for="cal in calendars" :key="cal.id">
+                                                    <option :value="cal.id" x-text="cal.name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div class="field">
+                                            <label class="label">Status</label>
+                                            <label class="check-row">
+                                                <input type="checkbox" x-model="formData.active" data-testid="routine-edit-active-checkbox">
+                                                <span>Active</span>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="field">
+                                        <label class="label">Apply time / title changes to existing sessions</label>
+                                        <label class="check-row">
+                                            <input type="checkbox" x-model="formData.cascade_future" data-testid="routine-edit-cascade-future-checkbox">
+                                            <span>Future sessions (starting from now)</span>
+                                        </label>
+                                        <label class="check-row">
+                                            <input type="checkbox" x-model="formData.cascade_past" data-testid="routine-edit-cascade-past-checkbox">
+                                            <span>Past sessions</span>
+                                        </label>
+                                        <p class="help">Title, start time, and end time changes can cascade to existing sessions. Schedule (repeat) changes never affect existing sessions.</p>
+                                    </div>
+
+                                    {{ tag_principle_picker('routine', 'routine.id', 'routine.tags', 'routine.principles', 'routine-card') }}
+
+                                    <div class="meta-box">
+                                        <div><strong>ID</strong><span x-text="routine.id"></span></div>
+                                        <div><strong>Created</strong><span x-text="formatDate(routine.created_at)"></span></div>
+                                        <div><strong>Last Updated</strong><span x-text="formatDate(routine.updated_at)"></span></div>
+                                    </div>
+
+                                    <div class="actions">
+                                        <button class="btn btn-ghost" @click="cancelEdit()">
+                                            <i class="fas fa-times"></i>
+                                            Cancel
+                                        </button>
+                                        <button class="btn btn-primary" @click="save()" :class="{ 'is-loading': saving }" :disabled="saving" data-testid="routine-save-button">
+                                            <i class="fas fa-save"></i>
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-cloak x-show="showDeleteModal" class="modal is-active" data-testid="routine-delete-modal">
+                            <div class="modal-background" @click="showDeleteModal = false"></div>
+                            <div class="modal-card">
+                                <header class="modal-card-head">
+                                    <p class="modal-card-title">Confirm Delete</p>
+                                    <button class="delete" aria-label="close" @click="showDeleteModal = false"></button>
+                                </header>
+                                <section class="modal-card-body">
+                                    <p>Delete routine "<span x-text="routine.title"></span>"?</p>
+                                    <p class="help">This also deletes all of its sessions and their commitments (cascade delete).</p>
+                                </section>
+                                <footer class="modal-card-foot">
+                                    <button class="btn btn-danger" @click="deleteRoutine()" data-testid="routine-delete-confirm">
+                                        <i class="fas fa-trash"></i>
+                                        Delete Routine
+                                    </button>
+                                    <button class="btn btn-ghost" @click="showDeleteModal = false">Cancel</button>
+                                </footer>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </template>
+        </div>
+    </div>
+</section>
+{% endmacro %}

@@ -7,6 +7,7 @@ function taskCreate() {
             status: 'open',
             active: true
         },
+        createdTask: null,
         errors: {},
         saving: false,
         expanded: false, // Track expanded/collapsed state
@@ -41,6 +42,8 @@ function taskCreate() {
             try {
                 const newTask = await api.post('/api/tasks', this.formData);
                 console.log('New task created:', newTask);
+
+                this.createdTask = newTask;
 
                 // Dispatch custom event with the new task
                 this.$dispatch('task-created', { task: newTask });

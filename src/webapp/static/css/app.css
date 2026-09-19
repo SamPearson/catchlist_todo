@@ -328,6 +328,49 @@ hr {
     margin: 0;
 }
 
+.tag-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    box-shadow: inset 0 0 0 1px currentColor;
+    background: var(--surface);
+    flex: none;
+}
+
+.card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.color-field {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.color-field input[type="color"] {
+    width: 44px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+}
+
+.color-field input[type="color"].is-danger {
+    border-color: var(--danger);
+}
+
+.color-hex {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--muted);
+    min-width: 7ch;
+}
+
 /* --------------------------------------------------------------------------
    Columns (Bulma .columns/.column)
    -------------------------------------------------------------------------- */
@@ -1081,6 +1124,56 @@ input[type="radio"] {
 }
 
 .chip-add-form .input { flex: 1; }
+
+/* --------------------------------------------------------------------------
+   Shared Tag/Principle Picker
+   -------------------------------------------------------------------------- */
+.shared-picker .chip .tag-delete {
+    margin-left: 2px;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--grey);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+.shared-picker .chip .tag-delete:hover { color: var(--danger); }
+
+.chip-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.picker-add { margin-top: 8px; }
+
+.picker-options {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--grey-light);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.picker-options li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.picker-options li:hover { background: var(--grey-soft); }
 
 /* --------------------------------------------------------------------------
    Task cards
@@ -2053,6 +2146,341 @@ textarea.block-input:focus {
 .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
 .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
 .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+
+/* --------------------------------------------------------------------------
+   Projects
+   -------------------------------------------------------------------------- */
+.project-goals {
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 18px;
+}
+
+.project-goals .section-title { margin: 0 0 8px; font-size: 16px; }
+
+.goal-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.goal-row strong {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 0.82em;
+    color: var(--muted);
+    min-width: 110px;
+}
+
+.project-subtasks {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    background: var(--surface-2);
+}
+
+.project-subtasks .section-title { margin: 0; font-size: 16px; }
+
+.subtask-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    background: var(--surface);
+}
+
+.subtask-row:last-child { margin-bottom: 0; }
+
+.subtask-row > i { color: var(--info); flex: none; }
+
+.subtask-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    color: var(--text);
+}
+
+.subtask-title.completed { text-decoration: line-through; color: var(--muted); }
+
+.subtask-actions { display: flex; gap: 6px; flex: none; }
+
+.subtask-quick-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.subtask-quick-form .input { flex: 1; }
+
+.attach-form { display: flex; gap: 8px; }
+
+/* --------------------------------------------------------------------------
+   Routines
+   -------------------------------------------------------------------------- */
+.routine-list { border-top: 1px solid var(--gold); }
+
+.routine-list .routine-card {
+    position: relative;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.routine-list .routine-card:last-child { border-bottom: none; }
+
+.routine-list .routine-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--gold), var(--gold-strong));
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.routine-list .routine-card:hover::before { opacity: 0.6; }
+
+.routine-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px 14px 21px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--hairline);
+    transition: background 0.15s ease;
+}
+
+.routine-row:hover { background: var(--hover); }
+
+.routine-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    box-shadow: inset 0 0 0 1px currentColor;
+    background: var(--surface);
+    flex: none;
+}
+
+.routine-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.routine-title h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    margin: 0 0 2px;
+}
+
+.routine-title .routine-schedule {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    color: var(--muted);
+}
+
+.routine-badge {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.routine-detail { padding: 0 21px 18px 21px; }
+
+.routine-description {
+    margin-bottom: 14px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.routine-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.routine-goals {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: var(--surface-2);
+}
+
+.routine-goals .section-title { margin: 0 0 8px; font-size: 16px; }
+
+.routine-tags { margin-bottom: 14px; }
+
+.routine-tags .section-title { margin: 0 0 8px; font-size: 16px; }
+
+.routine-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.routine-actions > div { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.routine-generate {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: var(--surface-2);
+}
+
+.routine-generate .section-title { margin: 0 0 4px; font-size: 16px; }
+
+.routine-maintenance {
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: var(--surface-2);
+}
+
+.routine-maintenance .section-title { margin: 0 0 8px; font-size: 16px; }
+
+.maintenance-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.maintenance-panel {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--hairline);
+}
+
+.routine-edit-wrap { margin-top: 8px; }
+
+/* --------------------------------------------------------------------------
+   Calendars (phase 5)
+   -------------------------------------------------------------------------- */
+.calendar-list {
+    border-top: 1px solid var(--gold);
+}
+
+.calendar-list .calendar-card {
+    position: relative;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.calendar-list .calendar-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--gold) 0%, var(--gold-deep, var(--gold)) 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.calendar-list .calendar-card:last-child { border-bottom: none; }
+
+.calendar-list .calendar-card:hover::before { opacity: 0.6; }
+
+.calendar-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px 14px 21px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--hairline);
+    transition: background-color 0.15s ease;
+}
+
+.calendar-row:hover { background: var(--hover); }
+
+.calendar-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    box-shadow: inset 0 0 0 1px currentColor;
+    background: var(--surface);
+    flex: none;
+}
+
+.calendar-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.calendar-title h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0 0 2px;
+}
+
+.calendar-source {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.calendar-badge {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.calendar-detail {
+    padding: 0 21px 18px 21px;
+}
+
+.calendar-description {
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 12px 0 14px;
+    color: var(--text-muted);
+}
+
+.calendar-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 14px;
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.calendar-meta .meta-label { font-family: var(--font-mono); font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.calendar-meta .tag-uid { font-size: 0.92em; }
+
+.calendar-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.calendar-actions > div { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.calendar-edit-wrap { margin-top: 8px; }
 
 /* --------------------------------------------------------------------------
    Grids (mockup)

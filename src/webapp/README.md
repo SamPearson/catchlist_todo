@@ -24,7 +24,12 @@ The webapp provides a server-side rendered web interface for the productivity ma
     │   │   └── home_handlers.py
     │   ├── tasks/                   # Task page routes
     │   ├── sessions/                # Session page routes
-    │   └── reports/                 # Report page routes
+    │   ├── reports/                 # Report page routes
+    │   ├── tags/                    # Tag manager routes
+    │   ├── principles/              # Principle manager routes
+    │   ├── projects/                # Project page routes
+    │   ├── routines/                # Routine page routes
+    │   └── calendars/               # Calendar manager routes
     ├── services/                    # Shared services
     │   ├── api_client.py            # Server-side API client
     │   └── auth.py                  # Auth utilities and decorators
@@ -52,6 +57,11 @@ The webapp provides a server-side rendered web interface for the productivity ma
     │       ├── tasks/               # Task page (task_page.html)
     │       ├── sessions/            # Session page (session_page.html)
     │       ├── reports/             # Report page (report_page.html)
+    │       ├── tags/                # Tag manager page (tag_page.html)
+    │       ├── principles/          # Principle manager page (principle_page.html)
+    │       ├── projects/            # Project page (project_page.html)
+    │       ├── routines/            # Routine page (routine_page.html)
+    │       ├── calendars/           # Calendar manager page (calendar_page.html)
     │       ├── landing.html         # Landing page
     │       └── dashboard.html       # Main dashboard
     ├── static/                      # Static assets
@@ -59,7 +69,7 @@ The webapp provides a server-side rendered web interface for the productivity ma
     │   │   └── app.css              # Custom CSS design system
     │   ├── js/
     │   │   ├── api_helper.js        # Client-side API utilities
-    │   │   └── components/          # Alpine.js components (per feature)
+    │   │   └── components/          # Alpine.js components (per feature + shared/)
     │   └── images/
     └── webapp.py                    # Main Flask application
 
@@ -82,6 +92,24 @@ Components live in `templates/components/` organized by feature, with matching A
     │   ├── session_display.html
     │   ├── session_list.html
     │   └── session_search.html
+    ├── tags/
+    │   ├── tag_create.html
+    │   └── tag_list.html
+    ├── principles/
+    │   ├── principle_create.html
+    │   └── principle_list.html
+    ├── projects/
+    │   ├── project_create.html
+    │   ├── project_list.html
+    │   └── project_search.html
+    ├── routines/
+    │   ├── routine_create.html
+    │   └── routine_list.html
+    ├── calendars/
+    │   ├── calendar_create.html
+    │   └── calendar_list.html
+    ├── shared/
+    │   └── tag_principle_picker.html
     └── reports/
         ├── report_display.html
         └── report_selector.html
@@ -90,6 +118,19 @@ Each component is:
 - **Self-contained**: Includes its own Alpine.js logic, which either lives in the component/paging template or in a matching file under `static/js/components/`
 - **Reusable**: Can be included in multiple pages, either directly or via Jinja macros
 - **Styleable**: Uses classes from the shared design system in `static/css/app.css`
+
+#### Shared: Tag / Principle Picker
+
+`templates/components/shared/tag_principle_picker.html` defines a macro that attaches/detaches tags and principles to any entity via the Attach/Detach endpoints:
+
+    {% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+    {{ tag_principle_picker(target_type, target_id_expr, attached_tags_expr, attached_principles_expr, testid) }}
+
+- `target_type`: entity type (`task`, `project`, `routine`, `session`, `calendar`, `report`)
+- `target_id_expr` / attached arrays: Alpine expressions evaluated in the enclosing component's scope (e.g. `task.id`, `task.tags`)
+- Configure the Alpine root with `x-data="tagPrinciplePicker({...})"`; logic lives in `static/js/components/shared/tag_principle_picker.js`
+- Add the script to the page `scripts` block: `<script src="{{ url_for('static', filename='js/components/shared/tag_principle_picker.js') }}"></script>`
+- For entities that don't exist yet (e.g. a task during create), wrap the macro in `<template x-if="...">` so the picker initializes only once the entity exists.
 
 Pages compose components inside their own layout shell (`.page-head`, `.container`, etc.). Some components render their own `.box` shell (e.g. the task/session search and create forms); page templates should not re-wrap those in another box. Pages load the component JS they need in their `scripts` block:
 

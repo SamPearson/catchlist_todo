@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "components/principles/principle_list.html" import principle_list %}
+{% from "components/principles/principle_create.html" import principle_create %}
+
+{% block title %}Principles{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <div class="page-head">
+            <h1 class="page-title">Principles</h1>
+            <p class="page-subtitle">The core values that guide your decisions</p>
+        </div>
+
+        <!-- Create Principle -->
+        {{ principle_create() }}
+
+        <!-- Principle List -->
+        <div class="mt-4">
+            {{ principle_list() }}
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/principles/principle_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/principles/principle_list.js') }}"></script>
+<script src="{{ url_for('static', filename='js/components/principles/principle_create.js') }}"></script>
+
+<script>
+    const INITIAL_PRINCIPLES = {{ principles | tojson }};
+</script>
+{% endblock %}

@@ -1,0 +1,93 @@
+{# Tag List Component #}
+{% macro tag_list() %}
+<section class="box" data-testid="tag-list">
+    <div x-data="tagList(INITIAL_TAGS)" x-init="init()">
+
+        <div class="notification is-danger is-light" x-show="error" role="alert"
+             data-testid="tag-list-error">
+            <button class="delete" @click="error = null"></button>
+            <span x-text="error"></span>
+        </div>
+
+        <div class="empty-state" x-show="!error && tags.length === 0"
+             data-testid="tag-list-empty">
+            <span class="icon"><i class="fas fa-tags"></i></span>
+            <p>No tags found. Create your first tag above.</p>
+        </div>
+
+        <div class="grid" x-show="tags.length > 0">
+            <template x-for="tag in tags" :key="tag.id">
+                <article class="card" :class="{ 'live': mode === 'view' }"
+                         x-data="tagCard(tag)" :data-testid="'tag-card-' + tag.id">
+                    <template x-if="mode === 'view'">
+                        <div>
+                            <div class="card-top">
+                                <span class="tag-swatch"
+                                      :style="{ 'background-color': cssColor(tag.color) }"></span>
+                                <h3 class="card-title" x-text="tag.name"></h3>
+                            </div>
+                            <p class="card-desc">
+                                <span x-text="'Created ' + formatDate(tag.created_at)"></span>
+                            </p>
+                            <div class="actions">
+                                <button class="btn btn-link btn-sm" @click="edit()"
+                                        data-testid="tag-edit-button">
+                                    <i class="fas fa-edit"></i>
+                                    Edit
+                                </button>
+                                <button class="btn btn-danger btn-sm" @click="deleteTag()"
+                                        data-testid="tag-delete-button">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="mode === 'edit'">
+                        <div class="edit-form">
+                            <div class="field">
+                                <label class="label">Tag Name</label>
+                                <input class="input" type="text" x-model="formData.name"
+                                       data-testid="tag-edit-name-input"
+                                       :class="{ 'is-danger': errors.name }">
+                                <p class="help has-text-danger" x-show="errors.name"
+                                   x-text="errors.name"></p>
+                            </div>
+                            <div class="field">
+                                <label class="label">Color</label>
+                                <div class="color-field">
+                                    <input type="color" x-model="formData.color"
+                                           data-testid="tag-edit-color-input"
+                                           :class="{ 'is-danger': errors.color }">
+                                    <span class="color-hex" x-text="formData.color"></span>
+                                </div>
+                                <p class="help has-text-danger" x-show="errors.color"
+                                   x-text="errors.color"></p>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-ghost" @click="cancelEdit()">
+                                    <i class="fas fa-times"></i>
+                                    Cancel
+                                </button>
+                                <button class="btn btn-primary" @click="save()"
+                                        :class="{ 'is-loading': saving }" :disabled="saving"
+                                        data-testid="tag-save-button">
+                                    <i class="fas fa-check"></i>
+                                    Save
+                                </button>
+                            </div>
+                            <div class="notification is-danger is-light mt-3" x-show="errors.general"
+                                 role="alert">
+                                <button class="delete" @click="errors.general = null"></button>
+                                <span x-text="errors.general"></span>
+                            </div>
+                        </div>
+                    </template>
+                </article>
+            </template>
+        </div>
+
+    </div>
+</section>
+{% endmacro %}

@@ -1,0 +1,171 @@
+{# Project Search Component - Search and filter project cards #}
+
+{% macro project_search() %}
+<section class="box" x-data='projectSearch()' data-testid="project-search-component">
+    <div class="box-body box-pad">
+        <!-- Simple Search Row -->
+        <div class="search-row">
+            <div class="search-input-wrap" x-show="!expanded">
+                <span class="icon is-left">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input class="input"
+                       type="text"
+                       x-model="filters.title"
+                       @input="updateFilters()"
+                       placeholder="Search projects..."
+                       data-testid="project-search-simple-input">
+            </div>
+            <button class="btn btn-ghost" @click="expand()" x-show="!expanded" data-testid="project-search-expand-button">
+                <i class="fas fa-sliders-h"></i>
+                Advanced
+            </button>
+        </div>
+
+        <!-- Filter Strip -->
+        <div class="filter-strip" x-show="hasActiveFilters()">
+            <span class="tag tag-info" x-text="`${getActiveFilterCount()} filter(s) active`"></span>
+            <span class="tag tag-grey" @click="clearFilters()" style="cursor: pointer;" data-testid="project-search-clear-button">
+                <i class="fas fa-times"></i>
+                Clear
+            </span>
+        </div>
+
+        <!-- Advanced Search Panel -->
+        <div class="search-advanced" x-show="expanded" data-testid="project-search-advanced">
+            <div class="box-header">
+                <h2 class="box-title">
+                    <span class="icon"><i class="fas fa-sliders-h"></i></span>
+                    Advanced Search
+                </h2>
+                <a class="delete" @click="collapse()" data-testid="project-search-collapse-button" aria-label="close"></a>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label class="label">Title (contains)</label>
+                    <input class="input"
+                           type="text"
+                           x-model="filters.title"
+                           @input="updateFilters()"
+                           placeholder="Search by title..."
+                           data-testid="project-search-title-input">
+                </div>
+                <div class="field">
+                    <label class="label">Description (contains)</label>
+                    <input class="input"
+                           type="text"
+                           x-model="filters.description"
+                           @input="updateFilters()"
+                           placeholder="Search by description..."
+                           data-testid="project-search-description-input">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label class="label">Status</label>
+                    <div class="check-group">
+                        <template x-for="s in ['open', 'waiting', 'deferred', 'declined', 'stale']" :key="s">
+                            <label class="radio-label">
+                                <input type="checkbox"
+                                       class="radio-check"
+                                       :value="s"
+                                       x-model="filters.status[s]"
+                                       @change="updateFilters()"
+                                       :data-testid="`project-search-status-${s}-checkbox`">
+                                <span class="radio-text" x-text="s"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Activity</label>
+                    <div class="check-group">
+                        <label class="radio-label">
+                            <input type="radio"
+                                   class="radio-check"
+                                   value="active"
+                                   x-model="filters.activity"
+                                   @change="updateFilters()"
+                                   data-testid="project-search-activity-active-radio">
+                            <span class="radio-text">Active</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio"
+                                   class="radio-check"
+                                   value="someday"
+                                   x-model="filters.activity"
+                                   @change="updateFilters()"
+                                   data-testid="project-search-activity-someday-radio">
+                            <span class="radio-text">Someday/Maybe</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio"
+                                   class="radio-check"
+                                   value="all"
+                                   x-model="filters.activity"
+                                   @change="updateFilters()"
+                                   data-testid="project-search-activity-all-radio">
+                            <span class="radio-text">All</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field">
+                    <label class="label">Completion</label>
+                    <div class="check-group">
+                        <label class="radio-label">
+                            <input type="radio"
+                                   class="radio-check"
+                                   value="incomplete"
+                                   x-model="filters.completion"
+                                   @change="updateFilters()"
+                                   data-testid="project-search-completion-incomplete-radio">
+                            <span class="radio-text">Incomplete</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio"
+                                   class="radio-check"
+                                   value="all"
+                                   x-model="filters.completion"
+                                   @change="updateFilters()"
+                                   data-testid="project-search-completion-all-radio">
+                            <span class="radio-text">All</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio"
+                                   class="radio-check"
+                                   value="complete"
+                                   x-model="filters.completion"
+                                   @change="updateFilters()"
+                                   data-testid="project-search-completion-complete-radio">
+                            <span class="radio-text">Completed</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="label">Tag</label>
+                    <div class="help is-size-7">
+                        <i class="fas fa-info-circle"></i>
+                        Tag filtering coming soon
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-ghost" @click="clearFilters()">
+                    <i class="fas fa-times"></i>
+                    Clear
+                </button>
+                <button class="btn btn-primary" @click="collapse()">
+                    <i class="fas fa-check"></i>
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+{% endmacro %}
