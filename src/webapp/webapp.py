@@ -26,12 +26,22 @@ from src.webapp.routes.home import home_bp
 from src.webapp.routes.tasks import tasks_bp
 from src.webapp.routes.sessions import sessions_bp
 from src.webapp.routes.reports import reports_bp
+from src.webapp.routes.tags import tags_bp
+from src.webapp.routes.principles import principles_bp
+from src.webapp.routes.projects import projects_bp
+from src.webapp.routes.routines import routines_bp
+from src.webapp.routes.calendars import calendars_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(home_bp)
 app.register_blueprint(tasks_bp)
 app.register_blueprint(sessions_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(tags_bp)
+app.register_blueprint(principles_bp)
+app.register_blueprint(projects_bp)
+app.register_blueprint(routines_bp)
+app.register_blueprint(calendars_bp)
 
 
 # This block only runs on dev; on staging and production we use gunicorn
