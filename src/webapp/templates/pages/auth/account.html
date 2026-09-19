@@ -139,6 +139,80 @@
                     </div>
                 </div>
 
+                <!-- Backup & Restore Card -->
+                <div class="box">
+                    <div class="box-pad">
+                        <h2 class="box-title">Backup &amp; Restore</h2>
+                        <p class="content">
+                            Export your account data as a JSON file to keep a safe copy, or restore from a previous backup.
+                            Restoring replaces all of your current data with the contents of the backup.
+                        </p>
+
+                        <div class="field">
+                            <button class="button is-primary" @click="exportData" :class="{ 'is-loading': exporting }" data-testid="account-export-button">
+                                <span class="icon"><i class="fas fa-download"></i></span>
+                                <span>Export Data</span>
+                            </button>
+                        </div>
+
+                        <div x-show="exportError" class="notification is-danger is-light" data-testid="account-export-error-message" x-transition>
+                            <button class="note-close" @click="exportError = ''">&#10005;</button>
+                            <span x-text="exportError"></span>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <h3 class="box-title is-size-6 has-text-weight-semibold">Restore from Backup</h3>
+
+                        <form @submit.prevent="importData">
+                            <div class="field">
+                                <label class="label">Backup File</label>
+                                <div class="control">
+                                    <input class="input" type="file" @change="onBackupFileChange" accept=".json,application/json" data-testid="account-backup-file-input">
+                                </div>
+                                <p class="help">Select a JSON file previously exported from Catchlist.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="label">Password</label>
+                                <div class="control has-icons-left">
+                                    <input class="input" type="password" x-model="importForm.password" data-testid="account-import-password-input" required>
+                                    <span class="icon is-small is-left">
+                                        <i class="fas fa-lock"></i>
+                                    </span>
+                                </div>
+                                <p class="help">Your account password is required to restore a backup.</p>
+                            </div>
+
+                            <div class="field">
+                                <label class="label">Type RESTORE to confirm</label>
+                                <div class="control">
+                                    <input class="input" type="text" x-model="confirmText" placeholder="RESTORE" data-testid="account-import-confirm-input">
+                                </div>
+                                <p class="help has-text-danger">Restoring permanently replaces all of your current data.</p>
+                            </div>
+
+                            <div x-show="importError" class="notification is-danger is-light" data-testid="account-import-error-message" x-transition>
+                                <button class="note-close" @click="importError = ''">&#10005;</button>
+                                <span x-text="importError"></span>
+                            </div>
+
+                            <div x-show="importSuccess" class="notification is-success is-light" data-testid="account-import-success-message" x-transition>
+                                <span x-text="importSuccess"></span>
+                            </div>
+
+                            <div class="field">
+                                <div class="control">
+                                    <button class="button is-danger" type="submit" :disabled="confirmText !== 'RESTORE' || importing" :class="{ 'is-loading': importing }" data-testid="account-restore-button">
+                                        <span class="icon"><i class="fas fa-upload"></i></span>
+                                        <span>Restore Backup</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Delete Account Card -->
                 <div class="box has-background-danger-light">
                     <div class="box-pad">
@@ -243,6 +317,17 @@
             deleting: false,
             deleteError: '',
 
+            exporting: false,
+            exportError: '',
+            importForm: {
+                password: ''
+            },
+            importFile: null,
+            confirmText: '',
+            importing: false,
+            importError: '',
+            importSuccess: '',
+
             async init() {
                 await this.loadUserInfo();
             },
@@ -330,6 +415,75 @@
                 } catch (err) {
                     this.deleteError = err.message || 'Failed to delete account';
                     this.deleting = false;
+                }
+            },
+
+            async exportData() {
+                this.exporting = true;
+                this.exportError = '';
+
+                try {
+                    const data = await api.get('/api/backup/export');
+                    if (data) {
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `catchlist-backup-${this.userInfo.username || 'user'}.json`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }
+                } catch (err) {
+                    this.exportError = err.message || 'Failed to export data';
+                } finally {
+                    this.exporting = false;
+                }
+            },
+
+            onBackupFileChange(event) {
+                this.importFile = event.target.files[0] || null;
+                this.importError = '';
+                this.importSuccess = '';
+            },
+
+            async importData() {
+                this.importing = true;
+                this.importError = '';
+                this.importSuccess = '';
+
+                if (!this.importFile) {
+                    this.importError = 'Please select a backup file to restore';
+                    this.importing = false;
+                    return;
+                }
+
+                try {
+                    const data = await this.importFile.text();
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(data);
+                    } catch (e) {
+                        this.importError = 'The selected file is not valid JSON';
+                        this.importing = false;
+                        return;
+                    }
+
+                    await api.post('/api/backup/import', {
+                        password: this.importForm.password,
+                        data: parsed
+                    }, { skipAuthRedirect: true });
+
+                    this.importSuccess = 'Backup restored successfully!';
+                    this.confirmText = '';
+                    this.importForm = { password: '' };
+                    this.importFile = null;
+                    document.querySelector('[data-testid="account-backup-file-input"]').value = '';
+                } catch (err) {
+                    this.importError = err.message || 'Failed to restore backup';
+                } finally {
+                    this.importing = false;
                 }
             },
 

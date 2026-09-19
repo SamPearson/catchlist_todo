@@ -21,6 +21,9 @@ def create_app():
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = APIConfig.JWT_ACCESS_TOKEN_EXPIRES
     app.config['JWT_TOKEN_LOCATION'] = APIConfig.JWT_TOKEN_LOCATION
 
+    # Cap request body size to protect against oversized backup uploads (10MB)
+    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
     # Configure CORS to allow requests from the frontend
     CORS(app, 
         resources={r"/*": {
