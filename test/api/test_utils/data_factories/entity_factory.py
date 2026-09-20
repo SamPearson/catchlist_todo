@@ -193,6 +193,37 @@ def create_report(auth_client, kind, date, **kwargs):
 
     return report
 
+def get_catchlist(auth_client):
+    """Helper to fetch the authenticated user's catch list (singleton resource)
+
+    Args:
+        auth_client: Authenticated API client
+    """
+    with allure.step("Get catch list"):
+        response = auth_client.get('/api/catchlist')
+        assert response.status_code == 200, f"Failed to get catch list: {response.text}"
+        catchlist = response.json
+
+    return catchlist
+
+
+def update_catchlist(auth_client, content, **kwargs):
+    """Helper to save the authenticated user's catch list content
+
+    Args:
+        auth_client: Authenticated API client
+        content: The full catch list blob (may be any text, including empty)
+    """
+    payload = {"content": content}
+
+    with allure.step("Update catch list"):
+        response = auth_client.put('/api/catchlist', data=payload)
+        assert response.status_code == 200, f"Failed to update catch list: {response.text}"
+        catchlist = response.json
+
+    return catchlist
+
+
 def create_checkin(auth_client, **kwargs):
     """Helper to create a checkin with custom properties
 

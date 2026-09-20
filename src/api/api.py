@@ -22,6 +22,7 @@ from .routes.commitments import commitments_bp
 from .routes.checkins import checkins_bp
 from .routes.routines import routines_bp
 from .routes.sessions import sessions_bp
+from .routes.catchlist import catchlist_bp
 from .routes.calendars import calendars_bp
 from .routes.principles import principles_bp
 from .routes.users import users_bp
@@ -40,6 +41,7 @@ app.register_blueprint(commitments_bp)
 app.register_blueprint(checkins_bp)
 app.register_blueprint(routines_bp)
 app.register_blueprint(sessions_bp)
+app.register_blueprint(catchlist_bp)
 app.register_blueprint(calendars_bp)
 app.register_blueprint(principles_bp)
 app.register_blueprint(backup_bp)

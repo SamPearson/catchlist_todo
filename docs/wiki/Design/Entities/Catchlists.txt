@@ -1,0 +1,48 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-09-19T12:00:00-05:00
+====== Catch Lists ======
+
+===== Overview =====
+
+The **Catch List** is the capture step of the GTD model: a single free-form text blob per user where anything can be dumped — half-completed thoughts, stray tasks, project ideas, things to remember — without any structure. It prevents items from rattling around in your head.
+
+It is deliberately the **simplest possible entity**: one row per user, one text field. No tags, no categories, no priorities, no due dates. Structure is added later, when the user drains the list and enters items into the rest of the app.
+
+===== Location =====
+
+The catch list is the **root of the logged-in app** (`/`). The former dashboard card grid moved to `/desk`. This makes capture the first thing a user sees after logging in.
+
+===== Design Rationale =====
+
+* **Singleton, not a collection** — exactly one row per user (unique constraint on `user_id`). No id-guided URLs, no `POST`; the row is created lazily on first read or write. This mirrors the mental model: there is one brain, one dump.
+* **No delete/clear endpoint by design** — GTD's capture step is only useful if the list gets emptied. Emptying is the user's job, done by manually removing text and organizing it elsewhere. An application "clear" button would encourage dumping without processing.
+* **Whole-blob replace** — `PUT` replaces the entire text. For a single user this is last-write-wins with no merge or race logic.
+* **Lazy creation** — a brand-new user has no row until they type; nothing is persisted on a first visit.
+
+===== Properties =====
+
+| Property   | Type     | Required | Description                    |
+|------------|----------|----------|--------------------------------|
+| id         | integer  | auto     | Primary key                    |
+| user_id    | integer  | auto     | Owner (unique — one per user)  |
+| content    | text     | yes      | Free-form blob of text         |
+| created_at | datetime | auto     | When created                   |
+| updated_at | datetime | auto     | When last modified             |
+
+===== Behaviors =====
+
+**Capture**
+* User types into the catch list page and it auto-saves (~800ms debounce) via `PUT /api/catchlist`
+* Content cap of 100,000 characters; newlines and pastes preserved verbatim
+
+**Read**
+* `GET /api/catchlist` creates an empty list on first access
+
+===== Draining the List =====
+
+The intended usage is a routine: dump everything in as it comes up, then on a regular cadence (daily or weekly) sort through the blob — entering each item where it belongs (tasks, projects, calendars) and deleting the rest. The catch list is a holding pen, not a home.
+
+===== Related ====
+
+* [[API/Routes/Catchlist_Routes|Catch List Routes]]
