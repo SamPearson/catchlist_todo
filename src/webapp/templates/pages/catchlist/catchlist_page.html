@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Catch List{% endblock %}
+
+{% block styles %}
+<style>
+    textarea.catchlist-textarea {
+        min-height: 400px;
+        line-height: 1.6;
+        padding: 14px 16px;
+    }
+    .save-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 22px;
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+    }
+    .save-status .saved { color: var(--success-muted); }
+    .save-status .error { color: var(--danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container" x-data="catchlistEditor()">
+        <div class="page-head">
+            <h1 class="page-title">Catch List</h1>
+            <p class="page-subtitle">Dump every loose thought here — sort it out later</p>
+        </div>
+
+        <div class="field">
+            <textarea
+                class="textarea catchlist-textarea"
+                x-model="content"
+                @input="onInput()"
+                placeholder="What's rattling around in your head?"
+                data-testid="catchlist-textarea"></textarea>
+        </div>
+
+        <div class="save-status">
+            <span x-show="status === 'saving'">Saving…</span>
+            <span x-show="status === 'saved'" class="saved">Saved <span x-text="savedAt"></span></span>
+            <span x-show="status === 'error'" class="error"><span x-text="errorMessage"></span></span>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/components/catchlist/catchlist.js') }}"></script>
+<script>
+    const INITIAL_CONTENT = {{ initial_content | tojson }};
+</script>
+{% endblock %}

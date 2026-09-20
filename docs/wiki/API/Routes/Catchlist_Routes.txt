@@ -1,0 +1,60 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-09-19T12:00:00-05:00
+
+====== Catch List Routes ======
+
+===== Overview =====
+
+API endpoint for the Catch List — a per-user, single free-form text blob for dumping unprocessed thoughts, tasks, and projects before they're organized elsewhere. This is the "catch list" step of the GTD model: get it out of your head, then empty it out regularly.
+
+The Catch List is **not a collection**. It is a per-user **singleton** resource (exactly one row per user), so there are no id-guided URLs and no `POST` — the row is created lazily on first read or write.
+
+All endpoints require authentication via JWT Bearer token.
+
+===== Catch List Endpoints =====
+
+==== Get Catch List ====
+
+**GET /api/catchlist**
+
+Returns the authenticated user's catch list. If the user has no catch list yet, an empty one is created and returned (200), so a first visit shows a blank box and nothing is persisted until the first keystroke.
+
+**Response:** Catch List object (200)
+
+==== Update Catch List ====
+
+**PUT /api/catchlist**
+
+Replaces the entire blob with the provided content (upsert — creates the row on first write). The body may come as JSON (`{"content": "..."}`) or form-encoded. A missing or empty `content` clears the list to an empty string.
+
+| Field   | Type   | Required | Description                                     |
+|---------|--------|----------|-------------------------------------------------|
+| content | string | yes      | Full text of the catch list (max 100,000 chars) |
+
+**Business Logic:**
+* Whole-blob replace — no merge or race logic; last write wins (safe for a single user)
+* Newlines and large pastes are preserved verbatim
+* **There is intentionally no delete/clear endpoint** — the user empties the list by manually removing text and entering items into the rest of the app
+
+**Response:** Updated Catch List object (200)
+
+**Errors:**
+* 400 if `content` is missing from the request body
+* 422 if `content` exceeds the 100,000 character cap
+
+===== Catch List Object =====
+
+| Field      | Type     | Description              |
+|------------|----------|--------------------------|
+| id         | integer  | Primary key              |
+| user_id    | integer  | Owner                    |
+| content    | text     | Free-form blob of text   |
+| created_at | datetime | When created             |
+| updated_at | datetime | When last modified       |
+
+===== Design Notes =====
+
+* **Singleness** is enforced at the schema level with a unique constraint on `user_id`
+* **Lazy creation** means no row exists for users who never open the page
+* Cap: 100k chars via the service layer; the app-level `MAX_CONTENT_LENGTH` (10MB) still bounds the raw request size
