@@ -1,0 +1,61 @@
+{# Shared Checkin List Component #}
+{#
+    Renders an Alpine-managed list of checkins for an entity with add/delete
+    support via the Checkins API.
+
+    Parameters:
+        target_type    - string, entity type (task, project, routine, session, report)
+        target_id_expr - Alpine expression resolving to the entity id (e.g. task.id, report.id)
+        testid         - string prefix for data-testid attributes
+#}
+{% macro checkin_list(target_type, target_id_expr, testid) %}
+<div x-data="checkinList({
+        targetType: '{{ target_type }}',
+        targetId: {{ target_id_expr }},
+        testid: '{{ testid }}'
+    })"
+     class="detail-block">
+    <div class="is-flex is-align-items-center" style="gap: 8px;">
+        <p class="detail-label" style="margin-bottom: 0;">Checkins</p>
+        <span class="tag tag-grey" x-text="checkins.length"></span>
+        <button @click="toggleCheckins()" class="btn btn-ghost btn-sm">
+            <span x-text="checkinsExpanded ? '▲ Hide' : '▼ Show'"></span>
+        </button>
+    </div>
+
+    <div x-show="checkinsExpanded" class="mt-2">
+        <template x-if="checkins.length === 0">
+            <p class="muted">No checkins yet.</p>
+        </template>
+
+        <template x-for="(checkin, index) in checkins" :key="checkin.id || index">
+            <div class="checkin">
+                <p class="checkin-time" x-text="formatDateTime(checkin.occurred_at)"></p>
+                <div class="checkin-note">
+                    <span x-text="checkin.note"></span>
+                    <button @click="removeCheckin(index)"
+                            class="tag-delete"
+                            title="Delete checkin"
+                            aria-label="Delete checkin"
+                            :data-testid="`${testid}-checkin-delete-${checkin.id}`">&times;</button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Add Checkin -->
+        <div x-show="!showAddCheckin" class="mt-2">
+            <button @click="showAddCheckin = true" class="btn btn-link btn-sm" :disabled="checkinsLoading"
+                    :data-testid="`${testid}-checkin-add`">
+                + Add checkin
+            </button>
+        </div>
+        <div x-show="showAddCheckin" class="chip-add-form mt-2">
+            <textarea x-model="newCheckin.notes" class="textarea" rows="2" placeholder="Enter your checkin note..."></textarea>
+            <div class="actions">
+                <button type="button" @click="showAddCheckin = false; newCheckin = { notes: '' }" class="btn btn-ghost btn-sm">Cancel</button>
+                <button type="button" @click="addCheckin()" class="btn btn-success btn-sm">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}

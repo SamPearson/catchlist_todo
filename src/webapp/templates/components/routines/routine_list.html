@@ -1,6 +1,7 @@
 {# Routine List Component - Displays routines as cards with view/edit modes #}
 
 {% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+{% from "components/shared/checkin_list.html" import checkin_list %}
 
 {% macro routine_list() %}
 <section class="box" data-testid="routine-list">
@@ -76,6 +77,8 @@
                                             </template>
                                         </div>
                                     </div>
+
+                                    {{ checkin_list('routine', 'routine.id', 'routine-card') }}
 
                                     <div class="routine-actions">
                                         <template x-if="!routine.active">

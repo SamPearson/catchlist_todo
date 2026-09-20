@@ -1,6 +1,7 @@
 {% from "components/tasks/task_card.html" import task_card %}
 {% from "components/tasks/task_list.html" import task_list %}
 {% from "components/sessions/session_list.html" import session_list %}
+{% from "components/shared/checkin_list.html" import checkin_list %}
 
 
 {% macro report_display(report) %}
@@ -206,6 +207,11 @@
                 <textarea class="block-input" rows="4" placeholder="Reflection and observations after the timeframe ends..." x-model="draft.post_notes"></textarea>
             </template>
         </div>
+
+        {# ------------------------------------------------------------------ #}
+        {# CHECKINS                                                             #}
+        {# ------------------------------------------------------------------ #}
+        {{ checkin_list('report', 'report.id', 'report-card') }}
 
         {# ------------------------------------------------------------------ #}
         {# TAGS & PRINCIPLES                                                   #}

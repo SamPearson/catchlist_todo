@@ -4,11 +4,6 @@ document.addEventListener('alpine:init', () => {
         expanded: false,
         showDeleteModal: false,
         session: session,
-        checkins: [],
-        checkinsExpanded: false,
-        showAddCheckin: false,
-        checkinsLoading: false,
-        newCheckin: { timestamp: '', notes: '' },
         errors: {},
         submitLoading: false,
         formData: {
@@ -43,35 +38,9 @@ document.addEventListener('alpine:init', () => {
             return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
         },
 
-        formatDateTime(datetime) {
-            if (!datetime) return '';
-            const date = new Date(datetime);
-            return date.toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
-        },
-
         init() {
             // Store original status to detect changes
             this.originalStatus = this.session.status;
-
-            // Load checkins on init
-            this.loadCheckins();
-        },
-
-        async loadCheckins() {
-            this.checkinsLoading = true;
-            try {
-                const checkins = await api.get('/api/checkins/target', {
-                    target_type: 'session',
-                    target_id: this.session.id
-                });
-
-                this.checkins = checkins || [];
-            } catch (err) {
-                console.error('Error loading checkins:', err);
-                this.checkins = [];
-            } finally {
-                this.checkinsLoading = false;
-            }
         },
 
         toggleEdit() {
@@ -83,58 +52,6 @@ document.addEventListener('alpine:init', () => {
 
         toggleExpand() {
             this.expanded = !this.expanded;
-        },
-
-        toggleCheckins() {
-            this.checkinsExpanded = !this.checkinsExpanded;
-        },
-
-        async addCheckin() {
-            // Validate note is not empty
-            if (!this.newCheckin.notes || !this.newCheckin.notes.trim()) {
-                alert('Checkin note cannot be empty');
-                return;
-            }
-
-            try {
-                const checkinData = {
-                    target_type: 'session',
-                    target_id: this.session.id,
-                    note: this.newCheckin.notes.trim(),
-                    occurred_at: new Date().toISOString()
-                };
-
-                const createdCheckin = await api.post('/api/checkins', checkinData);
-
-                if (createdCheckin) {
-                    this.checkins.unshift(createdCheckin); // Add to front (most recent first)
-                    this.newCheckin = { notes: '' };
-                    this.showAddCheckin = false;
-                    console.log('Checkin added:', createdCheckin);
-                }
-            } catch (err) {
-                console.error('Error adding checkin:', err);
-                alert('Error saving checkin: ' + err.message);
-            }
-        },
-
-        async removeCheckin(index) {
-            const checkin = this.checkins[index];
-            if (!checkin) return;
-
-            // Confirm deletion
-            if (!confirm('Are you sure you want to delete this checkin?')) {
-                return;
-            }
-
-            try {
-                await api.delete(`/api/checkins/${checkin.id}`);
-                this.checkins.splice(index, 1);
-                console.log('Checkin removed');
-            } catch (err) {
-                console.error('Error deleting checkin:', err);
-                alert('Error deleting checkin: ' + err.message);
-            }
         },
 
         async submitForm() {
