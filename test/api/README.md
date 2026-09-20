@@ -104,6 +104,7 @@ Markers enable efficient testing workflows by running only tests relevant to you
 - **Changed authentication logic** → `pytest -m auth`
 - **Quick sanity check** → `pytest -m smoke_test`
 - **Validating project CRUD** → `pytest -m "projects and crud"`
+- **Validating backup export/import** → `pytest -m "backup and crud"`
 - **Pre-deployment verification** → `pytest -m "smoke_test or auth"`
 
 This approach provides **fast, relevant feedback** without running the entire suite for every change.

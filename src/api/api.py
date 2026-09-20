@@ -25,6 +25,7 @@ from .routes.sessions import sessions_bp
 from .routes.calendars import calendars_bp
 from .routes.principles import principles_bp
 from .routes.users import users_bp
+from .routes.backup import backup_bp
 
 app = create_app()
 
@@ -41,6 +42,7 @@ app.register_blueprint(routines_bp)
 app.register_blueprint(sessions_bp)
 app.register_blueprint(calendars_bp)
 app.register_blueprint(principles_bp)
+app.register_blueprint(backup_bp)
 
 
 @app.route('/api/health', methods=['GET'])

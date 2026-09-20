@@ -29,6 +29,15 @@ class AccountPage(BaseAppPage):
     password_error_message_locator = locator_from_testid("account-password-error-message")
     password_success_message_locator = locator_from_testid("account-password-success-message")
 
+    # Backup & Restore elements
+    export_button_locator = locator_from_testid("account-export-button")
+    backup_file_input_locator = locator_from_testid("account-backup-file-input")
+    import_password_input_locator = locator_from_testid("account-import-password-input")
+    import_confirm_input_locator = locator_from_testid("account-import-confirm-input")
+    restore_button_locator = locator_from_testid("account-restore-button")
+    import_error_message_locator = locator_from_testid("account-import-error-message")
+    import_success_message_locator = locator_from_testid("account-import-success-message")
+
     # Delete account elements
     delete_button_locator = locator_from_testid("account-delete-button")
     delete_password_input_locator = locator_from_testid("account-delete-password-input")
@@ -124,3 +133,41 @@ class AccountPage(BaseAppPage):
     def has_delete_error(self):
         """Check if delete error message is displayed"""
         return self._is_displayed(self.delete_error_message_locator, timeout=2)
+
+    def is_export_button_visible(self):
+        """Check if the export data button is visible"""
+        return self._is_active(self.export_button_locator, timeout=2)
+
+    def is_restore_box_visible(self):
+        """Check if the restore form is visible on the page"""
+        return self._is_active(self.import_password_input_locator, timeout=2)
+
+    def is_restore_button_enabled(self):
+        """Check if the restore button is enabled (requires RESTORE confirmation)"""
+        element = self.driver.find_element(*self.restore_button_locator)
+        return element.is_enabled()
+
+    def select_backup_file(self, file_path):
+        """Select a backup file for restore"""
+        element = self._find(self.backup_file_input_locator)
+        element.send_keys(file_path)
+
+    def type_confirm_text(self, text):
+        """Type text into the RESTORE confirmation input"""
+        self._type(self.import_confirm_input_locator, text)
+
+    def type_import_password(self, password):
+        """Type the account password for restore"""
+        self._type(self.import_password_input_locator, password)
+
+    def click_restore_button(self):
+        """Click the restore button"""
+        self._click(self.restore_button_locator)
+
+    def has_import_error(self):
+        """Check if import error message is displayed"""
+        return self._is_displayed(self.import_error_message_locator, timeout=2)
+
+    def has_import_success(self):
+        """Check if import success message is displayed"""
+        return self._is_displayed(self.import_success_message_locator, timeout=5)

@@ -1,0 +1,83 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2026-09-19T00:00:00-00:00
+
+====== Backup Routes ======
+
+===== Overview =====
+
+API endpoints for exporting and importing the authenticated user's entire dataset as a single JSON blob. These endpoints provide a data-safety net: export a snapshot of your data, and if needed, restore it.
+
+All endpoints require authentication via JWT Bearer token.
+
+**Data Safety:** Both endpoints operate as an all-or-nothing unit. Import is a full restore: the user's existing data is replaced with the backup contents in a single transaction. Any issue (bad JSON, failed validation, database error) rolls the whole import back, leaving the user's data untouched.
+
+**Timezone Handling:** All datetimes in the backup blob are stored as naive UTC ISO 8601 strings (no timezone offset), e.g. "2026-03-18T14:30:00". This matches how datetimes are stored internally and makes the blob portable across timezones.
+
+===== Backup Endpoints =====
+
+==== Export Data ====
+
+**GET /api/backup/export**
+
+Returns the authenticated user's entire dataset as a JSON blob suitable for saving to a file and later restoring via the import endpoint.
+
+**Authentication:** Required (JWT Bearer token)
+
+**Response:** Backup object (200)
+
+| Field                  | Type   | Description                                            |
+|------------------------|--------|--------------------------------------------------------|
+| format                 | string | Backup format identifier ("catchlist-backup")          |
+| version                | int    | Backup format version (currently 1)                    |
+| exported_at            | string | When the backup was produced (UTC ISO 8601)            |
+| user                   | object | { "username", "name", "timezone" }                     |
+| tags                   | array  | All user tags                                          |
+| principles             | array  | All user principles                                    |
+| timeframes             | array  | All user timeframes                                    |
+| projects               | array  | All user projects                                      |
+| tasks                  | array  | All user tasks                                         |
+| calendars              | array  | All user calendars                                     |
+| routines               | array  | All user routines                                      |
+| sessions               | array  | All user routine sessions                              |
+| reports                | array  | All user reports                                       |
+| commitments            | array  | All user commitments                                   |
+| checkins               | array  | All user checkins                                      |
+| tag_associations       | array  | Tag→entity links                                       |
+| principle_associations | array  | Principle→entity links                                 |
+
+**Business Logic:**
+* Passwords and password hashes are never included in the export.
+* Raw database IDs are included only so the import endpoint can rebuild relationships; IDs may change on restore.
+* Entity objects are the same shape returned by the corresponding entity endpoints.
+
+**Error Responses:**
+* 404 if user not found
+
+
+==== Import Data ====
+
+**POST /api/backup/import**
+
+Restores a previously exported backup blob, replacing the user's current data with the backup's contents.
+
+**Authentication:** Required (JWT Bearer token)
+
+| Field    | Type   | Required | Description                     |
+|----------|--------|----------|---------------------------------|
+| password | string | yes      | Current password for confirmation |
+| data     | object | yes      | Full backup blob (from export)  |
+
+**Business Logic:**
+* Password is re-verified before the restore proceeds.
+* Restore is a **full replace**: all of the user's existing data is deleted and repopulated from the backup in one transaction.
+* The user's account itself is preserved; `username` is never changed. `name` and `timezone` are updated from the backup.
+* Requests are limited in size (10 MB max).
+
+**Response:** Success message (200)
+
+**Error Responses:**
+* 400 if password is missing
+* 401 if password is invalid
+* 400 if backup data is missing or fails validation (e.g. unsupported format/version, invalid timezone, wrong entity shape)
+* 500 if error occurs during restore

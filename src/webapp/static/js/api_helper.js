@@ -63,7 +63,7 @@ const api = {
 
         // If response not ok, throw error with message
         if (!response.ok) {
-            throw new Error(data?.message || `API error: ${response.status}`);
+            throw new Error(data?.message || data?.error || `API error: ${response.status}`);
         }
 
         return data;

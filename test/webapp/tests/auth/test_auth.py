@@ -369,3 +369,106 @@ class TestAccountDeletion:
         with allure.step("Verify still on account page (deletion failed)"):
             assert '/auth/account' in authenticated_driver.current_url, \
                 "Unexpected navigation after failed deletion"
+
+
+@allure.feature('Account Management')
+@allure.story('Backup and Restore')
+@pytest.mark.auth
+class TestAccountBackup:
+    """Tests for the backup and restore functionality through the UI"""
+
+    def _export_backup_to_file(self, api_client, file_path):
+        """Export the current user's backup via API and write it to a file"""
+        with allure.step("Export current backup via API"):
+            backup_data = api_client.get('/api/backup/export')
+            assert backup_data, "Backup export returned no data"
+
+        with allure.step("Write backup to temp file"):
+            import json
+            with open(file_path, 'w') as f:
+                json.dump(backup_data, f)
+
+    @allure.severity(allure.severity_level.NORMAL)
+    @pytest.mark.smoke
+    def test_backup_restore_box_renders(self, authenticated_driver):
+        """Test that the backup and restore section renders for authenticated users"""
+        with allure.step("Navigate to account page"):
+            page = AccountPage(authenticated_driver)
+
+        with allure.step("Verify backup and restore sections are visible"):
+            assert page.is_export_button_visible(), \
+                "Export data button not visible on account page"
+            assert page.is_restore_box_visible(), \
+                "Restore form not visible on account page"
+
+    @allure.severity(allure.severity_level.NORMAL)
+    def test_restore_button_requires_confirmation(self, authenticated_driver):
+        """Test that the restore button is disabled until RESTORE is typed"""
+        with allure.step("Navigate to account page"):
+            page = AccountPage(authenticated_driver)
+
+        with allure.step("Verify restore button is disabled before confirmation"):
+            assert not page.is_restore_button_enabled(), \
+                "Restore button should be disabled before typing RESTORE"
+
+        with allure.step("Type partial confirmation text"):
+            page.type_confirm_text("RESTO")
+            assert not page.is_restore_button_enabled(), \
+                "Restore button should stay disabled with partial confirmation text"
+
+        with allure.step("Type full confirmation text"):
+            page.type_confirm_text("RESTORE")
+            assert page.is_restore_button_enabled(), \
+                "Restore button should be enabled after typing RESTORE"
+
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_import_wrong_password_shows_error(self, authenticated_driver, test_user, api_client, tmp_path):
+        """Test that importing with the wrong password shows an error"""
+        with allure.step("Export a valid backup file"):
+            backup_file = tmp_path / "backup.json"
+            self._export_backup_to_file(api_client, backup_file)
+
+        with allure.step("Navigate to account page and select backup file"):
+            page = AccountPage(authenticated_driver)
+            page.select_backup_file(str(backup_file))
+
+        with allure.step("Enter wrong password and confirm"):
+            page.type_import_password("wrong_password")
+            page.type_confirm_text("RESTORE")
+            page.click_restore_button()
+
+        with allure.step("Verify error message is displayed"):
+            assert page.has_import_error(), \
+                "Error message not displayed for incorrect password during import"
+
+        with allure.step("Verify still on account page (import failed)"):
+            assert '/auth/account' in authenticated_driver.current_url, \
+                "Unexpected navigation after failed import"
+
+    @allure.severity(allure.severity_level.CRITICAL)
+    def test_import_success_restores_data(self, authenticated_driver, test_user, api_client, tmp_path):
+        """Test that importing with the correct password succeeds and data is restored"""
+        with allure.step("Create a task via API"):
+            created = api_client.post('/api/tasks', {'title': 'Task Before Backup'})
+            assert created, "Failed to create task via API"
+
+        with allure.step("Export backup to file"):
+            backup_file = tmp_path / "backup.json"
+            self._export_backup_to_file(api_client, backup_file)
+
+        with allure.step("Navigate to account page and perform restore"):
+            page = AccountPage(authenticated_driver)
+            page.select_backup_file(str(backup_file))
+            page.type_import_password(test_user['password'])
+            page.type_confirm_text("RESTORE")
+            page.click_restore_button()
+
+        with allure.step("Verify success message is displayed"):
+            assert page.has_import_success(), \
+                "Success message not displayed after successful import"
+
+        with allure.step("Verify data was restored via API"):
+            restored_tasks = api_client.get('/api/tasks', params={'active': 'true'})
+            titles = [task['title'] for task in restored_tasks]
+            assert 'Task Before Backup' in titles, \
+                "Previously exported task not found after restore"
