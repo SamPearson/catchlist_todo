@@ -7,11 +7,19 @@
         target_type    - string, entity type (task, project, routine, session, report)
         target_id_expr - Alpine expression resolving to the entity id (e.g. task.id, report.id)
         testid         - string prefix for data-testid attributes
+        key_expr       - optional Alpine expression that, when its value changes, forces the
+                         component to be destroyed and re-created (which reloads the list).
+                         Pass this when the target id can change without the page reloading,
+                         e.g. on the report page where the viewed report swaps in-place.
 #}
-{% macro checkin_list(target_type, target_id_expr, testid) %}
+{% macro checkin_list(target_type, target_id_expr, testid, key_expr=None) %}
+{% set bind_expr = '_checkinTargetKey' if key_expr else target_id_expr %}
+{% if key_expr %}
+<template x-for="_checkinTargetKey in [{{ key_expr }}]" :key="_checkinTargetKey">
+{% endif %}
 <div x-data="checkinList({
         targetType: '{{ target_type }}',
-        targetId: {{ target_id_expr }},
+        targetId: {{ bind_expr }},
         testid: '{{ testid }}'
     })"
      class="detail-block">
@@ -58,4 +66,7 @@
         </div>
     </div>
 </div>
+{% if key_expr %}
+</template>
+{% endif %}
 {% endmacro %}
