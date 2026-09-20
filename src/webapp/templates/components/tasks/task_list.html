@@ -2,6 +2,7 @@
 
 {% macro task_list() %}
 {% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+{% from "components/shared/checkin_list.html" import checkin_list %}
 <section class="box" data-testid="task-list">
     <div x-data="taskList(INITIAL_TASKS)" x-init="init()">
 
@@ -126,6 +127,8 @@
                                 </div>
                             </template>
                         </div>
+
+                        {{ checkin_list('task', 'task.id', 'task-card') }}
                     </div>
 
                     <!-- Edit Mode -->

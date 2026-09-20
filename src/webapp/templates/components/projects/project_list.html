@@ -2,6 +2,7 @@
 
 {% macro project_list() %}
 {% from "components/shared/tag_principle_picker.html" import tag_principle_picker %}
+{% from "components/shared/checkin_list.html" import checkin_list %}
 <section class="box" data-testid="project-list">
     <div x-data="projectList(INITIAL_PROJECTS)" x-init="init()">
 
@@ -229,6 +230,8 @@
                                 </div>
                             </template>
                         </div>
+
+                        {{ checkin_list('project', 'project.id', 'project-card') }}
                     </div>
 
                     <!-- Edit Mode -->
